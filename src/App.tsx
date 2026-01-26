@@ -10,23 +10,21 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Vendas from "./pages/Vendas";
 import Clientes from "./pages/Clientes";
+import Espaco from "./pages/Espaco";
+import Financeiro from "./pages/Financeiro";
+import Contas from "./pages/Contas";
+import Relatorios from "./pages/Relatorios";
+import Servicos from "./pages/Servicos";
+import Garantias from "./pages/Garantias";
+import Estoque from "./pages/Estoque";
+import Pipeline from "./pages/Pipeline";
+import Perfil from "./pages/Perfil";
+import Empresa from "./pages/Empresa";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
-import { PlaceholderPage } from "./components/PlaceholderPage";
 import { MainLayout } from "./components/layout/MainLayout";
 
 const queryClient = new QueryClient();
-const EspacoPage = () => <PlaceholderPage title="Espaço (Vagas)" description="Controle as vagas disponíveis e ocupadas no seu estabelecimento." />;
-const FinanceiroPage = () => <PlaceholderPage title="Financeiro" description="Acompanhe entradas, saídas e o fluxo de caixa da empresa." />;
-const ContasPage = () => <PlaceholderPage title="Contas" description="Gerencie suas contas bancárias e carteiras." />;
-
-const RelatoriosPage = () => <PlaceholderPage title="Relatórios" description="Visualize relatórios detalhados de performance." />;
-const ServicosPage = () => <PlaceholderPage title="Serviços" description="Configure os serviços oferecidos e preços." />;
-const GarantiasPage = () => <PlaceholderPage title="Garantias" description="Gerencie certificados de garantia dos serviços." />;
-const EstoquePage = () => <PlaceholderPage title="Estoque" description="Controle de materiais e insumos." />;
-const PipelinePage = () => <PlaceholderPage title="Pipeline" description="Visualize o fluxo de produção no formato Kanban." />;
-const PerfilPage = () => <PlaceholderPage title="Perfil" description="Edite suas informações pessoais e senha." />;
-const EmpresaPage = () => <PlaceholderPage title="Sua Empresa" description="Configure os dados da empresa e personalização." />;
-const AdminPage = () => <PlaceholderPage title="Admin" description="Gestão de usuários e permissões do sistema." />;
 
 // Protected Route for admin-only pages
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -55,22 +53,22 @@ function AppRoutes() {
       {/* Protected Routes - wrapped in MainLayout */}
       <Route path="/" element={<MainLayout><Dashboard /></MainLayout>} />
       <Route path="/vendas" element={<MainLayout><Vendas /></MainLayout>} />
-      <Route path="/espaco" element={<EspacoPage />} />
-      <Route path="/financeiro" element={<FinanceiroPage />} />
-      <Route path="/contas" element={<ContasPage />} />
+      <Route path="/espaco" element={<MainLayout><Espaco /></MainLayout>} />
+      <Route path="/financeiro" element={<MainLayout><Financeiro /></MainLayout>} />
+      <Route path="/contas" element={<MainLayout><Contas /></MainLayout>} />
       <Route path="/clientes" element={<MainLayout><Clientes /></MainLayout>} />
-      <Route path="/relatorios" element={<RelatoriosPage />} />
-      <Route path="/servicos" element={<ServicosPage />} />
-      <Route path="/garantias" element={<GarantiasPage />} />
-      <Route path="/estoque" element={<EstoquePage />} />
-      <Route path="/pipeline" element={<PipelinePage />} />
-      <Route path="/perfil" element={<PerfilPage />} />
-      <Route path="/empresa" element={<EmpresaPage />} />
+      <Route path="/relatorios" element={<MainLayout><Relatorios /></MainLayout>} />
+      <Route path="/servicos" element={<MainLayout><Servicos /></MainLayout>} />
+      <Route path="/garantias" element={<MainLayout><Garantias /></MainLayout>} />
+      <Route path="/estoque" element={<MainLayout><Estoque /></MainLayout>} />
+      <Route path="/pipeline" element={<MainLayout><Pipeline /></MainLayout>} />
+      <Route path="/perfil" element={<MainLayout><Perfil /></MainLayout>} />
+      <Route path="/empresa" element={<MainLayout><Empresa /></MainLayout>} />
       <Route 
         path="/admin" 
         element={
           <AdminRoute>
-            <AdminPage />
+            <MainLayout><Admin /></MainLayout>
           </AdminRoute>
         } 
       />
