@@ -8,13 +8,12 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 // Pages
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Vendas from "./pages/Vendas";
 import NotFound from "./pages/NotFound";
 import { PlaceholderPage } from "./components/PlaceholderPage";
+import { MainLayout } from "./components/layout/MainLayout";
 
 const queryClient = new QueryClient();
-
-// Placeholder pages for each module
-const VendasPage = () => <PlaceholderPage title="Vendas" description="Gerencie suas vendas, orçamentos e histórico de transações." />;
 const EspacoPage = () => <PlaceholderPage title="Espaço (Vagas)" description="Controle as vagas disponíveis e ocupadas no seu estabelecimento." />;
 const FinanceiroPage = () => <PlaceholderPage title="Financeiro" description="Acompanhe entradas, saídas e o fluxo de caixa da empresa." />;
 const ContasPage = () => <PlaceholderPage title="Contas" description="Gerencie suas contas bancárias e carteiras." />;
@@ -52,9 +51,9 @@ function AppRoutes() {
         element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} 
       />
 
-      {/* Protected Routes */}
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/vendas" element={<VendasPage />} />
+      {/* Protected Routes - wrapped in MainLayout */}
+      <Route path="/" element={<MainLayout><Dashboard /></MainLayout>} />
+      <Route path="/vendas" element={<MainLayout><Vendas /></MainLayout>} />
       <Route path="/espaco" element={<EspacoPage />} />
       <Route path="/financeiro" element={<FinanceiroPage />} />
       <Route path="/contas" element={<ContasPage />} />
