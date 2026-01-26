@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Vendas from "./pages/Vendas";
+import Clientes from "./pages/Clientes";
 import NotFound from "./pages/NotFound";
 import { PlaceholderPage } from "./components/PlaceholderPage";
 import { MainLayout } from "./components/layout/MainLayout";
@@ -17,7 +18,7 @@ const queryClient = new QueryClient();
 const EspacoPage = () => <PlaceholderPage title="Espaço (Vagas)" description="Controle as vagas disponíveis e ocupadas no seu estabelecimento." />;
 const FinanceiroPage = () => <PlaceholderPage title="Financeiro" description="Acompanhe entradas, saídas e o fluxo de caixa da empresa." />;
 const ContasPage = () => <PlaceholderPage title="Contas" description="Gerencie suas contas bancárias e carteiras." />;
-const ClientesPage = () => <PlaceholderPage title="Clientes" description="Cadastre e gerencie seus clientes e veículos." />;
+
 const RelatoriosPage = () => <PlaceholderPage title="Relatórios" description="Visualize relatórios detalhados de performance." />;
 const ServicosPage = () => <PlaceholderPage title="Serviços" description="Configure os serviços oferecidos e preços." />;
 const GarantiasPage = () => <PlaceholderPage title="Garantias" description="Gerencie certificados de garantia dos serviços." />;
@@ -57,7 +58,7 @@ function AppRoutes() {
       <Route path="/espaco" element={<EspacoPage />} />
       <Route path="/financeiro" element={<FinanceiroPage />} />
       <Route path="/contas" element={<ContasPage />} />
-      <Route path="/clientes" element={<ClientesPage />} />
+      <Route path="/clientes" element={<MainLayout><Clientes /></MainLayout>} />
       <Route path="/relatorios" element={<RelatoriosPage />} />
       <Route path="/servicos" element={<ServicosPage />} />
       <Route path="/garantias" element={<GarantiasPage />} />

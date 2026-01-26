@@ -24,6 +24,7 @@ interface NewVehicleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onVehicleCreated: (vehicle: Vehicle) => void;
+  editVehicle?: Vehicle | null;
 }
 
 const brands = [
@@ -49,12 +50,23 @@ const brands = [
   "Outro",
 ];
 
-const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated }: NewVehicleModalProps) => {
-  const [plate, setPlate] = useState("");
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
-  const [year, setYear] = useState("");
-  const [size, setSize] = useState<"P" | "M" | "G" | "">("");
+const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: NewVehicleModalProps) => {
+  const [plate, setPlate] = useState(editVehicle?.plate || "");
+  const [brand, setBrand] = useState(editVehicle?.brand || "");
+  const [model, setModel] = useState(editVehicle?.model || "");
+  const [year, setYear] = useState(editVehicle?.year?.toString() || "");
+  const [size, setSize] = useState<"P" | "M" | "G" | "">(editVehicle?.size || "");
+
+  // Reset form when editVehicle changes
+  useState(() => {
+    if (editVehicle) {
+      setPlate(editVehicle.plate);
+      setBrand(editVehicle.brand);
+      setModel(editVehicle.model);
+      setYear(editVehicle.year.toString());
+      setSize(editVehicle.size);
+    }
+  });
 
   const formatPlate = (value: string) => {
     // Accept both old format (ABC-1234) and Mercosul (ABC1D23)
