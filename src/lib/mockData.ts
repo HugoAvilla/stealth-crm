@@ -8,6 +8,7 @@ export interface User {
   avatar: string | null;
   created_at: string;
   phone?: string;
+  is_active?: boolean;
 }
 
 export const users: User[] = [
@@ -19,7 +20,8 @@ export const users: User[] = [
     role: "admin",
     avatar: null,
     created_at: "2025-06-15",
-    phone: "+55 (17) 99999-0000"
+    phone: "+55 (17) 99999-0000",
+    is_active: true
   },
   {
     id: 2,
@@ -29,7 +31,8 @@ export const users: User[] = [
     role: "vendedor",
     avatar: null,
     created_at: "2025-08-20",
-    phone: "+55 (11) 98888-1111"
+    phone: "+55 (11) 98888-1111",
+    is_active: true
   },
   {
     id: 3,
@@ -39,7 +42,8 @@ export const users: User[] = [
     role: "vendedor",
     avatar: null,
     created_at: "2025-09-10",
-    phone: "+55 (21) 97777-2222"
+    phone: "+55 (21) 97777-2222",
+    is_active: true
   }
 ];
 
@@ -339,6 +343,194 @@ export const accounts: Account[] = [
   { id: 3, name: "Caixa Loja", type: "Carteira", balance: 1250.00, is_primary: false }
 ];
 
+// Mock Financial Categories
+export interface Category {
+  id: number;
+  name: string;
+  type: 'entrada' | 'saida';
+  color: string;
+  parent_id?: number;
+}
+
+export const categories: Category[] = [
+  { id: 1, name: "Vendas de Serviços", type: "entrada", color: "#22c55e" },
+  { id: 2, name: "Produtos", type: "entrada", color: "#3b82f6" },
+  { id: 3, name: "Outros Recebimentos", type: "entrada", color: "#8b5cf6" },
+  { id: 4, name: "Aluguel", type: "saida", color: "#ef4444" },
+  { id: 5, name: "Salários", type: "saida", color: "#f97316" },
+  { id: 6, name: "Materiais", type: "saida", color: "#eab308" },
+  { id: 7, name: "Impostos", type: "saida", color: "#dc2626" },
+  { id: 8, name: "Marketing", type: "saida", color: "#ec4899" },
+  { id: 9, name: "Energia/Água", type: "saida", color: "#06b6d4" },
+  { id: 10, name: "Manutenção", type: "saida", color: "#84cc16" }
+];
+
+// Mock Transactions
+export interface Transaction {
+  id: number;
+  type: 'entrada' | 'saida' | 'transferencia';
+  amount: number;
+  description: string;
+  category_id?: number;
+  account_id: number;
+  to_account_id?: number;
+  date: string;
+  status: 'confirmado' | 'pendente';
+  payment_method?: string;
+  sale_id?: number;
+}
+
+export const transactions: Transaction[] = [
+  { id: 1, type: "entrada", amount: 930.00, description: "Venda #1 - Hugo Avila", category_id: 1, account_id: 1, date: "2026-01-09", status: "confirmado", sale_id: 1 },
+  { id: 2, type: "entrada", amount: 350.00, description: "Venda #2 - Maria Silva", category_id: 1, account_id: 1, date: "2026-01-09", status: "confirmado", sale_id: 2 },
+  { id: 3, type: "entrada", amount: 1230.00, description: "Venda #3 - João Santos", category_id: 1, account_id: 3, date: "2026-01-10", status: "confirmado", sale_id: 3 },
+  { id: 4, type: "saida", amount: 2500.00, description: "Aluguel Janeiro", category_id: 4, account_id: 1, date: "2026-01-05", status: "confirmado" },
+  { id: 5, type: "saida", amount: 850.00, description: "Materiais PPF", category_id: 6, account_id: 1, date: "2026-01-08", status: "confirmado" },
+  { id: 6, type: "transferencia", amount: 2000.00, description: "Reserva mensal", account_id: 1, to_account_id: 2, date: "2026-01-10", status: "confirmado" },
+  { id: 7, type: "entrada", amount: 2500.00, description: "Venda #4 - Pedro Costa", category_id: 1, account_id: 1, date: "2026-01-15", status: "pendente", sale_id: 4 },
+  { id: 8, type: "saida", amount: 320.00, description: "Energia elétrica", category_id: 9, account_id: 1, date: "2026-01-20", status: "pendente" }
+];
+
+// Mock Slots (Vagas)
+export interface Slot {
+  id: number;
+  name: string;
+  status: 'disponivel' | 'ocupada' | 'manutencao';
+  sale_id?: number;
+  started_at?: string;
+  checklist_photos?: string[];
+  work_status?: 'em_andamento' | 'pausado' | 'em_espera' | 'finalizado';
+}
+
+export const slots: Slot[] = [
+  { id: 1, name: "Vaga 01", status: "ocupada", sale_id: 4, started_at: "2026-01-26T09:30:00", work_status: "em_andamento" },
+  { id: 2, name: "Vaga 02", status: "ocupada", sale_id: 5, started_at: "2026-01-26T08:00:00", work_status: "em_espera" },
+  { id: 3, name: "Vaga 03", status: "disponivel" },
+  { id: 4, name: "Vaga 04", status: "disponivel" },
+  { id: 5, name: "Vaga 05", status: "manutencao" },
+  { id: 6, name: "Vaga 06", status: "disponivel" },
+  { id: 7, name: "Vaga 07", status: "disponivel" },
+  { id: 8, name: "Vaga 08", status: "disponivel" },
+  { id: 9, name: "Vaga 09", status: "disponivel" },
+  { id: 10, name: "Vaga 10", status: "disponivel" }
+];
+
+// Mock Materials (Estoque)
+export interface Material {
+  id: number;
+  name: string;
+  category: string;
+  unit: string;
+  current_stock: number;
+  min_stock: number;
+  cost_per_unit: number;
+}
+
+export const materials: Material[] = [
+  { id: 1, name: "Película PPF Metro", category: "PPF", unit: "metro", current_stock: 50, min_stock: 20, cost_per_unit: 120.00 },
+  { id: 2, name: "Vitrificador Ceramic Pro", category: "Vitrificação", unit: "ml", current_stock: 2000, min_stock: 500, cost_per_unit: 0.50 },
+  { id: 3, name: "Polidor Compound", category: "Polimento", unit: "litro", current_stock: 5, min_stock: 3, cost_per_unit: 85.00 },
+  { id: 4, name: "Microfibra Premium", category: "Acessórios", unit: "unidade", current_stock: 30, min_stock: 10, cost_per_unit: 15.00 },
+  { id: 5, name: "Insulfilm G20", category: "Insulfilm", unit: "metro", current_stock: 8, min_stock: 15, cost_per_unit: 45.00 },
+  { id: 6, name: "Desengraxante", category: "Limpeza", unit: "litro", current_stock: 12, min_stock: 5, cost_per_unit: 25.00 }
+];
+
+// Mock Consumption Rules
+export interface ConsumptionRule {
+  id: number;
+  material_id: number;
+  service_id: number;
+  vehicle_size: 'P' | 'M' | 'G';
+  quantity: number;
+}
+
+export const consumptionRules: ConsumptionRule[] = [
+  { id: 1, material_id: 2, service_id: 1, vehicle_size: "P", quantity: 30 },
+  { id: 2, material_id: 2, service_id: 1, vehicle_size: "M", quantity: 50 },
+  { id: 3, material_id: 2, service_id: 1, vehicle_size: "G", quantity: 80 },
+  { id: 4, material_id: 1, service_id: 2, vehicle_size: "P", quantity: 3 },
+  { id: 5, material_id: 1, service_id: 2, vehicle_size: "M", quantity: 5 },
+  { id: 6, material_id: 1, service_id: 2, vehicle_size: "G", quantity: 8 },
+  { id: 7, material_id: 3, service_id: 3, vehicle_size: "P", quantity: 0.2 },
+  { id: 8, material_id: 3, service_id: 3, vehicle_size: "M", quantity: 0.3 },
+  { id: 9, material_id: 3, service_id: 3, vehicle_size: "G", quantity: 0.5 }
+];
+
+// Mock Warranty Templates
+export interface WarrantyTemplate {
+  id: number;
+  name: string;
+  service_id: number;
+  validity_months: number;
+  terms: string;
+}
+
+export const warrantyTemplates: WarrantyTemplate[] = [
+  { id: 1, name: "Garantia Vitrificação", service_id: 1, validity_months: 24, terms: "Garantia de 2 anos contra desbotamento e perda de brilho, desde que seguidas as recomendações de manutenção." },
+  { id: 2, name: "Garantia PPF", service_id: 2, validity_months: 60, terms: "Garantia de 5 anos contra amarelamento, bolhas e descolamento em condições normais de uso." },
+  { id: 3, name: "Garantia Insulfilm", service_id: 5, validity_months: 36, terms: "Garantia de 3 anos contra bolhas, descoloração e descolamento." }
+];
+
+// Mock Issued Warranties
+export interface IssuedWarranty {
+  id: number;
+  template_id: number;
+  sale_id: number;
+  client_id: number;
+  vehicle_id: number;
+  issued_at: string;
+  expires_at: string;
+  certificate_number: string;
+}
+
+export const issuedWarranties: IssuedWarranty[] = [
+  { id: 1, template_id: 1, sale_id: 1, client_id: 1, vehicle_id: 1, issued_at: "2026-01-09", expires_at: "2028-01-09", certificate_number: "WFE-VIT-2026-0001" },
+  { id: 2, template_id: 1, sale_id: 3, client_id: 3, vehicle_id: 3, issued_at: "2026-01-10", expires_at: "2028-01-10", certificate_number: "WFE-VIT-2026-0002" }
+];
+
+// Mock Report Types
+export interface ReportType {
+  id: string;
+  name: string;
+  description: string;
+  group: 'financeiro' | 'vendas' | 'operacional' | 'clientes';
+  formats: ('pdf' | 'xlsx' | 'csv' | 'ofx')[];
+}
+
+export const reportTypes: ReportType[] = [
+  { id: "dfc", name: "DFC - Demonstração de Fluxo de Caixa", description: "Relatório completo de entradas e saídas", group: "financeiro", formats: ["pdf", "xlsx"] },
+  { id: "dre", name: "DRE - Demonstração de Resultado", description: "Resultado do exercício por período", group: "financeiro", formats: ["pdf", "xlsx"] },
+  { id: "vendas_periodo", name: "Vendas por Período", description: "Todas as vendas em um intervalo de datas", group: "vendas", formats: ["pdf", "xlsx", "csv"] },
+  { id: "vendas_servico", name: "Vendas por Serviço", description: "Performance de cada serviço", group: "vendas", formats: ["pdf", "xlsx"] },
+  { id: "vendas_vendedor", name: "Vendas por Vendedor", description: "Comissões e performance por vendedor", group: "vendas", formats: ["pdf", "xlsx"] },
+  { id: "clientes_ativos", name: "Clientes Ativos", description: "Lista de clientes com vendas recentes", group: "clientes", formats: ["pdf", "xlsx", "csv"] },
+  { id: "clientes_inativos", name: "Clientes Inativos", description: "Clientes sem compras há mais de 90 dias", group: "clientes", formats: ["pdf", "xlsx"] },
+  { id: "ocupacao_vagas", name: "Ocupação de Vagas", description: "Histórico de ocupação do espaço", group: "operacional", formats: ["pdf", "xlsx"] },
+  { id: "estoque_movimento", name: "Movimentação de Estoque", description: "Entradas e saídas de materiais", group: "operacional", formats: ["pdf", "xlsx"] },
+  { id: "extrato_conta", name: "Extrato de Conta", description: "Movimentações de uma conta específica", group: "financeiro", formats: ["pdf", "ofx"] }
+];
+
+// Mock Company Settings
+export interface CompanySettings {
+  name: string;
+  cnpj: string;
+  phone: string;
+  email: string;
+  address: string;
+  logo_url: string | null;
+  primary_color: string;
+}
+
+export const companySettings: CompanySettings = {
+  name: "WFE Evolution",
+  cnpj: "12.345.678/0001-90",
+  phone: "+55 (17) 99999-0000",
+  email: "contato@wfe.com.br",
+  address: "Rua das Palmeiras, 123 - Centro, Cidade/SP",
+  logo_url: null,
+  primary_color: "#3b82f6"
+};
+
 // Mock Dashboard Stats
 export const dashboardStats = {
   totalSales: 8110.00,
@@ -393,3 +585,12 @@ export const getServiceById = (id: number) => services.find(s => s.id === id);
 
 // Helper function to get user by ID
 export const getUserById = (id: number) => users.find(u => u.id === id);
+
+// Helper function to get account by ID
+export const getAccountById = (id: number) => accounts.find(a => a.id === id);
+
+// Helper function to get category by ID
+export const getCategoryById = (id: number) => categories.find(c => c.id === id);
+
+// Helper function to get material by ID
+export const getMaterialById = (id: number) => materials.find(m => m.id === id);
