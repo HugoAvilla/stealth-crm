@@ -1,21 +1,22 @@
 import { useState } from "react";
-import { Plus, Search, FileCheck, Send, Download, MoreHorizontal } from "lucide-react";
+import { Plus, Search, FileCheck, Send, Download, MoreHorizontal, FilePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { issuedWarranties, warrantyTemplates, getClientById, getVehicleById, getServiceById } from "@/lib/mockData";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { IssueWarrantyModal } from "@/components/garantias/IssueWarrantyModal";
+import { NewWarrantyTemplateModal } from "@/components/garantias/NewWarrantyTemplateModal";
 import { SendEmailModal } from "@/components/garantias/SendEmailModal";
 import { toast } from "sonner";
 
 export default function Garantias() {
   const [search, setSearch] = useState("");
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [selectedWarranty, setSelectedWarranty] = useState<typeof issuedWarranties[0] | null>(null);
 
@@ -58,9 +59,14 @@ export default function Garantias() {
           <h1 className="text-2xl font-bold">Garantias</h1>
           <p className="text-muted-foreground">Gerencie certificados de garantia</p>
         </div>
-        <Button onClick={() => setShowIssueModal(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Emitir Garantia
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowTemplateModal(true)}>
+            <FilePlus className="h-4 w-4 mr-2" /> Criar Garantia Produto
+          </Button>
+          <Button onClick={() => setShowIssueModal(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Emitir Garantia
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -187,6 +193,7 @@ export default function Garantias() {
 
       {/* Modals */}
       <IssueWarrantyModal open={showIssueModal} onOpenChange={setShowIssueModal} />
+      <NewWarrantyTemplateModal open={showTemplateModal} onOpenChange={setShowTemplateModal} />
       <SendEmailModal
         open={showEmailModal}
         onOpenChange={setShowEmailModal}

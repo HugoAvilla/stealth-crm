@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import jetFighterImage from '@/assets/jet-fighter.jpg';
+import wfeLogo from '@/assets/wfe-logo.png';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -53,15 +54,11 @@ const Login = () => {
         {/* Logo */}
         <div className="absolute top-8 left-8 md:left-16 lg:left-24">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <svg 
-                viewBox="0 0 24 24" 
-                className="w-6 h-6 text-primary-foreground"
-                fill="currentColor"
-              >
-                <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
-              </svg>
-            </div>
+            <img 
+              src={wfeLogo} 
+              alt="WFE Evolution" 
+              className="h-12 w-auto object-contain"
+            />
             <span className="text-xl font-semibold tracking-tight">WFE EVOLUTION</span>
           </div>
         </div>

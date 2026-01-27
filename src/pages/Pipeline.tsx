@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Clock, User, Car, GripVertical, MessageSquare } from "lucide-react";
+import { Clock, User, GripVertical, MessageSquare, MessageCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { pipelineItems, sales, getClientById, getVehicleById, getServiceById, type PipelineItem } from "@/lib/mockData";
+import { pipelineItems, sales, getClientById, getVehicleById, getServiceById, type PipelineItem, type Client } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ClientChatModal } from "@/components/clientes/ClientChatModal";
 
 const STAGES = [
   { id: 'Agendados', label: 'Agendados', color: 'bg-blue-500' },
@@ -19,6 +20,8 @@ const STAGES = [
 export default function Pipeline() {
   const [items, setItems] = useState<PipelineItem[]>(pipelineItems);
   const [draggedItem, setDraggedItem] = useState<PipelineItem | null>(null);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [chatClient, setChatClient] = useState<Client | null>(null);
 
   const handleDragStart = (e: React.DragEvent, item: PipelineItem) => {
     setDraggedItem(item);
@@ -54,6 +57,11 @@ export default function Pipeline() {
 
   const getItemsByStage = (stage: PipelineItem['stage']) => 
     items.filter(item => item.stage === stage);
+
+  const openChat = (client: Client) => {
+    setChatClient(client);
+    setShowChatModal(true);
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -100,13 +108,28 @@ export default function Pipeline() {
                         draggable
                         onDragStart={e => handleDragStart(e, item)}
                         className={cn(
-                          "p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-all",
+                          "p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-all relative",
                           "bg-card hover:bg-accent",
                           item.is_urgent ? "border-red-500/50" : "border-border/50",
                           draggedItem?.id === item.id && "opacity-50"
                         )}
                       >
-                        <div className="flex items-start justify-between mb-2">
+                        {/* Chat button */}
+                        {client && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="absolute top-2 right-2 h-7 w-7 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openChat(client);
+                            }}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        <div className="flex items-start justify-between mb-2 pr-8">
                           <div className="flex items-center gap-2">
                             <GripVertical className="h-4 w-4 text-muted-foreground" />
                             {vehicle && (
@@ -180,6 +203,13 @@ export default function Pipeline() {
           );
         })}
       </div>
+
+      {/* Chat Modal */}
+      <ClientChatModal
+        open={showChatModal}
+        onOpenChange={setShowChatModal}
+        client={chatClient}
+      />
     </div>
   );
 }

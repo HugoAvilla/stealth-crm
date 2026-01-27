@@ -1,26 +1,13 @@
 import { useState } from "react";
-import { Building, Phone, Mail, MapPin, Upload, Palette, MessageCircle, Edit } from "lucide-react";
+import { Phone, Mail, MapPin, Upload, MessageCircle, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { companySettings } from "@/lib/mockData";
 import { EditCompanyModal } from "@/components/empresa/EditCompanyModal";
 import { toast } from "sonner";
 
-// Color palette
-const COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
-  '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
-  '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#64748b'
-];
-
 export default function Empresa() {
   const [showEditModal, setShowEditModal] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState(companySettings.primary_color);
-
-  const handleColorChange = (color: string) => {
-    setPrimaryColor(color);
-    toast.success("Cor primária atualizada!");
-  };
 
   const handleSupportClick = () => {
     toast.success("Chat de suporte iniciado!");
@@ -32,7 +19,7 @@ export default function Empresa() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Sua Empresa</h1>
-          <p className="text-muted-foreground">Configure os dados e personalização</p>
+          <p className="text-muted-foreground">Configure os dados da empresa</p>
         </div>
         <Button onClick={() => setShowEditModal(true)}>
           <Edit className="h-4 w-4 mr-2" /> Editar Dados
@@ -102,41 +89,6 @@ export default function Empresa() {
               <p className="text-sm text-muted-foreground">Endereço</p>
               <p className="font-medium">{companySettings.address}</p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Color Palette */}
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Palette className="h-5 w-5" /> Personalização
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Escolha a cor primária do sistema
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {COLORS.map(color => (
-              <button
-                key={color}
-                onClick={() => handleColorChange(color)}
-                className="w-8 h-8 rounded-lg border-2 transition-transform hover:scale-110"
-                style={{
-                  backgroundColor: color,
-                  borderColor: primaryColor === color ? 'white' : 'transparent'
-                }}
-              />
-            ))}
-          </div>
-          <div className="mt-4 flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Cor atual:</span>
-            <div
-              className="w-6 h-6 rounded border"
-              style={{ backgroundColor: primaryColor }}
-            />
-            <span className="font-mono text-sm">{primaryColor}</span>
           </div>
         </CardContent>
       </Card>

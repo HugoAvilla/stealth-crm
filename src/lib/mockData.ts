@@ -568,6 +568,83 @@ export const pipelineItems: PipelineItem[] = [
   { id: 2, sale_id: 5, stage: "Agendados", scheduled_time: "10:00", is_urgent: false }
 ];
 
+// Mock Chat Messages
+export interface ChatMessage {
+  id: number;
+  client_id: number;
+  content: string;
+  sender: 'client' | 'company';
+  timestamp: string;
+  read: boolean;
+}
+
+export const clientMessages: ChatMessage[] = [
+  {
+    id: 1,
+    client_id: 1,
+    content: "Olá! Gostaria de saber sobre o serviço de vitrificação.",
+    sender: 'client',
+    timestamp: "2026-01-20T10:30:00",
+    read: true
+  },
+  {
+    id: 2,
+    client_id: 1,
+    content: "Bom dia! Temos a vitrificação completa com garantia de 2 anos por R$ 800. Posso agendar para você?",
+    sender: 'company',
+    timestamp: "2026-01-20T10:35:00",
+    read: true
+  },
+  {
+    id: 3,
+    client_id: 1,
+    content: "Perfeito! Pode agendar para sexta às 14h?",
+    sender: 'client',
+    timestamp: "2026-01-20T10:40:00",
+    read: true
+  },
+  {
+    id: 4,
+    client_id: 1,
+    content: "Agendado! Te esperamos na sexta-feira às 14h. 🚗✨",
+    sender: 'company',
+    timestamp: "2026-01-20T10:42:00",
+    read: true
+  },
+  {
+    id: 5,
+    client_id: 2,
+    content: "Boa tarde! O carro já está pronto?",
+    sender: 'client',
+    timestamp: "2026-01-25T15:00:00",
+    read: true
+  },
+  {
+    id: 6,
+    client_id: 2,
+    content: "Oi Maria! Sim, já está finalizado. Pode passar para retirar hoje até às 18h.",
+    sender: 'company',
+    timestamp: "2026-01-25T15:05:00",
+    read: true
+  },
+  {
+    id: 7,
+    client_id: 3,
+    content: "Vocês fazem PPF completo?",
+    sender: 'client',
+    timestamp: "2026-01-26T09:00:00",
+    read: false
+  },
+  {
+    id: 8,
+    client_id: 5,
+    content: "Bom dia! Quero agendar uma manutenção preventiva.",
+    sender: 'client',
+    timestamp: "2026-01-27T08:30:00",
+    read: false
+  }
+];
+
 // Helper function to get client by ID
 export const getClientById = (id: number) => clients.find(c => c.id === id);
 
