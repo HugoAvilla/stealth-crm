@@ -1,19 +1,24 @@
 import { useState } from "react";
-import { Eye, EyeOff, Settings, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, Settings, ArrowUpRight, ArrowDownRight, RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { accounts, transactions, categories, getCategoryById, getAccountById } from "@/lib/mockData";
+import { accounts as initialAccounts, transactions, categories, getCategoryById, type Account } from "@/lib/mockData";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { cn } from "@/lib/utils";
+import { AddAccountModal } from "@/components/financeiro/AddAccountModal";
+import { EditAccountModal } from "@/components/contas/EditAccountModal";
 
 export default function Contas() {
-  const [selectedAccountId, setSelectedAccountId] = useState<number>(accounts[0]?.id || 1);
+  const [localAccounts, setLocalAccounts] = useState<Account[]>(initialAccounts);
+  const [selectedAccountId, setSelectedAccountId] = useState<number>(localAccounts[0]?.id || 1);
   const [showValues, setShowValues] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
-  const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+  const selectedAccount = localAccounts.find(a => a.id === selectedAccountId);
   const accountTransactions = transactions.filter(t => 
     t.account_id === selectedAccountId || t.to_account_id === selectedAccountId
   );
@@ -49,29 +54,81 @@ export default function Contas() {
     return groups;
   }, {} as Record<string, typeof transactions>);
 
+  const handleAccountCreated = (newAccount: Omit<Account, 'id'>) => {
+    const id = Math.max(...localAccounts.map(a => a.id)) + 1;
+    const account: Account = { ...newAccount, id } as Account;
+    
+    // If new account is primary, remove primary from others
+    if (account.is_primary) {
+      setLocalAccounts(prev => prev.map(a => ({ ...a, is_primary: false })));
+    }
+    
+    setLocalAccounts(prev => [...prev, account]);
+    setSelectedAccountId(id);
+  };
+
+  const handleAccountUpdated = (updatedAccount: Account) => {
+    setLocalAccounts(prev => {
+      // If updated account becomes primary, remove primary from others
+      if (updatedAccount.is_primary) {
+        return prev.map(a => 
+          a.id === updatedAccount.id 
+            ? updatedAccount 
+            : { ...a, is_primary: false }
+        );
+      }
+      return prev.map(a => a.id === updatedAccount.id ? updatedAccount : a);
+    });
+  };
+
+  const handleAccountDeleted = (accountId: number) => {
+    setLocalAccounts(prev => prev.filter(a => a.id !== accountId));
+    if (selectedAccountId === accountId) {
+      const remaining = localAccounts.filter(a => a.id !== accountId);
+      if (remaining.length > 0) {
+        setSelectedAccountId(remaining[0].id);
+      }
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Left sidebar - Account selection */}
       <div className="w-72 border-r border-border/50 p-4 space-y-4 overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Contas</h2>
-          <Button variant="ghost" size="icon" onClick={() => setShowValues(!showValues)}>
-            {showValues ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-          </Button>
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" onClick={() => setShowAddModal(true)}>
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setShowValues(!showValues)}>
+              {showValues ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-2">
-          {accounts.map(account => (
+          {localAccounts.map(account => (
             <button
               key={account.id}
               onClick={() => setSelectedAccountId(account.id)}
               className={cn(
-                "w-full p-3 rounded-lg text-left transition-colors",
+                "w-full p-3 rounded-lg text-left transition-colors relative group",
                 selectedAccountId === account.id
                   ? "bg-primary/10 border border-primary/30"
                   : "bg-card/50 border border-border/50 hover:bg-accent"
               )}
             >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingAccount(account);
+                }}
+                className="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-muted transition-all"
+              >
+                <Settings className="h-3 w-3 text-muted-foreground" />
+              </button>
+              
               <div className="flex items-center justify-between mb-1">
                 <span className="font-medium text-sm">{account.name}</span>
                 {account.is_primary && (
@@ -94,7 +151,7 @@ export default function Contas() {
             <p className="text-muted-foreground">{selectedAccount?.type}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" onClick={() => selectedAccount && setEditingAccount(selectedAccount)}>
               <Settings className="h-4 w-4" />
             </Button>
           </div>
@@ -233,6 +290,20 @@ export default function Contas() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modals */}
+      <AddAccountModal 
+        open={showAddModal} 
+        onOpenChange={setShowAddModal}
+      />
+      <EditAccountModal
+        open={!!editingAccount}
+        onOpenChange={(open) => !open && setEditingAccount(null)}
+        account={editingAccount}
+        onAccountUpdated={handleAccountUpdated}
+        onAccountDeleted={handleAccountDeleted}
+        canDelete={localAccounts.length > 1}
+      />
     </div>
   );
 }

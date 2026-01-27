@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { User, Mail, Phone, Calendar, Moon, Sun, LogOut, Edit, Lock, FileText, Shield } from "lucide-react";
+import { User, LogOut, Edit, Lock, FileText, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
@@ -14,7 +13,6 @@ import { toast } from "sonner";
 
 export default function Perfil() {
   const { user, logout } = useAuth();
-  const [darkMode, setDarkMode] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
@@ -67,23 +65,7 @@ export default function Perfil() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Dark Mode */}
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {darkMode ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-                <div>
-                  <p className="font-medium">Modo Escuro</p>
-                  <p className="text-xs text-muted-foreground">Tema da interface</p>
-                </div>
-              </div>
-              <Switch checked={darkMode} onCheckedChange={setDarkMode} />
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 gap-4">
         {/* Logout */}
         <Card className="bg-card/50 border-border/50">
           <CardContent className="p-4">

@@ -30,6 +30,7 @@ import { clients, Client } from "@/lib/mockData";
 import NewClientModal from "@/components/vendas/NewClientModal";
 import { ClientProfileModal } from "@/components/clientes/ClientProfileModal";
 import { EditClientModal } from "@/components/clientes/EditClientModal";
+import { ClientChatModal } from "@/components/clientes/ClientChatModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +52,8 @@ export default function Clientes() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [chatClient, setChatClient] = useState<Client | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
   const filteredAndSortedClients = useMemo(() => {
@@ -109,9 +112,9 @@ export default function Clientes() {
     }
   };
 
-  const openWhatsApp = (phone: string) => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    window.open(`https://wa.me/${cleanPhone}`, '_blank');
+  const openChat = (client: Client) => {
+    setChatClient(client);
+    setShowChatModal(true);
   };
 
   const getSortLabel = () => {
@@ -202,7 +205,7 @@ export default function Clientes() {
                 </TableCell>
                 <TableCell>
                   <button
-                    onClick={() => openWhatsApp(client.phone)}
+                    onClick={() => openChat(client)}
                     className="text-primary hover:underline flex items-center gap-1"
                   >
                     <MessageCircle className="h-3 w-3" />
@@ -291,6 +294,12 @@ export default function Clientes() {
           />
         </>
       )}
+
+      <ClientChatModal
+        open={showChatModal}
+        onOpenChange={setShowChatModal}
+        client={chatClient}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!clientToDelete} onOpenChange={() => setClientToDelete(null)}>

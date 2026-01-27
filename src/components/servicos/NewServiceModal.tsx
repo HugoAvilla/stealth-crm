@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { type Service } from "@/lib/mockData";
 import { toast } from "sonner";
 
@@ -19,8 +18,6 @@ export function NewServiceModal({ open, onOpenChange, editService }: NewServiceM
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [commissionPercent, setCommissionPercent] = useState("");
-  const [postSaleDays, setPostSaleDays] = useState("");
-  const [autoSchedule, setAutoSchedule] = useState(false);
 
   useEffect(() => {
     if (editService) {
@@ -28,8 +25,6 @@ export function NewServiceModal({ open, onOpenChange, editService }: NewServiceM
       setPrice(editService.price.toString());
       setDescription(editService.description);
       setCommissionPercent(editService.commission_percent.toString());
-      setPostSaleDays(editService.post_sale_days.toString());
-      setAutoSchedule(editService.auto_schedule);
     } else {
       resetForm();
     }
@@ -40,8 +35,6 @@ export function NewServiceModal({ open, onOpenChange, editService }: NewServiceM
     setPrice("");
     setDescription("");
     setCommissionPercent("");
-    setPostSaleDays("0");
-    setAutoSchedule(false);
   };
 
   const handleSubmit = () => {
@@ -101,29 +94,6 @@ export function NewServiceModal({ open, onOpenChange, editService }: NewServiceM
               value={description}
               onChange={e => setDescription(e.target.value)}
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Dias para Pós-Venda</Label>
-            <Input
-              type="number"
-              placeholder="0"
-              value={postSaleDays}
-              onChange={e => setPostSaleDays(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              0 = sem pós-venda automático
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Auto-Agendamento</Label>
-              <p className="text-xs text-muted-foreground">
-                Agendar automaticamente pós-venda
-              </p>
-            </div>
-            <Switch checked={autoSchedule} onCheckedChange={setAutoSchedule} />
           </div>
 
           <div className="flex gap-2 pt-4">
