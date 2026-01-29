@@ -241,6 +241,9 @@ const Login = () => {
                     placeholder="Seu nome completo"
                     className="input-underline w-full text-lg"
                     disabled={isLoading}
+                    maxLength={100}
+                    pattern="[a-zA-ZÀ-ÿ\s'\-]+"
+                    title="Nome deve conter apenas letras, espaços, hífens e apóstrofos"
                   />
                   <label className="absolute -top-2 left-0 text-xs text-muted-foreground uppercase tracking-wider">
                     Nome
