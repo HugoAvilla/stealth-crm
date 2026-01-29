@@ -3,11 +3,15 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Profile, AppRole } from '@/lib/database.types';
 
+export type SubscriptionStatus = 'pending_payment' | 'payment_submitted' | 'active' | 'expired' | 'blocked';
+
 interface AuthUser {
   id: string;
   email: string;
   profile: Profile | null;
   role: AppRole;
+  subscriptionStatus: SubscriptionStatus;
+  companyId: number | null;
 }
 
 interface AuthContextType {
@@ -16,7 +20,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, name: string, phone?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -52,13 +56,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error fetching role:', roleError);
       }
 
+      // Fetch subscription
+      const { data: subscriptionData, error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .select('status, company_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (subscriptionError) {
+        console.error('Error fetching subscription:', subscriptionError);
+      }
+
       const { data: { user: authUser } } = await supabase.auth.getUser();
 
       return {
         id: userId,
         email: authUser?.email || profile?.email || '',
         profile: profile as Profile | null,
-        role: (roleData?.role as AppRole) || 'NENHUM'
+        role: (roleData?.role as AppRole) || 'NENHUM',
+        subscriptionStatus: (subscriptionData?.status as SubscriptionStatus) || 'pending_payment',
+        companyId: profile?.company_id || subscriptionData?.company_id || null
       };
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -120,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, name: string): Promise<{ error: Error | null }> => {
+  const signUp = async (email: string, password: string, name: string, phone?: string): Promise<{ error: Error | null }> => {
     try {
       // Validate name before sending to server
       const trimmedName = name.trim();
@@ -149,7 +166,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: new Error('Senha deve ter pelo menos 6 caracteres') };
       }
 
-      const redirectUrl = `${window.location.origin}/`;
+      // Validate phone if provided
+      const trimmedPhone = phone?.trim() || null;
+      if (trimmedPhone && !/^[\d\s()+\-]+$/.test(trimmedPhone)) {
+        return { error: new Error('Telefone inválido') };
+      }
+
+      const redirectUrl = `${window.location.origin}/assinatura`;
       
       const { error } = await supabase.auth.signUp({
         email: trimmedEmail,
@@ -157,7 +180,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            name: trimmedName
+            name: trimmedName,
+            phone: trimmedPhone
           }
         }
       });

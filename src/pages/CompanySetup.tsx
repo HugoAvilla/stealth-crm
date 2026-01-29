@@ -1,0 +1,367 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, Building2, Upload } from 'lucide-react';
+
+export default function CompanySetup() {
+  const { user, refreshUser } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    company_name: '',
+    cnpj: '',
+    phone: '',
+    email: '',
+    cep: '',
+    state: '',
+    city: '',
+    neighborhood: '',
+    street: '',
+    number: '',
+    complement: '',
+  });
+
+  useEffect(() => {
+    // Redirect if user already has company
+    if (user?.companyId) {
+      navigate('/');
+    }
+    // Redirect if subscription not active
+    if (user?.subscriptionStatus !== 'active') {
+      if (user?.subscriptionStatus === 'pending_payment') {
+        navigate('/assinatura');
+      } else if (user?.subscriptionStatus === 'payment_submitted') {
+        navigate('/aguardando-liberacao');
+      }
+    }
+  }, [user, navigate]);
+
+  const formatCNPJ = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 5) return `${numbers.slice(0, 2)}.${numbers.slice(2)}`;
+    if (numbers.length <= 8) return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5)}`;
+    if (numbers.length <= 12) return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8)}`;
+    return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8, 12)}-${numbers.slice(12, 14)}`;
+  };
+
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+  };
+
+  const formatCEP = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 5) return numbers;
+    return `${numbers.slice(0, 5)}-${numbers.slice(5, 8)}`;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    let formattedValue = value;
+    if (name === 'cnpj') formattedValue = formatCNPJ(value);
+    if (name === 'phone') formattedValue = formatPhone(value);
+    if (name === 'cep') formattedValue = formatCEP(value);
+    
+    setFormData(prev => ({ ...prev, [name]: formattedValue }));
+
+    // Auto-fetch address when CEP is complete
+    if (name === 'cep' && value.replace(/\D/g, '').length === 8) {
+      fetchAddress(value.replace(/\D/g, ''));
+    }
+  };
+
+  const fetchAddress = async (cep: string) => {
+    setIsFetchingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      
+      if (!data.erro) {
+        setFormData(prev => ({
+          ...prev,
+          state: data.uf || '',
+          city: data.localidade || '',
+          neighborhood: data.bairro || '',
+          street: data.logradouro || '',
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching address:', error);
+    } finally {
+      setIsFetchingCep(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    setIsLoading(true);
+
+    try {
+      // 1. Create company
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .insert({
+          ...formData,
+          owner_id: user.id
+        })
+        .select()
+        .single();
+
+      if (companyError) throw companyError;
+
+      // 2. Update profile with company_id
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ company_id: company.id })
+        .eq('user_id', user.id);
+
+      if (profileError) throw profileError;
+
+      // 3. Update subscription with company_id
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .update({ company_id: company.id })
+        .eq('user_id', user.id);
+
+      if (subscriptionError) throw subscriptionError;
+
+      // 4. Update user role to ADMIN
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .update({ role: 'ADMIN' })
+        .eq('user_id', user.id);
+
+      if (roleError) throw roleError;
+
+      // 5. Create default bank account
+      const { error: accountError } = await supabase
+        .from('accounts')
+        .insert({
+          name: 'Conta Principal',
+          company_id: company.id,
+          is_main: true,
+          is_active: true,
+          initial_balance: 0,
+          current_balance: 0
+        });
+
+      if (accountError) throw accountError;
+
+      toast({
+        title: 'Empresa cadastrada!',
+        description: 'Bem-vindo ao WFE Evolution CRM',
+      });
+
+      await refreshUser();
+      navigate('/');
+
+    } catch (error: any) {
+      console.error('Error creating company:', error);
+      toast({
+        title: 'Erro ao cadastrar empresa',
+        description: error.message || 'Tente novamente',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 py-8 px-4">
+      <div className="max-w-2xl mx-auto">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-xl bg-primary flex items-center justify-center">
+              <Building2 className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-2xl">Cadastre sua empresa</CardTitle>
+            <CardDescription>
+              Preencha os dados da sua empresa para começar a usar o sistema
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Company Info */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="company_name">Nome da Empresa *</Label>
+                  <Input
+                    id="company_name"
+                    name="company_name"
+                    value={formData.company_name}
+                    onChange={handleChange}
+                    placeholder="Razão social ou nome fantasia"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cnpj">CNPJ</Label>
+                  <Input
+                    id="cnpj"
+                    name="cnpj"
+                    value={formData.cnpj}
+                    onChange={handleChange}
+                    placeholder="00.000.000/0000-00"
+                    maxLength={18}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">WhatsApp da Empresa *</Label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="(00) 00000-0000"
+                    maxLength={15}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="email">Email da Empresa</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="contato@empresa.com.br"
+                  />
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Endereço</span>
+                </div>
+              </div>
+
+              {/* Address */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="cep">CEP</Label>
+                  <div className="relative">
+                    <Input
+                      id="cep"
+                      name="cep"
+                      value={formData.cep}
+                      onChange={handleChange}
+                      placeholder="00000-000"
+                      maxLength={9}
+                    />
+                    {isFetchingCep && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="state">Estado</Label>
+                  <Input
+                    id="state"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleChange}
+                    placeholder="UF"
+                    maxLength={2}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="city">Cidade</Label>
+                  <Input
+                    id="city"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    placeholder="Cidade"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="neighborhood">Bairro</Label>
+                  <Input
+                    id="neighborhood"
+                    name="neighborhood"
+                    value={formData.neighborhood}
+                    onChange={handleChange}
+                    placeholder="Bairro"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="street">Rua</Label>
+                  <Input
+                    id="street"
+                    name="street"
+                    value={formData.street}
+                    onChange={handleChange}
+                    placeholder="Nome da rua"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="number">Número</Label>
+                  <Input
+                    id="number"
+                    name="number"
+                    value={formData.number}
+                    onChange={handleChange}
+                    placeholder="Nº"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="complement">Complemento</Label>
+                  <Input
+                    id="complement"
+                    name="complement"
+                    value={formData.complement}
+                    onChange={handleChange}
+                    placeholder="Sala, andar, etc."
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cadastrando...
+                  </>
+                ) : (
+                  'Cadastrar e começar'
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

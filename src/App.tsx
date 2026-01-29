@@ -8,6 +8,10 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Pages
 import Login from "./pages/Login";
+import SignUp from "./pages/SignUp";
+import Subscription from "./pages/Subscription";
+import WaitingApproval from "./pages/WaitingApproval";
+import CompanySetup from "./pages/CompanySetup";
 import Dashboard from "./pages/Dashboard";
 import Vendas from "./pages/Vendas";
 import Clientes from "./pages/Clientes";
@@ -28,7 +32,7 @@ import { MainLayout } from "./components/layout/MainLayout";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return null;
@@ -36,10 +40,56 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Public Route */}
+      {/* Public Routes */}
       <Route 
         path="/login" 
         element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} 
+      />
+      <Route 
+        path="/cadastro" 
+        element={isAuthenticated ? <Navigate to="/" replace /> : <SignUp />} 
+      />
+
+      {/* Subscription Flow Routes (authenticated but no company yet) */}
+      <Route 
+        path="/assinatura" 
+        element={
+          !isAuthenticated ? (
+            <Navigate to="/login" replace />
+          ) : user?.subscriptionStatus === 'active' && user?.companyId ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Subscription />
+          )
+        } 
+      />
+      <Route 
+        path="/aguardando-liberacao" 
+        element={
+          !isAuthenticated ? (
+            <Navigate to="/login" replace />
+          ) : user?.subscriptionStatus === 'active' ? (
+            user?.companyId ? <Navigate to="/" replace /> : <Navigate to="/empresa/cadastro" replace />
+          ) : user?.subscriptionStatus !== 'payment_submitted' ? (
+            <Navigate to="/assinatura" replace />
+          ) : (
+            <WaitingApproval />
+          )
+        } 
+      />
+      <Route 
+        path="/empresa/cadastro" 
+        element={
+          !isAuthenticated ? (
+            <Navigate to="/login" replace />
+          ) : user?.subscriptionStatus !== 'active' ? (
+            <Navigate to="/assinatura" replace />
+          ) : user?.companyId ? (
+            <Navigate to="/" replace />
+          ) : (
+            <CompanySetup />
+          )
+        } 
       />
 
       {/* Protected Routes - ADMIN and VENDEDOR */}
@@ -110,7 +160,7 @@ function AppRoutes() {
       } />
       
       <Route path="/empresa" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+        <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Empresa /></MainLayout>
         </ProtectedRoute>
       } />
