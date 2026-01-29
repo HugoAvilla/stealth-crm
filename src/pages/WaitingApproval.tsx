@@ -1,0 +1,166 @@
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Clock, RefreshCw, MessageCircle, CheckCircle } from 'lucide-react';
+
+export default function WaitingApproval() {
+  const { user, refreshUser } = useAuth();
+  const navigate = useNavigate();
+  const [countdown, setCountdown] = useState(30);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Check subscription status on mount
+    if (user?.subscriptionStatus === 'active') {
+      if (user.companyId) {
+        navigate('/');
+      } else {
+        navigate('/empresa/cadastro');
+      }
+      return;
+    }
+
+    if (user?.subscriptionStatus === 'pending_payment') {
+      navigate('/assinatura');
+      return;
+    }
+
+    if (user?.subscriptionStatus === 'blocked') {
+      navigate('/login');
+      return;
+    }
+
+    // Polling every 30 seconds
+    intervalRef.current = setInterval(async () => {
+      setIsRefreshing(true);
+      await refreshUser();
+      setIsRefreshing(false);
+      setCountdown(30);
+    }, 30000);
+
+    // Countdown timer
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => (prev > 0 ? prev - 1 : 30));
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      clearInterval(countdownInterval);
+    };
+  }, [user, refreshUser, navigate]);
+
+  useEffect(() => {
+    // React to subscription status changes
+    if (user?.subscriptionStatus === 'active') {
+      if (user.companyId) {
+        navigate('/');
+      } else {
+        navigate('/empresa/cadastro');
+      }
+    }
+  }, [user?.subscriptionStatus, user?.companyId, navigate]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshUser();
+    setIsRefreshing(false);
+    setCountdown(30);
+  };
+
+  const openWhatsApp = () => {
+    window.open('https://wa.me/5500000000000?text=Meu pagamento ainda não foi confirmado. Meu email é: ' + user?.email, '_blank');
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 relative">
+            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center">
+              <Clock className="h-10 w-10 text-primary animate-pulse" />
+            </div>
+            {isRefreshing && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              </div>
+            )}
+          </div>
+          <CardTitle className="text-2xl">Verificando seu pagamento...</CardTitle>
+          <CardDescription>
+            Isso pode levar até 5 minutos. Você será redirecionado automaticamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Status */}
+          <div className="text-center py-4 bg-muted/50 rounded-lg">
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>Próxima verificação em {countdown}s</span>
+            </div>
+          </div>
+
+          {/* Progress Steps */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                <CheckCircle className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <span className="text-sm">Pagamento informado</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-primary animate-pulse" />
+              </div>
+              <span className="text-sm text-muted-foreground">Aguardando confirmação</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <span className="text-xs text-muted-foreground">3</span>
+              </div>
+              <span className="text-sm text-muted-foreground">Cadastrar empresa</span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-3 pt-4">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Verificando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Verificar agora
+                </>
+              )}
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              className="w-full"
+              onClick={openWhatsApp}
+            >
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Meu pagamento não foi confirmado
+            </Button>
+          </div>
+
+          {/* Info */}
+          <p className="text-xs text-center text-muted-foreground">
+            Se após 10 minutos seu pagamento não for confirmado, entre em contato conosco via WhatsApp.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
