@@ -5,8 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Copy, Check, CreditCard, Users, Database, Headphones, RefreshCw, MessageCircle, QrCode } from 'lucide-react';
+import { Loader2, Copy, Check, CreditCard, Users, Database, Headphones, RefreshCw, MessageCircle, QrCode, Tag, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,12 @@ export default function Subscription() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [discount, setDiscount] = useState(0);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   useEffect(() => {
     fetchConfig();
@@ -96,18 +103,98 @@ export default function Subscription() {
     }
   };
 
+  const validateCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast({ title: 'Digite um código de cupom', variant: 'destructive' });
+      return;
+    }
+
+    setValidatingCoupon(true);
+
+    try {
+      const { data, error } = await supabase.rpc('validate_coupon', {
+        coupon_code_input: couponCode.toUpperCase()
+      });
+
+      if (error) throw error;
+
+      const result = data?.[0];
+
+      if (!result?.is_valid) {
+        toast({ title: result?.message || 'Cupom inválido', variant: 'destructive' });
+        return;
+      }
+
+      // Calculate discount
+      const basePrice = config?.monthly_price || 297;
+      let discountAmount = 0;
+      if (result.discount_type === 'percentage') {
+        discountAmount = (basePrice * result.discount_value) / 100;
+      } else {
+        discountAmount = result.discount_value;
+      }
+
+      setDiscount(discountAmount);
+      setCouponApplied(true);
+      toast({ title: `Cupom aplicado! Desconto de R$ ${discountAmount.toFixed(2)}` });
+    } catch (error) {
+      console.error('Error validating coupon:', error);
+      toast({ title: 'Erro ao validar cupom', variant: 'destructive' });
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setCouponCode('');
+    setCouponApplied(false);
+    setDiscount(0);
+    toast({ title: 'Cupom removido' });
+  };
+
+  const getFinalPrice = () => {
+    const basePrice = config?.monthly_price || 297;
+    return Math.max(0, basePrice - discount);
+  };
+
   const handleConfirmPayment = async () => {
     if (!confirmed || !user) return;
     
     setIsSubmitting(true);
     
     try {
+      const finalPrice = getFinalPrice();
+      
+      // Update subscription with coupon info
       const { error } = await supabase
         .from('subscriptions')
-        .update({ status: 'payment_submitted' })
+        .update({ 
+          status: 'payment_submitted',
+          coupon_code: couponApplied ? couponCode.toUpperCase() : null,
+          discount_amount: discount,
+          final_price: finalPrice
+        })
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      // If coupon was applied, record usage
+      if (couponApplied) {
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (subData) {
+          await supabase.rpc('apply_coupon', {
+            coupon_code_input: couponCode.toUpperCase(),
+            p_user_id: user.id,
+            p_subscription_id: subData.id,
+            p_discount_applied: discount
+          });
+        }
+      }
 
       await refreshUser();
       navigate('/aguardando-liberacao');
@@ -157,11 +244,63 @@ export default function Subscription() {
               <CardDescription>Acesso completo a todas as funcionalidades</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="text-center py-4 bg-primary/10 rounded-lg">
+              {/* Price Display */}
+              <div className="text-center py-4 bg-primary/10 rounded-lg space-y-1">
+                {discount > 0 && (
+                  <div className="text-lg text-muted-foreground line-through">
+                    R$ {config?.monthly_price?.toFixed(2).replace('.', ',')}
+                  </div>
+                )}
                 <span className="text-4xl font-bold text-primary">
-                  R$ {config?.monthly_price?.toFixed(2).replace('.', ',')}
+                  R$ {getFinalPrice().toFixed(2).replace('.', ',')}
                 </span>
                 <span className="text-muted-foreground">/mês</span>
+                {discount > 0 && (
+                  <div className="text-sm text-green-500 font-medium">
+                    Você economiza R$ {discount.toFixed(2).replace('.', ',')}!
+                  </div>
+                )}
+              </div>
+
+              {/* Coupon Section */}
+              <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Tag className="h-4 w-4" />
+                  Possui um cupom de desconto?
+                </label>
+                {!couponApplied ? (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Digite o código"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      className="flex-1 uppercase font-mono"
+                      disabled={validatingCoupon}
+                    />
+                    <Button 
+                      variant="outline" 
+                      onClick={validateCoupon}
+                      disabled={validatingCoupon || !couponCode.trim()}
+                    >
+                      {validatingCoupon ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        'Aplicar'
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-2 bg-green-500/10 border border-green-500/30 rounded-lg">
+                    <div className="flex items-center gap-2 text-green-600">
+                      <Check className="h-4 w-4" />
+                      <span className="font-mono font-medium">{couponCode}</span>
+                      <span className="text-sm">aplicado</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={removeCoupon}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <ul className="space-y-3">

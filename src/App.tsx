@@ -26,6 +26,7 @@ import Pipeline from "./pages/Pipeline";
 import Perfil from "./pages/Perfil";
 import Empresa from "./pages/Empresa";
 import Admin from "./pages/Admin";
+import Master from "./pages/Master";
 import NotFound from "./pages/NotFound";
 import { MainLayout } from "./components/layout/MainLayout";
 
@@ -176,6 +177,13 @@ function AppRoutes() {
       <Route path="/admin" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Admin /></MainLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Protected Routes - Master only */}
+      <Route path="/master" element={
+        <ProtectedRoute requireMaster>
+          <MainLayout><Master /></MainLayout>
         </ProtectedRoute>
       } />
 
