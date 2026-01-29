@@ -19,6 +19,8 @@ const Dashboard = () => {
   const [showNewSaleModal, setShowNewSaleModal] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
 
+  const userName = user?.profile?.name || user?.email?.split('@')[0] || 'Usuário';
+
   const today = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long',
     year: 'numeric',
@@ -32,7 +34,7 @@ const Dashboard = () => {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="animate-fade-in">
           <h1 className="text-2xl lg:text-3xl font-light">
-            Olá, <span className="font-semibold">{user?.name?.split(' ')[0]}</span>
+            Olá, <span className="font-semibold">{userName.split(' ')[0]}</span>
           </h1>
           <p className="text-muted-foreground capitalize">{today}</p>
         </div>

@@ -32,6 +32,7 @@ interface NavItem {
   label: string;
   path: string;
   adminOnly?: boolean;
+  productionOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -44,7 +45,7 @@ const navItems: NavItem[] = [
   { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
   { icon: Settings, label: 'Serviços', path: '/servicos' },
   { icon: Shield, label: 'Garantias', path: '/garantias' },
-  { icon: Package, label: 'Estoque', path: '/estoque' },
+  { icon: Package, label: 'Estoque', path: '/estoque', productionOnly: true },
   { icon: Target, label: 'Pipeline', path: '/pipeline' },
   { icon: User, label: 'Perfil', path: '/perfil' },
   { icon: Building, label: 'Sua Empresa', path: '/empresa' },
@@ -54,12 +55,19 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
 
   const filteredItems = navItems.filter(item => {
-    if (item.adminOnly && user?.role !== 'admin') return false;
+    // Admin only pages
+    if (item.adminOnly && user?.role !== 'ADMIN') return false;
+    // Estoque - only for ADMIN and PRODUCAO
+    if (item.productionOnly && user?.role !== 'ADMIN' && user?.role !== 'PRODUCAO') return false;
+    // PRODUCAO can only see Estoque and Perfil
+    if (user?.role === 'PRODUCAO' && !item.productionOnly && item.path !== '/perfil') return false;
     return true;
   });
+
+  const userName = user?.profile?.name || user?.email?.split('@')[0] || 'Usuário';
 
   return (
     <aside
@@ -167,20 +175,20 @@ export function Sidebar() {
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center">
                 <span className="text-sm font-medium text-primary">
-                  {user?.name?.charAt(0).toUpperCase()}
+                  {userName.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-medium truncate max-w-[120px]">
-                  {user?.name}
+                  {userName}
                 </span>
                 <span className="text-xs text-muted-foreground capitalize">
-                  {user?.role}
+                  {user?.role?.toLowerCase()}
                 </span>
               </div>
             </div>
             <button
-              onClick={logout}
+              onClick={signOut}
               className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
             >
               <LogOut className="w-4 h-4" />
@@ -190,7 +198,7 @@ export function Sidebar() {
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <button
-                onClick={logout}
+                onClick={signOut}
                 className="w-full p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex justify-center"
               >
                 <LogOut className="w-5 h-5" />
