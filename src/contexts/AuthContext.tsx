@@ -122,15 +122,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, name: string): Promise<{ error: Error | null }> => {
     try {
+      // Validate name before sending to server
+      const trimmedName = name.trim();
+      if (!trimmedName || trimmedName.length < 2) {
+        return { error: new Error('Nome deve ter pelo menos 2 caracteres') };
+      }
+      if (trimmedName.length > 100) {
+        return { error: new Error('Nome deve ter no máximo 100 caracteres') };
+      }
+      if (!/^[a-zA-ZÀ-ÿ\s'-]+$/.test(trimmedName)) {
+        return { error: new Error('Nome contém caracteres inválidos') };
+      }
+
+      // Validate email
+      const trimmedEmail = email.trim().toLowerCase();
+      if (!trimmedEmail || trimmedEmail.length > 255) {
+        return { error: new Error('Email inválido') };
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail)) {
+        return { error: new Error('Email inválido') };
+      }
+
+      // Validate password
+      if (!password || password.length < 6) {
+        return { error: new Error('Senha deve ter pelo menos 6 caracteres') };
+      }
+
       const redirectUrl = `${window.location.origin}/`;
       
       const { error } = await supabase.auth.signUp({
-        email,
+        email: trimmedEmail,
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            name: name
+            name: trimmedName
           }
         }
       });
