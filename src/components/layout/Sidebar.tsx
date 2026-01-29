@@ -19,7 +19,8 @@ import {
   Building,
   UserCog,
   ChevronLeft,
-  LogOut
+  LogOut,
+  Crown
 } from 'lucide-react';
 import {
   Tooltip,
@@ -33,6 +34,7 @@ interface NavItem {
   path: string;
   adminOnly?: boolean;
   productionOnly?: boolean;
+  masterOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -50,6 +52,7 @@ const navItems: NavItem[] = [
   { icon: User, label: 'Perfil', path: '/perfil' },
   { icon: Building, label: 'Sua Empresa', path: '/empresa' },
   { icon: UserCog, label: 'Admin', path: '/admin', adminOnly: true },
+  { icon: Crown, label: 'Painel Master', path: '/master', masterOnly: true },
 ];
 
 export function Sidebar() {
@@ -58,6 +61,8 @@ export function Sidebar() {
   const { user, signOut } = useAuth();
 
   const filteredItems = navItems.filter(item => {
+    // Master only pages
+    if (item.masterOnly && !user?.isMaster) return false;
     // Admin only pages
     if (item.adminOnly && user?.role !== 'ADMIN') return false;
     // Estoque - only for ADMIN and PRODUCAO

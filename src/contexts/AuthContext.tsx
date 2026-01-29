@@ -12,6 +12,7 @@ interface AuthUser {
   role: AppRole;
   subscriptionStatus: SubscriptionStatus;
   companyId: number | null;
+  isMaster: boolean;
 }
 
 interface AuthContextType {
@@ -68,14 +69,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      // Check if user is master account
+      const isMaster = authUser?.email === 'hg.lavila@gmail.com';
 
       return {
         id: userId,
         email: authUser?.email || profile?.email || '',
         profile: profile as Profile | null,
         role: (roleData?.role as AppRole) || 'NENHUM',
-        subscriptionStatus: (subscriptionData?.status as SubscriptionStatus) || 'pending_payment',
-        companyId: profile?.company_id || subscriptionData?.company_id || null
+        subscriptionStatus: isMaster ? 'active' : ((subscriptionData?.status as SubscriptionStatus) || 'pending_payment'),
+        companyId: profile?.company_id || subscriptionData?.company_id || null,
+        isMaster
       };
     } catch (error) {
       console.error('Error fetching user data:', error);

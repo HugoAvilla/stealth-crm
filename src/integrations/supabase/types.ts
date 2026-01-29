@@ -373,6 +373,93 @@ export type Database = {
           },
         ]
       }
+      coupon_usage: {
+        Row: {
+          coupon_id: number | null
+          discount_applied: number
+          id: number
+          subscription_id: number | null
+          used_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          coupon_id?: number | null
+          discount_applied: number
+          id?: never
+          subscription_id?: number | null
+          used_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          coupon_id?: number | null
+          discount_applied?: number
+          id?: never
+          subscription_id?: number | null
+          used_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_usage_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "discount_coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_usage_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discount_coupons: {
+        Row: {
+          code: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          id: number
+          is_active: boolean | null
+          updated_at: string | null
+          usage_count: number | null
+          usage_limit: number | null
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          id?: never
+          is_active?: boolean | null
+          updated_at?: string | null
+          usage_count?: number | null
+          usage_limit?: number | null
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: never
+          is_active?: boolean | null
+          updated_at?: string | null
+          usage_count?: number | null
+          usage_limit?: number | null
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       materials: {
         Row: {
           average_cost: number | null
@@ -884,8 +971,11 @@ export type Database = {
       subscriptions: {
         Row: {
           company_id: number | null
+          coupon_code: string | null
           created_at: string | null
+          discount_amount: number | null
           expires_at: string | null
+          final_price: number | null
           id: number
           payment_confirmed_at: string | null
           payment_method: string | null
@@ -897,8 +987,11 @@ export type Database = {
         }
         Insert: {
           company_id?: number | null
+          coupon_code?: string | null
           created_at?: string | null
+          discount_amount?: number | null
           expires_at?: string | null
+          final_price?: number | null
           id?: never
           payment_confirmed_at?: string | null
           payment_method?: string | null
@@ -910,8 +1003,11 @@ export type Database = {
         }
         Update: {
           company_id?: number | null
+          coupon_code?: string | null
           created_at?: string | null
+          discount_amount?: number | null
           expires_at?: string | null
+          final_price?: number | null
           id?: never
           payment_confirmed_at?: string | null
           payment_method?: string | null
@@ -1320,6 +1416,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_coupon: {
+        Args: {
+          coupon_code_input: string
+          p_discount_applied: number
+          p_subscription_id: number
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       get_subscription_status: { Args: { _user_id: string }; Returns: string }
       get_user_company_id: { Args: { _user_id: string }; Returns: number }
       get_user_role: {
@@ -1339,6 +1444,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      is_master_account: { Args: { _user_id: string }; Returns: boolean }
+      validate_coupon: {
+        Args: { coupon_code_input: string }
+        Returns: {
+          discount_type: string
+          discount_value: number
+          is_valid: boolean
+          message: string
+        }[]
       }
     }
     Enums: {

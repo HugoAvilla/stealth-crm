@@ -9,13 +9,15 @@ interface ProtectedRouteProps {
   allowedRoles?: AppRole[];
   requireCompany?: boolean;
   requireActiveSubscription?: boolean;
+  requireMaster?: boolean;
 }
 
 export function ProtectedRoute({ 
   children, 
   allowedRoles, 
   requireCompany = true,
-  requireActiveSubscription = true 
+  requireActiveSubscription = true,
+  requireMaster = false
 }: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
 
@@ -32,6 +34,16 @@ export function ProtectedRoute({
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Check if master access is required
+  if (requireMaster && !user.isMaster) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Master account bypasses all other checks
+  if (user.isMaster) {
+    return <>{children}</>;
   }
 
   // Check subscription status
