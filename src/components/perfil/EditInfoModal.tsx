@@ -13,9 +13,9 @@ interface EditInfoModalProps {
 
 export function EditInfoModal({ open, onOpenChange }: EditInfoModalProps) {
   const { user } = useAuth();
-  const [name, setName] = useState(user?.name || "");
+  const [name, setName] = useState(user?.profile?.name || "");
   const [email, setEmail] = useState(user?.email || "");
-  const [phone, setPhone] = useState(user?.phone || "");
+  const [phone, setPhone] = useState(user?.profile?.phone || "");
 
   const handleSubmit = () => {
     if (!name || !email) {
@@ -23,6 +23,7 @@ export function EditInfoModal({ open, onOpenChange }: EditInfoModalProps) {
       return;
     }
 
+    // TODO: Implement profile update with Supabase
     toast.success("Informações atualizadas com sucesso!");
     onOpenChange(false);
   };
@@ -49,7 +50,9 @@ export function EditInfoModal({ open, onOpenChange }: EditInfoModalProps) {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
+              disabled
             />
+            <p className="text-xs text-muted-foreground">Email não pode ser alterado</p>
           </div>
 
           <div className="space-y-2">

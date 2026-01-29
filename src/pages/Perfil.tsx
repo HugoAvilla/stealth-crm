@@ -12,12 +12,12 @@ import { ChangePasswordModal } from "@/components/perfil/ChangePasswordModal";
 import { toast } from "sonner";
 
 export default function Perfil() {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const handleLogout = () => {
-    logout();
+    signOut();
     toast.success("Você saiu da sua conta");
   };
 
@@ -25,12 +25,30 @@ export default function Perfil() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  const userName = user?.profile?.name || user?.email?.split('@')[0] || 'Usuário';
+  const userAvatar = user?.profile?.avatar_url;
+
   // Mock subscription data
   const subscription = {
     plan: "Pro",
     daysLeft: 25,
     expiresAt: "2026-02-20"
   };
+
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'ADMIN':
+        return { label: 'Administrador', variant: 'default' as const };
+      case 'VENDEDOR':
+        return { label: 'Vendedor', variant: 'secondary' as const };
+      case 'PRODUCAO':
+        return { label: 'Produção', variant: 'outline' as const };
+      default:
+        return { label: 'Pendente', variant: 'destructive' as const };
+    }
+  };
+
+  const roleBadge = getRoleBadge(user?.role || 'NENHUM');
 
   return (
     <div className="space-y-6 p-6 max-w-3xl mx-auto">
@@ -45,16 +63,16 @@ export default function Perfil() {
         <CardContent className="p-6">
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20 border-2 border-primary/30">
-              <AvatarImage src={user?.avatar || undefined} />
+              <AvatarImage src={userAvatar || undefined} />
               <AvatarFallback className="text-xl bg-primary/20">
-                {user?.name ? getInitials(user.name) : 'U'}
+                {getInitials(userName)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h2 className="text-xl font-bold">{user?.name}</h2>
+              <h2 className="text-xl font-bold">{userName}</h2>
               <p className="text-muted-foreground">{user?.email}</p>
-              <Badge className="mt-2" variant={user?.role === 'admin' ? 'default' : 'secondary'}>
-                {user?.role === 'admin' ? 'Administrador' : 'Vendedor'}
+              <Badge className="mt-2" variant={roleBadge.variant}>
+                {roleBadge.label}
               </Badge>
             </div>
             <Button variant="outline" onClick={() => setShowEditModal(true)}>

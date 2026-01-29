@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Pages
 import Login from "./pages/Login";
@@ -26,15 +27,6 @@ import { MainLayout } from "./components/layout/MainLayout";
 
 const queryClient = new QueryClient();
 
-// Protected Route for admin-only pages
-function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  if (user?.role !== 'admin') {
-    return <Navigate to="/" replace />;
-  }
-  return <>{children}</>;
-}
-
 function AppRoutes() {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -50,28 +42,92 @@ function AppRoutes() {
         element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} 
       />
 
-      {/* Protected Routes - wrapped in MainLayout */}
-      <Route path="/" element={<MainLayout><Dashboard /></MainLayout>} />
-      <Route path="/vendas" element={<MainLayout><Vendas /></MainLayout>} />
-      <Route path="/espaco" element={<MainLayout><Espaco /></MainLayout>} />
-      <Route path="/financeiro" element={<MainLayout><Financeiro /></MainLayout>} />
-      <Route path="/contas" element={<MainLayout><Contas /></MainLayout>} />
-      <Route path="/clientes" element={<MainLayout><Clientes /></MainLayout>} />
-      <Route path="/relatorios" element={<MainLayout><Relatorios /></MainLayout>} />
-      <Route path="/servicos" element={<MainLayout><Servicos /></MainLayout>} />
-      <Route path="/garantias" element={<MainLayout><Garantias /></MainLayout>} />
-      <Route path="/estoque" element={<MainLayout><Estoque /></MainLayout>} />
-      <Route path="/pipeline" element={<MainLayout><Pipeline /></MainLayout>} />
-      <Route path="/perfil" element={<MainLayout><Perfil /></MainLayout>} />
-      <Route path="/empresa" element={<MainLayout><Empresa /></MainLayout>} />
-      <Route 
-        path="/admin" 
-        element={
-          <AdminRoute>
-            <MainLayout><Admin /></MainLayout>
-          </AdminRoute>
-        } 
-      />
+      {/* Protected Routes - ADMIN and VENDEDOR */}
+      <Route path="/" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Dashboard /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/vendas" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Vendas /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/clientes" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Clientes /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/espaco" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Espaco /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/financeiro" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Financeiro /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/contas" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Contas /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/relatorios" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Relatorios /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/servicos" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Servicos /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/garantias" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Garantias /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/pipeline" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Pipeline /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/perfil" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR', 'PRODUCAO']}>
+          <MainLayout><Perfil /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/empresa" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+          <MainLayout><Empresa /></MainLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Protected Routes - ADMIN and PRODUCAO (Estoque) */}
+      <Route path="/estoque" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'PRODUCAO']}>
+          <MainLayout><Estoque /></MainLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Protected Routes - ADMIN only */}
+      <Route path="/admin" element={
+        <ProtectedRoute allowedRoles={['ADMIN']}>
+          <MainLayout><Admin /></MainLayout>
+        </ProtectedRoute>
+      } />
 
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
