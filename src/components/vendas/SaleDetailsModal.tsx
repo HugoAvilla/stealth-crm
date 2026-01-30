@@ -21,7 +21,7 @@ import {
   FileText,
   MessageCircle,
   Eye,
-  ArrowRight,
+  ArrowRightLeft,
   Edit,
   Trash2,
   Settings,
@@ -31,6 +31,7 @@ import { toast } from "@/hooks/use-toast";
 import PdfA4Modal from "@/components/vendas/PdfA4Modal";
 import PdfNotinhaModal from "@/components/vendas/PdfNotinhaModal";
 import WhatsAppPreviewModal from "@/components/vendas/WhatsAppPreviewModal";
+import TransferToSpaceModal from "@/components/vendas/TransferToSpaceModal";
 
 interface SaleDetailsModalProps {
   open: boolean;
@@ -43,6 +44,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
   const [isPdfNotinhaOpen, setIsPdfNotinhaOpen] = useState(false);
   const [pdfNotinhaSize, setPdfNotinhaSize] = useState<"80mm" | "58mm">("80mm");
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
 
   if (!sale) return null;
 
@@ -237,10 +239,10 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                 <Button
                   variant="outline"
                   className="gap-2 border-info text-info hover:bg-info/10"
-                  onClick={() => toast({ title: "Exportar para vaga", description: "Vaga criada com sucesso!" })}
+                  onClick={() => setIsTransferOpen(true)}
                 >
-                  <ArrowRight className="h-4 w-4" />
-                  Exportar p/ vaga
+                  <ArrowRightLeft className="h-4 w-4" />
+                  Enviar p/ Espaço
                 </Button>
               </div>
             </div>
@@ -276,6 +278,12 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       <WhatsAppPreviewModal
         open={isWhatsAppOpen}
         onOpenChange={setIsWhatsAppOpen}
+        sale={sale}
+      />
+
+      <TransferToSpaceModal
+        open={isTransferOpen}
+        onOpenChange={setIsTransferOpen}
         sale={sale}
       />
     </>

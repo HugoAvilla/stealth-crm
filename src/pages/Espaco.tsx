@@ -5,11 +5,13 @@ import { ChevronLeft, ChevronRight, Car, Clock, Pause, CheckCircle, AlertCircle,
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { slots, sales, getClientById, getVehicleById, getServiceById, type Slot } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 import { SlotCard } from "@/components/espaco/SlotCard";
 import { NewSlotModal } from "@/components/espaco/NewSlotModal";
 import { SlotsDayDrawer } from "@/components/espaco/SlotsDayDrawer";
+import PaidExitedVehicles from "@/components/espaco/PaidExitedVehicles";
 
 export default function Espaco() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -17,6 +19,8 @@ export default function Espaco() {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [showNewSlotModal, setShowNewSlotModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [activeTab, setActiveTab] = useState("vagas");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -87,6 +91,21 @@ export default function Espaco() {
           <p className="text-muted-foreground">Gerencie a ocupação das vagas do seu estabelecimento</p>
         </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="vagas" className="gap-2">
+            <Car className="h-4 w-4" />
+            Vagas Ativas
+          </TabsTrigger>
+          <TabsTrigger value="pagos-saida" className="gap-2">
+            <CheckCircle className="h-4 w-4" />
+            Veículos Pagos (Saída)
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="vagas" className="space-y-6 mt-6">
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -249,6 +268,12 @@ export default function Espaco() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="pagos-saida" className="mt-6">
+          <PaidExitedVehicles refreshTrigger={refreshTrigger} />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <NewSlotModal
