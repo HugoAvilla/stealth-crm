@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, RefreshCw, MessageCircle, CheckCircle } from 'lucide-react';
+import { Clock, RefreshCw, MessageCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 export default function WaitingApproval() {
   const { user, refreshUser } = useAuth();
@@ -78,6 +78,15 @@ export default function WaitingApproval() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/login')}
+            className="mb-4 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar para login
+          </Button>
           <div className="mx-auto mb-4 relative">
             <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center">
               <Clock className="h-10 w-10 text-primary animate-pulse" />
