@@ -1,34 +1,60 @@
 
-# Adicionar Botão "Voltar" na Página de Verificação de Pagamento
+# Corrigir Botão "Voltar para Login"
 
-## Resumo
-Adicionar um botão de voltar na página `/aguardando-liberacao` para permitir que o usuário retorne à página de login (`/login`) caso precise revisar ou alterar algo.
+## Problema Identificado
+O botão "Voltar para login" não funciona porque:
+1. O usuário está autenticado
+2. A rota `/login` redireciona usuários autenticados de volta
+3. Isso causa um loop de redirecionamento
 
-## Alteração
+## Solucao
+
+Modificar o botão para fazer **logout** antes de navegar para a página de login, permitindo que o usuário acesse a tela de login sem estar autenticado.
+
+## Alteracao Tecnica
 
 ### Arquivo: `src/pages/WaitingApproval.tsx`
 
-Adicionar um botão "Voltar" no topo do card, antes do ícone de relógio. O botão seguirá o padrão visual do projeto (dark theme com acentos em lime/amarelo).
+**Mudancas:**
+1. Importar `signOut` do contexto de autenticacao
+2. Modificar o `onClick` do botao para chamar `signOut()` antes de navegar
 
-**Mudanças:**
-1. Importar o ícone `ArrowLeft` do lucide-react
-2. Adicionar um botão discreto no topo do CardHeader que navega para `/assinatura`
-
-**Posicionamento:**
-- O botão ficará no topo esquerdo do card, acima do ícone do relógio
-- Terá estilo `ghost` para não competir visualmente com os botões de ação principais
-- Texto: "Voltar para login"
-
-```text
-┌────────────────────────────────┐
-│ ← Voltar para login       │
-│                                │
-│           (relógio)            │
-│   Verificando seu pagamento... │
-│   ...resto do conteúdo...      │
-└────────────────────────────────┘
+**Codigo atual (linha 81-89):**
+```tsx
+<Button
+  variant="ghost"
+  size="sm"
+  onClick={() => navigate('/login')}
+  className="mb-4 text-muted-foreground hover:text-foreground"
+>
+  <ArrowLeft className="mr-2 h-4 w-4" />
+  Voltar para login
+</Button>
 ```
 
-## Comportamento
-- Ao clicar, o usuário será redirecionado para `/login`
-- Isso permite que ele revise os dados do PIX ou cancele a confirmação de pagamento
+**Codigo corrigido:**
+```tsx
+<Button
+  variant="ghost"
+  size="sm"
+  onClick={async () => {
+    await signOut();
+    navigate('/login');
+  }}
+  className="mb-4 text-muted-foreground hover:text-foreground"
+>
+  <ArrowLeft className="mr-2 h-4 w-4" />
+  Voltar para login
+</Button>
+```
+
+**Atualizar desestruturacao do useAuth (linha 9):**
+```tsx
+const { user, refreshUser, signOut } = useAuth();
+```
+
+## Comportamento Esperado
+1. Usuario clica em "Voltar para login"
+2. Sistema faz logout do usuario
+3. Usuario e redirecionado para `/login`
+4. Tela de login e exibida normalmente
