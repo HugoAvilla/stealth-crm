@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, RefreshCw, MessageCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 export default function WaitingApproval() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, signOut } = useAuth();
   const navigate = useNavigate();
   const [countdown, setCountdown] = useState(30);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -81,7 +81,10 @@ export default function WaitingApproval() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/login')}
+            onClick={async () => {
+              await signOut();
+              navigate('/login');
+            }}
             className="mb-4 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
