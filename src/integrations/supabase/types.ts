@@ -460,6 +460,50 @@ export type Database = {
         }
         Relationships: []
       }
+      master_actions: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          id: number
+          new_value: string | null
+          old_value: string | null
+          performed_by: string | null
+          reason: string | null
+          target_subscription_id: number | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          id?: never
+          new_value?: string | null
+          old_value?: string | null
+          performed_by?: string | null
+          reason?: string | null
+          target_subscription_id?: number | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          id?: never
+          new_value?: string | null
+          old_value?: string | null
+          performed_by?: string | null
+          reason?: string | null
+          target_subscription_id?: number | null
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_actions_target_subscription_id_fkey"
+            columns: ["target_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       materials: {
         Row: {
           average_cost: number | null
@@ -806,10 +850,13 @@ export type Database = {
           entry_time: string | null
           exit_date: string | null
           exit_time: string | null
+          has_exited: boolean | null
           id: number
           name: string
           observations: string | null
+          payment_status: string | null
           photos: Json | null
+          sale_id: number | null
           status: string | null
           tag: string | null
           updated_at: string | null
@@ -824,10 +871,13 @@ export type Database = {
           entry_time?: string | null
           exit_date?: string | null
           exit_time?: string | null
+          has_exited?: boolean | null
           id?: never
           name: string
           observations?: string | null
+          payment_status?: string | null
           photos?: Json | null
+          sale_id?: number | null
           status?: string | null
           tag?: string | null
           updated_at?: string | null
@@ -842,10 +892,13 @@ export type Database = {
           entry_time?: string | null
           exit_date?: string | null
           exit_time?: string | null
+          has_exited?: boolean | null
           id?: never
           name?: string
           observations?: string | null
+          payment_status?: string | null
           photos?: Json | null
+          sale_id?: number | null
           status?: string | null
           tag?: string | null
           updated_at?: string | null
@@ -864,6 +917,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spaces_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
           {
@@ -1446,6 +1506,30 @@ export type Database = {
         Returns: boolean
       }
       is_master_account: { Args: { _user_id: string }; Returns: boolean }
+      master_change_expiry_date: {
+        Args: {
+          new_expiry_input: string
+          reason_input: string
+          subscription_id_input: number
+        }
+        Returns: undefined
+      }
+      master_change_subscription_price: {
+        Args: {
+          new_price_input: number
+          reason_input: string
+          subscription_id_input: number
+        }
+        Returns: undefined
+      }
+      master_toggle_subscription_status: {
+        Args: {
+          new_status_input: string
+          reason_input: string
+          subscription_id_input: number
+        }
+        Returns: undefined
+      }
       validate_coupon: {
         Args: { coupon_code_input: string }
         Returns: {

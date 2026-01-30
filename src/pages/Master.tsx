@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
@@ -20,7 +21,8 @@ import {
   DollarSign,
   Calendar,
   Users,
-  Loader2
+  Loader2,
+  Shield
 } from 'lucide-react';
 import {
   Dialog,
@@ -38,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import SubscriptionsManager from '@/components/master/SubscriptionsManager';
 
 interface DiscountCoupon {
   id: number;
@@ -211,14 +214,31 @@ export default function Master() {
             Painel Master
           </h1>
           <p className="text-muted-foreground">
-            Gerenciamento de cupons de desconto
+            Gerenciamento de cupons e assinaturas
           </p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Cupom
-        </Button>
       </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="coupons">
+        <TabsList>
+          <TabsTrigger value="coupons" className="gap-2">
+            <Tag className="h-4 w-4" />
+            Cupons
+          </TabsTrigger>
+          <TabsTrigger value="subscriptions" className="gap-2">
+            <Shield className="h-4 w-4" />
+            Assinaturas
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="coupons" className="space-y-6 mt-6">
+          <div className="flex justify-end">
+            <Button onClick={() => setShowModal(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Cupom
+            </Button>
+          </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -385,8 +405,12 @@ export default function Master() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Create Coupon Modal */}
+        <TabsContent value="subscriptions" className="mt-6">
+          <SubscriptionsManager />
+        </TabsContent>
+      </Tabs>
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
