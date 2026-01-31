@@ -220,6 +220,7 @@ export type Database = {
           cep: string | null
           city: string | null
           cnpj: string | null
+          company_code: string | null
           company_name: string
           complement: string | null
           created_at: string | null
@@ -239,6 +240,7 @@ export type Database = {
           cep?: string | null
           city?: string | null
           cnpj?: string | null
+          company_code?: string | null
           company_name: string
           complement?: string | null
           created_at?: string | null
@@ -258,6 +260,7 @@ export type Database = {
           cep?: string | null
           city?: string | null
           cnpj?: string | null
+          company_code?: string | null
           company_name?: string
           complement?: string | null
           created_at?: string | null
@@ -274,6 +277,59 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      company_join_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          company_id: number
+          created_at: string | null
+          id: number
+          rejected_reason: string | null
+          requested_role: string
+          requester_email: string
+          requester_name: string
+          requester_user_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id: number
+          created_at?: string | null
+          id?: never
+          rejected_reason?: string | null
+          requested_role: string
+          requester_email: string
+          requester_name: string
+          requester_user_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: number
+          created_at?: string | null
+          id?: never
+          rejected_reason?: string | null
+          requested_role?: string
+          requester_email?: string
+          requester_name?: string
+          requester_user_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_join_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_settings: {
         Row: {
@@ -1485,6 +1541,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      approve_company_join_request: {
+        Args: { request_id_input: number }
+        Returns: undefined
+      }
+      generate_company_code: { Args: never; Returns: string }
+      get_company_by_code: {
+        Args: { code_input: string }
+        Returns: {
+          company_name: string
+          id: number
+        }[]
+      }
       get_subscription_status: { Args: { _user_id: string }; Returns: string }
       get_user_company_id: { Args: { _user_id: string }; Returns: number }
       get_user_role: {
@@ -1528,6 +1596,10 @@ export type Database = {
           reason_input: string
           subscription_id_input: number
         }
+        Returns: undefined
+      }
+      reject_company_join_request: {
+        Args: { reason_input?: string; request_id_input: number }
         Returns: undefined
       }
       validate_coupon: {

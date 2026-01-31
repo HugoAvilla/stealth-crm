@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import wfeLogo from '@/assets/wfe-logo.png';
 import {
   LayoutDashboard,
@@ -20,13 +21,15 @@ import {
   UserCog,
   ChevronLeft,
   LogOut,
-  Crown
+  Crown,
+  UserPlus
 } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 interface NavItem {
   icon: React.ElementType;
@@ -35,30 +38,72 @@ interface NavItem {
   adminOnly?: boolean;
   productionOnly?: boolean;
   masterOnly?: boolean;
+  badge?: number;
 }
-
-const navItems: NavItem[] = [
-  { icon: LayoutDashboard, label: 'Painel', path: '/' },
-  { icon: DollarSign, label: 'Vendas', path: '/vendas' },
-  { icon: Building2, label: 'Espaço', path: '/espaco' },
-  { icon: CreditCard, label: 'Financeiro', path: '/financeiro' },
-  { icon: Landmark, label: 'Contas', path: '/contas' },
-  { icon: Users, label: 'Clientes', path: '/clientes' },
-  { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
-  { icon: Settings, label: 'Serviços', path: '/servicos' },
-  { icon: Shield, label: 'Garantias', path: '/garantias' },
-  { icon: Package, label: 'Estoque', path: '/estoque', productionOnly: true },
-  { icon: Target, label: 'Pipeline', path: '/pipeline' },
-  { icon: User, label: 'Perfil', path: '/perfil' },
-  { icon: Building, label: 'Sua Empresa', path: '/empresa' },
-  { icon: UserCog, label: 'Admin', path: '/admin', adminOnly: true },
-  { icon: Crown, label: 'Painel Master', path: '/master', masterOnly: true },
-];
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const location = useLocation();
   const { user, signOut } = useAuth();
+
+  // Fetch pending requests count for admin
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      if (user?.role !== 'ADMIN' || !user?.companyId) return;
+
+      const { count, error } = await supabase
+        .from('company_join_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', user.companyId)
+        .eq('status', 'pending');
+
+      if (!error && count !== null) {
+        setPendingRequestsCount(count);
+      }
+    };
+
+    fetchPendingCount();
+
+    // Subscribe to changes
+    const channel = supabase
+      .channel('join_requests_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_join_requests',
+        },
+        () => {
+          fetchPendingCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.role, user?.companyId]);
+
+  const navItems: NavItem[] = [
+    { icon: LayoutDashboard, label: 'Painel', path: '/' },
+    { icon: DollarSign, label: 'Vendas', path: '/vendas' },
+    { icon: Building2, label: 'Espaço', path: '/espaco' },
+    { icon: CreditCard, label: 'Financeiro', path: '/financeiro' },
+    { icon: Landmark, label: 'Contas', path: '/contas' },
+    { icon: Users, label: 'Clientes', path: '/clientes' },
+    { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
+    { icon: Settings, label: 'Serviços', path: '/servicos' },
+    { icon: Shield, label: 'Garantias', path: '/garantias' },
+    { icon: Package, label: 'Estoque', path: '/estoque', productionOnly: true },
+    { icon: Target, label: 'Pipeline', path: '/pipeline' },
+    { icon: User, label: 'Perfil', path: '/perfil' },
+    { icon: Building, label: 'Sua Empresa', path: '/empresa' },
+    { icon: UserPlus, label: 'Solicitações', path: '/equipe/solicitacoes', adminOnly: true, badge: pendingRequestsCount },
+    { icon: UserCog, label: 'Admin', path: '/admin', adminOnly: true },
+    { icon: Crown, label: 'Painel Master', path: '/master', masterOnly: true },
+  ];
 
   const filteredItems = navItems.filter(item => {
     // Master only pages
@@ -137,18 +182,33 @@ export function Sidebar() {
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
                 )}
                 
-                <Icon className={cn(
-                  "w-5 h-5 flex-shrink-0",
-                  isActive && "text-primary"
-                )} />
+                <div className="relative">
+                  <Icon className={cn(
+                    "w-5 h-5 flex-shrink-0",
+                    isActive && "text-primary"
+                  )} />
+                  {/* Badge for collapsed state */}
+                  {isCollapsed && item.badge && item.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  )}
+                </div>
                 
                 {!isCollapsed && (
-                  <span className={cn(
-                    "text-sm font-medium",
-                    isActive && "text-primary"
-                  )}>
-                    {item.label}
-                  </span>
+                  <>
+                    <span className={cn(
+                      "text-sm font-medium flex-1",
+                      isActive && "text-primary"
+                    )}>
+                      {item.label}
+                    </span>
+                    {item.badge && item.badge > 0 && (
+                      <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center text-xs">
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </>
                 )}
               </Link>
             );
@@ -160,8 +220,13 @@ export function Sidebar() {
                     <TooltipTrigger asChild>
                       {linkContent}
                     </TooltipTrigger>
-                    <TooltipContent side="right" className="font-medium">
+                    <TooltipContent side="right" className="font-medium flex items-center gap-2">
                       {item.label}
+                      {item.badge && item.badge > 0 && (
+                        <Badge variant="destructive" className="h-5 min-w-5">
+                          {item.badge}
+                        </Badge>
+                      )}
                     </TooltipContent>
                   </Tooltip>
                 </li>

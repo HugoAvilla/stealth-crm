@@ -13,6 +13,7 @@ interface AuthUser {
   subscriptionStatus: SubscriptionStatus;
   companyId: number | null;
   isMaster: boolean;
+  hasPendingJoinRequest: boolean;
 }
 
 interface AuthContextType {
@@ -68,6 +69,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error fetching subscription:', subscriptionError);
       }
 
+      // Check for pending join request (only if user has no company)
+      let hasPendingJoinRequest = false;
+      if (!profile?.company_id) {
+        const { data: pendingRequest } = await supabase
+          .from('company_join_requests')
+          .select('id')
+          .eq('requester_user_id', userId)
+          .eq('status', 'pending')
+          .maybeSingle();
+        
+        hasPendingJoinRequest = !!pendingRequest;
+      }
+
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
       // Check if user is master account
@@ -80,7 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: (roleData?.role as AppRole) || 'NENHUM',
         subscriptionStatus: isMaster ? 'active' : ((subscriptionData?.status as SubscriptionStatus) || 'pending_payment'),
         companyId: profile?.company_id || subscriptionData?.company_id || null,
-        isMaster
+        isMaster,
+        hasPendingJoinRequest
       };
     } catch (error) {
       console.error('Error fetching user data:', error);
