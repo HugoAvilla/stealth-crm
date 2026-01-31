@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Phone, Mail, MapPin, Upload, MessageCircle, Edit, Loader2 } from "lucide-react";
+import { Phone, Mail, MapPin, Upload, MessageCircle, Edit, Loader2, Users, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EditCompanyModal } from "@/components/empresa/EditCompanyModal";
+import { TeamSettingsModal } from "@/components/empresa/TeamSettingsModal";
 import { CompanyCodeDisplay } from "@/components/team/CompanyCodeDisplay";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +17,7 @@ interface CompanyData {
   email: string | null;
   logo_url: string | null;
   company_code: string | null;
+  max_members: number;
   street: string | null;
   number: string | null;
   neighborhood: string | null;
@@ -26,29 +29,44 @@ interface CompanyData {
 export default function Empresa() {
   const { user } = useAuth();
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showTeamSettings, setShowTeamSettings] = useState(false);
   const [company, setCompany] = useState<CompanyData | null>(null);
+  const [memberCount, setMemberCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const fetchCompanyData = async () => {
+    if (!user?.companyId) return;
+
+    setIsLoading(true);
+    
+    // Fetch company data
+    const { data: companyData, error: companyError } = await supabase
+      .from("companies")
+      .select("company_name, cnpj, phone, email, logo_url, company_code, max_members, street, number, neighborhood, city, state, cep")
+      .eq("id", user.companyId)
+      .single();
+
+    if (!companyError && companyData) {
+      setCompany(companyData);
+    }
+
+    // Count current members
+    const { count, error: countError } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("company_id", user.companyId);
+
+    if (!countError && count !== null) {
+      setMemberCount(count);
+    }
+
+    setIsLoading(false);
+  };
+
   useEffect(() => {
-    const fetchCompany = async () => {
-      if (!user?.companyId) return;
-
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from("companies")
-        .select("company_name, cnpj, phone, email, logo_url, company_code, street, number, neighborhood, city, state, cep")
-        .eq("id", user.companyId)
-        .single();
-
-      if (!error && data) {
-        setCompany(data);
-      }
-      setIsLoading(false);
-    };
-
-    fetchCompany();
+    fetchCompanyData();
   }, [user?.companyId]);
 
   const handleSupportClick = () => {
@@ -161,9 +179,41 @@ export default function Empresa() {
         </CardContent>
       </Card>
 
-      {/* Company Code - Only for Admin */}
-      {user?.role === 'ADMIN' && company?.company_code && (
-        <CompanyCodeDisplay code={company.company_code} />
+      {/* Team Stats & Company Code - Only for Admin */}
+      {user?.role === 'ADMIN' && (
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Users className="h-5 w-5 text-primary" />
+                Equipe
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowTeamSettings(true)}
+              >
+                <Settings className="h-4 w-4 mr-1" />
+                Configurar
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Membros</span>
+                <span className="font-medium">{memberCount} de {company?.max_members || 5}</span>
+              </div>
+              <Progress 
+                value={(memberCount / (company?.max_members || 5)) * 100} 
+                className="h-2"
+              />
+            </div>
+            {company?.company_code && (
+              <CompanyCodeDisplay code={company.company_code} />
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Contact Info */}
@@ -219,8 +269,15 @@ export default function Empresa() {
         <MessageCircle className="h-6 w-6" />
       </button>
 
-      {/* Modal */}
+      {/* Modals */}
       <EditCompanyModal open={showEditModal} onOpenChange={setShowEditModal} />
+      <TeamSettingsModal
+        open={showTeamSettings}
+        onOpenChange={setShowTeamSettings}
+        currentLimit={company?.max_members || 5}
+        currentMembers={memberCount}
+        onSaved={fetchCompanyData}
+      />
     </div>
   );
 }
