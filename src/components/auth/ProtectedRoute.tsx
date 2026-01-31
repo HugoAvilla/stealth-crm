@@ -72,8 +72,9 @@ export function ProtectedRoute({
     return <Navigate to="/empresa/cadastro" replace />;
   }
 
-  // User has role NENHUM - pending approval (only for users with company)
-  if (user.role === 'NENHUM' && user.companyId) {
+  // User has role NENHUM - pending approval (only for users with company who are NOT owners)
+  // Company owners should have ADMIN role - if they have NENHUM, it's a data issue that was fixed
+  if (user.role === 'NENHUM' && user.companyId && !user.isCompanyOwner) {
     return <PendingApprovalModal />;
   }
 
