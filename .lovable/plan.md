@@ -1,336 +1,291 @@
 
-# Plano de Implementacao - CRM WFE Evolution
+# Plano de Implementacao: Sistema de Hierarquia Multi-Usuario por Codigo Unico
 
-## Resumo do Estado Atual
+## Resumo da Analise
 
-Analisei o codigo existente e identifiquei que:
-- **Tabela spaces** ja possui as colunas `sale_id`, `payment_status` e `has_exited` no banco
-- **Painel Master** (`/master`) ja existe com gestao de cupons e assinaturas
-- **PaidExitedVehicles** ja existe em `src/components/espaco/`
-- **TransferToSpaceModal** existe mas usa mock data ao inves de Supabase
-- Muitas funcionalidades usam dados mock (`mockData.ts`) ao inves do banco real
+Analisei a arquitetura existente e identifiquei:
+
+- **CompanySetup.tsx**: Ja existe e cria empresa + define role ADMIN
+- **AuthContext.tsx**: Gerencia autenticacao e busca role/company/subscription
+- **ProtectedRoute.tsx**: Valida roles e status de assinatura
+- **Sidebar.tsx**: Menu dinamico baseado em role (ADMIN/VENDEDOR/PRODUCAO)
+- **Admin.tsx**: Pagina de gerenciamento de usuarios (usa dados mock)
+- **Empresa.tsx**: Pagina da empresa (suporta upload de logo)
+
+**Tabela companies**: Nao possui coluna `company_code` ainda
+**Tabela user_roles**: Ja existe com tipos ADMIN, VENDEDOR, PRODUCAO, NENHUM
+
+---
 
 ## Alteracoes Necessarias
 
-### PARTE 1: Alteracoes de Banco de Dados
+### PARTE 1: Banco de Dados
 
-As colunas da tabela `spaces` ja existem no banco. Porem, precisamos criar um storage bucket para upload de logos.
+**Migracao SQL para criar:**
 
-**Migracao SQL necessaria:**
-- Criar bucket de storage `company-logos` para upload de logos das empresas
-
----
-
-### PARTE 2: Funcionalidades Novas
-
-#### 2.1 TransferToSpaceModal - Conectar ao Supabase
-
-**Arquivo:** `src/components/vendas/TransferToSpaceModal.tsx`
-
-**Alteracoes:**
-- Importar `supabase` client
-- Modificar `handleTransfer` para fazer insert real na tabela `spaces`
-- Buscar `company_id` do usuario logado via `useAuth`
-- Remover simulacao de timeout
-
----
-
-#### 2.2 Aba "Veiculos Pagos" - Ja Implementada
-
-**Status:** O componente `PaidExitedVehicles.tsx` ja existe e esta integrado na pagina `Espaco.tsx`. Nenhuma alteracao necessaria.
-
----
-
-#### 2.3 Botao "Voltar" nas Assinaturas - Ja Implementado no Master
-
-**Status:** O painel Master ja possui navegacao adequada.
-
----
-
-#### 2.4 Painel Master - Ja Implementado
-
-**Status:** A rota `/master` ja existe com:
-- Gestao de cupons
-- Gestao de assinaturas com alteracao de preco e expiracao
-- Verificacao de acesso master via `is_master_account`
+1. **Coluna `company_code`** na tabela `companies`
+   - Tipo: text, UNIQUE
+   - Indice para busca rapida
+   
+2. **Function `generate_company_code()`**
+   - Gera codigo aleatorio de 6 caracteres (A-Z, 0-9)
+   - Verifica unicidade antes de retornar
+   
+3. **Trigger `auto_generate_company_code`**
+   - Executa antes de INSERT na tabela companies
+   - Gera codigo automaticamente se nulo
+   
+4. **Update para empresas existentes**
+   - Gera codigos para empresas que nao possuem
+   
+5. **Tabela `company_join_requests`**
+   - id, company_id, requester_user_id, requester_name, requester_email
+   - requested_role (VENDEDOR ou PRODUCAO)
+   - status (pending, approved, rejected)
+   - approved_by, approved_at, rejected_reason
+   - RLS policies para controle de acesso
+   
+6. **Function `approve_join_request()`**
+   - SECURITY DEFINER
+   - Valida que apenas owner da empresa pode aprovar
+   - Atualiza profile com company_id
+   - Atualiza user_roles com role solicitado
+   - Marca request como approved
+   
+7. **Function `reject_join_request()`**
+   - SECURITY DEFINER
+   - Valida que apenas owner da empresa pode rejeitar
+   - Marca request como rejected com motivo
 
 ---
 
-### PARTE 3: Correcoes e Ajustes
+### PARTE 2: Frontend - Novos Arquivos
 
-#### 3.1 Dashboard - Botao no Card Financeiro
+#### 2.1 Pagina de Solicitacao de Acesso
+**Arquivo:** `src/pages/CompanyJoin.tsx`
 
-**Arquivo:** `src/components/dashboard/FinancialSummary.tsx`
+**Funcionalidades:**
+- Campo para digitar codigo da empresa (6 caracteres)
+- Selecao de role desejado (VENDEDOR ou PRODUCAO)
+- Validacao do codigo contra tabela companies
+- Criacao de solicitacao na tabela company_join_requests
+- Tela de sucesso apos envio
 
-**Alteracoes:**
-- Adicionar botao "Ver Financeiro Completo" que navega para `/financeiro`
-- Adicionar import do `useNavigate` do react-router-dom
-- Estilizar botao com cor primaria (amarelo/lime)
-
----
-
-#### 3.2 Vendas - PDFs Reais com jsPDF
-
-**Novos arquivos:**
-- `src/lib/pdfGenerator.ts` - Funcoes para gerar PDFs A4, 80mm e 58mm
-
-**Arquivos a modificar:**
-- `src/components/vendas/PdfA4Modal.tsx` - Usar jsPDF real
-- `src/components/vendas/PdfNotinhaModal.tsx` - Usar jsPDF real
-
-**Dependencias:**
-- Instalar `jspdf` e `jspdf-autotable`
+**Fluxo:**
+1. Usuario digita codigo da empresa
+2. Sistema busca empresa pelo codigo
+3. Usuario seleciona role (Vendedor ou Producao)
+4. Sistema cria solicitacao pendente
+5. Exibe mensagem de aguardando aprovacao
 
 ---
 
-#### 3.3 Vendas - Editar e Excluir
+#### 2.2 Pagina de Gestao de Solicitacoes (Admin)
+**Arquivo:** `src/pages/TeamRequests.tsx`
 
-**Arquivo:** `src/components/vendas/SaleDetailsModal.tsx`
-
-**Alteracoes:**
-- Implementar `handleEditSale` que abre modal de edicao
-- Implementar `handleDeleteSale` com confirmacao e delete no Supabase
-- Adicionar modal de edicao de venda
-
----
-
-#### 3.4 Espaco - Status de Pagamento Visivel
-
-**Arquivo:** `src/components/espaco/SlotCard.tsx`
-
-**Alteracoes:**
-- Adicionar indicador visual de `payment_status` (Pago/Nao pago)
-- Mostrar badge verde para "Pago" e vermelho para "Nao pago"
+**Funcionalidades:**
+- Lista solicitacoes pendentes da empresa
+- Botao Aprovar (chama RPC approve_join_request)
+- Botao Rejeitar (abre modal para motivo, chama RPC reject_join_request)
+- Historico de solicitacoes processadas
+- Badge com contador de pendentes
 
 ---
 
-#### 3.5 Espaco - Permitir Datas Futuras no Calendario
+#### 2.3 Modal de Rejeicao
+**Arquivo:** `src/components/team/RejectRequestModal.tsx`
 
-**Arquivo:** `src/pages/Espaco.tsx`
-
-**Alteracoes:**
-- Remover condicao `isFuture(day)` que desabilita datas futuras
-- Permitir agendamentos para datas futuras
-
----
-
-#### 3.6 Clientes - Excluir com Verificacao
-
-**Arquivo:** `src/pages/Clientes.tsx`
-
-**Alteracoes:**
-- Modificar `confirmDelete` para verificar vendas vinculadas antes de excluir
-- Conectar ao Supabase para operacoes reais de delete
+**Funcionalidades:**
+- Campo de texto para motivo (opcional)
+- Botao confirmar rejeicao
+- Botao cancelar
 
 ---
 
-#### 3.7 Servicos - Remover Colunas Desnecessarias
+### PARTE 3: Modificacoes em Arquivos Existentes
 
-**Arquivo:** `src/pages/Servicos.tsx`
+#### 3.1 CompanySetup.tsx
+**Modificacoes:**
+- Apos criar empresa, exibir tela de sucesso com codigo gerado
+- Botao para copiar codigo
+- Instrucoes para compartilhar com equipe
+- Botao "Ir para Dashboard"
 
-**Alteracoes:**
-- Remover colunas "Pos-Venda" e "Auto-Agendar" da tabela
-- Manter apenas: Servico, Preco, Qtde Vendas, Total Vendido, Acoes
-- Remover card "Faturamento Total" (primeiro card de stats)
-
----
-
-#### 3.8 Garantias - PDF Real
-
-**Arquivo:** `src/pages/Garantias.tsx`
-
-**Alteracoes:**
-- Importar e usar `jsPDF` para gerar PDF real
-- Implementar `generateWarrantyPDF` com dados da garantia
+**Novo fluxo:**
+1. Usuario preenche dados da empresa
+2. Sistema cria empresa (trigger gera codigo automaticamente)
+3. Sistema exibe tela de sucesso com codigo visivel
+4. Usuario pode copiar e ir para dashboard
 
 ---
 
-#### 3.9 Garantias - Corrigir Scroll no Modal
+#### 3.2 App.tsx - Novas Rotas
+**Adicionar:**
+- `/empresa/entrar` - CompanyJoin (requer autenticacao, sem empresa)
+- `/equipe/solicitacoes` - TeamRequests (requer ADMIN)
 
-**Arquivo:** `src/components/garantias/IssueWarrantyModal.tsx`
-
-**Alteracoes:**
-- Adicionar classes `max-h-[85vh] overflow-y-auto` no DialogContent
-
----
-
-#### 3.10 Perfil - Card de Assinatura Conectado ao Banco
-
-**Arquivo:** `src/pages/Perfil.tsx`
-
-**Alteracoes:**
-- Buscar dados reais de `subscriptions` via Supabase
-- Calcular dias restantes com base em `expires_at`
-- Remover dados mock de subscription
+**Logica de redirecionamento:**
+- Usuario com subscription ativa mas sem company_id pode escolher:
+  - Criar empresa (`/empresa/cadastro`)
+  - Entrar em empresa existente (`/empresa/entrar`)
 
 ---
 
-#### 3.11 Sua Empresa - Upload de Logo
-
-**Arquivo:** `src/pages/Empresa.tsx`
-
-**Alteracoes:**
-- Adicionar input file para upload de logo
-- Fazer upload para Supabase Storage bucket `company-logos`
-- Atualizar `companies.logo_url` apos upload
-- Exibir logo existente se houver
+#### 3.3 Sidebar.tsx
+**Adicionar para ADMIN:**
+- Link "Solicitacoes" com icone UserPlus
+- Badge com contador de solicitacoes pendentes
 
 ---
 
-#### 3.12 Relatorios - Exportacao PDF Real
-
-**Arquivo:** `src/components/relatorios/ReportConfigModal.tsx`
-
-**Alteracoes:**
-- Implementar geracao real de PDF com jsPDF e jspdf-autotable
-- Criar funcao generica que recebe dados do relatorio e gera PDF
+#### 3.4 Empresa.tsx
+**Adicionar:**
+- Card exibindo codigo da empresa
+- Botao para copiar codigo
+- Texto explicativo sobre compartilhamento
 
 ---
 
-### PARTE 4: Arquivos a Criar
+#### 3.5 ProtectedRoute.tsx
+**Modificar:**
+- Usuario sem company_id pode acessar:
+  - `/empresa/cadastro` (criar)
+  - `/empresa/entrar` (solicitar acesso)
+- Usuario com solicitacao pendente ve modal de aguardando aprovacao
+
+---
+
+#### 3.6 AuthContext.tsx
+**Adicionar ao AuthUser:**
+- `pendingJoinRequest: boolean` - se tem solicitacao pendente
+
+**Modificar fetchUserData:**
+- Buscar se existe solicitacao pendente para o usuario
+
+---
+
+### PARTE 4: Componentes UI Reutilizaveis
+
+#### 4.1 CompanyCodeDisplay
+**Arquivo:** `src/components/team/CompanyCodeDisplay.tsx`
+
+Componente para exibir codigo da empresa com botao de copiar:
+- Codigo em destaque (font-mono, texto grande)
+- Botao de copiar com feedback visual
+- Texto explicativo
+
+---
+
+## Estrutura de Arquivos
 
 ```text
 src/
-├── lib/
-│   └── pdfGenerator.ts         # Funcoes de geracao de PDF
+├── pages/
+│   ├── CompanySetup.tsx      (modificar)
+│   ├── CompanyJoin.tsx       (criar)
+│   └── TeamRequests.tsx      (criar)
 ├── components/
-│   └── vendas/
-│       └── EditSaleModal.tsx   # Modal de edicao de venda (novo)
+│   └── team/
+│       ├── CompanyCodeDisplay.tsx   (criar)
+│       └── RejectRequestModal.tsx   (criar)
+└── contexts/
+    └── AuthContext.tsx       (modificar)
 ```
 
 ---
 
-### PARTE 5: Dependencias a Instalar
+## Fluxos de Usuario
 
-```bash
-npm install jspdf jspdf-autotable
-```
+### Fluxo 1: Primeira Conta (Admin)
+1. Usuario cria conta
+2. Usuario paga assinatura
+3. Usuario cadastra empresa
+4. Sistema gera codigo unico
+5. Sistema exibe codigo para compartilhar
+6. Usuario vira ADMIN da empresa
 
-Tipos TypeScript:
-```bash
-npm install -D @types/jspdf @types/jspdf-autotable
-```
+### Fluxo 2: Segunda Conta (Vendedor/Producao)
+1. Usuario cria conta
+2. Usuario paga assinatura
+3. Usuario escolhe "Entrar em empresa existente"
+4. Usuario digita codigo da empresa
+5. Usuario seleciona role desejado
+6. Sistema cria solicitacao pendente
+7. Admin recebe notificacao
+8. Admin aprova/rejeita
+9. Se aprovado, usuario acessa sistema
 
----
-
-## Ordem de Implementacao
-
-1. **Banco de dados**: Criar bucket de storage para logos
-2. **Dependencias**: Instalar jspdf e jspdf-autotable
-3. **Core**: Criar `pdfGenerator.ts` com funcoes de PDF
-4. **Vendas**: TransferToSpaceModal com Supabase real
-5. **Vendas**: PDFs A4/80mm/58mm reais + Editar/Excluir
-6. **Dashboard**: Botao no card financeiro
-7. **Espaco**: Status de pagamento visivel + datas futuras
-8. **Clientes**: Excluir com verificacao
-9. **Servicos**: Remover colunas
-10. **Garantias**: PDF real + scroll modal
-11. **Perfil**: Assinatura conectada ao banco
-12. **Empresa**: Upload de logo
-13. **Relatorios**: Exportacao PDF real
+### Fluxo 3: Admin Gerencia Solicitacoes
+1. Admin ve badge no menu "Solicitacoes"
+2. Admin clica e ve lista de pendentes
+3. Admin aprova ou rejeita cada uma
+4. Sistema atualiza role e company_id do usuario
 
 ---
 
 ## Detalhes Tecnicos
 
-### TransferToSpaceModal - Implementacao
-
-```typescript
-// Modificar handleTransfer para usar Supabase
-const handleTransfer = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setIsLoading(true);
-
-  try {
-    const companyId = user?.companyId;
-    if (!companyId) throw new Error("Company not found");
-
-    const { error } = await supabase.from("spaces").insert({
-      company_id: companyId,
-      name: `Vaga - ${client?.name}`,
-      client_id: sale.client_id,
-      vehicle_id: Number(vehicleId),
-      sale_id: sale.id,
-      status: "ocupado",
-      entry_date: entryDate,
-      entry_time: entryTime,
-      exit_date: exitDate || null,
-      exit_time: exitTime || null,
-      payment_status: paymentStatus,
-      has_exited: !!exitDate,
-      observations: observations,
-    });
-
-    if (error) throw error;
-    toast({ title: "Venda transferida para Espaco!" });
-    onOpenChange(false);
-    onTransferComplete?.();
-  } catch (error) {
-    toast({ title: "Erro ao transferir venda", variant: "destructive" });
-  } finally {
-    setIsLoading(false);
-  }
-};
+### Geracao de Codigo
+```sql
+-- Gera codigo de 6 caracteres (A-Z, 0-9)
+upper(substr(md5(random()::text), 1, 6))
 ```
 
-### PDF Generator
-
+### Validacao de Codigo
 ```typescript
-// src/lib/pdfGenerator.ts
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
-export function generateSalePDF(sale: Sale, format: 'A4' | '80mm' | '58mm') {
-  const width = format === 'A4' ? 210 : format === '80mm' ? 80 : 58;
-  const doc = new jsPDF({
-    orientation: format === 'A4' ? 'portrait' : 'portrait',
-    unit: 'mm',
-    format: format === 'A4' ? 'a4' : [width, 200]
-  });
-  
-  // Cabecalho
-  doc.setFontSize(format === 'A4' ? 16 : 12);
-  doc.text('WFE Evolution', 10, 10);
-  // ... resto da implementacao
-  
-  doc.save(`venda-${sale.id}.pdf`);
-}
+const { data: company } = await supabase
+  .from('companies')
+  .select('id, company_name')
+  .eq('company_code', code.toUpperCase())
+  .single();
 ```
 
-### Perfil - Buscar Assinatura Real
-
+### Aprovacao de Solicitacao
 ```typescript
-const [subscription, setSubscription] = useState<Subscription | null>(null);
+await supabase.rpc('approve_join_request', {
+  request_id_input: requestId
+});
+```
 
-useEffect(() => {
-  const fetchSubscription = async () => {
-    if (!user?.id) return;
-    
-    const { data } = await supabase
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-    
-    setSubscription(data);
-  };
-  
-  fetchSubscription();
-}, [user?.id]);
-
-const daysRemaining = subscription?.expires_at
-  ? Math.ceil((new Date(subscription.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-  : null;
+### Contador de Pendentes no Sidebar
+```typescript
+const { count } = await supabase
+  .from('company_join_requests')
+  .select('*', { count: 'exact', head: true })
+  .eq('company_id', user.companyId)
+  .eq('status', 'pending');
 ```
 
 ---
 
-## Consideracoes Importantes
+## Consideracoes de Seguranca
 
-1. **Dados Mock vs Supabase**: Varios componentes ainda usam `mockData.ts`. Para integracao completa, seria necessario conectar todos ao Supabase.
+1. **RLS na tabela company_join_requests:**
+   - SELECT: Admin ve da sua empresa, solicitante ve propria solicitacao
+   - INSERT: Apenas usuario autenticado (requester_user_id = auth.uid())
+   - UPDATE: Apenas owner da empresa
 
-2. **Storage Bucket**: O bucket `company-logos` precisa ser criado com policies RLS apropriadas.
+2. **Functions SECURITY DEFINER:**
+   - approve_join_request valida owner antes de atualizar
+   - reject_join_request valida owner antes de atualizar
 
-3. **Verificacao de Vendas**: Ao excluir cliente, verificar se existem vendas vinculadas para evitar erros de foreign key.
+3. **Validacao de role:**
+   - Apenas VENDEDOR e PRODUCAO podem ser solicitados
+   - ADMIN so pode ser definido pelo owner ao criar empresa
 
-4. **Painel Master**: Ja esta funcional com as RPC functions `master_change_subscription_price` e `master_change_expiry_date`.
+---
+
+## Ordem de Implementacao
+
+1. **Migracao SQL** - Criar tabela, functions, triggers
+2. **AuthContext** - Adicionar pendingJoinRequest
+3. **CompanyCodeDisplay** - Componente reutilizavel
+4. **CompanySetup** - Exibir codigo apos criacao
+5. **CompanyJoin** - Nova pagina de solicitacao
+6. **RejectRequestModal** - Modal de rejeicao
+7. **TeamRequests** - Pagina de gestao
+8. **App.tsx** - Novas rotas
+9. **Sidebar** - Link com contador
+10. **Empresa.tsx** - Exibir codigo
+11. **ProtectedRoute** - Logica de redirecionamento
+
