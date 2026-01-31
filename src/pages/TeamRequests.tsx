@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, X, Clock, Users, UserPlus, AlertCircle } from 'lucide-react';
+import { Loader2, Check, X, Clock, Users, UserPlus, AlertCircle, AlertTriangle } from 'lucide-react';
 import { RejectRequestModal } from '@/components/team/RejectRequestModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,37 +21,66 @@ interface JoinRequest {
   approved_at: string | null;
 }
 
+interface CompanyLimits {
+  max_members: number;
+  current_members: number;
+}
+
 export default function TeamRequests() {
   const { user } = useAuth();
   const { toast } = useToast();
 
   const [requests, setRequests] = useState<JoinRequest[]>([]);
+  const [limits, setLimits] = useState<CompanyLimits>({ max_members: 5, current_members: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<JoinRequest | null>(null);
 
   useEffect(() => {
-    fetchRequests();
+    fetchData();
   }, [user]);
 
-  const fetchRequests = async () => {
+  const fetchData = async () => {
     if (!user?.companyId) return;
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      // Fetch requests
+      const { data: requestsData, error: requestsError } = await supabase
         .from('company_join_requests')
         .select('*')
         .eq('company_id', user.companyId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setRequests(data || []);
+      if (requestsError) throw requestsError;
+      setRequests(requestsData || []);
+
+      // Fetch company limits
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('max_members')
+        .eq('id', user.companyId)
+        .single();
+
+      if (companyError) throw companyError;
+
+      // Count current members
+      const { count, error: countError } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', user.companyId);
+
+      if (countError) throw countError;
+
+      setLimits({
+        max_members: companyData?.max_members || 5,
+        current_members: count || 0,
+      });
     } catch (error) {
-      console.error('Error fetching requests:', error);
+      console.error('Error fetching data:', error);
       toast({
-        title: 'Erro ao carregar solicitações',
+        title: 'Erro ao carregar dados',
         variant: 'destructive',
       });
     } finally {
@@ -59,7 +88,18 @@ export default function TeamRequests() {
     }
   };
 
+  const isLimitReached = limits.current_members >= limits.max_members;
+
   const handleApprove = async (requestId: number) => {
+    if (isLimitReached) {
+      toast({
+        title: 'Limite atingido',
+        description: `Sua empresa já possui ${limits.current_members} de ${limits.max_members} membros.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setProcessingId(requestId);
     try {
       const { error } = await supabase.rpc('approve_company_join_request', {
@@ -73,7 +113,7 @@ export default function TeamRequests() {
         description: 'O usuário agora tem acesso ao sistema.',
       });
 
-      fetchRequests();
+      fetchData();
     } catch (error: any) {
       console.error('Error approving request:', error);
       toast({
@@ -101,7 +141,7 @@ export default function TeamRequests() {
         title: 'Solicitação rejeitada',
       });
 
-      fetchRequests();
+      fetchData();
     } catch (error: any) {
       console.error('Error rejecting request:', error);
       toast({
@@ -137,7 +177,7 @@ export default function TeamRequests() {
           Solicitações de Acesso
         </h1>
         <p className="text-muted-foreground">
-          Gerencie as solicitações para entrar na sua equipe
+          Gerencie as solicitações para entrar na sua equipe ({limits.current_members}/{limits.max_members} membros)
         </p>
       </div>
 
@@ -158,6 +198,16 @@ export default function TeamRequests() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Limit Warning */}
+          {isLimitReached && pendingRequests.length > 0 && (
+            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              <p className="text-sm">
+                Limite de membros atingido ({limits.current_members}/{limits.max_members}). 
+                Aumente o limite em <span className="font-medium">Empresa &gt; Configurar</span> para aprovar novas solicitações.
+              </p>
+            </div>
+          )}
           {pendingRequests.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-2 opacity-20" />
@@ -190,7 +240,8 @@ export default function TeamRequests() {
                     <Button
                       size="sm"
                       onClick={() => handleApprove(request.id)}
-                      disabled={processingId === request.id}
+                      disabled={processingId === request.id || isLimitReached}
+                      title={isLimitReached ? 'Limite de membros atingido' : 'Aprovar solicitação'}
                     >
                       {processingId === request.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

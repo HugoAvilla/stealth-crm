@@ -227,6 +227,7 @@ export type Database = {
           email: string | null
           id: number
           logo_url: string | null
+          max_members: number
           neighborhood: string | null
           number: string | null
           owner_id: string | null
@@ -247,6 +248,7 @@ export type Database = {
           email?: string | null
           id?: never
           logo_url?: string | null
+          max_members?: number
           neighborhood?: string | null
           number?: string | null
           owner_id?: string | null
@@ -267,6 +269,7 @@ export type Database = {
           email?: string | null
           id?: never
           logo_url?: string | null
+          max_members?: number
           neighborhood?: string | null
           number?: string | null
           owner_id?: string | null
@@ -1544,6 +1547,10 @@ export type Database = {
       approve_company_join_request: {
         Args: { request_id_input: number }
         Returns: undefined
+      }
+      count_company_members: {
+        Args: { company_id_input: number }
+        Returns: number
       }
       generate_company_code: { Args: never; Returns: string }
       get_company_by_code: {
