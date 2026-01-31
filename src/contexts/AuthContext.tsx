@@ -14,6 +14,7 @@ interface AuthUser {
   companyId: number | null;
   isMaster: boolean;
   hasPendingJoinRequest: boolean;
+  isCompanyOwner: boolean;
 }
 
 interface AuthContextType {
@@ -82,6 +83,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasPendingJoinRequest = !!pendingRequest;
       }
 
+      // Check if user is company owner
+      let isCompanyOwner = false;
+      if (profile?.company_id) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('owner_id')
+          .eq('id', profile.company_id)
+          .single();
+        
+        isCompanyOwner = companyData?.owner_id === userId;
+      }
+
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
       // Check if user is master account
@@ -95,7 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         subscriptionStatus: isMaster ? 'active' : ((subscriptionData?.status as SubscriptionStatus) || 'pending_payment'),
         companyId: profile?.company_id || subscriptionData?.company_id || null,
         isMaster,
-        hasPendingJoinRequest
+        hasPendingJoinRequest,
+        isCompanyOwner
       };
     } catch (error) {
       console.error('Error fetching user data:', error);
