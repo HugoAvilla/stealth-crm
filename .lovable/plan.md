@@ -1,159 +1,218 @@
 
-# Plano de Correcao: Role NENHUM apos Criar Empresa
 
-## Problema Identificado
+# Plano: Limite de Contas e Configuracao de Email
 
-O usuario cria a empresa com sucesso, mas o role permanece como `NENHUM` ao inves de ser atualizado para `ADMIN`. Isso faz com que o sistema mostre incorretamente o modal "Conta Pendente de Aprovacao".
+## Analise do Problema
 
-**Dados no banco:**
-- Usuario `hugoodfort@gmail.com` tem `role = NENHUM` mas e o `owner_id` da empresa 3
+### 1. Confirmacao de Email Obrigatoria
 
-**Causa raiz:** O UPDATE na tabela `user_roles` esta falhando silenciosamente ou nao esta sendo executado.
+O Supabase Auth esta configurado para exigir confirmacao de email por padrao. Quando um novo usuario cria conta, ele recebe um email de confirmacao e so pode fazer login apos clicar no link.
 
----
+**Usuarios afetados no banco:**
+- `ghastavila@gmail.com` - email_confirmed_at: NULL (nao confirmado)
+- `hg.lavila1@gmail.com` - email_confirmed_at: NULL (nao confirmado)
 
-## Correcoes Necessarias
+**Solucao:** Isso e uma configuracao do Supabase que precisa ser alterada no dashboard. Existem duas opcoes:
+- Manter a confirmacao de email (mais seguro)
+- Desabilitar a confirmacao de email (menos seguro, mas mais facil para novos usuarios)
 
-### 1. Verificar e Corrigir CompanySetup.tsx
-
-**Problema atual:** O codigo faz UPDATE, mas pode estar falhando sem tratar o erro adequadamente.
-
-**Alteracao no arquivo:** `src/pages/CompanySetup.tsx`
-
-Modificar o bloco de atualizacao do role (linhas 147-153) para:
-
-```typescript
-// 4. Update user role to ADMIN
-const { data: existingRole, error: checkRoleError } = await supabase
-  .from('user_roles')
-  .select('id')
-  .eq('user_id', user.id)
-  .maybeSingle();
-
-if (existingRole) {
-  // UPDATE existing role
-  const { error: roleError } = await supabase
-    .from('user_roles')
-    .update({ role: 'ADMIN' })
-    .eq('user_id', user.id);
-    
-  if (roleError) {
-    console.error('Error updating role:', roleError);
-    throw roleError;
-  }
-} else {
-  // INSERT new role (fallback)
-  const { error: roleError } = await supabase
-    .from('user_roles')
-    .insert({ user_id: user.id, role: 'ADMIN' });
-    
-  if (roleError) {
-    console.error('Error inserting role:', roleError);
-    throw roleError;
-  }
-}
-```
+Para desabilitar, voce precisa acessar:
+**Supabase Dashboard > Authentication > Providers > Email > Desativar "Confirm email"**
 
 ---
 
-### 2. Corrigir ProtectedRoute para Owners
+### 2. Limite de Contas Vinculadas
 
-**Problema:** O ProtectedRoute verifica `role === 'NENHUM' && companyId`, mas nao considera se o usuario e owner da empresa.
+**Situacao atual:** Nao existe limite de quantas contas podem ser vinculadas a uma empresa.
 
-**Alteracao no arquivo:** `src/components/auth/ProtectedRoute.tsx`
-
-Adicionar verificacao se usuario e owner antes de mostrar PendingApprovalModal:
-
-```typescript
-// User has role NENHUM - pending approval (only for users with company who are NOT owners)
-if (user.role === 'NENHUM' && user.companyId) {
-  // If user is company owner, they should be ADMIN - likely a data issue
-  // Redirect to refresh or handle gracefully
-  return <PendingApprovalModal />;
-}
-```
-
-**Solucao melhor:** Adicionar `isCompanyOwner` ao AuthContext e verificar:
-
-```typescript
-if (user.role === 'NENHUM' && user.companyId && !user.isCompanyOwner) {
-  return <PendingApprovalModal />;
-}
-```
+**Alteracoes necessarias:**
 
 ---
 
-### 3. Adicionar isCompanyOwner ao AuthContext
+## Implementacao do Limite de Contas
 
-**Arquivo:** `src/contexts/AuthContext.tsx`
+### PARTE 1: Banco de Dados
 
-Adicionar nova propriedade ao AuthUser:
+**Migracao SQL:**
 
-```typescript
-interface AuthUser {
-  // ... existing fields
-  isCompanyOwner: boolean;
-}
-```
-
-Modificar `fetchUserData` para verificar se usuario e owner:
-
-```typescript
-// Check if user is company owner
-let isCompanyOwner = false;
-if (profile?.company_id) {
-  const { data: companyData } = await supabase
-    .from('companies')
-    .select('owner_id')
-    .eq('id', profile.company_id)
-    .single();
-  
-  isCompanyOwner = companyData?.owner_id === userId;
-}
-```
-
----
-
-### 4. Correcao Imediata no Banco (SQL)
-
-Para corrigir usuarios ja afetados, executar uma migracao que atualiza o role para ADMIN quando o usuario e owner da empresa:
+1. Adicionar coluna `max_members` na tabela `companies`
+   - Tipo: integer
+   - Valor padrao: 5 (limite inicial)
+   
+2. Criar function para verificar limite antes de aprovar solicitacao
+   - Validar se a empresa ainda tem vagas
+   - Atualizar RPC `approve_company_join_request` para verificar limite
 
 ```sql
-UPDATE public.user_roles ur
-SET role = 'ADMIN'
-FROM public.companies c
-WHERE c.owner_id = ur.user_id
-AND ur.role = 'NENHUM';
+-- Adicionar coluna max_members
+ALTER TABLE public.companies 
+ADD COLUMN max_members integer NOT NULL DEFAULT 5;
+
+-- Function auxiliar para contar membros atuais
+CREATE OR REPLACE FUNCTION public.count_company_members(company_id_input bigint)
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  SELECT COUNT(*)::integer
+  FROM public.profiles
+  WHERE company_id = company_id_input;
+$$;
 ```
 
 ---
 
-## Resumo das Alteracoes
+### PARTE 2: Atualizar approve_company_join_request
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `AuthContext.tsx` | Adicionar `isCompanyOwner` ao AuthUser |
-| `ProtectedRoute.tsx` | Nao mostrar PendingApprovalModal para owners |
-| `CompanySetup.tsx` | Melhorar tratamento de erro no UPDATE de role |
-| SQL Migration | Corrigir usuarios existentes |
+Modificar a function para verificar se ha vagas disponiveis:
+
+```sql
+CREATE OR REPLACE FUNCTION public.approve_company_join_request(request_id_input bigint)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_request RECORD;
+  v_company RECORD;
+  v_current_members integer;
+BEGIN
+  -- Get request
+  SELECT * INTO v_request FROM public.company_join_requests 
+  WHERE id = request_id_input AND status = 'pending';
+  
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Solicitacao nao encontrada ou ja processada';
+  END IF;
+
+  -- Get company with max_members
+  SELECT * INTO v_company FROM public.companies 
+  WHERE id = v_request.company_id;
+
+  -- Count current members
+  SELECT COUNT(*) INTO v_current_members
+  FROM public.profiles
+  WHERE company_id = v_request.company_id;
+
+  -- Check limit
+  IF v_current_members >= v_company.max_members THEN
+    RAISE EXCEPTION 'Limite de membros atingido (% de %)', 
+      v_current_members, v_company.max_members;
+  END IF;
+
+  -- Update profile, role and request (existing logic)
+  ...
+END;
+$$;
+```
+
+---
+
+### PARTE 3: Frontend - Modal de Configuracao
+
+**Novo arquivo:** `src/components/empresa/TeamSettingsModal.tsx`
+
+Modal para o Admin configurar:
+- Campo para definir limite de membros (1-50)
+- Exibicao de membros atuais
+- Botao salvar
+
+---
+
+### PARTE 4: Modificar Empresa.tsx
+
+Adicionar:
+- Botao de configuracoes ao lado do codigo da empresa
+- Card mostrando membros atuais / limite
+- Acesso ao modal de configuracoes
+
+---
+
+### PARTE 5: Validacao na Aprovacao (Frontend)
+
+Modificar `TeamRequests.tsx`:
+- Buscar limite atual da empresa
+- Contar membros atuais
+- Desabilitar botao "Aprovar" se limite atingido
+- Exibir mensagem informativa
+
+---
+
+## Estrutura de Arquivos
+
+```text
+src/
+├── components/
+│   └── empresa/
+│       └── TeamSettingsModal.tsx  (criar)
+├── pages/
+│   ├── Empresa.tsx               (modificar)
+│   └── TeamRequests.tsx          (modificar)
+```
+
+---
+
+## Interface do Usuario
+
+### Card na pagina Empresa.tsx
+
+```text
+┌─────────────────────────────────────────────┐
+│ 👥 Equipe                           ⚙️      │
+├─────────────────────────────────────────────┤
+│                                             │
+│   Membros: 3 de 5                          │
+│   [████████░░░░░░░░] 60%                   │
+│                                             │
+│   Codigo: ABC123  [Copiar]                 │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+### Modal de Configuracoes
+
+```text
+┌──────────────────────────────────────┐
+│ Configuracoes da Equipe         [X] │
+├──────────────────────────────────────┤
+│                                      │
+│ Limite de Membros                    │
+│ ┌──────────────────────────────┐     │
+│ │ 5                        [-][+]    │
+│ └──────────────────────────────┘     │
+│                                      │
+│ Minimo: 1 | Maximo: 50              │
+│                                      │
+│           [Salvar]                   │
+│                                      │
+└──────────────────────────────────────┘
+```
 
 ---
 
 ## Ordem de Implementacao
 
-1. **Migracao SQL** - Corrigir usuarios existentes no banco
-2. **AuthContext** - Adicionar `isCompanyOwner`
-3. **ProtectedRoute** - Verificar owner antes de mostrar modal
-4. **CompanySetup** - Melhorar logica de UPDATE do role
+1. **Migracao SQL** - Adicionar coluna max_members e atualizar RPC
+2. **TeamSettingsModal.tsx** - Novo componente
+3. **Empresa.tsx** - Adicionar card de equipe e botao de config
+4. **TeamRequests.tsx** - Validar limite ao aprovar
 
 ---
 
-## Logica Correta Final
+## Sobre a Confirmacao de Email
 
-O `PendingApprovalModal` deve aparecer APENAS para:
-- Usuarios que entraram via **join request** (nao sao owners)
-- Cujo status ainda e **pending** ou foram aprovados mas role ainda e NENHUM
+Esta e uma configuracao de seguranca do Supabase. Voce pode:
 
-Nao deve aparecer para:
-- Owners de empresa (devem ter role ADMIN automaticamente)
-- Usuarios que criaram sua propria empresa
+**Opcao A: Manter (Recomendado)**
+- Usuarios precisam confirmar email
+- Mais seguro contra contas falsas
+- Usuarios devem verificar pasta de spam
+
+**Opcao B: Desabilitar**
+- Usuarios podem entrar imediatamente
+- Menos seguro
+- Configurar em: Dashboard Supabase > Authentication > Providers > Email
+
+Se quiser manter a confirmacao mas facilitar para usuarios existentes, posso criar uma migracao para confirmar os emails pendentes manualmente.
+
