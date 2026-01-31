@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Download, FileText } from "lucide-react";
 import { type ReportType, accounts } from "@/lib/mockData";
 import { toast } from "sonner";
+import { generateReportPDF, type ReportPDFData } from "@/lib/pdfGenerator";
 
 interface ReportConfigModalProps {
   open: boolean;
@@ -27,7 +28,28 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
       return;
     }
 
-    toast.success(`Relatório ${report?.name} gerado em ${format.toUpperCase()}!`);
+    if (format === 'pdf') {
+      // Generate real PDF
+      const pdfData: ReportPDFData = {
+        title: report?.name || 'Relatório',
+        period: startDate && endDate ? { start: startDate, end: endDate } : undefined,
+        columns: ['Item', 'Descrição', 'Valor'],
+        rows: [
+          ['1', 'Exemplo de dados', 'R$ 1.000,00'],
+          ['2', 'Mais dados', 'R$ 500,00'],
+          ['3', 'Outros', 'R$ 250,00'],
+        ],
+        summary: [
+          { label: 'Total', value: 'R$ 1.750,00' },
+        ],
+      };
+
+      generateReportPDF(pdfData);
+      toast.success(`Relatório ${report?.name} gerado em PDF!`);
+    } else {
+      toast.success(`Relatório ${report?.name} gerado em ${format.toUpperCase()}!`);
+    }
+    
     onOpenChange(false);
   };
 

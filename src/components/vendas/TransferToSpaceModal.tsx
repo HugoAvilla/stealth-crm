@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -20,14 +20,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowRightLeft, Car, User, DollarSign, Loader2 } from "lucide-react";
-import { Sale, getClientById, getVehicleById } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+
+interface SaleData {
+  id: number;
+  total: number;
+  client_id: number;
+  vehicle_id?: number;
+}
 
 interface TransferToSpaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sale: Sale | null;
+  sale: SaleData | null;
   onTransferComplete?: () => void;
+}
+
+interface Vehicle {
+  id: number;
+  brand: string;
+  model: string;
+  plate: string | null;
+}
+
+interface Client {
+  id: number;
+  name: string;
 }
 
 const TransferToSpaceModal = ({
@@ -37,6 +57,7 @@ const TransferToSpaceModal = ({
   onTransferComplete,
 }: TransferToSpaceModalProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [vehicleId, setVehicleId] = useState<string>("");
   const [entryDate, setEntryDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -45,11 +66,35 @@ const TransferToSpaceModal = ({
   const [exitTime, setExitTime] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<"paid" | "pending">("pending");
   const [observations, setObservations] = useState("");
+  const [client, setClient] = useState<Client | null>(null);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+
+  useEffect(() => {
+    if (sale?.client_id && open) {
+      fetchClientAndVehicles();
+    }
+  }, [sale?.client_id, open]);
+
+  const fetchClientAndVehicles = async () => {
+    if (!sale?.client_id) return;
+
+    const [clientRes, vehiclesRes] = await Promise.all([
+      supabase.from("clients").select("id, name").eq("id", sale.client_id).single(),
+      supabase.from("vehicles").select("id, brand, model, plate").eq("client_id", sale.client_id),
+    ]);
+
+    if (clientRes.data) setClient(clientRes.data);
+    if (vehiclesRes.data) {
+      setVehicles(vehiclesRes.data);
+      if (sale.vehicle_id) {
+        setVehicleId(sale.vehicle_id.toString());
+      }
+    }
+  };
 
   if (!sale) return null;
 
-  const client = getClientById(sale.client_id);
-  const saleVehicle = getVehicleById(sale.vehicle_id);
+  const selectedVehicle = vehicles.find(v => v.id === Number(vehicleId));
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,11 +107,35 @@ const TransferToSpaceModal = ({
       return;
     }
 
+    if (!user?.companyId) {
+      toast({
+        title: "Erro: empresa não encontrada",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Simular transferência (em produção, fazer insert no Supabase)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase.from("spaces").insert({
+        company_id: user.companyId,
+        name: `Vaga - ${client?.name || 'Cliente'}`,
+        client_id: sale.client_id,
+        vehicle_id: Number(vehicleId),
+        sale_id: sale.id,
+        status: "ocupado",
+        tag: "Em andamento",
+        entry_date: entryDate,
+        entry_time: entryTime,
+        exit_date: exitDate || null,
+        exit_time: exitTime || null,
+        payment_status: paymentStatus,
+        has_exited: !!exitDate,
+        observations: observations || null,
+      });
+
+      if (error) throw error;
 
       toast({
         title: "Venda transferida para Espaço!",
@@ -125,14 +194,16 @@ const TransferToSpaceModal = ({
           </div>
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm">{client?.name}</span>
+            <span className="text-sm">{client?.name || 'Carregando...'}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Car className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm">
-              {saleVehicle?.brand} {saleVehicle?.model} - {saleVehicle?.plate}
-            </span>
-          </div>
+          {selectedVehicle && (
+            <div className="flex items-center gap-2">
+              <Car className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm">
+                {selectedVehicle.brand} {selectedVehicle.model} - {selectedVehicle.plate}
+              </span>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleTransfer} className="space-y-4">
@@ -144,9 +215,9 @@ const TransferToSpaceModal = ({
                 <SelectValue placeholder="Selecione um veículo" />
               </SelectTrigger>
               <SelectContent>
-                {client?.vehicles.map((v) => (
+                {vehicles.map((v) => (
                   <SelectItem key={v.id} value={v.id.toString()}>
-                    {v.brand} {v.model} - {v.plate}
+                    {v.brand} {v.model} - {v.plate || 'Sem placa'}
                   </SelectItem>
                 ))}
               </SelectContent>

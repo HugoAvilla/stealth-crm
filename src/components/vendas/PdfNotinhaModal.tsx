@@ -15,6 +15,7 @@ import { FileText, Download, X } from "lucide-react";
 import { Sale, getClientById, getVehicleById, getServiceById } from "@/lib/mockData";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { generateSalePDFReceipt, type SalePDFData } from "@/lib/pdfGenerator";
 
 interface PdfNotinhaModalProps {
   open: boolean;
@@ -49,9 +50,32 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
   };
 
   const handleGenerate = () => {
+    const pdfData: SalePDFData = {
+      id: sale.id,
+      date: sale.date,
+      client_name: client?.name || 'Cliente',
+      client_phone: client?.phone || '',
+      vehicle_brand: vehicle?.brand || '',
+      vehicle_model: vehicle?.model || '',
+      vehicle_plate: vehicle?.plate || '',
+      vehicle_year: vehicle?.year,
+      services: saleServices.map(s => ({
+        name: s!.name,
+        description: s!.description,
+        price: s!.price,
+      })),
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      total: sale.total,
+      payment_method: sale.payment_method,
+      company_name: 'WFE EVOLUTION',
+    };
+
+    generateSalePDFReceipt(pdfData, size, options);
+    
     toast({
       title: "PDF gerado!",
-      description: `Notinha ${size} gerada com sucesso.`,
+      description: `Notinha ${size} baixada com sucesso.`,
     });
   };
 

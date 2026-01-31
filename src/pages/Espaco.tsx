@@ -223,12 +223,10 @@ export default function Espaco() {
               return (
                 <button
                   key={dayStr}
-                  onClick={() => !isFuture(day) && setSelectedDay(day)}
-                  disabled={isFuture(day)}
+                  onClick={() => setSelectedDay(day)}
                   className={cn(
-                    "aspect-square p-1 rounded-lg border transition-colors flex flex-col items-center justify-center gap-1",
+                    "aspect-square p-1 rounded-lg border transition-colors flex flex-col items-center justify-center gap-1 hover:bg-accent cursor-pointer",
                     isToday(day) && "border-primary",
-                    isFuture(day) ? "opacity-40 cursor-not-allowed bg-muted/20" : "hover:bg-accent cursor-pointer",
                     !isSameMonth(day, currentDate) && "opacity-50"
                   )}
                 >

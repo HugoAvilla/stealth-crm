@@ -79,7 +79,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0">
+      <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>Emitir Garantia</DialogTitle>
         </DialogHeader>

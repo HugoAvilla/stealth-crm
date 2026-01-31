@@ -12,6 +12,7 @@ import { IssueWarrantyModal } from "@/components/garantias/IssueWarrantyModal";
 import { NewWarrantyTemplateModal } from "@/components/garantias/NewWarrantyTemplateModal";
 import { SendEmailModal } from "@/components/garantias/SendEmailModal";
 import { toast } from "sonner";
+import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
 
 export default function Garantias() {
   const [search, setSearch] = useState("");
@@ -38,6 +39,28 @@ export default function Garantias() {
   };
 
   const handleDownload = (warranty: typeof issuedWarranties[0]) => {
+    const template = warrantyTemplates.find(t => t.id === warranty.template_id);
+    const service = template ? getServiceById(template.service_id) : null;
+    const client = getClientById(warranty.client_id);
+    const vehicle = getVehicleById(warranty.vehicle_id);
+
+    const pdfData: WarrantyPDFData = {
+      certificate_number: warranty.certificate_number,
+      client_name: client?.name || 'Cliente',
+      client_phone: client?.phone || '',
+      client_email: client?.email,
+      vehicle_brand: vehicle?.brand || '',
+      vehicle_model: vehicle?.model || '',
+      vehicle_plate: vehicle?.plate || '',
+      vehicle_year: vehicle?.year,
+      service_name: service?.name || 'Serviço',
+      issue_date: warranty.issued_at,
+      expiry_date: warranty.expires_at,
+      warranty_text: template?.terms,
+      company_name: 'WFE EVOLUTION',
+    };
+
+    generateWarrantyPDF(pdfData);
     toast.success(`Certificado ${warranty.certificate_number} baixado!`);
   };
 

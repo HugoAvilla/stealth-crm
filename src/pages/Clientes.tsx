@@ -105,11 +105,21 @@ export default function Clientes() {
     setClientToDelete(client);
   };
 
-  const confirmDelete = () => {
-    if (clientToDelete) {
-      toast.success(`Cliente "${clientToDelete.name}" excluído com sucesso`);
+  const confirmDelete = async () => {
+    if (!clientToDelete) return;
+
+    // In production, this would check and delete via Supabase
+    // For now, we show an error if client has sales (mock check)
+    const hasLinkedSales = clientToDelete.total_spent > 0;
+    
+    if (hasLinkedSales) {
+      toast.error("Cliente possui vendas vinculadas. Não pode ser excluído.");
       setClientToDelete(null);
+      return;
     }
+
+    toast.success(`Cliente "${clientToDelete.name}" excluído com sucesso`);
+    setClientToDelete(null);
   };
 
   const openChat = (client: Client) => {

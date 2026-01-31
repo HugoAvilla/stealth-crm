@@ -56,23 +56,7 @@ export default function Servicos() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <DollarSign className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Faturamento Total</p>
-                <p className="text-2xl font-bold">
-                  R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="bg-card/50 border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -142,12 +126,10 @@ export default function Servicos() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
+                <TableHead>Serviço</TableHead>
                 <TableHead className="text-right">Preço</TableHead>
-                <TableHead className="text-center">Pós-Venda</TableHead>
-                <TableHead className="text-center">Auto-Agendar</TableHead>
                 <TableHead className="text-right">Vendas</TableHead>
-                <TableHead className="text-right">Faturamento</TableHead>
+                <TableHead className="text-right">Total Vendido</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -162,18 +144,6 @@ export default function Servicos() {
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     R$ {service.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {service.post_sale_days > 0 ? (
-                      <Badge variant="outline">{service.post_sale_days} dias</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={service.auto_schedule ? 'default' : 'secondary'}>
-                      {service.auto_schedule ? 'Sim' : 'Não'}
-                    </Badge>
                   </TableCell>
                   <TableCell className="text-right">{service.sales_count}</TableCell>
                   <TableCell className="text-right font-medium text-primary">
