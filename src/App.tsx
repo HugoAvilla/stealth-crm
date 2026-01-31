@@ -12,6 +12,7 @@ import SignUp from "./pages/SignUp";
 import Subscription from "./pages/Subscription";
 import WaitingApproval from "./pages/WaitingApproval";
 import CompanySetup from "./pages/CompanySetup";
+import CompanyJoin from "./pages/CompanyJoin";
 import Dashboard from "./pages/Dashboard";
 import Vendas from "./pages/Vendas";
 import Clientes from "./pages/Clientes";
@@ -27,6 +28,7 @@ import Perfil from "./pages/Perfil";
 import Empresa from "./pages/Empresa";
 import Admin from "./pages/Admin";
 import Master from "./pages/Master";
+import TeamRequests from "./pages/TeamRequests";
 import NotFound from "./pages/NotFound";
 import { MainLayout } from "./components/layout/MainLayout";
 
@@ -89,6 +91,20 @@ function AppRoutes() {
             <Navigate to="/" replace />
           ) : (
             <CompanySetup />
+          )
+        } 
+      />
+      <Route 
+        path="/empresa/entrar" 
+        element={
+          !isAuthenticated ? (
+            <Navigate to="/login" replace />
+          ) : user?.subscriptionStatus !== 'active' ? (
+            <Navigate to="/assinatura" replace />
+          ) : user?.companyId ? (
+            <Navigate to="/" replace />
+          ) : (
+            <CompanyJoin />
           )
         } 
       />
@@ -177,6 +193,12 @@ function AppRoutes() {
       <Route path="/admin" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Admin /></MainLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/equipe/solicitacoes" element={
+        <ProtectedRoute allowedRoles={['ADMIN']}>
+          <MainLayout><TeamRequests /></MainLayout>
         </ProtectedRoute>
       } />
 

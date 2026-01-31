@@ -2,33 +2,53 @@ import { useState, useRef, useEffect } from "react";
 import { Phone, Mail, MapPin, Upload, MessageCircle, Edit, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { companySettings } from "@/lib/mockData";
 import { EditCompanyModal } from "@/components/empresa/EditCompanyModal";
+import { CompanyCodeDisplay } from "@/components/team/CompanyCodeDisplay";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface CompanyData {
+  company_name: string;
+  cnpj: string | null;
+  phone: string;
+  email: string | null;
+  logo_url: string | null;
+  company_code: string | null;
+  street: string | null;
+  number: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  cep: string | null;
+}
+
 export default function Empresa() {
   const { user } = useAuth();
   const [showEditModal, setShowEditModal] = useState(false);
-  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [company, setCompany] = useState<CompanyData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const fetchCompanyLogo = async () => {
+    const fetchCompany = async () => {
       if (!user?.companyId) return;
 
-      const { data } = await supabase
+      setIsLoading(true);
+      const { data, error } = await supabase
         .from("companies")
-        .select("logo_url")
+        .select("company_name, cnpj, phone, email, logo_url, company_code, street, number, neighborhood, city, state, cep")
         .eq("id", user.companyId)
         .single();
 
-      if (data?.logo_url) setCompanyLogo(data.logo_url);
+      if (!error && data) {
+        setCompany(data);
+      }
+      setIsLoading(false);
     };
 
-    fetchCompanyLogo();
+    fetchCompany();
   }, [user?.companyId]);
 
   const handleSupportClick = () => {
@@ -63,7 +83,7 @@ export default function Empresa() {
 
       if (updateError) throw updateError;
 
-      setCompanyLogo(publicUrl);
+      setCompany(prev => prev ? { ...prev, logo_url: publicUrl } : null);
       toast.success('Logo atualizada com sucesso!');
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
@@ -72,6 +92,27 @@ export default function Empresa() {
       setIsUploading(false);
     }
   };
+
+  const formatAddress = () => {
+    if (!company) return 'Endereço não cadastrado';
+    const parts = [
+      company.street,
+      company.number,
+      company.neighborhood,
+      company.city,
+      company.state,
+      company.cep
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : 'Endereço não cadastrado';
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6 max-w-4xl mx-auto">
@@ -103,8 +144,8 @@ export default function Empresa() {
             >
               {isUploading ? (
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              ) : companyLogo ? (
-                <img src={companyLogo} alt="Logo" className="w-full h-full object-contain" />
+              ) : company?.logo_url ? (
+                <img src={company.logo_url} alt="Logo" className="w-full h-full object-contain" />
               ) : (
                 <div className="text-center">
                   <Upload className="h-6 w-6 mx-auto text-muted-foreground" />
@@ -113,12 +154,17 @@ export default function Empresa() {
               )}
             </div>
             <div>
-              <h2 className="text-2xl font-bold">{companySettings.name}</h2>
-              <p className="text-muted-foreground">{companySettings.cnpj}</p>
+              <h2 className="text-2xl font-bold">{company?.company_name || 'Empresa'}</h2>
+              <p className="text-muted-foreground">{company?.cnpj || 'CNPJ não cadastrado'}</p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Company Code - Only for Admin */}
+      {user?.role === 'ADMIN' && company?.company_code && (
+        <CompanyCodeDisplay code={company.company_code} />
+      )}
 
       {/* Contact Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -130,7 +176,7 @@ export default function Empresa() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">WhatsApp</p>
-                <p className="font-medium">{companySettings.phone}</p>
+                <p className="font-medium">{company?.phone || 'Não cadastrado'}</p>
               </div>
             </div>
           </CardContent>
@@ -144,7 +190,7 @@ export default function Empresa() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{companySettings.email}</p>
+                <p className="font-medium">{company?.email || 'Não cadastrado'}</p>
               </div>
             </div>
           </CardContent>
@@ -159,7 +205,7 @@ export default function Empresa() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Endereço</p>
-              <p className="font-medium">{companySettings.address}</p>
+              <p className="font-medium">{formatAddress()}</p>
             </div>
           </div>
         </CardContent>

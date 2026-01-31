@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth, SubscriptionStatus } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import type { AppRole } from '@/lib/database.types';
@@ -20,6 +20,7 @@ export function ProtectedRoute({
   requireMaster = false
 }: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -63,6 +64,11 @@ export function ProtectedRoute({
 
   // Check if company is required and user doesn't have one
   if (requireCompany && !user.companyId) {
+    // If user has pending join request, show waiting message
+    if (user.hasPendingJoinRequest) {
+      return <Navigate to="/empresa/entrar" replace />;
+    }
+    // Otherwise redirect to company setup or join
     return <Navigate to="/empresa/cadastro" replace />;
   }
 
