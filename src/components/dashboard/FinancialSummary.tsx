@@ -1,7 +1,10 @@
 import { dashboardStats, accounts } from '@/lib/mockData';
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 export function FinancialSummary() {
+  const navigate = useNavigate();
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
   const entriesTotal = 5200; // Mock data
   const expensesTotal = 1800; // Mock data
@@ -82,6 +85,17 @@ export function FinancialSummary() {
               </span>
             </div>
           )}
+        </div>
+        
+        {/* Botão Ver Financeiro */}
+        <div className="mt-4">
+          <Button 
+            onClick={() => navigate('/financeiro')}
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Wallet className="mr-2 h-4 w-4" />
+            Ver Financeiro Completo
+          </Button>
         </div>
       </div>
     </div>

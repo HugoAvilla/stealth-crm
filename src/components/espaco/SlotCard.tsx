@@ -121,6 +121,25 @@ export function SlotCard({ slot, onFill, onStatusChange, onRelease }: SlotCardPr
           <p className="text-xs text-muted-foreground truncate">{client.name}</p>
         )}
 
+        {/* Payment Status Badge */}
+        {'payment_status' in slot && (
+          <Badge 
+            variant="outline" 
+            className={cn(
+              "text-xs",
+              slot.payment_status === 'paid' 
+                ? "bg-green-500/20 text-green-400 border-green-500/30" 
+                : "bg-red-500/20 text-red-400 border-red-500/30"
+            )}
+          >
+            {slot.payment_status === 'paid' ? (
+              <><CheckCircle className="h-3 w-3 mr-1" />Pago</>
+            ) : (
+              <><AlertCircle className="h-3 w-3 mr-1" />Não pago</>
+            )}
+          </Badge>
+        )}
+
         {slot.work_status !== 'finalizado' && (
           <div className="flex items-center gap-2 text-sm font-mono">
             <Clock className="h-4 w-4 text-muted-foreground" />

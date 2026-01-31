@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, LogOut, Edit, Lock, FileText, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,11 +10,36 @@ import { ptBR } from "date-fns/locale";
 import { EditInfoModal } from "@/components/perfil/EditInfoModal";
 import { ChangePasswordModal } from "@/components/perfil/ChangePasswordModal";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Subscription {
+  id: number;
+  plan_name: string | null;
+  expires_at: string | null;
+  status: string;
+}
 
 export default function Perfil() {
   const { user, signOut } = useAuth();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (!user?.id) return;
+
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("id, plan_name, expires_at, status")
+        .eq("user_id", user.id)
+        .single();
+
+      if (data) setSubscription(data);
+    };
+
+    fetchSubscription();
+  }, [user?.id]);
 
   const handleLogout = () => {
     signOut();
@@ -28,12 +53,10 @@ export default function Perfil() {
   const userName = user?.profile?.name || user?.email?.split('@')[0] || 'Usuário';
   const userAvatar = user?.profile?.avatar_url;
 
-  // Mock subscription data
-  const subscription = {
-    plan: "Pro",
-    daysLeft: 25,
-    expiresAt: "2026-02-20"
-  };
+  // Calculate days remaining
+  const daysRemaining = subscription?.expires_at
+    ? Math.ceil((new Date(subscription.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -104,27 +127,39 @@ export default function Perfil() {
       </div>
 
       {/* Subscription */}
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Shield className="h-5 w-5" /> Assinatura
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Plano {subscription.plan}</p>
-              <p className="text-sm text-muted-foreground">
-                Expira em {format(new Date(subscription.expiresAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-              </p>
+      {subscription && (
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Shield className="h-5 w-5" /> Assinatura
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">Plano {subscription.plan_name || 'WFE Evolution CRM'}</p>
+                {subscription.expires_at && (
+                  <p className="text-sm text-muted-foreground">
+                    Expira em {format(new Date(subscription.expires_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  </p>
+                )}
+              </div>
+              <div className="text-right">
+                {daysRemaining !== null && (
+                  <>
+                    <p className={`text-3xl font-bold ${daysRemaining > 0 ? 'text-primary' : 'text-destructive'}`}>
+                      {daysRemaining > 0 ? daysRemaining : 0}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {daysRemaining > 0 ? 'dias restantes' : 'Expirado'}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-3xl font-bold text-primary">{subscription.daysLeft}</p>
-              <p className="text-xs text-muted-foreground">dias restantes</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

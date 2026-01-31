@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { FileText, Download, X } from "lucide-react";
 import { Sale, getClientById, getVehicleById, getServiceById } from "@/lib/mockData";
 import { toast } from "@/hooks/use-toast";
+import { generateSalePDFA4, type SalePDFData } from "@/lib/pdfGenerator";
 
 interface PdfA4ModalProps {
   open: boolean;
@@ -51,11 +52,33 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
   };
 
   const handleGenerate = () => {
+    const pdfData: SalePDFData = {
+      id: sale.id,
+      date: sale.date,
+      client_name: client?.name || 'Cliente',
+      client_phone: client?.phone || '',
+      vehicle_brand: vehicle?.brand || '',
+      vehicle_model: vehicle?.model || '',
+      vehicle_plate: vehicle?.plate || '',
+      vehicle_year: vehicle?.year,
+      services: saleServices.map(s => ({
+        name: s!.name,
+        description: s!.description,
+        price: s!.price,
+      })),
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      total: sale.total,
+      payment_method: sale.payment_method,
+      company_name: 'WFE EVOLUTION',
+    };
+
+    generateSalePDFA4(pdfData, options);
+    
     toast({
       title: "PDF gerado!",
-      description: "O documento A4 foi gerado com sucesso.",
+      description: "O documento A4 foi baixado com sucesso.",
     });
-    // In production, generate actual PDF
   };
 
   return (
