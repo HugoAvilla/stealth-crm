@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { TopClientsRanking } from '@/components/dashboard/TopClientsRanking';
@@ -8,16 +9,37 @@ import { SalesChart } from '@/components/dashboard/SalesChart';
 import { CapacityWidget } from '@/components/dashboard/CapacityWidget';
 import { FinancialSummary } from '@/components/dashboard/FinancialSummary';
 import { ConversionFunnel } from '@/components/dashboard/ConversionFunnel';
-import { dashboardStats } from '@/lib/mockData';
 import { Search, DollarSign, TrendingUp, Users, Phone } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import NewSaleModal from '@/components/vendas/NewSaleModal';
 import NewClientModal from '@/components/vendas/NewClientModal';
+import { startOfMonth, endOfMonth } from 'date-fns';
+
+interface DashboardStats {
+  totalSales: number;
+  salesCount: number;
+  averageTicket: number;
+  newClients: number;
+  pendingContacts: number;
+  monthlyGoal: number;
+  monthlyProgress: number;
+}
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showNewSaleModal, setShowNewSaleModal] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalSales: 0,
+    salesCount: 0,
+    averageTicket: 0,
+    newClients: 0,
+    pendingContacts: 0,
+    monthlyGoal: 50000,
+    monthlyProgress: 0,
+  });
 
   const userName = user?.profile?.name || user?.email?.split('@')[0] || 'Usuário';
 
@@ -27,6 +49,73 @@ const Dashboard = () => {
     month: 'long',
     day: 'numeric'
   });
+
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!profile?.company_id) {
+          setLoading(false);
+          return;
+        }
+
+        const now = new Date();
+        const monthStart = startOfMonth(now).toISOString();
+        const monthEnd = endOfMonth(now).toISOString();
+
+        // Fetch sales for the current month
+        const { data: salesData } = await supabase
+          .from('sales')
+          .select('total, is_open, sale_date')
+          .eq('company_id', profile.company_id)
+          .gte('sale_date', monthStart.split('T')[0])
+          .lte('sale_date', monthEnd.split('T')[0]);
+
+        // Fetch new clients for the current month
+        const { count: newClientsCount } = await supabase
+          .from('clients')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', profile.company_id)
+          .gte('created_at', monthStart)
+          .lte('created_at', monthEnd);
+
+        // Fetch open sales (pending contacts)
+        const { count: pendingCount } = await supabase
+          .from('sales')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', profile.company_id)
+          .eq('is_open', true);
+
+        const sales = salesData || [];
+        const totalRevenue = sales.reduce((sum, s) => sum + (s.total || 0), 0);
+        const salesCount = sales.length;
+        const avgTicket = salesCount > 0 ? totalRevenue / salesCount : 0;
+
+        setStats({
+          totalSales: totalRevenue,
+          salesCount,
+          averageTicket: avgTicket,
+          newClients: newClientsCount || 0,
+          pendingContacts: pendingCount || 0,
+          monthlyGoal: 50000,
+          monthlyProgress: totalRevenue,
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, [user?.id]);
 
   return (
     <div className="p-6 lg:p-8 space-y-8">
@@ -62,35 +151,46 @@ const Dashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-        <StatsCard
-          title="Faturamento do Mês"
-          value={`R$ ${dashboardStats.totalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          subtitle={`${dashboardStats.salesCount} vendas realizadas`}
-          icon={<DollarSign className="w-5 h-5" />}
-          variant="success"
-          trend={{ value: 12, isPositive: true }}
-        />
-        <StatsCard
-          title="Ticket Médio"
-          value={`R$ ${dashboardStats.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          subtitle="Valor médio por venda"
-          icon={<TrendingUp className="w-5 h-5" />}
-          variant="info"
-        />
-        <StatsCard
-          title="Novos Clientes"
-          value={dashboardStats.newClients}
-          subtitle="Este mês"
-          icon={<Users className="w-5 h-5" />}
-          variant="warning"
-        />
-        <StatsCard
-          title="Pós-Venda Pendente"
-          value={dashboardStats.pendingContacts}
-          subtitle="Contatos a realizar"
-          icon={<Phone className="w-5 h-5" />}
-          variant="destructive"
-        />
+        {loading ? (
+          <>
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+          </>
+        ) : (
+          <>
+            <StatsCard
+              title="Faturamento do Mês"
+              value={`R$ ${stats.totalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              subtitle={`${stats.salesCount} vendas realizadas`}
+              icon={<DollarSign className="w-5 h-5" />}
+              variant="success"
+              trend={{ value: 0, isPositive: true }}
+            />
+            <StatsCard
+              title="Ticket Médio"
+              value={`R$ ${stats.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              subtitle="Valor médio por venda"
+              icon={<TrendingUp className="w-5 h-5" />}
+              variant="info"
+            />
+            <StatsCard
+              title="Novos Clientes"
+              value={stats.newClients}
+              subtitle="Este mês"
+              icon={<Users className="w-5 h-5" />}
+              variant="warning"
+            />
+            <StatsCard
+              title="Pós-Venda Pendente"
+              value={stats.pendingContacts}
+              subtitle="Contatos a realizar"
+              icon={<Phone className="w-5 h-5" />}
+              variant="destructive"
+            />
+          </>
+        )}
       </div>
 
       {/* Main Widgets Grid */}
@@ -114,26 +214,32 @@ const Dashboard = () => {
           <h3 className="text-sm font-medium text-muted-foreground mb-4">
             Meta do Mês
           </h3>
-          <div className="flex items-baseline gap-2 mb-4">
-            <span className="text-3xl font-bold text-primary">
-              {Math.round((dashboardStats.monthlyProgress / dashboardStats.monthlyGoal) * 100)}%
-            </span>
-            <span className="text-sm text-muted-foreground">atingido</span>
-          </div>
-          <div className="h-3 bg-muted rounded-full overflow-hidden mb-4">
-            <div
-              className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all duration-500 animate-glow"
-              style={{ width: `${(dashboardStats.monthlyProgress / dashboardStats.monthlyGoal) * 100}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">
-              R$ {dashboardStats.monthlyProgress.toLocaleString('pt-BR')}
-            </span>
-            <span className="font-medium">
-              R$ {dashboardStats.monthlyGoal.toLocaleString('pt-BR')}
-            </span>
-          </div>
+          {loading ? (
+            <Skeleton className="h-24" />
+          ) : (
+            <>
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="text-3xl font-bold text-primary">
+                  {stats.monthlyGoal > 0 ? Math.round((stats.monthlyProgress / stats.monthlyGoal) * 100) : 0}%
+                </span>
+                <span className="text-sm text-muted-foreground">atingido</span>
+              </div>
+              <div className="h-3 bg-muted rounded-full overflow-hidden mb-4">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all duration-500 animate-glow"
+                  style={{ width: `${Math.min((stats.monthlyProgress / stats.monthlyGoal) * 100, 100)}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">
+                  R$ {stats.monthlyProgress.toLocaleString('pt-BR')}
+                </span>
+                <span className="font-medium">
+                  R$ {stats.monthlyGoal.toLocaleString('pt-BR')}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
