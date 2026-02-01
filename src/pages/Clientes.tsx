@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Plus, 
   Search, 
@@ -24,9 +25,11 @@ import {
   Pencil,
   Trash2,
   HelpCircle,
-  MessageCircle
+  MessageCircle,
+  Users
 } from "lucide-react";
-import { clients, Client } from "@/lib/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import NewClientModal from "@/components/vendas/NewClientModal";
 import { ClientProfileModal } from "@/components/clientes/ClientProfileModal";
 import { EditClientModal } from "@/components/clientes/EditClientModal";
@@ -43,9 +46,34 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
+interface Vehicle {
+  id: number;
+  brand: string;
+  model: string;
+  year: number | null;
+  plate: string | null;
+  size: string | null;
+}
+
+interface Client {
+  id: number;
+  name: string;
+  phone: string;
+  email: string | null;
+  cpf_cnpj: string | null;
+  origem: string | null;
+  created_at: string | null;
+  vehicles: Vehicle[];
+  total_spent: number;
+  sales_count: number;
+}
+
 type SortOption = 'name-asc' | 'name-desc' | 'recent' | 'spent';
 
 export default function Clientes() {
+  const { user } = useAuth();
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [showNewClientModal, setShowNewClientModal] = useState(false);
@@ -55,6 +83,69 @@ export default function Clientes() {
   const [showChatModal, setShowChatModal] = useState(false);
   const [chatClient, setChatClient] = useState<Client | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+
+  const fetchClients = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.company_id) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch clients
+      const { data: clientsData, error: clientsError } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("company_id", profile.company_id)
+        .order("name");
+
+      if (clientsError) throw clientsError;
+
+      // Fetch vehicles for all clients
+      const { data: vehiclesData } = await supabase
+        .from("vehicles")
+        .select("*")
+        .eq("company_id", profile.company_id);
+
+      // Fetch sales to calculate stats
+      const { data: salesData } = await supabase
+        .from("sales")
+        .select("client_id, total")
+        .eq("company_id", profile.company_id);
+
+      // Map clients with vehicles and stats
+      const clientsWithData = (clientsData || []).map((client) => {
+        const clientVehicles = (vehiclesData || []).filter(v => v.client_id === client.id);
+        const clientSales = (salesData || []).filter(s => s.client_id === client.id);
+        const totalSpent = clientSales.reduce((sum, s) => sum + (s.total || 0), 0);
+
+        return {
+          ...client,
+          vehicles: clientVehicles,
+          total_spent: totalSpent,
+          sales_count: clientSales.length,
+        };
+      });
+
+      setClients(clientsWithData);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+      toast.error("Erro ao carregar clientes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, [user?.id]);
 
   const filteredAndSortedClients = useMemo(() => {
     let result = [...clients];
@@ -67,7 +158,7 @@ export default function Clientes() {
         client.phone.includes(term) ||
         client.vehicles.some(v => 
           v.model.toLowerCase().includes(term) ||
-          v.plate.toLowerCase().includes(term)
+          (v.plate?.toLowerCase() || "").includes(term)
         )
       );
     }
@@ -81,7 +172,7 @@ export default function Clientes() {
         result.sort((a, b) => b.name.localeCompare(a.name));
         break;
       case 'recent':
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        result.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
         break;
       case 'spent':
         result.sort((a, b) => b.total_spent - a.total_spent);
@@ -89,7 +180,7 @@ export default function Clientes() {
     }
 
     return result;
-  }, [searchTerm, sortBy]);
+  }, [clients, searchTerm, sortBy]);
 
   const handleViewProfile = (client: Client) => {
     setSelectedClient(client);
@@ -108,18 +199,29 @@ export default function Clientes() {
   const confirmDelete = async () => {
     if (!clientToDelete) return;
 
-    // In production, this would check and delete via Supabase
-    // For now, we show an error if client has sales (mock check)
-    const hasLinkedSales = clientToDelete.total_spent > 0;
-    
-    if (hasLinkedSales) {
+    // Check if client has sales
+    if (clientToDelete.sales_count > 0) {
       toast.error("Cliente possui vendas vinculadas. Não pode ser excluído.");
       setClientToDelete(null);
       return;
     }
 
-    toast.success(`Cliente "${clientToDelete.name}" excluído com sucesso`);
-    setClientToDelete(null);
+    try {
+      const { error } = await supabase
+        .from("clients")
+        .delete()
+        .eq("id", clientToDelete.id);
+
+      if (error) throw error;
+
+      toast.success(`Cliente "${clientToDelete.name}" excluído com sucesso`);
+      fetchClients();
+    } catch (error) {
+      console.error("Error deleting client:", error);
+      toast.error("Erro ao excluir cliente");
+    } finally {
+      setClientToDelete(null);
+    }
   };
 
   const openChat = (client: Client) => {
@@ -135,6 +237,15 @@ export default function Clientes() {
       case 'spent': return 'Maior Gasto';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -165,7 +276,7 @@ export default function Clientes() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar cliente por nome, whatsapp, veículo ou estofado..."
+            placeholder="Buscar cliente por nome, whatsapp, veículo ou placa..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-card border-border"
@@ -195,81 +306,96 @@ export default function Clientes() {
         </DropdownMenu>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border hover:bg-transparent">
-              <TableHead className="text-muted-foreground">Cliente</TableHead>
-              <TableHead className="text-muted-foreground">Contato</TableHead>
-              <TableHead className="text-muted-foreground text-center">Veículos</TableHead>
-              <TableHead className="text-muted-foreground text-right">Qtd Gasto</TableHead>
-              <TableHead className="text-muted-foreground text-center">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSortedClients.map((client) => (
-              <TableRow key={client.id} className="border-border">
-                <TableCell className="font-medium text-foreground">
-                  {client.name}
-                </TableCell>
-                <TableCell>
-                  <button
-                    onClick={() => openChat(client)}
-                    className="text-primary hover:underline flex items-center gap-1"
-                  >
-                    <MessageCircle className="h-3 w-3" />
-                    {client.phone}
-                  </button>
-                </TableCell>
-                <TableCell className="text-center text-muted-foreground">
-                  {client.vehicles.length} veículo(s)
-                </TableCell>
-                <TableCell className="text-right font-semibold text-foreground">
-                  R$ {client.total_spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </TableCell>
-                <TableCell className="text-center">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-card border-border">
-                      <DropdownMenuItem onClick={() => handleViewProfile(client)}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Ver perfil
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleEditClient(client)}>
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteClient(client)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Excluir
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+      {/* Empty State or Table */}
+      {clients.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card p-12 text-center">
+          <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">Nenhum cliente cadastrado</h3>
+          <p className="text-muted-foreground mb-4">
+            Comece cadastrando seu primeiro cliente
+          </p>
+          <Button onClick={() => setShowNewClientModal(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Cliente
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Cliente</TableHead>
+                <TableHead className="text-muted-foreground">Contato</TableHead>
+                <TableHead className="text-muted-foreground text-center">Veículos</TableHead>
+                <TableHead className="text-muted-foreground text-right">Qtd Gasto</TableHead>
+                <TableHead className="text-muted-foreground text-center">Ações</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredAndSortedClients.map((client) => (
+                <TableRow key={client.id} className="border-border">
+                  <TableCell className="font-medium text-foreground">
+                    {client.name}
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      onClick={() => openChat(client)}
+                      className="text-primary hover:underline flex items-center gap-1"
+                    >
+                      <MessageCircle className="h-3 w-3" />
+                      {client.phone}
+                    </button>
+                  </TableCell>
+                  <TableCell className="text-center text-muted-foreground">
+                    {client.vehicles.length} veículo(s)
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-foreground">
+                    R$ {client.total_spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-card border-border">
+                        <DropdownMenuItem onClick={() => handleViewProfile(client)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Ver perfil
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteClient(client)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-        {filteredAndSortedClients.length === 0 && (
-          <div className="p-8 text-center text-muted-foreground">
-            Nenhum cliente encontrado
-          </div>
-        )}
-      </div>
+          {filteredAndSortedClients.length === 0 && clients.length > 0 && (
+            <div className="p-8 text-center text-muted-foreground">
+              Nenhum cliente encontrado
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Pagination info */}
-      <div className="flex justify-between items-center text-sm text-muted-foreground">
-        <span>Exibindo resultados de 1 a {filteredAndSortedClients.length}</span>
-      </div>
+      {clients.length > 0 && (
+        <div className="flex justify-between items-center text-sm text-muted-foreground">
+          <span>Exibindo resultados de 1 a {filteredAndSortedClients.length}</span>
+        </div>
+      )}
 
       {/* Modals */}
       <NewClientModal
@@ -277,6 +403,7 @@ export default function Clientes() {
         onOpenChange={setShowNewClientModal}
         onClientCreated={() => {
           setShowNewClientModal(false);
+          fetchClients();
           toast.success("Cliente criado com sucesso!");
         }}
       />
@@ -286,7 +413,7 @@ export default function Clientes() {
           <ClientProfileModal
             open={showProfileModal}
             onOpenChange={setShowProfileModal}
-            client={selectedClient}
+            client={selectedClient as any}
             onEdit={() => {
               setShowProfileModal(false);
               setShowEditModal(true);
@@ -296,9 +423,10 @@ export default function Clientes() {
           <EditClientModal
             open={showEditModal}
             onOpenChange={setShowEditModal}
-            client={selectedClient}
+            client={selectedClient as any}
             onSave={() => {
               setShowEditModal(false);
+              fetchClients();
               toast.success("Cliente atualizado com sucesso!");
             }}
           />
@@ -308,7 +436,7 @@ export default function Clientes() {
       <ClientChatModal
         open={showChatModal}
         onOpenChange={setShowChatModal}
-        client={chatClient}
+        client={chatClient as any}
       />
 
       {/* Delete Confirmation */}

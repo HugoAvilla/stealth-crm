@@ -4,27 +4,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { type Service } from "@/lib/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+
+interface Service {
+  id: number;
+  name: string;
+  base_price: number;
+  description: string | null;
+  commission_percentage: number | null;
+}
 
 interface NewServiceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editService?: Service | null;
+  onSuccess?: () => void;
 }
 
-export function NewServiceModal({ open, onOpenChange, editService }: NewServiceModalProps) {
+export function NewServiceModal({ open, onOpenChange, editService, onSuccess }: NewServiceModalProps) {
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [commissionPercent, setCommissionPercent] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (editService) {
       setName(editService.name);
-      setPrice(editService.price.toString());
-      setDescription(editService.description);
-      setCommissionPercent(editService.commission_percent.toString());
+      setPrice(editService.base_price.toString());
+      setDescription(editService.description || "");
+      setCommissionPercent(editService.commission_percentage?.toString() || "");
     } else {
       resetForm();
     }
@@ -37,15 +49,65 @@ export function NewServiceModal({ open, onOpenChange, editService }: NewServiceM
     setCommissionPercent("");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name || !price) {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
 
-    toast.success(editService ? "Serviço atualizado!" : "Serviço criado com sucesso!");
-    onOpenChange(false);
-    resetForm();
+    if (!user?.id) {
+      toast.error("Usuário não autenticado");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.company_id) {
+        toast.error("Empresa não encontrada");
+        return;
+      }
+
+      const serviceData = {
+        name,
+        base_price: parseFloat(price),
+        description: description || null,
+        commission_percentage: commissionPercent ? parseFloat(commissionPercent) : null,
+        company_id: profile.company_id,
+      };
+
+      if (editService) {
+        const { error } = await supabase
+          .from("services")
+          .update(serviceData)
+          .eq("id", editService.id);
+
+        if (error) throw error;
+        toast.success("Serviço atualizado com sucesso!");
+      } else {
+        const { error } = await supabase
+          .from("services")
+          .insert(serviceData);
+
+        if (error) throw error;
+        toast.success("Serviço criado com sucesso!");
+      }
+
+      onOpenChange(false);
+      resetForm();
+      onSuccess?.();
+    } catch (error) {
+      console.error("Error saving service:", error);
+      toast.error("Erro ao salvar serviço");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,7 +123,7 @@ export function NewServiceModal({ open, onOpenChange, editService }: NewServiceM
             <Input
               placeholder="Ex: Vitrificação Completa"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
             />
           </div>
 
@@ -72,7 +134,7 @@ export function NewServiceModal({ open, onOpenChange, editService }: NewServiceM
                 type="number"
                 placeholder="0,00"
                 value={price}
-                onChange={e => setPrice(e.target.value)}
+                onChange={(e) => setPrice(e.target.value)}
               />
             </div>
 
@@ -82,7 +144,7 @@ export function NewServiceModal({ open, onOpenChange, editService }: NewServiceM
                 type="number"
                 placeholder="10"
                 value={commissionPercent}
-                onChange={e => setCommissionPercent(e.target.value)}
+                onChange={(e) => setCommissionPercent(e.target.value)}
               />
             </div>
           </div>
@@ -92,16 +154,16 @@ export function NewServiceModal({ open, onOpenChange, editService }: NewServiceM
             <Textarea
               placeholder="Descrição do serviço..."
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleSubmit}>
-              {editService ? "Salvar" : "Criar"}
+            <Button className="flex-1" onClick={handleSubmit} disabled={loading}>
+              {loading ? "Salvando..." : editService ? "Salvar" : "Criar"}
             </Button>
           </div>
         </div>
