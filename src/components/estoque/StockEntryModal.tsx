@@ -5,29 +5,79 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowDown } from "lucide-react";
-import { type Material } from "@/lib/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+
+interface Material {
+  id: number;
+  name: string;
+  unit: string;
+  current_stock: number | null;
+  company_id: number | null;
+}
 
 interface StockEntryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   material: Material | null;
+  onSuccess?: () => void;
 }
 
-export function StockEntryModal({ open, onOpenChange, material }: StockEntryModalProps) {
+export function StockEntryModal({ open, onOpenChange, material, onSuccess }: StockEntryModalProps) {
+  const { user } = useAuth();
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!quantity || parseFloat(quantity) <= 0) {
       toast.error("Informe a quantidade");
       return;
     }
 
-    toast.success(`Entrada de ${quantity} ${material?.unit} registrada!`);
-    onOpenChange(false);
-    setQuantity("");
-    setNotes("");
+    if (!user?.id || !material) {
+      toast.error("Dados inválidos");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.company_id) {
+        toast.error("Empresa não encontrada");
+        return;
+      }
+
+      // Insert stock movement (trigger will update current_stock)
+      const { error } = await supabase.from("stock_movements").insert({
+        material_id: material.id,
+        movement_type: "entrada",
+        quantity: parseFloat(quantity),
+        reason: notes || "Entrada manual",
+        user_id: user.id,
+        company_id: profile.company_id,
+      });
+
+      if (error) throw error;
+
+      toast.success(`Entrada de ${quantity} ${material.unit} registrada!`);
+      onOpenChange(false);
+      setQuantity("");
+      setNotes("");
+      onSuccess?.();
+    } catch (error) {
+      console.error("Error registering entry:", error);
+      toast.error("Erro ao registrar entrada");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!material) return null;
@@ -45,7 +95,7 @@ export function StockEntryModal({ open, onOpenChange, material }: StockEntryModa
           <div className="p-3 rounded-lg bg-muted/50">
             <p className="font-medium">{material.name}</p>
             <p className="text-sm text-muted-foreground">
-              Estoque atual: {material.current_stock} {material.unit}
+              Estoque atual: {material.current_stock || 0} {material.unit}
             </p>
           </div>
 
@@ -55,7 +105,7 @@ export function StockEntryModal({ open, onOpenChange, material }: StockEntryModa
               type="number"
               placeholder={`0 ${material.unit}`}
               value={quantity}
-              onChange={e => setQuantity(e.target.value)}
+              onChange={(e) => setQuantity(e.target.value)}
             />
           </div>
 
@@ -64,16 +114,16 @@ export function StockEntryModal({ open, onOpenChange, material }: StockEntryModa
             <Textarea
               placeholder="Ex: Compra fornecedor X..."
               value={notes}
-              onChange={e => setNotes(e.target.value)}
+              onChange={(e) => setNotes(e.target.value)}
             />
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={handleSubmit}>
-              Confirmar Entrada
+            <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={handleSubmit} disabled={loading}>
+              {loading ? "Salvando..." : "Confirmar Entrada"}
             </Button>
           </div>
         </div>

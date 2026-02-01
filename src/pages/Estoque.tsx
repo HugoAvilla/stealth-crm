@@ -1,43 +1,110 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { materials, type Material } from "@/lib/mockData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { NewMaterialModal } from "@/components/estoque/NewMaterialModal";
 import { StockEntryModal } from "@/components/estoque/StockEntryModal";
 import { StockExitModal } from "@/components/estoque/StockExitModal";
 import { ConsumptionRulesModal } from "@/components/estoque/ConsumptionRulesModal";
+import { toast } from "sonner";
+
+interface Material {
+  id: number;
+  name: string;
+  type: string | null;
+  brand: string | null;
+  unit: string;
+  current_stock: number | null;
+  minimum_stock: number | null;
+  average_cost: number | null;
+  is_active: boolean | null;
+  company_id: number | null;
+}
 
 export default function Estoque() {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showNewMaterial, setShowNewMaterial] = useState(false);
   const [showEntry, setShowEntry] = useState(false);
   const [showExit, setShowExit] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
 
-  const filteredMaterials = materials.filter(m => 
+  const fetchMaterials = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.company_id) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("materials")
+        .select("*")
+        .eq("company_id", profile.company_id)
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) throw error;
+
+      setMaterials(data || []);
+    } catch (error) {
+      console.error("Error fetching materials:", error);
+      toast.error("Erro ao carregar materiais");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMaterials();
+  }, [user?.id]);
+
+  const filteredMaterials = materials.filter(m =>
     m.name.toLowerCase().includes(search.toLowerCase()) ||
-    m.category.toLowerCase().includes(search.toLowerCase())
+    (m.type?.toLowerCase() || "").includes(search.toLowerCase())
   );
 
   const getStockStatus = (material: Material) => {
-    const ratio = material.current_stock / material.min_stock;
-    if (ratio <= 0.5) return { status: 'critico', label: 'Crítico', color: 'text-red-500', bg: 'bg-red-500/10' };
-    if (ratio <= 1) return { status: 'baixo', label: 'Baixo', color: 'text-yellow-500', bg: 'bg-yellow-500/10' };
-    return { status: 'ok', label: 'OK', color: 'text-green-500', bg: 'bg-green-500/10' };
+    const currentStock = material.current_stock || 0;
+    const minStock = material.minimum_stock || 1;
+    const ratio = currentStock / minStock;
+    
+    if (ratio <= 0.5) return { status: "critico", label: "Crítico", color: "text-red-500", bg: "bg-red-500/10" };
+    if (ratio <= 1) return { status: "baixo", label: "Baixo", color: "text-yellow-500", bg: "bg-yellow-500/10" };
+    return { status: "ok", label: "OK", color: "text-green-500", bg: "bg-green-500/10" };
   };
 
-  const criticalCount = materials.filter(m => m.current_stock / m.min_stock <= 0.5).length;
+  const criticalCount = materials.filter(m => {
+    const ratio = (m.current_stock || 0) / (m.minimum_stock || 1);
+    return ratio <= 0.5;
+  }).length;
+
   const lowCount = materials.filter(m => {
-    const ratio = m.current_stock / m.min_stock;
+    const ratio = (m.current_stock || 0) / (m.minimum_stock || 1);
     return ratio > 0.5 && ratio <= 1;
   }).length;
-  const totalValue = materials.reduce((sum, m) => sum + (m.current_stock * m.cost_per_unit), 0);
+
+  const totalValue = materials.reduce(
+    (sum, m) => sum + ((m.current_stock || 0) * (m.average_cost || 0)),
+    0
+  );
 
   const handleEntry = (material: Material) => {
     setSelectedMaterial(material);
@@ -48,6 +115,33 @@ export default function Estoque() {
     setSelectedMaterial(material);
     setShowExit(true);
   };
+
+  const handleMaterialCreated = () => {
+    fetchMaterials();
+    setShowNewMaterial(false);
+    toast.success("Material criado com sucesso!");
+  };
+
+  const handleMovementCompleted = () => {
+    fetchMaterials();
+    setShowEntry(false);
+    setShowExit(false);
+    setSelectedMaterial(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 p-6">
+        <Skeleton className="h-10 w-48" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -92,7 +186,7 @@ export default function Estoque() {
               <div>
                 <p className="text-sm text-muted-foreground">Valor em Estoque</p>
                 <p className="text-2xl font-bold">
-                  R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
@@ -134,77 +228,113 @@ export default function Estoque() {
         <Input
           placeholder="Buscar material..."
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           className="pl-10"
         />
       </div>
 
-      {/* Table */}
-      <Card className="bg-card/50 border-border/50">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Material</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead className="text-center">Estoque Atual</TableHead>
-                <TableHead className="text-center">Mínimo</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Custo Unit.</TableHead>
-                <TableHead className="text-right">Valor Total</TableHead>
-                <TableHead className="w-[100px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMaterials.map(material => {
-                const stockStatus = getStockStatus(material);
-                const totalValue = material.current_stock * material.cost_per_unit;
+      {/* Empty State or Table */}
+      {materials.length === 0 ? (
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-12 text-center">
+            <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">Nenhum material cadastrado</h3>
+            <p className="text-muted-foreground mb-4">
+              Comece adicionando os materiais utilizados nos seus serviços
+            </p>
+            <Button onClick={() => setShowNewMaterial(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Material
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Material</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-center">Estoque Atual</TableHead>
+                  <TableHead className="text-center">Mínimo</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-right">Custo Unit.</TableHead>
+                  <TableHead className="text-right">Valor Total</TableHead>
+                  <TableHead className="w-[100px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMaterials.map((material) => {
+                  const stockStatus = getStockStatus(material);
+                  const totalVal = (material.current_stock || 0) * (material.average_cost || 0);
 
-                return (
-                  <TableRow key={material.id}>
-                    <TableCell className="font-medium">{material.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{material.category}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {material.current_stock} {material.unit}
-                    </TableCell>
-                    <TableCell className="text-center text-muted-foreground">
-                      {material.min_stock} {material.unit}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={cn(stockStatus.bg, stockStatus.color, "border-0")}>
-                        {stockStatus.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      R$ {material.cost_per_unit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleEntry(material)} title="Entrada">
-                          <ArrowDown className="h-4 w-4 text-green-500" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
-                          <ArrowUp className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                  return (
+                    <TableRow key={material.id}>
+                      <TableCell className="font-medium">
+                        <div>
+                          <p>{material.name}</p>
+                          {material.brand && (
+                            <p className="text-xs text-muted-foreground">{material.brand}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{material.type || "-"}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {material.current_stock || 0} {material.unit}
+                      </TableCell>
+                      <TableCell className="text-center text-muted-foreground">
+                        {material.minimum_stock || 0} {material.unit}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={cn(stockStatus.bg, stockStatus.color, "border-0")}>
+                          {stockStatus.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        R$ {(material.average_cost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleEntry(material)} title="Entrada">
+                            <ArrowDown className="h-4 w-4 text-green-500" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
+                            <ArrowUp className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modals */}
-      <NewMaterialModal open={showNewMaterial} onOpenChange={setShowNewMaterial} />
-      <StockEntryModal open={showEntry} onOpenChange={setShowEntry} material={selectedMaterial} />
-      <StockExitModal open={showExit} onOpenChange={setShowExit} material={selectedMaterial} />
+      <NewMaterialModal
+        open={showNewMaterial}
+        onOpenChange={setShowNewMaterial}
+        onSuccess={handleMaterialCreated}
+      />
+      <StockEntryModal
+        open={showEntry}
+        onOpenChange={setShowEntry}
+        material={selectedMaterial}
+        onSuccess={handleMovementCompleted}
+      />
+      <StockExitModal
+        open={showExit}
+        onOpenChange={setShowExit}
+        material={selectedMaterial}
+        onSuccess={handleMovementCompleted}
+      />
       <ConsumptionRulesModal open={showRules} onOpenChange={setShowRules} />
     </div>
   );
