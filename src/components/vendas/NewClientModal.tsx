@@ -9,7 +9,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -32,26 +31,38 @@ import {
   MapPin,
   Car,
   Plus,
-  X,
   CalendarIcon,
   Trash2,
   Edit2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Client, Vehicle } from "@/lib/mockData";
-import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import NewVehicleModal from "@/components/vendas/NewVehicleModal";
+
+interface Vehicle {
+  id: number;
+  brand: string;
+  model: string;
+  year: number;
+  plate: string;
+  size: 'P' | 'M' | 'G';
+}
 
 interface NewClientModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onClientCreated: (client: Client) => void;
+  onClientCreated: () => void;
 }
 
 const originOptions = ["Instagram", "Google", "Indicação", "Passante"] as const;
 
 const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalProps) => {
+  const { user } = useAuth();
+  const [saving, setSaving] = useState(false);
+
   // Required fields
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -86,7 +97,6 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
     { id: "origem", label: "Origem" },
     { id: "birthDate", label: "Data de nascimento" },
     { id: "address", label: "Endereço" },
-    { id: "observations", label: "Observações" },
   ];
 
   const toggleField = (fieldId: string) => {
@@ -109,13 +119,11 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
   const formatCpfCnpj = (value: string) => {
     const numbers = value.replace(/\D/g, "");
     if (numbers.length <= 11) {
-      // CPF
       if (numbers.length <= 3) return numbers;
       if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
       if (numbers.length <= 9) return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
       return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9)}`;
     } else {
-      // CNPJ
       const cnpj = numbers.slice(0, 14);
       if (cnpj.length <= 2) return cnpj;
       if (cnpj.length <= 5) return `${cnpj.slice(0, 2)}.${cnpj.slice(2)}`;
@@ -130,13 +138,19 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
     const formatted = numbers.length > 5 ? `${numbers.slice(0, 5)}-${numbers.slice(5)}` : numbers;
     setCep(formatted);
 
-    // Auto-fill address (simulated)
     if (numbers.length === 8) {
-      // In production, call ViaCEP API
-      setState("SP");
-      setCity("São Paulo");
-      setNeighborhood("Centro");
-      setStreet("Rua Exemplo");
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${numbers}/json/`);
+        const data = await response.json();
+        if (!data.erro) {
+          setState(data.uf || "");
+          setCity(data.localidade || "");
+          setNeighborhood(data.bairro || "");
+          setStreet(data.logradouro || "");
+        }
+      } catch (error) {
+        console.error('Error fetching CEP:', error);
+      }
     }
   };
 
@@ -149,37 +163,7 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
     setVehicles((prev) => prev.filter((v) => v.id !== vehicleId));
   };
 
-  const handleSubmit = () => {
-    if (!name.trim() || !phone.trim()) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Nome e WhatsApp são obrigatórios.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const newClient: Client = {
-      id: Date.now(),
-      name: name.trim(),
-      phone: `+55 ${phone}`,
-      email: email || "",
-      cpf: cpf || null,
-      origem: origem as Client["origem"] || "Passante",
-      created_at: new Date().toISOString().split("T")[0],
-      vehicles,
-      total_spent: 0,
-      sales_count: 0,
-    };
-
-    toast({
-      title: "Cliente cadastrado!",
-      description: `${newClient.name} foi adicionado com sucesso.`,
-    });
-
-    onClientCreated(newClient);
-
-    // Reset form
+  const resetForm = () => {
     setName("");
     setPhone("");
     setEmail("");
@@ -194,6 +178,87 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
     setStreet("");
     setNumber("");
     setComplement("");
+  };
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !phone.trim()) {
+      toast.error("Nome e WhatsApp são obrigatórios.");
+      return;
+    }
+
+    if (!user?.id) {
+      toast.error("Usuário não autenticado");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile?.company_id) {
+        toast.error("Empresa não encontrada");
+        return;
+      }
+
+      // Create client
+      const { data: newClient, error: clientError } = await supabase
+        .from('clients')
+        .insert({
+          name: name.trim(),
+          phone: `+55 ${phone}`,
+          email: email || null,
+          cpf_cnpj: cpf || null,
+          origem: origem || 'Passante',
+          birth_date: birthDate ? format(birthDate, 'yyyy-MM-dd') : null,
+          cep: cep || null,
+          state: state || null,
+          city: city || null,
+          neighborhood: neighborhood || null,
+          street: street || null,
+          number: number || null,
+          complement: complement || null,
+          company_id: profile.company_id,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (clientError) throw clientError;
+
+      // Create vehicles if any
+      if (vehicles.length > 0 && newClient) {
+        const vehiclesData = vehicles.map(v => ({
+          brand: v.brand,
+          model: v.model,
+          year: v.year,
+          plate: v.plate,
+          size: v.size,
+          client_id: newClient.id,
+          company_id: profile.company_id,
+        }));
+
+        const { error: vehiclesError } = await supabase
+          .from('vehicles')
+          .insert(vehiclesData);
+
+        if (vehiclesError) {
+          console.error('Error creating vehicles:', vehiclesError);
+        }
+      }
+
+      toast.success(`${name} foi adicionado com sucesso!`);
+      resetForm();
+      onClientCreated();
+    } catch (error) {
+      console.error('Error creating client:', error);
+      toast.error("Erro ao cadastrar cliente");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -449,8 +514,8 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
           </div>
 
           {/* Footer */}
-          <Button onClick={handleSubmit} className="w-full">
-            Adicionar
+          <Button onClick={handleSubmit} className="w-full" disabled={saving}>
+            {saving ? 'Salvando...' : 'Adicionar'}
           </Button>
         </DialogContent>
       </Dialog>

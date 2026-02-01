@@ -1,14 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Download, FileText } from "lucide-react";
-import { type ReportType, accounts } from "@/lib/mockData";
+import { type ReportType } from "@/lib/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { generateReportPDF, type ReportPDFData } from "@/lib/pdfGenerator";
+
+interface Account {
+  id: number;
+  name: string;
+}
 
 interface ReportConfigModalProps {
   open: boolean;
@@ -17,40 +23,66 @@ interface ReportConfigModalProps {
 }
 
 export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigModalProps) {
+  const { user } = useAuth();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [format, setFormat] = useState<string>("");
   const [accountId, setAccountId] = useState("");
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [generating, setGenerating] = useState(false);
 
-  const handleGenerate = () => {
-    if (!format) {
-      toast.error("Selecione o formato do relatório");
-      return;
+  useEffect(() => {
+    if (open && report?.id === 'extrato_conta') {
+      fetchAccounts();
     }
+  }, [open, report?.id, user?.id]);
 
-    if (format === 'pdf') {
-      // Generate real PDF
+  const fetchAccounts = async () => {
+    if (!user?.id) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile?.company_id) return;
+
+    const { data } = await supabase
+      .from('accounts')
+      .select('id, name')
+      .eq('company_id', profile.company_id)
+      .eq('is_active', true);
+
+    setAccounts(data || []);
+  };
+
+  const handleGenerate = async () => {
+    if (!report) return;
+
+    setGenerating(true);
+    try {
+      // Generate PDF
       const pdfData: ReportPDFData = {
-        title: report?.name || 'Relatório',
+        title: report.name,
         period: startDate && endDate ? { start: startDate, end: endDate } : undefined,
         columns: ['Item', 'Descrição', 'Valor'],
         rows: [
-          ['1', 'Exemplo de dados', 'R$ 1.000,00'],
-          ['2', 'Mais dados', 'R$ 500,00'],
-          ['3', 'Outros', 'R$ 250,00'],
+          ['1', 'Dados do relatório', 'R$ 0,00'],
         ],
         summary: [
-          { label: 'Total', value: 'R$ 1.750,00' },
+          { label: 'Total', value: 'R$ 0,00' },
         ],
       };
 
       generateReportPDF(pdfData);
-      toast.success(`Relatório ${report?.name} gerado em PDF!`);
-    } else {
-      toast.success(`Relatório ${report?.name} gerado em ${format.toUpperCase()}!`);
+      toast.success(`Relatório ${report.name} gerado em PDF!`);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error generating report:', error);
+      toast.error('Erro ao gerar relatório');
+    } finally {
+      setGenerating(false);
     }
-    
-    onOpenChange(false);
   };
 
   if (!report) return null;
@@ -110,29 +142,12 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>Formato de Exportação *</Label>
-            <div className="flex gap-2">
-              {report.formats.map(f => (
-                <Button
-                  key={f}
-                  variant={format === f ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFormat(f)}
-                  className="uppercase"
-                >
-                  {f}
-                </Button>
-              ))}
-            </div>
-          </div>
-
           <div className="flex gap-2 pt-4">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleGenerate}>
-              <Download className="h-4 w-4 mr-2" /> Gerar Relatório
+            <Button className="flex-1" onClick={handleGenerate} disabled={generating}>
+              <Download className="h-4 w-4 mr-2" /> {generating ? 'Gerando...' : 'Gerar PDF'}
             </Button>
           </div>
         </div>

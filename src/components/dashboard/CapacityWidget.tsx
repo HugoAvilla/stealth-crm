@@ -1,9 +1,68 @@
-import { dashboardStats } from '@/lib/mockData';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Car } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function CapacityWidget() {
-  const { occupiedSlots, totalSlots } = dashboardStats;
-  const percentage = (occupiedSlots / totalSlots) * 100;
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [occupiedSlots, setOccupiedSlots] = useState(0);
+  const [totalSlots, setTotalSlots] = useState(10);
+
+  useEffect(() => {
+    const fetchCapacity = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!profile?.company_id) {
+          setLoading(false);
+          return;
+        }
+
+        // Count spaces by status
+        const { data: spacesData } = await supabase
+          .from('spaces')
+          .select('status')
+          .eq('company_id', profile.company_id);
+
+        const spaces = spacesData || [];
+        const total = spaces.length || 10;
+        const occupied = spaces.filter(s => s.status === 'ocupada').length;
+
+        setTotalSlots(total > 0 ? total : 10);
+        setOccupiedSlots(occupied);
+      } catch (error) {
+        console.error('Error fetching capacity:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCapacity();
+  }, [user?.id]);
+
+  const percentage = totalSlots > 0 ? (occupiedSlots / totalSlots) * 100 : 0;
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-5">
+        <Skeleton className="h-6 w-40 mb-4" />
+        <Skeleton className="h-10 w-24 mb-4" />
+        <Skeleton className="h-3 mb-4" />
+        <div className="grid grid-cols-2 gap-4">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-border bg-card p-5">
