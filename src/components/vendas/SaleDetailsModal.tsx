@@ -26,7 +26,7 @@ import {
   Trash2,
   Settings,
 } from "lucide-react";
-import { Sale, getClientById, getVehicleById, getServiceById } from "@/lib/mockData";
+import { SaleWithDetails } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
 import PdfA4Modal from "@/components/vendas/PdfA4Modal";
 import PdfNotinhaModal from "@/components/vendas/PdfNotinhaModal";
@@ -36,7 +36,7 @@ import TransferToSpaceModal from "@/components/vendas/TransferToSpaceModal";
 interface SaleDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sale: Sale | null;
+  sale: SaleWithDetails | null;
 }
 
 const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) => {
@@ -48,21 +48,17 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
 
   if (!sale) return null;
 
-  const client = getClientById(sale.client_id);
-  const vehicle = getVehicleById(sale.vehicle_id);
-  const saleServices = sale.services.map((id) => getServiceById(id)).filter(Boolean);
+  const client = sale.client;
+  const vehicle = sale.vehicle;
+  const saleItems = sale.sale_items || [];
 
   const handleOpenNotinha = (size: "80mm" | "58mm") => {
     setPdfNotinhaSize(size);
     setIsPdfNotinhaOpen(true);
   };
 
-  const handleWhatsAppSend = () => {
-    const phone = client?.phone.replace(/\D/g, "");
-    if (phone) {
-      window.open(`https://wa.me/${phone}`, "_blank");
-    }
-  };
+  // Calculate services total from sale_items
+  const servicesTotal = saleItems.reduce((sum, item) => sum + item.total_price, 0);
 
   return (
     <>
@@ -76,8 +72,8 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <DialogTitle>Venda Nº {sale.id}</DialogTitle>
-                  <Badge variant={sale.status === "Fechada" ? "default" : "outline"}>
-                    {sale.status}
+                  <Badge variant={!sale.is_open ? "default" : "outline"}>
+                    {sale.is_open ? 'Aberta' : 'Fechada'}
                   </Badge>
                 </div>
               </div>
@@ -93,43 +89,55 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                   <User className="h-4 w-4 text-info" />
                   <span className="font-medium">{client?.name || "Cliente"}</span>
                 </div>
-                <a
-                  href={`https://wa.me/${client?.phone.replace(/\D/g, "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-success hover:underline"
-                >
-                  <Phone className="h-4 w-4" />
-                  {client?.phone}
-                </a>
+                {client?.phone && (
+                  <a
+                    href={`https://wa.me/${client.phone.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-success hover:underline"
+                  >
+                    <Phone className="h-4 w-4" />
+                    {client.phone}
+                  </a>
+                )}
               </div>
             </div>
 
             {/* Vehicle & Services Card */}
             <Card className="p-4 space-y-4">
-              <div className="flex items-center gap-3">
-                <Car className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">
-                    {vehicle?.brand} {vehicle?.model}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {vehicle?.year} • {vehicle?.plate}
-                  </p>
-                </div>
-              </div>
-
-              <Separator />
+              {vehicle && (
+                <>
+                  <div className="flex items-center gap-3">
+                    <Car className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">
+                        {vehicle.brand} {vehicle.model}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {vehicle.year} • {vehicle.plate}
+                      </p>
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              )}
 
               <div className="space-y-2">
-                {saleServices.map((service) => (
-                  <div key={service!.id} className="flex justify-between">
-                    <span>{service!.name}</span>
-                    <span className="font-medium">
-                      R$ {service!.price.toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+                {saleItems.length > 0 ? (
+                  saleItems.map((item) => (
+                    <div key={item.id} className="flex justify-between">
+                      <span>
+                        {item.service?.name || `Serviço #${item.service_id}`}
+                        {item.quantity && item.quantity > 1 ? ` (x${item.quantity})` : ''}
+                      </span>
+                      <span className="font-medium">
+                        R$ {item.total_price.toFixed(2)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground text-sm">Nenhum serviço registrado</p>
+                )}
               </div>
 
               <Separator />
@@ -137,7 +145,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
               <div className="flex justify-between font-semibold">
                 <span>Total do veículo</span>
                 <span className="text-success">
-                  R$ {sale.subtotal.toFixed(2)}
+                  R$ {servicesTotal.toFixed(2)}
                 </span>
               </div>
             </Card>
@@ -147,13 +155,13 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
               <div className="flex items-center gap-2">
                 <Settings className="h-4 w-4 text-info" />
                 <span className="text-sm text-muted-foreground">
-                  {saleServices.length} serviço(s)
+                  {saleItems.length} serviço(s)
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-info" />
                 <span className="text-sm text-muted-foreground">
-                  {format(new Date(sale.date), "dd/MM/yyyy", { locale: ptBR })}
+                  {format(new Date(sale.sale_date), "dd/MM/yyyy", { locale: ptBR })}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -165,7 +173,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-info" />
                 <span className="text-sm text-muted-foreground">
-                  Desconto: R$ {sale.discount.toFixed(2)}
+                  Desconto: R$ {(sale.discount || 0).toFixed(2)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -177,7 +185,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
               <div className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-info" />
                 <span className="text-sm text-muted-foreground">
-                  {sale.payment_method}
+                  {sale.payment_method || 'Não informado'}
                 </span>
               </div>
             </div>

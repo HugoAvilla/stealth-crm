@@ -11,13 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { MessageCircle, Edit, X, Send } from "lucide-react";
-import { Sale, getClientById, getVehicleById, getServiceById } from "@/lib/mockData";
+import { SaleWithDetails } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
 
 interface WhatsAppPreviewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sale: Sale | null;
+  sale: SaleWithDetails | null;
 }
 
 const WhatsAppPreviewModal = ({ open, onOpenChange, sale }: WhatsAppPreviewModalProps) => {
@@ -26,27 +26,27 @@ const WhatsAppPreviewModal = ({ open, onOpenChange, sale }: WhatsAppPreviewModal
 
   if (!sale) return null;
 
-  const client = getClientById(sale.client_id);
-  const vehicle = getVehicleById(sale.vehicle_id);
-  const saleServices = sale.services.map((id) => getServiceById(id)).filter(Boolean);
+  const client = sale.client;
+  const vehicle = sale.vehicle;
+  const saleItems = sale.sale_items || [];
 
   const companyName = "WFE EVOLUTION";
 
   const defaultMessage = `Olá, ${client?.name}! Muito obrigado pela confiança! 
 Segue abaixo o recibo da sua compra na ${companyName}.
 
-🗓️ Data da Venda: ${format(new Date(sale.date), "dd/MM/yyyy", { locale: ptBR })}
+🗓️ Data da Venda: ${format(new Date(sale.sale_date), "dd/MM/yyyy", { locale: ptBR })}
 _______________________________________
 
 📋 LISTA DE SERVIÇOS:
-Veículo: ${vehicle?.brand} ${vehicle?.model} (Placa: ${vehicle?.plate})
-${saleServices.map((s, i) => `${i + 1}. ${s!.name} - R$ ${s!.price.toFixed(2)}`).join("\n")}
+Veículo: ${vehicle?.brand || ''} ${vehicle?.model || ''} (Placa: ${vehicle?.plate || 'N/A'})
+${saleItems.map((item, i) => `${i + 1}. ${item.service?.name || `Serviço #${item.service_id}`} - R$ ${item.total_price.toFixed(2)}`).join("\n")}
 
 💰 Subtotal: R$ ${sale.subtotal.toFixed(2)}
-💸 Desconto: R$ ${sale.discount.toFixed(2)}
+💸 Desconto: R$ ${(sale.discount || 0).toFixed(2)}
 💵 Total: R$ ${sale.total.toFixed(2)}
 
-Método de Pagamento: ${sale.payment_method}
+Método de Pagamento: ${sale.payment_method || 'Não informado'}
 
 Obrigado pela preferência! Qualquer dúvida, é só me chamar. Tenha uma ótima semana!`;
 

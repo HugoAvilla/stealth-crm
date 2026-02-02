@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { FileText, Download, X } from "lucide-react";
-import { Sale, getClientById, getVehicleById, getServiceById } from "@/lib/mockData";
+import { SaleWithDetails } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { generateSalePDFReceipt, type SalePDFData } from "@/lib/pdfGenerator";
@@ -20,7 +19,7 @@ import { generateSalePDFReceipt, type SalePDFData } from "@/lib/pdfGenerator";
 interface PdfNotinhaModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sale: Sale | null;
+  sale: SaleWithDetails | null;
   size: "80mm" | "58mm";
 }
 
@@ -41,9 +40,9 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
 
   if (!sale) return null;
 
-  const client = getClientById(sale.client_id);
-  const vehicle = getVehicleById(sale.vehicle_id);
-  const saleServices = sale.services.map((id) => getServiceById(id)).filter(Boolean);
+  const client = sale.client;
+  const vehicle = sale.vehicle;
+  const saleItems = sale.sale_items || [];
 
   const toggleOption = (key: keyof typeof options) => {
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -52,22 +51,22 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
   const handleGenerate = () => {
     const pdfData: SalePDFData = {
       id: sale.id,
-      date: sale.date,
+      date: sale.sale_date,
       client_name: client?.name || 'Cliente',
       client_phone: client?.phone || '',
       vehicle_brand: vehicle?.brand || '',
       vehicle_model: vehicle?.model || '',
       vehicle_plate: vehicle?.plate || '',
-      vehicle_year: vehicle?.year,
-      services: saleServices.map(s => ({
-        name: s!.name,
-        description: s!.description,
-        price: s!.price,
+      vehicle_year: vehicle?.year || undefined,
+      services: saleItems.map(item => ({
+        name: item.service?.name || `Serviço #${item.service_id}`,
+        description: '',
+        price: item.total_price,
       })),
       subtotal: sale.subtotal,
-      discount: sale.discount,
+      discount: sale.discount || 0,
       total: sale.total,
-      payment_method: sale.payment_method,
+      payment_method: sale.payment_method || 'Não informado',
       company_name: 'WFE EVOLUTION',
     };
 
@@ -146,7 +145,7 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
 
               {/* Date */}
               <p className="text-center text-[10px] text-gray-600 mb-2">
-                {format(new Date(sale.date), "dd/MM/yyyy HH:mm")}
+                {format(new Date(sale.sale_date), "dd/MM/yyyy HH:mm")}
               </p>
 
               {options.saleNumber && (
@@ -165,32 +164,32 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
               )}
 
               {/* Vehicle */}
-              {options.vehicle && (
+              {options.vehicle && vehicle && (
                 <div className="bg-gray-100 p-2 rounded mb-2">
                   <p className="font-bold text-[10px] text-gray-500 mb-1">
                     DADOS DO VEÍCULO
                   </p>
                   <p>
-                    {vehicle?.brand} {vehicle?.model}
+                    {vehicle.brand} {vehicle.model}
                   </p>
-                  <p>Placa: {vehicle?.plate}</p>
-                  <p>Ano: {vehicle?.year}</p>
+                  <p>Placa: {vehicle.plate}</p>
+                  <p>Ano: {vehicle.year}</p>
                 </div>
               )}
 
               {/* Services */}
-              {options.serviceName && (
+              {options.serviceName && saleItems.length > 0 && (
                 <div className="bg-gray-100 p-2 rounded mb-2">
                   <p className="font-bold text-[10px] text-gray-500 mb-1">
                     SERVIÇOS REALIZADOS
                   </p>
-                  {saleServices.map((service, idx) => (
-                    <div key={service!.id} className="flex justify-between">
+                  {saleItems.map((item, idx) => (
+                    <div key={item.id} className="flex justify-between">
                       <span>
-                        {idx + 1}. {service!.name}
+                        {idx + 1}. {item.service?.name || `Serviço #${item.service_id}`}
                       </span>
                       {options.servicePrice && (
-                        <span>R$ {service!.price.toFixed(2)}</span>
+                        <span>R$ {item.total_price.toFixed(2)}</span>
                       )}
                     </div>
                   ))}
@@ -210,10 +209,10 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
                     <span>R$ {sale.subtotal.toFixed(2)}</span>
                   </div>
                 )}
-                {options.discount && sale.discount > 0 && (
+                {options.discount && (sale.discount || 0) > 0 && (
                   <div className="flex justify-between text-red-600">
                     <span>Desconto:</span>
-                    <span>- R$ {sale.discount.toFixed(2)}</span>
+                    <span>- R$ {(sale.discount || 0).toFixed(2)}</span>
                   </div>
                 )}
                 {options.total && (
@@ -225,7 +224,7 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
                 {options.paymentMethod && (
                   <div className="flex justify-between mt-1">
                     <span>Pagamento:</span>
-                    <span>{sale.payment_method}</span>
+                    <span>{sale.payment_method || 'Não informado'}</span>
                   </div>
                 )}
               </div>

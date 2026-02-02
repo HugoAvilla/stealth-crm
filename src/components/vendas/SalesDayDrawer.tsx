@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, addDays, subDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -18,7 +18,7 @@ import {
   BarChart3,
   DollarSign,
 } from "lucide-react";
-import { sales, getClientById, Sale } from "@/lib/mockData";
+import { SaleWithDetails } from "@/types/sales";
 import SalesKPIBar from "@/components/vendas/SalesKPIBar";
 import SaleDetailsModal from "@/components/vendas/SaleDetailsModal";
 
@@ -26,29 +26,32 @@ interface SalesDayDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
+  allSales: SaleWithDetails[];
 }
 
-const SalesDayDrawer = ({ open, onOpenChange, selectedDate }: SalesDayDrawerProps) => {
+const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales }: SalesDayDrawerProps) => {
   const [currentDate, setCurrentDate] = useState(selectedDate || new Date());
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [selectedSale, setSelectedSale] = useState<SaleWithDetails | null>(null);
 
   // Update current date when selectedDate changes
-  if (selectedDate && !isSameDay(currentDate, selectedDate)) {
-    setCurrentDate(selectedDate);
-  }
+  useEffect(() => {
+    if (selectedDate && !isSameDay(currentDate, selectedDate)) {
+      setCurrentDate(selectedDate);
+    }
+  }, [selectedDate]);
 
-  const daySales = sales.filter((sale) =>
-    isSameDay(new Date(sale.date), currentDate)
+  // Filter sales for the current day
+  const daySales = allSales.filter((sale) =>
+    isSameDay(new Date(sale.sale_date), currentDate)
   );
 
   const filteredSales = daySales.filter((sale) => {
     if (!searchQuery) return true;
-    const client = getClientById(sale.client_id);
     const searchLower = searchQuery.toLowerCase();
     return (
       sale.id.toString().includes(searchLower) ||
-      client?.name.toLowerCase().includes(searchLower)
+      sale.client?.name.toLowerCase().includes(searchLower)
     );
   });
 
@@ -112,7 +115,6 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate }: SalesDayDrawerProp
                 </Card>
               ) : (
                 filteredSales.map((sale) => {
-                  const client = getClientById(sale.client_id);
                   return (
                     <Card
                       key={sale.id}
@@ -127,7 +129,7 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate }: SalesDayDrawerProp
                           <div>
                             <p className="font-medium">Venda #{sale.id}</p>
                             <p className="text-sm text-muted-foreground">
-                              {client?.name || "Cliente"}
+                              {sale.client?.name || "Cliente"}
                             </p>
                           </div>
                         </div>
@@ -136,10 +138,10 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate }: SalesDayDrawerProp
                             R$ {sale.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </p>
                           <Badge
-                            variant={sale.status === "Fechada" ? "default" : "outline"}
+                            variant={!sale.is_open ? "default" : "outline"}
                             className="mt-1"
                           >
-                            {sale.status}
+                            {sale.is_open ? 'Aberta' : 'Fechada'}
                           </Badge>
                         </div>
                       </div>

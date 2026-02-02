@@ -18,30 +18,30 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Sale, getServiceById } from "@/lib/mockData";
+import { SaleWithDetails } from "@/types/sales";
 import { useState } from "react";
 
 interface SalesChartsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sales: Sale[];
+  sales: SaleWithDetails[];
 }
 
 const SalesChartsModal = ({ open, onOpenChange, sales }: SalesChartsModalProps) => {
   const [sortByRevenue, setSortByRevenue] = useState(false);
 
-  // Calculate top services
+  // Calculate top services from sale_items
   const serviceStats: Record<number, { name: string; count: number; revenue: number }> = {};
 
   sales.forEach((sale) => {
-    sale.services.forEach((serviceId) => {
-      const service = getServiceById(serviceId);
-      if (service) {
+    (sale.sale_items || []).forEach((item) => {
+      const serviceId = item.service_id;
+      if (serviceId && item.service) {
         if (!serviceStats[serviceId]) {
-          serviceStats[serviceId] = { name: service.name, count: 0, revenue: 0 };
+          serviceStats[serviceId] = { name: item.service.name, count: 0, revenue: 0 };
         }
-        serviceStats[serviceId].count += 1;
-        serviceStats[serviceId].revenue += service.price;
+        serviceStats[serviceId].count += item.quantity || 1;
+        serviceStats[serviceId].revenue += item.total_price;
       }
     });
   });
@@ -53,7 +53,8 @@ const SalesChartsModal = ({ open, onOpenChange, sales }: SalesChartsModalProps) 
   // Calculate payment method stats
   const paymentStats: Record<string, number> = {};
   sales.forEach((sale) => {
-    paymentStats[sale.payment_method] = (paymentStats[sale.payment_method] || 0) + sale.total;
+    const method = sale.payment_method || 'Não informado';
+    paymentStats[method] = (paymentStats[method] || 0) + sale.total;
   });
 
   const paymentData = Object.entries(paymentStats)
@@ -104,40 +105,46 @@ const SalesChartsModal = ({ open, onOpenChange, sales }: SalesChartsModalProps) 
             </div>
 
             <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topServices} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={100}
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tick={{ fill: "hsl(var(--foreground))" }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                    formatter={(value: number) =>
-                      sortByRevenue
-                        ? `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
-                        : `${value}x vendido`
-                    }
-                  />
-                  <Bar
-                    dataKey={sortByRevenue ? "revenue" : "count"}
-                    radius={[0, 4, 4, 0]}
-                  >
-                    {topServices.map((_, index) => (
-                      <Cell key={index} fill={chartColors[index % chartColors.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {topServices.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topServices} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={100}
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tick={{ fill: "hsl(var(--foreground))" }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                      }}
+                      formatter={(value: number) =>
+                        sortByRevenue
+                          ? `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                          : `${value}x vendido`
+                      }
+                    />
+                    <Bar
+                      dataKey={sortByRevenue ? "revenue" : "count"}
+                      radius={[0, 4, 4, 0]}
+                    >
+                      {topServices.map((_, index) => (
+                        <Cell key={index} fill={chartColors[index % chartColors.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  Nenhum serviço registrado
+                </div>
+              )}
             </div>
           </Card>
 
@@ -151,31 +158,37 @@ const SalesChartsModal = ({ open, onOpenChange, sales }: SalesChartsModalProps) 
             </div>
 
             <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={paymentData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis
-                    type="category"
-                    dataKey="method"
-                    width={100}
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tick={{ fill: "hsl(var(--foreground))" }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                    formatter={(value: number) =>
-                      `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
-                    }
-                  />
-                  <Bar dataKey="value" fill="hsl(var(--success))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {paymentData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={paymentData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis
+                      type="category"
+                      dataKey="method"
+                      width={100}
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tick={{ fill: "hsl(var(--foreground))" }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                      }}
+                      formatter={(value: number) =>
+                        `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                      }
+                    />
+                    <Bar dataKey="value" fill="hsl(var(--success))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  Nenhuma venda registrada
+                </div>
+              )}
             </div>
           </Card>
         </div>
