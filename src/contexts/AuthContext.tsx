@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Profile, AppRole } from '@/lib/database.types';
+import { checkPwnedPassword } from '@/lib/passwordSecurity';
 
 export type SubscriptionStatus = 'pending_payment' | 'payment_submitted' | 'active' | 'expired' | 'blocked';
 
@@ -23,7 +24,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, name: string, phone?: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, name: string, phone?: string) => Promise<{ error: Error | null; isPwnedPassword?: boolean }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -171,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, name: string, phone?: string): Promise<{ error: Error | null }> => {
+  const signUp = async (email: string, password: string, name: string, phone?: string): Promise<{ error: Error | null; isPwnedPassword?: boolean }> => {
     try {
       // Validate name before sending to server
       const trimmedName = name.trim();
@@ -198,6 +199,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Validate password
       if (!password || password.length < 6) {
         return { error: new Error('Senha deve ter pelo menos 6 caracteres') };
+      }
+
+      // Check if password has been exposed in data breaches
+      const pwnedResult = await checkPwnedPassword(password);
+      if (pwnedResult.isPwned) {
+        return { 
+          error: new Error(`Esta senha foi encontrada em ${pwnedResult.count.toLocaleString('pt-BR')} vazamentos de dados. Por favor, escolha uma senha diferente e mais segura.`),
+          isPwnedPassword: true
+        };
       }
 
       // Validate phone if provided

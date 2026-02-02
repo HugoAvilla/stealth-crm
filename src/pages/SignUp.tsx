@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plane, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Plane, Eye, EyeOff, ShieldAlert, ShieldCheck } from 'lucide-react';
 import jetFighter from '@/assets/jet-fighter.jpg';
 
 export default function SignUp() {
@@ -17,6 +17,7 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingPassword, setIsCheckingPassword] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -46,12 +47,15 @@ export default function SignUp() {
     }
 
     setIsLoading(true);
+    setIsCheckingPassword(true);
     
-    const { error } = await signUp(email, password, name, phone);
+    const { error, isPwnedPassword } = await signUp(email, password, name, phone);
+    
+    setIsCheckingPassword(false);
     
     if (error) {
       toast({
-        title: 'Erro ao criar conta',
+        title: isPwnedPassword ? 'Senha comprometida' : 'Erro ao criar conta',
         description: error.message,
         variant: 'destructive',
       });
@@ -143,6 +147,10 @@ export default function SignUp() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <ShieldCheck className="h-3 w-3" />
+                  Sua senha será verificada contra vazamentos conhecidos
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -161,7 +169,7 @@ export default function SignUp() {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Criando conta...
+                    {isCheckingPassword ? 'Verificando senha...' : 'Criando conta...'}
                   </>
                 ) : (
                   'Criar conta'
