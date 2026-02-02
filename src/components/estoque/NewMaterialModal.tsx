@@ -137,11 +137,9 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="unidade">Unidade</SelectItem>
-                <SelectItem value="metro">Metro</SelectItem>
-                <SelectItem value="litro">Litro</SelectItem>
-                <SelectItem value="ml">Mililitro</SelectItem>
-                <SelectItem value="kg">Quilograma</SelectItem>
+                <SelectItem value="Unidades">Unidades</SelectItem>
+                <SelectItem value="Metros">Metros</SelectItem>
+                <SelectItem value="Litros">Litros</SelectItem>
               </SelectContent>
             </Select>
           </div>
