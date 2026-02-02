@@ -339,6 +339,7 @@ export type Database = {
           cep: string | null
           city: string | null
           cnpj: string | null
+          company_id: number | null
           company_name: string | null
           complement: string | null
           created_at: string | null
@@ -357,6 +358,7 @@ export type Database = {
           cep?: string | null
           city?: string | null
           cnpj?: string | null
+          company_id?: number | null
           company_name?: string | null
           complement?: string | null
           created_at?: string | null
@@ -375,6 +377,7 @@ export type Database = {
           cep?: string | null
           city?: string | null
           cnpj?: string | null
+          company_id?: number | null
           company_name?: string | null
           complement?: string | null
           created_at?: string | null
@@ -389,7 +392,15 @@ export type Database = {
           street?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       consumption_rules: {
         Row: {
