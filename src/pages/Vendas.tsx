@@ -24,21 +24,7 @@ import SalesKPIBar from "@/components/vendas/SalesKPIBar";
 import NewSaleModal from "@/components/vendas/NewSaleModal";
 import SalesDayDrawer from "@/components/vendas/SalesDayDrawer";
 import SalesChartsModal from "@/components/vendas/SalesChartsModal";
-
-interface Sale {
-  id: number;
-  client_id: number | null;
-  vehicle_id: number | null;
-  sale_date: string;
-  subtotal: number;
-  discount: number | null;
-  total: number;
-  payment_method: string | null;
-  status: string | null;
-  is_open: boolean | null;
-  observations: string | null;
-  client?: { name: string } | null;
-}
+import { SaleWithDetails } from "@/types/sales";
 
 const Vendas = () => {
   const { user } = useAuth();
@@ -47,7 +33,7 @@ const Vendas = () => {
   const [isNewSaleModalOpen, setIsNewSaleModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [isChartsModalOpen, setIsChartsModalOpen] = useState(false);
-  const [sales, setSales] = useState<Sale[]>([]);
+  const [sales, setSales] = useState<SaleWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
 
   const monthStart = startOfMonth(currentDate);
@@ -80,15 +66,38 @@ const Vendas = () => {
         .from('sales')
         .select(`
           *,
-          client:clients(name)
+          client:clients(id, name, phone),
+          vehicle:vehicles(id, brand, model, year, plate, size),
+          sale_items(
+            id, service_id, quantity, unit_price, total_price,
+            service:services(id, name, base_price)
+          )
         `)
         .eq('company_id', profile.company_id)
         .gte('sale_date', format(monthStart, 'yyyy-MM-dd'))
         .lte('sale_date', format(monthEnd, 'yyyy-MM-dd'))
         .order('sale_date', { ascending: false });
 
-      if (!error) {
-        setSales(data || []);
+      if (!error && data) {
+        // Transform data to match SaleWithDetails interface
+        const transformedSales: SaleWithDetails[] = data.map((sale: any) => ({
+          id: sale.id,
+          client_id: sale.client_id,
+          vehicle_id: sale.vehicle_id,
+          sale_date: sale.sale_date,
+          subtotal: sale.subtotal,
+          discount: sale.discount,
+          total: sale.total,
+          payment_method: sale.payment_method,
+          status: sale.status,
+          is_open: sale.is_open,
+          observations: sale.observations,
+          created_at: sale.created_at,
+          client: sale.client,
+          vehicle: sale.vehicle,
+          sale_items: sale.sale_items || [],
+        }));
+        setSales(transformedSales);
       }
     } catch (error) {
       console.error('Error fetching sales:', error);
@@ -97,7 +106,7 @@ const Vendas = () => {
     }
   };
 
-  const getSalesForDay = (day: Date): Sale[] => {
+  const getSalesForDay = (day: Date): SaleWithDetails[] => {
     return sales.filter((sale) => isSameDay(new Date(sale.sale_date), day));
   };
 
@@ -105,21 +114,6 @@ const Vendas = () => {
   const totalMonthValue = monthSales.reduce((sum, sale) => sum + sale.total, 0);
 
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-
-  // Convert to format expected by SalesKPIBar
-  const kpiSales = monthSales.map(s => ({
-    id: s.id,
-    client_id: s.client_id || 0,
-    vehicle_id: s.vehicle_id || 0,
-    services: [],
-    date: s.sale_date,
-    subtotal: s.subtotal,
-    discount: s.discount || 0,
-    total: s.total,
-    payment_method: (s.payment_method || 'Pix') as 'Pix' | 'Dinheiro' | 'Débito' | 'Crédito' | 'Boleto' | 'Transferência',
-    status: (s.is_open ? 'Aberta' : 'Fechada') as 'Fechada' | 'Aberta',
-    employee_id: 0,
-  }));
 
   return (
     <div className="p-6 space-y-6">
@@ -185,7 +179,7 @@ const Vendas = () => {
       </div>
 
       {/* KPI Bar */}
-      <SalesKPIBar sales={kpiSales} />
+      <SalesKPIBar sales={monthSales} />
 
       {/* Loading State */}
       {loading ? (
@@ -310,12 +304,13 @@ const Vendas = () => {
         open={!!selectedDay}
         onOpenChange={(open) => !open && setSelectedDay(null)}
         selectedDate={selectedDay}
+        allSales={sales}
       />
 
       <SalesChartsModal
         open={isChartsModalOpen}
         onOpenChange={setIsChartsModalOpen}
-        sales={kpiSales}
+        sales={monthSales}
       />
     </div>
   );

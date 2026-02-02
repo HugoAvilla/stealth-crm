@@ -13,14 +13,14 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Download, X } from "lucide-react";
-import { Sale, getClientById, getVehicleById, getServiceById } from "@/lib/mockData";
+import { SaleWithDetails } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
 import { generateSalePDFA4, type SalePDFData } from "@/lib/pdfGenerator";
 
 interface PdfA4ModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sale: Sale | null;
+  sale: SaleWithDetails | null;
 }
 
 const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
@@ -43,9 +43,9 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
 
   if (!sale) return null;
 
-  const client = getClientById(sale.client_id);
-  const vehicle = getVehicleById(sale.vehicle_id);
-  const saleServices = sale.services.map((id) => getServiceById(id)).filter(Boolean);
+  const client = sale.client;
+  const vehicle = sale.vehicle;
+  const saleItems = sale.sale_items || [];
 
   const toggleOption = (key: keyof typeof options) => {
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -54,22 +54,22 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
   const handleGenerate = () => {
     const pdfData: SalePDFData = {
       id: sale.id,
-      date: sale.date,
+      date: sale.sale_date,
       client_name: client?.name || 'Cliente',
       client_phone: client?.phone || '',
       vehicle_brand: vehicle?.brand || '',
       vehicle_model: vehicle?.model || '',
       vehicle_plate: vehicle?.plate || '',
-      vehicle_year: vehicle?.year,
-      services: saleServices.map(s => ({
-        name: s!.name,
-        description: s!.description,
-        price: s!.price,
+      vehicle_year: vehicle?.year || undefined,
+      services: saleItems.map(item => ({
+        name: item.service?.name || `Serviço #${item.service_id}`,
+        description: '',
+        price: item.total_price,
       })),
       subtotal: sale.subtotal,
-      discount: sale.discount,
+      discount: sale.discount || 0,
       total: sale.total,
-      payment_method: sale.payment_method,
+      payment_method: sale.payment_method || 'Não informado',
       company_name: 'WFE EVOLUTION',
     };
 
@@ -252,7 +252,7 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
                   {options.saleNumber && (
                     <p className="text-sm">
                       Venda Nº {sale.id} realizada em{" "}
-                      {format(new Date(sale.date), "dd/MM/yyyy")}
+                      {format(new Date(sale.sale_date), "dd/MM/yyyy")}
                     </p>
                   )}
                 </div>
@@ -272,15 +272,15 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
               )}
 
               {/* Vehicle & Services */}
-              {options.vehicle && (
+              {options.vehicle && vehicle && (
                 <div className="mb-4">
                   <p className="text-sm font-semibold">
-                    Veículo: {vehicle?.brand} {vehicle?.model} ({vehicle?.plate})
+                    Veículo: {vehicle.brand} {vehicle.model} ({vehicle.plate})
                   </p>
                 </div>
               )}
 
-              {options.serviceName && (
+              {options.serviceName && saleItems.length > 0 && (
                 <table className="w-full text-sm mb-4">
                   <thead>
                     <tr className="border-b">
@@ -289,17 +289,14 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {saleServices.map((service) => (
-                      <tr key={service!.id} className="border-b">
+                    {saleItems.map((item) => (
+                      <tr key={item.id} className="border-b">
                         <td className="py-2">
-                          <p>{service!.name}</p>
-                          {options.serviceDescription && (
-                            <p className="text-xs text-gray-500">{service!.description}</p>
-                          )}
+                          <p>{item.service?.name || `Serviço #${item.service_id}`}</p>
                         </td>
                         {options.servicePrice && (
                           <td className="text-right py-2">
-                            R$ {service!.price.toFixed(2)}
+                            R$ {item.total_price.toFixed(2)}
                           </td>
                         )}
                       </tr>
@@ -316,10 +313,10 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
                     <span>R$ {sale.subtotal.toFixed(2)}</span>
                   </div>
                 )}
-                {options.discount && sale.discount > 0 && (
+                {options.discount && (sale.discount || 0) > 0 && (
                   <div className="flex justify-between text-red-600">
                     <span>Desconto:</span>
-                    <span>- R$ {sale.discount.toFixed(2)}</span>
+                    <span>- R$ {(sale.discount || 0).toFixed(2)}</span>
                   </div>
                 )}
                 {options.total && (
@@ -331,7 +328,7 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
                 {options.paymentMethod && (
                   <div className="flex justify-between pt-2">
                     <span>Forma de Pagamento:</span>
-                    <span>{sale.payment_method}</span>
+                    <span>{sale.payment_method || 'Não informado'}</span>
                   </div>
                 )}
               </div>

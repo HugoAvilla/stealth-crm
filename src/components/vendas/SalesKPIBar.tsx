@@ -1,18 +1,19 @@
 import { Card } from "@/components/ui/card";
-import { Sale } from "@/lib/mockData";
-import { DollarSign, CreditCard, Clock, TrendingUp, Percent } from "lucide-react";
+import { SaleWithDetails } from "@/types/sales";
+import { DollarSign, Clock, TrendingUp, Percent } from "lucide-react";
 
 interface SalesKPIBarProps {
-  sales: Sale[];
+  sales: SaleWithDetails[];
 }
 
 const SalesKPIBar = ({ sales }: SalesKPIBarProps) => {
-  const closedSales = sales.filter((s) => s.status === "Fechada");
-  const openSales = sales.filter((s) => s.status === "Aberta");
+  // Use is_open field: false = closed, true = open
+  const closedSales = sales.filter((s) => s.is_open === false);
+  const openSales = sales.filter((s) => s.is_open === true);
 
   const totalClosed = closedSales.reduce((sum, s) => sum + s.total, 0);
   const totalOpen = openSales.reduce((sum, s) => sum + s.total, 0);
-  const totalPending = openSales.reduce((sum, s) => sum + (s.total - s.discount), 0);
+  const totalPending = openSales.reduce((sum, s) => sum + (s.total - (s.discount || 0)), 0);
   const averageTicket = sales.length > 0 ? (totalClosed + totalOpen) / sales.length : 0;
 
   // Simulated card fees (2.5% average)
