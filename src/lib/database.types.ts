@@ -2,6 +2,62 @@
 
 export type AppRole = 'ADMIN' | 'VENDEDOR' | 'PRODUCAO' | 'NENHUM';
 
+// Tipos para sistema de produtos INSULFILM/PPF
+export type ProductCategory = 'INSULFILM' | 'PPF';
+export type VehicleSize = 'P' | 'M' | 'G';
+
+export interface ProductType {
+  id: number;
+  category: ProductCategory;
+  brand: string;
+  name: string;
+  model: string | null;
+  light_transmission: string | null;
+  description: string | null;
+  unit_price: number;
+  cost_per_meter: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  company_id: number;
+}
+
+export interface VehicleRegion {
+  id: number;
+  category: ProductCategory;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  company_id: number;
+}
+
+export interface RegionConsumptionRule {
+  id: number;
+  category: ProductCategory;
+  region_id: number;
+  vehicle_size: VehicleSize;
+  meters_consumed: number;
+  created_at: string;
+  updated_at: string;
+  company_id: number;
+}
+
+export interface ServiceItemDetailed {
+  id: number;
+  sale_id: number;
+  category: ProductCategory;
+  product_type_id: number;
+  region_id: number;
+  meters_used: number;
+  unit_price: number;
+  total_price: number;
+  notes: string | null;
+  created_at: string;
+  company_id: number;
+}
+
 export interface Profile {
   id: number;
   user_id: string;

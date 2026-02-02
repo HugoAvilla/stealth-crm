@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Settings } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Settings, Tag, Car, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,9 @@ import { NewMaterialModal } from "@/components/estoque/NewMaterialModal";
 import { StockEntryModal } from "@/components/estoque/StockEntryModal";
 import { StockExitModal } from "@/components/estoque/StockExitModal";
 import { ConsumptionRulesModal } from "@/components/estoque/ConsumptionRulesModal";
+import { ProductTypesTab } from "@/components/estoque/ProductTypesTab";
+import { VehicleRegionsTab } from "@/components/estoque/VehicleRegionsTab";
+import { ConsumptionRulesTab } from "@/components/estoque/ConsumptionRulesTab";
 import { toast } from "sonner";
 
 interface Material {
@@ -30,6 +34,7 @@ interface Material {
 
 export default function Estoque() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState("materials");
   const [search, setSearch] = useState("");
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +43,7 @@ export default function Estoque() {
   const [showExit, setShowExit] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [companyId, setCompanyId] = useState<number | null>(null);
 
   const fetchMaterials = async () => {
     if (!user?.id) return;
@@ -53,6 +59,8 @@ export default function Estoque() {
         setLoading(false);
         return;
       }
+
+      setCompanyId(profile.company_id);
 
       const { data, error } = await supabase
         .from("materials")
@@ -146,176 +154,216 @@ export default function Estoque() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Estoque</h1>
-          <p className="text-muted-foreground">Controle de materiais e insumos</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowRules(true)}>
-            <Settings className="h-4 w-4 mr-2" /> Regras de Consumo
-          </Button>
-          <Button onClick={() => setShowNewMaterial(true)}>
-            <Plus className="h-4 w-4 mr-2" /> Novo Material
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">Gestão de Estoque</h1>
+        <p className="text-muted-foreground">Controle de materiais, produtos e regras de consumo</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Package className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total de Itens</p>
-                <p className="text-2xl font-bold">{materials.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Sistema de Abas Principal */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+          <TabsTrigger value="materials" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            <span className="hidden sm:inline">Materiais</span>
+          </TabsTrigger>
+          <TabsTrigger value="product-types" className="flex items-center gap-2">
+            <Tag className="h-4 w-4" />
+            <span className="hidden sm:inline">Tipos de Produtos</span>
+          </TabsTrigger>
+          <TabsTrigger value="vehicle-regions" className="flex items-center gap-2">
+            <Car className="h-4 w-4" />
+            <span className="hidden sm:inline">Regiões do Veículo</span>
+          </TabsTrigger>
+          <TabsTrigger value="consumption-rules" className="flex items-center gap-2">
+            <Calculator className="h-4 w-4" />
+            <span className="hidden sm:inline">Regras de Consumo</span>
+          </TabsTrigger>
+        </TabsList>
 
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Valor em Estoque</p>
-                <p className="text-2xl font-bold">
-                  R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-yellow-500/10">
-                <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Estoque Baixo</p>
-                <p className="text-2xl font-bold text-yellow-500">{lowCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-500/10">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Estoque Crítico</p>
-                <p className="text-2xl font-bold text-red-500">{criticalCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar material..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* Empty State or Table */}
-      {materials.length === 0 ? (
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-12 text-center">
-            <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhum material cadastrado</h3>
-            <p className="text-muted-foreground mb-4">
-              Comece adicionando os materiais utilizados nos seus serviços
-            </p>
-            <Button onClick={() => setShowNewMaterial(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Material
+        {/* Aba Materiais */}
+        <TabsContent value="materials" className="space-y-6">
+          {/* Header da aba */}
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowRules(true)}>
+              <Settings className="h-4 w-4 mr-2" /> Regras Antigas
             </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Material</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-center">Estoque Atual</TableHead>
-                  <TableHead className="text-center">Mínimo</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Custo Unit.</TableHead>
-                  <TableHead className="text-right">Valor Total</TableHead>
-                  <TableHead className="w-[100px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMaterials.map((material) => {
-                  const stockStatus = getStockStatus(material);
-                  const totalVal = (material.current_stock || 0) * (material.average_cost || 0);
+            <Button onClick={() => setShowNewMaterial(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Novo Material
+            </Button>
+          </div>
 
-                  return (
-                    <TableRow key={material.id}>
-                      <TableCell className="font-medium">
-                        <div>
-                          <p>{material.name}</p>
-                          {material.brand && (
-                            <p className="text-xs text-muted-foreground">{material.brand}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{material.type || "-"}</Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {material.current_stock || 0} {material.unit}
-                      </TableCell>
-                      <TableCell className="text-center text-muted-foreground">
-                        {material.minimum_stock || 0} {material.unit}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={cn(stockStatus.bg, stockStatus.color, "border-0")}>
-                          {stockStatus.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        R$ {(material.average_cost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEntry(material)} title="Entrada">
-                            <ArrowDown className="h-4 w-4 text-green-500" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
-                            <ArrowUp className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </TableCell>
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Package className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total de Itens</p>
+                    <p className="text-2xl font-bold">{materials.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Valor em Estoque</p>
+                    <p className="text-2xl font-bold">
+                      R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-yellow-500/10">
+                    <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Estoque Baixo</p>
+                    <p className="text-2xl font-bold text-yellow-500">{lowCount}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-red-500/10">
+                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Estoque Crítico</p>
+                    <p className="text-2xl font-bold text-red-500">{criticalCount}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar material..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Empty State or Table */}
+          {materials.length === 0 ? (
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-12 text-center">
+                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Nenhum material cadastrado</h3>
+                <p className="text-muted-foreground mb-4">
+                  Comece adicionando os materiais utilizados nos seus serviços
+                </p>
+                <Button onClick={() => setShowNewMaterial(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Material
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Material</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead className="text-center">Estoque Atual</TableHead>
+                      <TableHead className="text-center">Mínimo</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right">Custo Unit.</TableHead>
+                      <TableHead className="text-right">Valor Total</TableHead>
+                      <TableHead className="w-[100px]"></TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+                  </TableHeader>
+                  <TableBody>
+                    {filteredMaterials.map((material) => {
+                      const stockStatus = getStockStatus(material);
+                      const totalVal = (material.current_stock || 0) * (material.average_cost || 0);
+
+                      return (
+                        <TableRow key={material.id}>
+                          <TableCell className="font-medium">
+                            <div>
+                              <p>{material.name}</p>
+                              {material.brand && (
+                                <p className="text-xs text-muted-foreground">{material.brand}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{material.type || "-"}</Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {material.current_stock || 0} {material.unit}
+                          </TableCell>
+                          <TableCell className="text-center text-muted-foreground">
+                            {material.minimum_stock || 0} {material.unit}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge className={cn(stockStatus.bg, stockStatus.color, "border-0")}>
+                              {stockStatus.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            R$ {(material.average_cost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => handleEntry(material)} title="Entrada">
+                                <ArrowDown className="h-4 w-4 text-green-500" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
+                                <ArrowUp className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Aba Tipos de Produtos */}
+        <TabsContent value="product-types">
+          <ProductTypesTab companyId={companyId} />
+        </TabsContent>
+
+        {/* Aba Regiões do Veículo */}
+        <TabsContent value="vehicle-regions">
+          <VehicleRegionsTab companyId={companyId} />
+        </TabsContent>
+
+        {/* Aba Regras de Consumo */}
+        <TabsContent value="consumption-rules">
+          <ConsumptionRulesTab companyId={companyId} />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <NewMaterialModal

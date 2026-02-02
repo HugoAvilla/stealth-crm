@@ -585,6 +585,7 @@ export type Database = {
           is_active: boolean | null
           minimum_stock: number | null
           name: string
+          product_type_id: number | null
           type: string | null
           unit: string
           updated_at: string | null
@@ -599,6 +600,7 @@ export type Database = {
           is_active?: boolean | null
           minimum_stock?: number | null
           name: string
+          product_type_id?: number | null
           type?: string | null
           unit: string
           updated_at?: string | null
@@ -613,6 +615,7 @@ export type Database = {
           is_active?: boolean | null
           minimum_stock?: number | null
           name?: string
+          product_type_id?: number | null
           type?: string | null
           unit?: string
           updated_at?: string | null
@@ -623,6 +626,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "materials_product_type_id_fkey"
+            columns: ["product_type_id"]
+            isOneToOne: false
+            referencedRelation: "product_types"
             referencedColumns: ["id"]
           },
         ]
@@ -688,6 +698,62 @@ export type Database = {
           },
         ]
       }
+      product_types: {
+        Row: {
+          brand: string
+          category: string
+          company_id: number
+          cost_per_meter: number | null
+          created_at: string | null
+          description: string | null
+          id: number
+          is_active: boolean | null
+          light_transmission: string | null
+          model: string | null
+          name: string
+          unit_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          brand: string
+          category: string
+          company_id: number
+          cost_per_meter?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          is_active?: boolean | null
+          light_transmission?: string | null
+          model?: string | null
+          name: string
+          unit_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          brand?: string
+          category?: string
+          company_id?: number
+          cost_per_meter?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          is_active?: boolean | null
+          light_transmission?: string | null
+          model?: string | null
+          name?: string
+          unit_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_types_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -731,6 +797,54 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      region_consumption_rules: {
+        Row: {
+          category: string
+          company_id: number
+          created_at: string | null
+          id: number
+          meters_consumed: number
+          region_id: number
+          updated_at: string | null
+          vehicle_size: string
+        }
+        Insert: {
+          category: string
+          company_id: number
+          created_at?: string | null
+          id?: number
+          meters_consumed?: number
+          region_id: number
+          updated_at?: string | null
+          vehicle_size: string
+        }
+        Update: {
+          category?: string
+          company_id?: number
+          created_at?: string | null
+          id?: number
+          meters_consumed?: number
+          region_id?: number
+          updated_at?: string | null
+          vehicle_size?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "region_consumption_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "region_consumption_rules_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_regions"
             referencedColumns: ["id"]
           },
         ]
@@ -862,6 +976,77 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_items_detailed: {
+        Row: {
+          category: string
+          company_id: number
+          created_at: string | null
+          id: number
+          meters_used: number
+          notes: string | null
+          product_type_id: number
+          region_id: number
+          sale_id: number
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          category: string
+          company_id: number
+          created_at?: string | null
+          id?: number
+          meters_used?: number
+          notes?: string | null
+          product_type_id: number
+          region_id: number
+          sale_id: number
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          category?: string
+          company_id?: number
+          created_at?: string | null
+          id?: number
+          meters_used?: number
+          notes?: string | null
+          product_type_id?: number
+          region_id?: number
+          sale_id?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_items_detailed_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_items_detailed_product_type_id_fkey"
+            columns: ["product_type_id"]
+            isOneToOne: false
+            referencedRelation: "product_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_items_detailed_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_items_detailed_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
         ]
@@ -1361,6 +1546,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      vehicle_regions: {
+        Row: {
+          category: string
+          company_id: number
+          created_at: string | null
+          description: string | null
+          id: number
+          is_active: boolean | null
+          name: string
+          sort_order: number | null
+        }
+        Insert: {
+          category: string
+          company_id: number
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          is_active?: boolean | null
+          name: string
+          sort_order?: number | null
+        }
+        Update: {
+          category?: string
+          company_id?: number
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          is_active?: boolean | null
+          name?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_regions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vehicles: {
         Row: {
