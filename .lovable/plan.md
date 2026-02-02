@@ -1,154 +1,202 @@
 
-# Plano: Integrar API Have I Been Pwned (HIBP) para Verificação de Senhas Vazadas
+# Plano: Corrigir SalesDayDrawer para Buscar Dados Reais do Supabase
 
-## Objetivo
+## Problema Identificado
 
-Implementar uma verificação automática de senhas vazadas durante o cadastro de usuários, utilizando a API pública e gratuita Have I Been Pwned (HIBP). Esta é uma alternativa à funcionalidade nativa do Supabase Pro.
+O componente `SalesDayDrawer.tsx` está importando e utilizando dados mock do arquivo `@/lib/mockData`:
+
+```typescript
+import { sales, getClientById, Sale } from "@/lib/mockData";
+```
+
+Isso faz com que o drawer sempre mostre arrays vazios (já que `mockData.ts` foi limpo e contém apenas definições de tipos), mesmo quando existem vendas reais no banco de dados.
 
 ---
 
-## Como Funciona
+## Componentes Afetados
 
-A API HIBP usa um modelo chamado **k-Anonymity** que protege a privacidade do usuário:
-
-1. O sistema gera um hash SHA-1 da senha
-2. Envia apenas os **primeiros 5 caracteres** do hash para a API
-3. A API retorna uma lista de todos os hashes que começam com esses 5 caracteres
-4. O sistema verifica localmente se o hash completo está na lista
-5. A senha nunca é enviada para nenhum servidor externo
-
-```text
-Fluxo de Verificação:
-
-Senha → SHA-1 Hash → Primeiros 5 chars → API HIBP
-                                            ↓
-                     Verifica localmente ← Lista de hashes
-                            ↓
-                    Senha vazada? Sim/Não
-```
+| Componente | Problema | Ação |
+|------------|----------|------|
+| `SalesDayDrawer.tsx` | Usa `sales` e `getClientById` do mockData | Buscar dados do Supabase |
+| `SalesKPIBar.tsx` | Recebe dados via props | Adaptar interface para novo formato |
+| `SaleDetailsModal.tsx` | Usa `getClientById`, `getVehicleById`, `getServiceById` | Receber dados completos via props |
 
 ---
 
 ## Arquitetura da Solução
 
 ```text
-┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────┐
-│   SignUp.tsx    │────▶│  Edge Function       │────▶│  API HIBP       │
-│   (Frontend)    │     │  check-pwned-password│     │  (Externo)      │
-└─────────────────┘     └──────────────────────┘     └─────────────────┘
-         │                       │
-         │                       │
-         ▼                       ▼
-┌─────────────────┐     ┌──────────────────────┐
-│ AuthContext.tsx │     │  Retorna contagem    │
-│ (Validação)     │     │  de vazamentos       │
-└─────────────────┘     └──────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     Vendas.tsx (Pai)                        │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  Busca vendas do mês via Supabase                   │    │
+│  │  com joins: clients, vehicles, sale_items, services │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                           │                                  │
+│              ┌────────────┴────────────┐                    │
+│              ▼                         ▼                    │
+│  ┌──────────────────────┐   ┌─────────────────────────┐     │
+│  │   SalesDayDrawer     │   │   SalesKPIBar           │     │
+│  │   (Recebe via props) │   │   (Recebe via props)    │     │
+│  └──────────────────────┘   └─────────────────────────┘     │
+│              │                                               │
+│              ▼                                               │
+│  ┌──────────────────────┐                                   │
+│  │   SaleDetailsModal   │                                   │
+│  │   (Recebe via props) │                                   │
+│  └──────────────────────┘                                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Alterações Necessárias
+## Alterações Detalhadas
 
-### 1. Nova Edge Function: `check-pwned-password`
+### 1. Criar Interface Unificada de Venda
 
-Criar função que:
-- Recebe os primeiros 5 caracteres do hash SHA-1 da senha
-- Consulta a API `https://api.pwnedpasswords.com/range/{prefix}`
-- Retorna a lista de sufixos e contagens de vazamento
-- Não requer API key (API pública gratuita)
-
-### 2. Atualizar `supabase/config.toml`
-
-Adicionar configuração para a nova edge function.
-
-### 3. Atualizar `src/contexts/AuthContext.tsx`
-
-Modificar a função `signUp` para:
-- Gerar hash SHA-1 da senha no frontend (usando Web Crypto API nativa)
-- Chamar a edge function com o prefixo do hash
-- Verificar se a senha está na lista de vazadas
-- Bloquear cadastro se a senha foi vazada
-
-### 4. Atualizar `src/pages/SignUp.tsx`
-
-- Melhorar feedback visual durante verificação
-- Exibir mensagem amigável se senha foi vazada
-
----
-
-## Detalhes Técnicos
-
-### Edge Function (`supabase/functions/check-pwned-password/index.ts`)
+Criar um tipo que represente uma venda com todos os dados relacionados já carregados:
 
 ```typescript
-// Estrutura da função
-- Recebe POST com { hashPrefix: string } (5 caracteres)
-- Valida formato do prefixo (apenas hex, exatamente 5 chars)
-- Chama api.pwnedpasswords.com/range/{prefix}
-- Retorna lista de sufixos:contagens
-- CORS habilitado para chamadas do frontend
+interface SaleWithDetails {
+  id: number;
+  client_id: number | null;
+  vehicle_id: number | null;
+  sale_date: string;
+  subtotal: number;
+  discount: number | null;
+  total: number;
+  payment_method: string | null;
+  status: string | null;
+  is_open: boolean | null;
+  observations: string | null;
+  client: {
+    id: number;
+    name: string;
+    phone: string;
+  } | null;
+  vehicle: {
+    id: number;
+    brand: string;
+    model: string;
+    year: number | null;
+    plate: string | null;
+    size: string | null;
+  } | null;
+  sale_items: {
+    id: number;
+    service_id: number | null;
+    quantity: number | null;
+    unit_price: number;
+    total_price: number;
+    service: {
+      id: number;
+      name: string;
+      base_price: number;
+    } | null;
+  }[];
+}
 ```
 
-### Geração do Hash SHA-1 (Frontend)
+### 2. Atualizar Vendas.tsx
+
+Modificar a query para incluir todos os relacionamentos necessários:
 
 ```typescript
-// Usando Web Crypto API nativa (não precisa de biblioteca)
-const encoder = new TextEncoder();
-const data = encoder.encode(password);
-const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-const hashArray = Array.from(new Uint8Array(hashBuffer));
-const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-const prefix = hashHex.substring(0, 5).toUpperCase();
-const suffix = hashHex.substring(5).toUpperCase();
+const { data, error } = await supabase
+  .from('sales')
+  .select(`
+    *,
+    client:clients(id, name, phone),
+    vehicle:vehicles(id, brand, model, year, plate, size),
+    sale_items(
+      id, service_id, quantity, unit_price, total_price,
+      service:services(id, name, base_price)
+    )
+  `)
+  .eq('company_id', profile.company_id)
+  .gte('sale_date', format(monthStart, 'yyyy-MM-dd'))
+  .lte('sale_date', format(monthEnd, 'yyyy-MM-dd'))
+  .order('sale_date', { ascending: false });
 ```
 
-### Fluxo de Validação no SignUp
+Passar as vendas completas para o SalesDayDrawer.
 
-1. Usuário preenche senha
-2. Ao clicar em "Criar conta":
-   - Gera SHA-1 hash da senha
-   - Extrai prefixo (5 chars) e sufixo
-   - Chama edge function com prefixo
-   - Procura sufixo na resposta
-   - Se encontrado → bloqueia com mensagem de erro
-   - Se não encontrado → prossegue com cadastro normal
+### 3. Atualizar SalesDayDrawer.tsx
+
+**Mudanças principais:**
+- Remover importação de `sales` e `getClientById` do mockData
+- Receber `allSales` como prop do componente pai
+- Filtrar vendas do dia selecionado localmente
+- Passar venda completa para `SaleDetailsModal`
+
+**Nova interface de props:**
+```typescript
+interface SalesDayDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedDate: Date | null;
+  allSales: SaleWithDetails[];
+}
+```
+
+### 4. Atualizar SalesKPIBar.tsx
+
+Adaptar para receber o novo formato de dados com campos corretos:
+- Usar `is_open` para determinar status
+- Calcular totais corretamente
+
+### 5. Atualizar SaleDetailsModal.tsx
+
+**Mudanças principais:**
+- Remover importações de funções mock (`getClientById`, `getVehicleById`, `getServiceById`)
+- Receber venda com dados já carregados via props
+- Acessar `sale.client`, `sale.vehicle`, `sale.sale_items` diretamente
+
+**Nova interface de props:**
+```typescript
+interface SaleDetailsModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  sale: SaleWithDetails | null;
+}
+```
 
 ---
 
-## Mensagens de Erro (UX)
+## Arquivos a Modificar
 
-Quando a senha for detectada como vazada:
-
-**Título:** "Senha comprometida"
-
-**Mensagem:** "Esta senha foi encontrada em vazamentos de dados conhecidos. Por favor, escolha uma senha diferente e mais segura para proteger sua conta."
-
----
-
-## Vantagens
-
-- **Gratuito**: API HIBP não cobra para uso
-- **Privado**: Senha nunca sai do navegador (apenas hash parcial)
-- **Rápido**: Consulta leva menos de 500ms
-- **Seguro**: Modelo k-Anonymity é padrão da indústria
-- **Sem dependências**: Usa apenas Web Crypto API nativa
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/pages/Vendas.tsx` | Expandir query com joins, passar dados para drawer |
+| `src/components/vendas/SalesDayDrawer.tsx` | Receber vendas via props, remover mockData |
+| `src/components/vendas/SalesKPIBar.tsx` | Adaptar interface para novo formato |
+| `src/components/vendas/SaleDetailsModal.tsx` | Remover mockData, usar dados da prop |
 
 ---
 
-## Arquivos a Criar/Modificar
+## Fluxo de Dados Após Correção
 
-| Arquivo | Ação |
-|---------|------|
-| `supabase/functions/check-pwned-password/index.ts` | Criar |
-| `supabase/config.toml` | Modificar |
-| `src/contexts/AuthContext.tsx` | Modificar |
-| `src/pages/SignUp.tsx` | Modificar |
+1. **Vendas.tsx** carrega todas as vendas do mês com dados de clientes, veículos e serviços
+2. Ao clicar em um dia do calendário, abre **SalesDayDrawer** passando as vendas
+3. **SalesDayDrawer** filtra vendas do dia selecionado e exibe lista
+4. Ao clicar em uma venda, abre **SaleDetailsModal** com todos os dados já disponíveis
+5. Nenhuma busca adicional necessária - dados já estão carregados
 
 ---
 
-## Impacto
+## Benefícios
 
-- Nenhuma alteração no banco de dados
-- Nenhuma dependência externa adicional
-- Compatível com o plano gratuito do Supabase
-- Melhora significativa na segurança de senhas dos usuários
+- Dados reais do Supabase exibidos corretamente
+- Performance otimizada (apenas uma query com joins)
+- Consistência entre calendário e drawer
+- Detalhes da venda completos sem requisições extras
+- Remoção de dependência do mockData nesses componentes
+
+---
+
+## Considerações Técnicas
+
+- A query com múltiplos joins pode retornar mais dados, mas é mais eficiente que múltiplas requisições
+- O filtro por `company_id` já está implementado na query existente
+- RLS do Supabase continua garantindo isolamento multi-tenant
+- O drawer continua suportando navegação entre dias (já implementado)
