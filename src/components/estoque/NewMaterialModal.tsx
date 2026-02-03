@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -14,24 +15,71 @@ interface NewMaterialModalProps {
   onSuccess?: () => void;
 }
 
+interface ProductType {
+  id: number;
+  category: string;
+  brand: string;
+  name: string;
+  model: string | null;
+  cost_per_meter: number | null;
+}
+
 export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialModalProps) {
   const { user } = useAuth();
-  const [name, setName] = useState("");
-  const [type, setType] = useState("");
-  const [brand, setBrand] = useState("");
-  const [unit, setUnit] = useState("");
+  const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
+  const [unit, setUnit] = useState("Metros");
   const [minStock, setMinStock] = useState("");
   const [currentStock, setCurrentStock] = useState("");
-  const [costPerUnit, setCostPerUnit] = useState("");
   const [loading, setLoading] = useState(false);
+  const [companyId, setCompanyId] = useState<number | null>(null);
+
+  // Fetch company ID
+  const { data: profile } = useQuery({
+    queryKey: ['profile-for-material', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .single();
+      if (data?.company_id) {
+        setCompanyId(data.company_id);
+      }
+      return data;
+    },
+    enabled: !!user?.id && open,
+  });
+
+  // Fetch product types for the select
+  const { data: productTypes } = useQuery({
+    queryKey: ['product-types-for-select', companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data, error } = await supabase
+        .from('product_types')
+        .select('id, category, brand, name, model, cost_per_meter')
+        .eq('company_id', companyId)
+        .eq('is_active', true)
+        .order('category')
+        .order('brand')
+        .order('name');
+      if (error) throw error;
+      return data as ProductType[];
+    },
+    enabled: !!companyId && open,
+  });
+
+  const insulfilmProducts = productTypes?.filter(p => p.category === 'INSULFILM') || [];
+  const ppfProducts = productTypes?.filter(p => p.category === 'PPF') || [];
 
   const handleSubmit = async () => {
-    if (!name || !unit) {
-      toast.error("Preencha os campos obrigatórios");
+    if (!selectedProductTypeId) {
+      toast.error("Selecione um tipo de produto");
       return;
     }
 
-    if (!user?.id) {
+    if (!user?.id || !companyId) {
       toast.error("Usuário não autenticado");
       return;
     }
@@ -39,26 +87,37 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
     setLoading(true);
 
     try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!profile?.company_id) {
-        toast.error("Empresa não encontrada");
+      const selectedProduct = productTypes?.find(p => p.id === parseInt(selectedProductTypeId));
+      if (!selectedProduct) {
+        toast.error("Produto não encontrado");
         return;
       }
 
+      // Check if material already exists for this product type
+      const { data: existingMaterial } = await supabase
+        .from("materials")
+        .select("id")
+        .eq("product_type_id", selectedProduct.id)
+        .eq("company_id", companyId)
+        .single();
+
+      if (existingMaterial) {
+        toast.error("Já existe um material vinculado a este tipo de produto");
+        return;
+      }
+
+      const materialName = `${selectedProduct.brand} ${selectedProduct.name}${selectedProduct.model ? ` - ${selectedProduct.model}` : ''}`;
+
       const { error } = await supabase.from("materials").insert({
-        name,
-        type: type || null,
-        brand: brand || null,
+        name: materialName,
+        type: selectedProduct.category,
+        brand: selectedProduct.brand,
         unit,
         minimum_stock: minStock ? parseFloat(minStock) : 0,
         current_stock: currentStock ? parseFloat(currentStock) : 0,
-        average_cost: costPerUnit ? parseFloat(costPerUnit) : 0,
-        company_id: profile.company_id,
+        average_cost: selectedProduct.cost_per_meter || 0,
+        company_id: companyId,
+        product_type_id: selectedProduct.id,
         is_active: true,
       });
 
@@ -76,13 +135,14 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
   };
 
   const resetForm = () => {
-    setName("");
-    setType("");
-    setBrand("");
-    setUnit("");
+    setSelectedProductTypeId("");
+    setUnit("Metros");
     setMinStock("");
     setCurrentStock("");
-    setCostPerUnit("");
+  };
+
+  const formatProductLabel = (product: ProductType) => {
+    return `${product.brand} ${product.name}${product.model ? ` - ${product.model}` : ''}`;
   };
 
   return (
@@ -94,40 +154,42 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Nome do Material *</Label>
-            <Input
-              placeholder="Ex: Película PPF Metro"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PPF">PPF</SelectItem>
-                  <SelectItem value="Vitrificação">Vitrificação</SelectItem>
-                  <SelectItem value="Polimento">Polimento</SelectItem>
-                  <SelectItem value="Insulfilm">Insulfilm</SelectItem>
-                  <SelectItem value="Limpeza">Limpeza</SelectItem>
-                  <SelectItem value="Acessórios">Acessórios</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Marca</Label>
-              <Input
-                placeholder="Ex: 3M"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-              />
-            </div>
+            <Label>Tipo de Produto *</Label>
+            <Select value={selectedProductTypeId} onValueChange={setSelectedProductTypeId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um produto..." />
+              </SelectTrigger>
+              <SelectContent>
+                {insulfilmProducts.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>INSULFILM</SelectLabel>
+                    {insulfilmProducts.map(p => (
+                      <SelectItem key={p.id} value={p.id.toString()}>
+                        {formatProductLabel(p)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+                {insulfilmProducts.length > 0 && ppfProducts.length > 0 && <SelectSeparator />}
+                {ppfProducts.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>PPF</SelectLabel>
+                    {ppfProducts.map(p => (
+                      <SelectItem key={p.id} value={p.id.toString()}>
+                        {formatProductLabel(p)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+                {!insulfilmProducts.length && !ppfProducts.length && (
+                  <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                    Nenhum tipo de produto cadastrado.
+                    <br />
+                    Cadastre primeiro na aba "Tipos de Produtos".
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -137,8 +199,8 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Unidades">Unidades</SelectItem>
                 <SelectItem value="Metros">Metros</SelectItem>
+                <SelectItem value="Unidades">Unidades</SelectItem>
                 <SelectItem value="Litros">Litros</SelectItem>
               </SelectContent>
             </Select>
@@ -164,16 +226,6 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
                 onChange={(e) => setMinStock(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Custo Unitário (R$)</Label>
-            <Input
-              type="number"
-              placeholder="0,00"
-              value={costPerUnit}
-              onChange={(e) => setCostPerUnit(e.target.value)}
-            />
           </div>
 
           <div className="flex gap-2 pt-4">
