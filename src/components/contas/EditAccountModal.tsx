@@ -16,14 +16,24 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { type Account } from "@/lib/mockData";
 import { Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+
+interface Account {
+  id: number;
+  name: string;
+  account_type: string | null;
+  current_balance: number | null;
+  is_main: boolean | null;
+  is_active: boolean | null;
+}
 
 interface EditAccountModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   account: Account | null;
-  onAccountUpdated: (account: Account) => void;
+  onAccountUpdated: () => void;
   onAccountDeleted: (accountId: number) => void;
   canDelete: boolean;
 }
@@ -36,41 +46,75 @@ export function EditAccountModal({
   onAccountDeleted,
   canDelete
 }: EditAccountModalProps) {
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [balance, setBalance] = useState("");
   const [isPrimary, setIsPrimary] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (account) {
       setName(account.name);
-      setType(account.type);
-      setBalance(account.balance.toString());
-      setIsPrimary(account.is_primary);
+      setType(account.account_type || "");
+      setBalance((account.current_balance || 0).toString());
+      setIsPrimary(account.is_main || false);
     }
   }, [account]);
 
-  const handleSubmit = () => {
-    if (!name || !type || !account) {
+  const handleSubmit = async () => {
+    if (!name || !type || !account || !user?.id) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
-    const updatedAccount: Account = {
-      ...account,
-      name,
-      type: type as Account['type'],
-      balance: parseFloat(balance) || 0,
-      is_primary: isPrimary
-    };
+    setLoading(true);
 
-    onAccountUpdated(updatedAccount);
-    toast.success("Conta atualizada com sucesso!");
-    onOpenChange(false);
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.company_id) {
+        toast.error("Empresa não encontrada");
+        return;
+      }
+
+      // If this account becomes primary, remove primary from others first
+      if (isPrimary && !account.is_main) {
+        await supabase
+          .from("accounts")
+          .update({ is_main: false })
+          .eq("company_id", profile.company_id);
+      }
+
+      const { error } = await supabase
+        .from("accounts")
+        .update({
+          name,
+          account_type: type,
+          current_balance: parseFloat(balance) || 0,
+          is_main: isPrimary,
+        })
+        .eq("id", account.id);
+
+      if (error) throw error;
+
+      toast.success("Conta atualizada com sucesso!");
+      onAccountUpdated();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error updating account:", error);
+      toast.error("Erro ao atualizar conta");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!account) return;
     
     if (!canDelete) {
@@ -78,15 +122,32 @@ export function EditAccountModal({
       return;
     }
 
-    if (account.is_primary) {
+    if (account.is_main) {
       toast.error("Não é possível excluir a conta principal");
       return;
     }
 
-    onAccountDeleted(account.id);
-    toast.success("Conta excluída com sucesso!");
-    onOpenChange(false);
-    setShowDeleteConfirm(false);
+    setLoading(true);
+
+    try {
+      // Soft delete - just mark as inactive
+      const { error } = await supabase
+        .from("accounts")
+        .update({ is_active: false })
+        .eq("id", account.id);
+
+      if (error) throw error;
+
+      toast.success("Conta excluída com sucesso!");
+      onAccountDeleted(account.id);
+      onOpenChange(false);
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      toast.error("Erro ao excluir conta");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!account) return null;
@@ -144,15 +205,15 @@ export function EditAccountModal({
                 variant="destructive" 
                 size="icon"
                 onClick={() => setShowDeleteConfirm(true)}
-                disabled={!canDelete || account.is_primary}
+                disabled={!canDelete || account.is_main || loading}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
-              <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>
                 Cancelar
               </Button>
-              <Button className="flex-1" onClick={handleSubmit}>
-                Salvar
+              <Button className="flex-1" onClick={handleSubmit} disabled={loading}>
+                {loading ? "Salvando..." : "Salvar"}
               </Button>
             </div>
           </div>
@@ -169,12 +230,13 @@ export function EditAccountModal({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="border-border" disabled={loading}>Cancelar</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={loading}
             >
-              Excluir
+              {loading ? "Excluindo..." : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

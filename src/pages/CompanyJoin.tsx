@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Users, Send, Clock, Building2, ArrowLeft } from 'lucide-react';
+import { Loader2, Users, Send, Clock, Building2, ArrowLeft, LogOut, RefreshCw } from 'lucide-react';
 
 export default function CompanyJoin() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -32,6 +32,50 @@ export default function CompanyJoin() {
     // Check for existing pending request
     checkExistingRequest();
   }, [user, navigate]);
+
+  // Supabase Realtime subscription for approval updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('join-request-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'company_join_requests',
+          filter: `requester_user_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          const newStatus = (payload.new as any).status;
+          if (newStatus === 'approved') {
+            toast({
+              title: 'Solicitação aprovada!',
+              description: 'Você foi aceito na empresa. Redirecionando...',
+            });
+            // Wait a moment then refresh
+            setTimeout(async () => {
+              await refreshUser();
+              navigate('/');
+            }, 1500);
+          } else if (newStatus === 'rejected') {
+            toast({
+              title: 'Solicitação rejeitada',
+              description: (payload.new as any).rejected_reason || 'Sua solicitação foi rejeitada.',
+              variant: 'destructive',
+            });
+            setPendingRequest(null);
+            setRequestSent(false);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, refreshUser, navigate, toast]);
 
   const checkExistingRequest = async () => {
     if (!user) return;
@@ -142,6 +186,30 @@ export default function CompanyJoin() {
     }
   };
 
+  const handleCancelRequest = async () => {
+    if (!pendingRequest) return;
+
+    try {
+      await supabase
+        .from('company_join_requests')
+        .delete()
+        .eq('id', pendingRequest.id);
+
+      setPendingRequest(null);
+      setRequestSent(false);
+      toast({
+        title: 'Solicitação cancelada',
+      });
+    } catch (error) {
+      console.error('Error canceling request:', error);
+    }
+  };
+
+  const handleBackToLogin = async () => {
+    await signOut();
+    navigate('/login');
+  };
+
   if (isCheckingRequest) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -168,17 +236,31 @@ export default function CompanyJoin() {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center space-y-4">
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span>Aguardando resposta em tempo real...</span>
+              </div>
               <p className="text-sm text-muted-foreground">
                 O administrador da empresa receberá sua solicitação e poderá aprová-la ou rejeitá-la.
-                Você será notificado quando houver uma atualização.
+                Você será redirecionado automaticamente quando aprovado.
               </p>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/perfil')}
-                className="w-full"
-              >
-                Ir para Perfil
-              </Button>
+              <div className="space-y-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={handleCancelRequest}
+                  className="w-full"
+                >
+                  Cancelar Solicitação
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleBackToLogin}
+                  className="w-full text-muted-foreground"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair e Voltar ao Login
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -190,17 +272,8 @@ export default function CompanyJoin() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 py-8 px-4">
       <div className="max-w-md mx-auto">
         <Card>
-          <CardHeader className="text-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute left-4 top-4"
-              onClick={() => navigate('/empresa/cadastro')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Criar Empresa
-            </Button>
-            <div className="mx-auto mb-4 w-16 h-16 rounded-xl bg-primary flex items-center justify-center mt-8">
+          <CardHeader className="text-center relative">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-xl bg-primary flex items-center justify-center mt-2">
               <Users className="h-8 w-8 text-primary-foreground" />
             </div>
             <CardTitle className="text-2xl">Entrar em uma Empresa</CardTitle>
@@ -287,18 +360,28 @@ export default function CompanyJoin() {
                 )}
               </Button>
             </form>
+
+            {/* Navigation buttons */}
+            <div className="mt-6 space-y-2">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/empresa/cadastro')}
+                className="w-full"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Criar Minha Própria Empresa
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleBackToLogin}
+                className="w-full text-muted-foreground"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sair e Voltar ao Login
+              </Button>
+            </div>
           </CardContent>
         </Card>
-
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          Não tem um código?{' '}
-          <button
-            onClick={() => navigate('/empresa/cadastro')}
-            className="text-primary hover:underline"
-          >
-            Crie sua própria empresa
-          </button>
-        </p>
       </div>
     </div>
   );
