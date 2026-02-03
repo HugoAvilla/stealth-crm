@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, Eye, EyeOff, Landmark, PiggyBank, CreditCard } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { AddTransactionModal } from "@/components/financeiro/AddTransactionModal";
 import { AddTransferModal } from "@/components/financeiro/AddTransferModal";
 import { AddAccountModal } from "@/components/financeiro/AddAccountModal";
+import { ManageCategoriesModal } from "@/components/financeiro/ManageCategoriesModal";
 import { toast } from "sonner";
 
 interface Account {
@@ -40,6 +41,7 @@ export default function Financeiro() {
   const [transactionType, setTransactionType] = useState<'entrada' | 'saida'>('entrada');
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -180,6 +182,10 @@ export default function Financeiro() {
               <DropdownMenuItem onClick={() => setAccountModalOpen(true)}>
                 <Wallet className="h-4 w-4 mr-2" /> Nova Conta
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setCategoriesModalOpen(true)}>
+                <Tag className="h-4 w-4 mr-2" /> Gerenciar Categorias
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -316,6 +322,10 @@ export default function Financeiro() {
         open={accountModalOpen}
         onOpenChange={setAccountModalOpen}
         onSuccess={fetchData}
+      />
+      <ManageCategoriesModal
+        open={categoriesModalOpen}
+        onOpenChange={setCategoriesModalOpen}
       />
     </div>
   );
