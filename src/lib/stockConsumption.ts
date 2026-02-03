@@ -11,9 +11,20 @@ interface ConsumptionResult {
   warnings: string[];
 }
 
+interface DetailedServiceItem {
+  sale_id: number;
+  category: string;
+  product_type_id: number;
+  region_id: number;
+  meters_used: number;
+  unit_price: number;
+  total_price: number;
+  company_id: number;
+}
+
 /**
  * Automatically consumes stock based on vehicle size and consumption rules
- * Called when a sale is created/closed
+ * Called when a sale is created/closed (legacy system)
  */
 export async function consumeStockForSale(
   saleId: number,
@@ -152,6 +163,138 @@ export async function consumeStockForSale(
     return result;
   } catch (error) {
     console.error("Error in consumeStockForSale:", error);
+    result.success = false;
+    return result;
+  }
+}
+
+/**
+ * Consumes stock based on detailed service items (INSULFILM/PPF system)
+ * Each item specifies product_type which is linked to a material
+ */
+export async function consumeStockForDetailedSale(
+  saleId: number,
+  detailedItems: DetailedServiceItem[],
+  vehicleBrand: string,
+  vehicleModel: string,
+  vehicleSize: string,
+  companyId: number,
+  userId: string
+): Promise<ConsumptionResult> {
+  const result: ConsumptionResult = {
+    success: true,
+    consumed: [],
+    warnings: [],
+  };
+
+  if (!detailedItems || detailedItems.length === 0) {
+    return result;
+  }
+
+  try {
+    // 1. Get all materials linked to product types for this company
+    const { data: materials, error: materialsError } = await supabase
+      .from("materials")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .not("product_type_id", "is", null);
+
+    if (materialsError) {
+      console.error("Error fetching materials:", materialsError);
+      result.warnings.push("Erro ao buscar materiais do estoque");
+      return result;
+    }
+
+    // Create a map of materials by product_type_id
+    const materialsByProductType = new Map(
+      (materials || []).map((m) => [m.product_type_id, m])
+    );
+
+    // 2. Group consumption by product_type_id
+    const consumptionByProduct = new Map<number, number>();
+    for (const item of detailedItems) {
+      const currentAmount = consumptionByProduct.get(item.product_type_id) || 0;
+      consumptionByProduct.set(item.product_type_id, currentAmount + item.meters_used);
+    }
+
+    // 3. Process each product type consumption
+    for (const [productTypeId, metersToConsume] of consumptionByProduct) {
+      if (metersToConsume <= 0) continue;
+
+      const material = materialsByProductType.get(productTypeId);
+
+      if (!material) {
+        // Get product type name for warning
+        const { data: productType } = await supabase
+          .from("product_types")
+          .select("brand, name")
+          .eq("id", productTypeId)
+          .single();
+        
+        const productName = productType 
+          ? `${productType.brand} ${productType.name}` 
+          : `Produto #${productTypeId}`;
+        
+        result.warnings.push(
+          `Material não vinculado ao produto "${productName}". Configure no Estoque > Materiais.`
+        );
+        continue;
+      }
+
+      const currentStock = material.current_stock || 0;
+      let consumeAmount = metersToConsume;
+
+      // Check if we have enough stock
+      if (currentStock < metersToConsume) {
+        result.warnings.push(
+          `Estoque insuficiente de ${material.name}: necessário ${metersToConsume.toFixed(2)} ${material.unit}, disponível ${currentStock.toFixed(2)} ${material.unit}`
+        );
+        // Continue with partial consumption if there's any stock
+        if (currentStock <= 0) continue;
+        consumeAmount = currentStock;
+      }
+
+      // 4. Register stock movement
+      const { error: movementError } = await supabase
+        .from("stock_movements")
+        .insert({
+          material_id: material.id,
+          movement_type: "saida",
+          quantity: consumeAmount,
+          reason: `Consumo automático - Venda #${saleId} (${vehicleBrand} ${vehicleModel} - ${vehicleSize})`,
+          user_id: userId,
+          company_id: companyId,
+        });
+
+      if (movementError) {
+        console.error("Error registering stock movement:", movementError);
+        result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+        continue;
+      }
+
+      result.consumed.push({
+        materialName: material.name,
+        quantity: consumeAmount,
+        unit: material.unit,
+      });
+    }
+
+    // Show summary toast
+    if (result.consumed.length > 0) {
+      const summary = result.consumed
+        .map((c) => `${c.quantity.toFixed(2)} ${c.unit} de ${c.materialName}`)
+        .join(", ");
+      toast.success(`Estoque atualizado: ${summary}`);
+    }
+
+    if (result.warnings.length > 0) {
+      result.warnings.forEach((w) => toast.warning(w));
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error in consumeStockForDetailedSale:", error);
     result.success = false;
     return result;
   }

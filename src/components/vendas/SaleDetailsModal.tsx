@@ -12,6 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   DollarSign,
   User,
   Phone,
@@ -25,9 +33,12 @@ import {
   Edit,
   Trash2,
   Settings,
+  Layers,
 } from "lucide-react";
-import { SaleWithDetails } from "@/types/sales";
+import { SaleWithDetails, DetailedServiceItemDB } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import PdfA4Modal from "@/components/vendas/PdfA4Modal";
 import PdfNotinhaModal from "@/components/vendas/PdfNotinhaModal";
 import WhatsAppPreviewModal from "@/components/vendas/WhatsAppPreviewModal";
@@ -46,19 +57,50 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
 
+  // Fetch detailed service items
+  const { data: detailedItems } = useQuery({
+    queryKey: ['sale-detailed-items', sale?.id],
+    queryFn: async () => {
+      if (!sale?.id) return [];
+      const { data, error } = await supabase
+        .from('service_items_detailed')
+        .select(`
+          *,
+          product_type:product_types(brand, name, model, category, light_transmission),
+          region:vehicle_regions(name, description)
+        `)
+        .eq('sale_id', sale.id);
+      
+      if (error) {
+        console.error('Error fetching detailed items:', error);
+        return [];
+      }
+      return (data || []) as DetailedServiceItemDB[];
+    },
+    enabled: !!sale?.id && open,
+  });
+
   if (!sale) return null;
 
   const client = sale.client;
   const vehicle = sale.vehicle;
   const saleItems = sale.sale_items || [];
+  const hasDetailedItems = detailedItems && detailedItems.length > 0;
 
   const handleOpenNotinha = (size: "80mm" | "58mm") => {
     setPdfNotinhaSize(size);
     setIsPdfNotinhaOpen(true);
   };
 
-  // Calculate services total from sale_items
-  const servicesTotal = saleItems.reduce((sum, item) => sum + item.total_price, 0);
+  // Calculate services total from sale_items (legacy) or detailed items
+  const servicesTotal = hasDetailedItems
+    ? detailedItems.reduce((sum, item) => sum + item.total_price, 0)
+    : saleItems.reduce((sum, item) => sum + item.total_price, 0);
+
+  // Calculate total meters used
+  const totalMeters = hasDetailedItems
+    ? detailedItems.reduce((sum, item) => sum + item.meters_used, 0)
+    : 0;
 
   return (
     <>
@@ -115,6 +157,11 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {vehicle.year} • {vehicle.plate}
+                        {vehicle.size && (
+                          <Badge variant="outline" className="ml-2">
+                            {vehicle.size}
+                          </Badge>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -122,23 +169,78 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                 </>
               )}
 
-              <div className="space-y-2">
-                {saleItems.length > 0 ? (
-                  saleItems.map((item) => (
-                    <div key={item.id} className="flex justify-between">
-                      <span>
-                        {item.service?.name || `Serviço #${item.service_id}`}
-                        {item.quantity && item.quantity > 1 ? ` (x${item.quantity})` : ''}
-                      </span>
-                      <span className="font-medium">
-                        R$ {item.total_price.toFixed(2)}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground text-sm">Nenhum serviço registrado</p>
-                )}
-              </div>
+              {/* Detailed Service Items (new system) */}
+              {hasDetailedItems ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Layers className="h-4 w-4" />
+                    Serviços Detalhados
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Região</TableHead>
+                        <TableHead>Produto</TableHead>
+                        <TableHead className="text-right">Metros</TableHead>
+                        <TableHead className="text-right">R$/m</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detailedItems.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <div>
+                              <span>{item.region?.name || 'Região'}</span>
+                              <Badge variant="outline" className="ml-2 text-xs">
+                                {item.category}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {item.product_type
+                              ? `${item.product_type.brand} ${item.product_type.name}${item.product_type.light_transmission ? ` ${item.product_type.light_transmission}` : ''}`
+                              : 'Produto'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.meters_used.toFixed(2)}m
+                          </TableCell>
+                          <TableCell className="text-right">
+                            R$ {item.unit_price.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            R$ {item.total_price.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <div className="flex justify-between text-sm pt-2">
+                    <span className="text-muted-foreground">
+                      Total de metros: <span className="font-medium">{totalMeters.toFixed(2)}m</span>
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                /* Legacy sale items */
+                <div className="space-y-2">
+                  {saleItems.length > 0 ? (
+                    saleItems.map((item) => (
+                      <div key={item.id} className="flex justify-between">
+                        <span>
+                          {item.service?.name || `Serviço #${item.service_id}`}
+                          {item.quantity && item.quantity > 1 ? ` (x${item.quantity})` : ''}
+                        </span>
+                        <span className="font-medium">
+                          R$ {item.total_price.toFixed(2)}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground text-sm">Nenhum serviço registrado</p>
+                  )}
+                </div>
+              )}
 
               <Separator />
 
@@ -155,7 +257,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
               <div className="flex items-center gap-2">
                 <Settings className="h-4 w-4 text-info" />
                 <span className="text-sm text-muted-foreground">
-                  {saleItems.length} serviço(s)
+                  {hasDetailedItems ? detailedItems.length : saleItems.length} serviço(s)
                 </span>
               </div>
               <div className="flex items-center gap-2">

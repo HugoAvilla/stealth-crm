@@ -47,3 +47,36 @@ export interface SaleWithDetails {
   vehicle: SaleVehicle | null;
   sale_items: SaleItem[];
 }
+
+// Types for detailed INSULFILM/PPF service items
+export type ProductCategory = 'INSULFILM' | 'PPF';
+export type VehicleSize = 'P' | 'M' | 'G';
+
+export interface DetailedServiceItemDB {
+  id: number;
+  sale_id: number;
+  category: ProductCategory;
+  product_type_id: number;
+  region_id: number;
+  meters_used: number;
+  unit_price: number;
+  total_price: number;
+  notes: string | null;
+  created_at: string | null;
+  company_id: number;
+  product_type?: {
+    brand: string;
+    name: string;
+    model: string | null;
+    category: string;
+    light_transmission: string | null;
+  } | null;
+  region?: {
+    name: string;
+    description: string | null;
+  } | null;
+}
+
+export interface SaleWithDetailedItems extends SaleWithDetails {
+  detailed_items?: DetailedServiceItemDB[];
+}
