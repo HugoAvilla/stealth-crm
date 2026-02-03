@@ -1,143 +1,88 @@
 
-# Plano: Sistema Completo de Preenchimento de Vagas no Espaco
+# Plano: Adicionar Sub-aba de Veiculos Nao Pagos e Alerta de Liberacao
 
 ## Resumo
 
-Implementar um sistema completo de preenchimento de vagas na aba Espaco, permitindo selecionar vendas existentes, configurar datas de entrada/saida, adicionar fotos de checklist, e visualizar detalhes da vaga preenchida.
+Adicionar uma nova sub-aba "Veiculos Nao Pagos (Saida)" ao lado de "Veiculos Pagos (Saida)" na aba Espaco, criando um alerta quando um veiculo for liberado da vaga sem pagamento, e integrando com o modulo de vendas marcando a venda como nao paga.
 
 ---
 
 ## Componentes a Criar
 
-### 1. FillSlotModal.tsx (Modal Principal de Preenchimento)
+### 1. UnpaidExitedVehicles.tsx
 
-Modal completo baseado no print fornecido, com as seguintes secoes:
+Novo componente similar ao `PaidExitedVehicles.tsx`, mas filtrando por veiculos que sairam SEM pagamento.
 
-**Campos do Modal:**
-- Nome da vaga (opcional)
-- Cliente (Select ou botao "+ Criar novo cliente")
-- Veiculo do cliente (card com info do veiculo selecionado)
-- Servicos da venda (exibe servicos vinculados)
-- Data e Hora de entrada (obrigatorio)
-- Data e Hora de saida (opcional - previsao)
-- Fotos de checklist (upload ate 20 fotos)
-- Campos opcionais (Desconto, Observacoes, Tag, Produtos)
-- Resumo da vaga (calculo automatico)
-
-**Layout do Modal:**
+**Estrutura:**
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
-│  Preencher vaga                                             [X]  │
-│  Informe os dados para preencher a vaga                          │
+│  ⚠️ Veiculos Nao Pagos (Saida)                                   │
+│  {count} registro(s)                    [🔍 Buscar...]           │
 ├──────────────────────────────────────────────────────────────────┤
-│  Nome da vaga (opcional)                                         │
-│  [__________________________________]                            │
-│                                                                  │
-│  Cliente * [+ Criar novo cliente]                                │
-│  [Select: hugo Avila                               ▼]    [🔄]   │
-│                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
-│  │ 🚗 Marca: ALFA ROMEO  Placa: 3849207        [✏️] [🗑️]    │  │
-│  │    Modelo: 23938       Ano: 2020                          │  │
-│  │    ─────────────────────────────────────────────────────   │  │
-│  │    Higienizacao                               R$ 51,55    │  │
-│  │    Total em servicos                          R$ 51,55    │  │
-│  │    ─────────────────────────────────────────────────────   │  │
-│  │    1 servico adicionado R$ 51,55                          │  │
+│  │ 👤 Nome do Cliente                                        │  │
+│  │ 🚗 Marca Modelo - Placa                                   │  │
+│  │ 📅 Entrada: dd/mm/yyyy  🕐 Saida: dd/mm/yyyy              │  │
+│  │                                                            │  │
+│  │                              [⚠️ Nao Pago]  R$ XXX,XX     │  │
+│  │                              [Marcar como Pago]            │  │
 │  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  ┌──────────────────┐  ┌──────────────────┐                     │
-│  │ Dia da entrada * │  │ Hora da entrada *│                     │
-│  │ [02/02/2026   ▼] │  │ [--:--       ▼] │                     │
-│  └──────────────────┘  └──────────────────┘                     │
-│                                                                  │
-│  ┌──────────────────┐  ┌──────────────────┐                     │
-│  │ Dia da saida     │  │ Hora saida *     │                     │
-│  │ [Selecionar   ▼] │  │ [--:--       ▼] │                     │
-│  └──────────────────┘  └──────────────────┘                     │
-│                                                                  │
-│  Fotos de checklist                                              │
-│  Abaixo estao as fotos dessa vaga                                │
-│  [+ Carregar nova foto 0/20]                                     │
-│                                                                  │
-│  Campos opcionais                                                │
-│  [Desconto] [+ Observacoes] [+ Tag] [+ Produtos]                │
-│                                                                  │
-│  Resumo da vaga                                                  │
-│  ○ Vaga com 1 servico                                           │
-│  $ Sub-total ficou em R$ 51,55                                  │
-│  ○ Desconto de R$ 1,00                                          │
-│  $ Total ficou em R$ 50,55                                      │
-│  📅 Entrada em 02/02/2026                                       │
-│  📷 Nenhuma foto adicionada                                     │
-│  ⚠️ O valor pendente para fechar a venda e de R$ 50,55         │
-│                                                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │           Adicionar vaga                           ✓      │  │
-│  └───────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
+```
+
+**Diferencas do PaidExitedVehicles:**
+- Query: `has_exited = true` E (`payment_status != 'paid'` OU `payment_status IS NULL`)
+- Badge: Vermelho/Amarelo com icone de alerta
+- Botao "Marcar como Pago" em cada card para permitir pagamento posterior
+
+**Query Supabase:**
+```typescript
+const { data } = await supabase
+  .from('spaces')
+  .select(`
+    *,
+    client:clients(*),
+    vehicle:vehicles(*),
+    sale:sales(id, total, is_open)
+  `)
+  .eq('company_id', companyId)
+  .eq('has_exited', true)
+  .or('payment_status.neq.paid,payment_status.is.null')
+  .order('exit_date', { ascending: false });
 ```
 
 ---
 
-### 2. SlotDetailsDrawer.tsx (Drawer de Detalhes da Vaga)
+### 2. UnpaidExitAlertDialog.tsx
 
-Drawer para exibir detalhes quando clicar em uma vaga preenchida:
+Dialog de alerta que aparece quando o usuario tenta liberar uma vaga SEM ter confirmado o pagamento.
 
-**Secoes do Drawer:**
-- Header com nome da vaga e botao concluir
-- Info do cliente (telefone, data nascimento)
-- Card do veiculo com servicos
-- Resumo da vaga (datas, valores, venda vinculada)
-- Comprovantes em PDF (3 formatos)
-- Mais opcoes (mensagens, exportar, ver cliente)
-- Botoes de acao (Editar, Excluir)
-
-**Layout:**
+**Layout do Alert:**
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
-│  🚗 Vaga de hugo Avila                                      [X]  │
+│  ⚠️ Atencao: Veiculo Nao Pago!                                   │
 ├──────────────────────────────────────────────────────────────────┤
-│  [Toggle: Concluir vaga e liberar espaco                    ○]   │
 │                                                                  │
-│  📞 +55 (17) 99257-3141                                         │
-│  👤 Cliente nasceu em 17/02/2016                                │
+│  O veiculo de [Nome do Cliente] sera liberado sem pagamento.     │
 │                                                                  │
-│  Servicos dessa vaga                                             │
+│  Valor pendente: R$ XXX,XX                                       │
+│                                                                  │
+│  O que deseja fazer?                                             │
+│                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
-│  │ 🚗 ALFA ROMEO  Placa: 3849207                              │  │
-│  │    Modelo: 23938    Ano: 2020                              │  │
-│  │    Higienizacao                               R$ 51,55     │  │
-│  │    Total em servicos                          R$ 51,55     │  │
+│  │  [Confirmar Pagamento e Liberar]   ← verde                │  │
+│  │  [Liberar Sem Pagamento]           ← amarelo/warning      │  │
+│  │  [Cancelar]                        ← outline              │  │
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                                  │
-│  Resumo da vaga                                                  │
-│  📅 Entrada em 02/02/2026 as 04:05h                             │
-│  🕐 Saida prevista para 03/02/2026 as 15:15h                    │
-│  ○ Vaga com 1 servico                                           │
-│  ⚠️ Vaga sem servicos adicionados                               │
-│  $ Sub-total ficou em R$ 51,55                                  │
-│  ○ Desconto de R$ 1,00                                          │
-│  $ Total ficou em R$ 50,55                                      │
-│  🔗 Vinculado a venda Nº 3                                      │
-│                                                                  │
-│  Comprovantes em PDF                                             │
-│  [🔴 Baixar PDF em formato A4                              ]    │
-│  [🔴 Baixar PDF em formato Notinha                         ]    │
-│  [🔴 Baixar PDF em formato Notinha Mini                    ]    │
-│                                                                  │
-│  Mais opcoes                                                     │
-│  [🟢 Enviar mensagem de entrada                            ]    │
-│  [🟡 Enviar mensagem de saida                              ]    │
-│  [🔵 Exportar para agenda                                  ]    │
-│  [🟣 Exportar para orcamento                               ]    │
-│  [🔵 Ver cliente da vaga                                   ]    │
-│                                                                  │
-│  ┌──────────────┐  ┌──────┐  ┌──────┐                           │
-│  │   Editar     │  │  ✏️  │  │  🗑️  │                           │
-│  └──────────────┘  └──────┘  └──────┘                           │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+**Comportamento:**
+- Disparado quando `completeMutation` e chamado com `has_exited = true` e `payment_status != 'paid'`
+- Opcao 1: Confirma pagamento E libera vaga (atualiza `payment_status = 'paid'` junto)
+- Opcao 2: Libera vaga SEM pagamento (mantem `payment_status` como pendente)
+- Opcao 3: Cancela a operacao
 
 ---
 
@@ -145,76 +90,116 @@ Drawer para exibir detalhes quando clicar em uma vaga preenchida:
 
 ### 1. Espaco.tsx
 
-**Adicoes:**
-- Botao "+ Preencher Vaga" no header da pagina
-- Novo estado para controlar drawer de detalhes
-- Query para buscar vagas do Supabase (tabela `spaces`)
-- Substituir dados mock por dados reais
+**Adicionar nova tab "nao-pagos-saida":**
 
-**Refatoracao do calendario:**
-- Exibir vagas por data de entrada
-- Badge de cores por status (ocupada, finalizada)
+```tsx
+<TabsList>
+  <TabsTrigger value="vagas" className="gap-2">
+    <Car className="h-4 w-4" />
+    Vagas Ativas
+  </TabsTrigger>
+  <TabsTrigger value="pagos-saida" className="gap-2">
+    <CheckCircle className="h-4 w-4" />
+    Veiculos Pagos (Saida)
+  </TabsTrigger>
+  {/* NOVA TAB */}
+  <TabsTrigger value="nao-pagos-saida" className="gap-2">
+    <AlertCircle className="h-4 w-4" />
+    Nao Pagos (Saida)
+  </TabsTrigger>
+</TabsList>
 
----
-
-### 2. SlotCard.tsx
-
-**Alteracoes:**
-- Usar dados da tabela `spaces` em vez de mock
-- Ao clicar no card ocupado, abrir SlotDetailsDrawer
-- Mostrar informacoes do cliente e veiculo
-- Exibir timer desde entrada
-
----
-
-### 3. NewSlotModal.tsx
-
-**Renomear para FillSlotModal.tsx e refatorar:**
-- Interface completa baseada no print
-- Select de cliente com busca
-- Carregamento de vendas em aberto do cliente
-- Card de veiculo com servicos
-- Campos de data/hora
-- Upload de fotos
-- Campos opcionais toggleaveis
-- Resumo dinamico
-- Salvar na tabela `spaces`
-
----
-
-## Fluxo de Dados
-
-```text
-1. Usuario clica em "+ Preencher Vaga" ou em vaga disponivel
-                        │
-                        ▼
-2. Abre FillSlotModal
-   - Busca clientes da empresa
-   - Ao selecionar cliente, busca vendas em aberto
-   - Ao selecionar venda, carrega veiculo e servicos
-                        │
-                        ▼
-3. Usuario preenche dados e clica "Adicionar vaga"
-   - Valida campos obrigatorios
-   - INSERT na tabela `spaces`
-   - Atualiza lista de vagas
-                        │
-                        ▼
-4. Vaga aparece no calendario e grid de vagas
-   - Card mostra info do cliente/veiculo
-   - Timer conta desde entrada
-                        │
-                        ▼
-5. Usuario clica na vaga ocupada
-   - Abre SlotDetailsDrawer
-   - Mostra todos os detalhes
-   - Opcoes de acao
-                        │
-                        ▼
-6. Usuario marca "Concluir vaga"
-   - UPDATE em spaces (has_exited = true)
-   - Se pago, aparece em "Veiculos Pagos (Saida)"
+{/* NOVO TABCONTENT */}
+<TabsContent value="nao-pagos-saida" className="mt-6">
+  <UnpaidExitedVehicles refreshTrigger={refreshTrigger} />
+</TabsContent>
 ```
+
+---
+
+### 2. SlotDetailsDrawer.tsx
+
+**Adicionar logica de alerta antes de liberar vaga nao paga:**
+
+1. Criar estado para controlar o dialog de alerta
+2. Modificar `handleCompleteToggle` para verificar status do pagamento
+3. Se nao pago, abrir alert dialog em vez de completar direto
+4. Integrar com vendas atualizando `is_open` da venda vinculada
+
+**Novo fluxo de liberacao:**
+```typescript
+const handleCompleteToggle = (checked: boolean) => {
+  if (checked && space.payment_status !== 'paid') {
+    // Mostrar alerta de veiculo nao pago
+    setShowUnpaidAlert(true);
+  } else {
+    // Liberar normalmente
+    setIsCompleting(checked);
+    completeMutation.mutate(checked);
+  }
+};
+
+// Funcao para liberar com pagamento
+const handleReleaseWithPayment = async () => {
+  await supabase
+    .from('spaces')
+    .update({ 
+      has_exited: true,
+      payment_status: 'paid',
+      exit_date: format(new Date(), 'yyyy-MM-dd'),
+      exit_time: format(new Date(), 'HH:mm'),
+    })
+    .eq('id', space.id);
+  
+  // Fechar a venda vinculada
+  if (space.sale_id) {
+    await supabase
+      .from('sales')
+      .update({ is_open: false, status: 'Fechada' })
+      .eq('id', space.sale_id);
+  }
+};
+
+// Funcao para liberar SEM pagamento
+const handleReleaseWithoutPayment = async () => {
+  await supabase
+    .from('spaces')
+    .update({ 
+      has_exited: true,
+      payment_status: 'pending', // ou 'unpaid'
+      exit_date: format(new Date(), 'yyyy-MM-dd'),
+      exit_time: format(new Date(), 'HH:mm'),
+    })
+    .eq('id', space.id);
+  
+  // Manter a venda como aberta (is_open = true)
+  // Nao atualiza a venda
+};
+```
+
+---
+
+## Integracao com Vendas
+
+**Quando veiculo SAI PAGO:**
+1. `spaces.has_exited = true`
+2. `spaces.payment_status = 'paid'`
+3. `sales.is_open = false` (venda fechada)
+4. `sales.status = 'Fechada'`
+5. Veiculo aparece em "Veiculos Pagos (Saida)"
+
+**Quando veiculo SAI NAO PAGO:**
+1. `spaces.has_exited = true`
+2. `spaces.payment_status = 'pending'`
+3. `sales.is_open = true` (venda permanece aberta)
+4. `sales.status = 'Aberta'`
+5. Veiculo aparece em "Nao Pagos (Saida)"
+
+**Quando pagamento e confirmado depois (na aba Nao Pagos):**
+1. `spaces.payment_status = 'paid'`
+2. `sales.is_open = false` (fecha a venda)
+3. `sales.status = 'Fechada'`
+4. Veiculo move de "Nao Pagos" para "Pagos"
 
 ---
 
@@ -222,121 +207,94 @@ Drawer para exibir detalhes quando clicar em uma vaga preenchida:
 
 | Arquivo | Acao |
 |---------|------|
-| `src/pages/Espaco.tsx` | Refatorar (usar Supabase, adicionar botao) |
-| `src/components/espaco/FillSlotModal.tsx` | Criar (substituir NewSlotModal) |
-| `src/components/espaco/SlotDetailsDrawer.tsx` | Criar |
-| `src/components/espaco/SlotCard.tsx` | Atualizar (dados do Supabase) |
-| `src/components/espaco/NewSlotModal.tsx` | Remover (substituido) |
+| `src/components/espaco/UnpaidExitedVehicles.tsx` | Criar |
+| `src/components/espaco/UnpaidExitAlertDialog.tsx` | Criar |
+| `src/pages/Espaco.tsx` | Adicionar nova tab |
+| `src/components/espaco/SlotDetailsDrawer.tsx` | Adicionar logica de alerta e integracao vendas |
 
 ---
 
-## Queries Supabase
+## Fluxo Visual
 
-**Buscar vagas da empresa:**
-```typescript
-const { data: spaces } = await supabase
-  .from('spaces')
-  .select(`
-    *,
-    client:clients(id, name, phone, birth_date),
-    vehicle:vehicles(id, brand, model, plate, year, size),
-    sale:sales(
-      id, total, subtotal, discount, payment_method,
-      items:service_items_detailed(
-        *,
-        product_type:product_types(brand, name),
-        region:vehicle_regions(name)
-      )
-    )
-  `)
-  .eq('company_id', companyId)
-  .eq('has_exited', false)
-  .order('entry_date', { ascending: false });
-```
-
-**Buscar vendas em aberto do cliente:**
-```typescript
-const { data: sales } = await supabase
-  .from('sales')
-  .select(`
-    *,
-    vehicle:vehicles(*),
-    items:service_items_detailed(
-      *,
-      product_type:product_types(brand, name, model),
-      region:vehicle_regions(name)
-    )
-  `)
-  .eq('client_id', clientId)
-  .eq('company_id', companyId)
-  .eq('is_open', true);
+```text
+Usuario clica em "Concluir vaga"
+         │
+         ▼
+    Veiculo esta pago?
+         │
+    ┌────┴────┐
+    ▼         ▼
+   SIM       NAO
+    │         │
+    ▼         ▼
+ Libera    Abre Alert Dialog
+ direto    ┌──────────────────┐
+           │ ⚠️ Veiculo Nao  │
+           │    Pago!        │
+           │                 │
+           │ [Pagar+Liberar] │
+           │ [Liberar s/pag] │
+           │ [Cancelar]      │
+           └────────┬────────┘
+                    │
+      ┌─────────────┼─────────────┐
+      ▼             ▼             ▼
+  Paga+Libera   Libera s/pag   Cancela
+      │             │             │
+      ▼             ▼             ▼
+  Tab: Pagos    Tab: Nao      Fica na
+  (venda        Pagos         vaga ativa
+   fechada)     (venda aberta)
 ```
 
 ---
 
 ## Detalhes Tecnicos
 
-### FillSlotModal - Estados:
-
+### Estados no SlotDetailsDrawer:
 ```typescript
-const [slotName, setSlotName] = useState("");
-const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
-const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null);
-const [entryDate, setEntryDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-const [entryTime, setEntryTime] = useState(format(new Date(), 'HH:mm'));
-const [exitDate, setExitDate] = useState("");
-const [exitTime, setExitTime] = useState("");
-const [photos, setPhotos] = useState<string[]>([]);
-const [discount, setDiscount] = useState(0);
-const [observations, setObservations] = useState("");
-const [tag, setTag] = useState("");
-const [showDiscount, setShowDiscount] = useState(false);
-const [showObservations, setShowObservations] = useState(false);
-const [showTag, setShowTag] = useState(false);
+const [showUnpaidAlert, setShowUnpaidAlert] = useState(false);
 ```
 
-### SlotDetailsDrawer - Funcionalidades:
-
+### Props do UnpaidExitAlertDialog:
 ```typescript
-// Toggle para concluir vaga
-const handleCompleteSlot = async () => {
-  await supabase
-    .from('spaces')
-    .update({
-      has_exited: true,
-      exit_date: format(new Date(), 'yyyy-MM-dd'),
-      exit_time: format(new Date(), 'HH:mm'),
-    })
-    .eq('id', space.id);
-};
+interface UnpaidExitAlertDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  space: SpaceDetails;
+  onReleaseWithPayment: () => void;
+  onReleaseWithoutPayment: () => void;
+}
+```
 
-// Marcar como pago
-const handleMarkAsPaid = async () => {
+### Funcionalidade "Marcar como Pago" no UnpaidExitedVehicles:
+```typescript
+const handleMarkAsPaid = async (spaceId: number, saleId: number | null) => {
+  // Atualiza o space
   await supabase
     .from('spaces')
     .update({ payment_status: 'paid' })
-    .eq('id', space.id);
+    .eq('id', spaceId);
+  
+  // Fecha a venda vinculada
+  if (saleId) {
+    await supabase
+      .from('sales')
+      .update({ is_open: false, status: 'Fechada' })
+      .eq('id', saleId);
+  }
+  
+  // Atualiza a lista
+  refetch();
 };
 ```
-
----
-
-## Resumo Visual do Calendario
-
-O calendario mostrara badges coloridos por dia:
-- **Amarelo**: Vagas em andamento
-- **Verde**: Vagas finalizadas/pagas
-- **Vermelho**: Vagas com pagamento pendente
-
-Ao clicar em um dia, abre o SlotsDayDrawer mostrando todas as vagas daquele dia.
 
 ---
 
 ## Ordem de Implementacao
 
-1. Criar `FillSlotModal.tsx` com interface completa
-2. Criar `SlotDetailsDrawer.tsx` para visualizar detalhes
-3. Refatorar `Espaco.tsx` para usar Supabase
-4. Atualizar `SlotCard.tsx` para dados reais
-5. Remover dependencias do mockData
-6. Testar fluxo completo
+1. Criar `UnpaidExitedVehicles.tsx` (similar ao PaidExitedVehicles)
+2. Criar `UnpaidExitAlertDialog.tsx` (dialog de confirmacao)
+3. Atualizar `SlotDetailsDrawer.tsx` (adicionar logica de alerta e integracao vendas)
+4. Atualizar `Espaco.tsx` (adicionar nova tab)
+5. Testar fluxo completo de saida paga/nao paga
