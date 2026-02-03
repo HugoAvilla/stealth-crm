@@ -1,328 +1,309 @@
 
-# Plano: Sistema Completo de Gestão de Produtos INSULFILM/PPF
+# Plano: Integracao Completa do Sistema de Vendas com Estoque INSULFILM/PPF
 
-## Resumo Executivo
+## Resumo do Fluxo Entendido
 
-Este plano implementa um sistema completo de gestão de tipos de produtos, regioes de veiculos e regras de consumo para servicos de INSULFILM e PPF. A implementacao sera dividida em duas fases principais: criacao das tabelas no banco de dados e refatoracao do frontend.
+O cliente deseja um fluxo integrado onde:
 
----
-
-## Fase 1: Criacao das Tabelas no Supabase
-
-### 1.1 Tabela `product_types`
-
-Armazena os tipos de produtos disponiveis (INSULFILM e PPF).
-
-**Estrutura:**
-- `id` (bigint, PK, auto increment)
-- `category` (text, NOT NULL, CHECK IN ('INSULFILM', 'PPF'))
-- `brand` (text, NOT NULL) - Marca (3M, UltraBlack, XPEL)
-- `name` (text, NOT NULL) - Nome/Modelo (G5, G20, Ultimate)
-- `model` (text, nullable) - Modelo especifico
-- `light_transmission` (text, nullable) - Transmissao de luz (5%, 20%, 70%)
-- `description` (text, nullable)
-- `unit_price` (numeric, default 0) - Preco de venda por metro
-- `cost_per_meter` (numeric, default 0) - Custo por metro
-- `is_active` (boolean, default true)
-- `created_at` (timestamptz, default now())
-- `updated_at` (timestamptz, default now())
-- `company_id` (bigint, NOT NULL, FK para companies)
-
-**Indices:** `idx_product_types_category`, `idx_product_types_company`
-
-**RLS Policies:**
-- SELECT: usuarios podem ver product_types da sua empresa
-- ALL: usuarios podem gerenciar product_types da sua empresa
+1. **Cliente** e **Veiculo** sao cadastrados
+2. Na **Venda**, o usuario seleciona:
+   - Regioes do veiculo (ex: Para-brisa, Laterais, Vigia)
+   - Tipo de produto para CADA regiao (pode usar produtos diferentes por regiao)
+3. O sistema calcula automaticamente o consumo baseado em:
+   - Tamanho do veiculo (P/M/G)
+   - Regras de consumo configuradas por regiao
+4. Ao finalizar a venda, o estoque e baixado automaticamente
 
 ---
 
-### 1.2 Tabela `vehicle_regions`
+## Arquitetura da Solucao
 
-Armazena as regioes do veiculo onde os produtos sao aplicados.
-
-**Estrutura:**
-- `id` (bigint, PK, auto increment)
-- `category` (text, NOT NULL, CHECK IN ('INSULFILM', 'PPF'))
-- `name` (text, NOT NULL) - Nome da regiao (Para-brisa, Capo)
-- `description` (text, nullable)
-- `sort_order` (integer, default 0) - Ordem de exibicao
-- `is_active` (boolean, default true)
-- `created_at` (timestamptz, default now())
-- `company_id` (bigint, NOT NULL, FK para companies)
-
-**Indices:** `idx_vehicle_regions_category`, `idx_vehicle_regions_company`
-
-**RLS Policies:**
-- SELECT: usuarios podem ver regioes da sua empresa
-- ALL: usuarios podem gerenciar regioes da sua empresa
-
----
-
-### 1.3 Tabela `region_consumption_rules`
-
-Armazena as regras de consumo por regiao e tamanho do veiculo.
-
-**Estrutura:**
-- `id` (bigint, PK, auto increment)
-- `category` (text, NOT NULL, CHECK IN ('INSULFILM', 'PPF'))
-- `region_id` (bigint, NOT NULL, FK para vehicle_regions)
-- `vehicle_size` (text, NOT NULL, CHECK IN ('P', 'M', 'G'))
-- `meters_consumed` (numeric, NOT NULL, default 0)
-- `created_at` (timestamptz, default now())
-- `updated_at` (timestamptz, default now())
-- `company_id` (bigint, NOT NULL, FK para companies)
-
-**UNIQUE constraint:** (region_id, vehicle_size, company_id)
-
-**Indices:** `idx_region_consumption_category`, `idx_region_consumption_region`, `idx_region_consumption_company`
-
-**RLS Policies:**
-- SELECT: usuarios podem ver regras da sua empresa
-- ALL: usuarios podem gerenciar regras da sua empresa
-
----
-
-### 1.4 Tabela `service_items_detailed`
-
-Armazena itens detalhados de servico para vendas.
-
-**Estrutura:**
-- `id` (bigint, PK, auto increment)
-- `sale_id` (bigint, NOT NULL, FK para sales ON DELETE CASCADE)
-- `category` (text, NOT NULL, CHECK IN ('INSULFILM', 'PPF'))
-- `product_type_id` (bigint, NOT NULL, FK para product_types)
-- `region_id` (bigint, NOT NULL, FK para vehicle_regions)
-- `meters_used` (numeric, NOT NULL, default 0)
-- `unit_price` (numeric, NOT NULL)
-- `total_price` (numeric, NOT NULL)
-- `notes` (text, nullable)
-- `created_at` (timestamptz, default now())
-- `company_id` (bigint, NOT NULL, FK para companies ON DELETE CASCADE)
-
-**Indices:** `idx_service_items_sale`, `idx_service_items_product`, `idx_service_items_company`
-
-**RLS Policies:**
-- SELECT: usuarios podem ver items da sua empresa
-- ALL: usuarios podem gerenciar items da sua empresa
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                    NOVA VENDA (NewSaleModal)                        │
+├─────────────────────────────────────────────────────────────────────┤
+│  1. Seleciona Cliente                                               │
+│  2. Seleciona Veiculo (com tamanho P/M/G)                          │
+│  3. NOVA INTERFACE: Adicionar Servicos Detalhados                   │
+│     ┌──────────────────────────────────────────────────────────┐    │
+│     │  [+ Adicionar Regiao]                                    │    │
+│     │                                                          │    │
+│     │  ┌────────────────────────────────────────────────────┐  │    │
+│     │  │ Para-brisa     │ 3M G70 Crystalline    │ 1.5m │ R$│  │    │
+│     │  └────────────────────────────────────────────────────┘  │    │
+│     │  ┌────────────────────────────────────────────────────┐  │    │
+│     │  │ Laterais       │ UltraBlack G5 Premium │ 2.5m │ R$│  │    │
+│     │  └────────────────────────────────────────────────────┘  │    │
+│     │  ┌────────────────────────────────────────────────────┐  │    │
+│     │  │ Vigia          │ UltraBlack G5 Premium │ 1.3m │ R$│  │    │
+│     │  └────────────────────────────────────────────────────┘  │    │
+│     │                                                          │    │
+│     │  Subtotal: R$ XXX,XX                                     │    │
+│     └──────────────────────────────────────────────────────────┘    │
+│                                                                     │
+│  4. Forma de pagamento, desconto, observacoes                       │
+│  5. [CADASTRAR VENDA]                                               │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    AO SALVAR A VENDA                                │
+├─────────────────────────────────────────────────────────────────────┤
+│  1. INSERT em sales (venda principal)                               │
+│  2. INSERT em service_items_detailed (cada regiao/produto)          │
+│  3. PARA CADA item detalhado:                                       │
+│     - Busca material vinculado ao product_type_id                   │
+│     - Calcula metros = regras_consumo[region_id][vehicle_size]      │
+│     - INSERT em stock_movements (saida)                             │
+│     - Trigger atualiza materials.current_stock                      │
+│  4. Cria transacao financeira (se venda fechada)                    │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-### 1.5 Atualizacao da Tabela `materials`
+## Mudancas Detalhadas
 
-Adicionar coluna para vincular material a tipo de produto:
-- `product_type_id` (bigint, nullable, FK para product_types)
+### 1. Atualizar NewSaleModal.tsx
 
-**Indice:** `idx_materials_product_type`
+**Adicionar nova secao "Servicos Detalhados":**
 
----
+- Interface com lista de itens (regioes + produtos)
+- Cada item contem:
+  - Select de Categoria (INSULFILM/PPF)
+  - Select de Regiao (filtrado por categoria)
+  - Select de Tipo de Produto (filtrado por categoria)
+  - Metros calculados automaticamente (baseado no tamanho do veiculo)
+  - Preco calculado (metros x preco por metro do produto)
+- Botao "+ Adicionar Regiao"
+- Subtotal atualizado em tempo real
 
-### 1.6 Dados de Exemplo
-
-**Product Types:**
-| Categoria | Marca | Nome | Modelo | Transmissao | Custo |
-|-----------|-------|------|--------|-------------|-------|
-| INSULFILM | 3M | G70 | Crystalline | 70% | R$ 200,00 |
-| INSULFILM | UltraBlack | G5 | Premium | 5% | R$ 120,00 |
-| INSULFILM | UltraBlack | G20 | Premium | 20% | R$ 110,00 |
-| PPF | XPEL | Ultimate | - | - | R$ 450,00 |
-| PPF | 3M | Scotchgard | Pro | - | R$ 380,00 |
-
-**Vehicle Regions (INSULFILM):**
-1. Para-brisa (Vidro frontal)
-2. Laterais (Vidros laterais dianteiros)
-3. Traseiras (Vidros laterais traseiros)
-4. Vigia (Vidro traseiro)
-
-**Vehicle Regions (PPF):**
-1. Capo (Capo completo)
-2. Para-choque Dianteiro
-3. Para-choque Traseiro
-4. Retrovisores
-5. Laterais (Portas)
-6. Farois
-
-**Consumption Rules (exemplo):**
-| Regiao | P | M | G |
-|--------|---|---|---|
-| Para-brisa | 1.2m | 1.5m | 1.8m |
-| Laterais | 2.0m | 2.5m | 3.0m |
-| Vigia | 1.0m | 1.3m | 1.6m |
-| Capo (PPF) | 1.5m | 2.0m | 2.5m |
-
----
-
-## Fase 2: Atualizacao dos Tipos TypeScript
-
-### 2.1 Arquivo `src/lib/database.types.ts`
-
-Adicionar interfaces:
+**Estado adicional necessario:**
 
 ```typescript
-export type ProductCategory = 'INSULFILM' | 'PPF';
-export type VehicleSize = 'P' | 'M' | 'G';
-
-export interface ProductType {
-  id: number;
-  category: ProductCategory;
-  brand: string;
-  name: string;
-  model: string | null;
-  light_transmission: string | null;
-  description: string | null;
-  unit_price: number;
-  cost_per_meter: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  company_id: number;
+interface DetailedServiceItem {
+  id: string; // UUID temporario para controle de lista
+  category: 'INSULFILM' | 'PPF';
+  regionId: number;
+  regionName: string;
+  productTypeId: number;
+  productTypeName: string;
+  metersUsed: number; // calculado automaticamente
+  unitPrice: number; // preco por metro do produto
+  totalPrice: number; // metros x preco
 }
 
-export interface VehicleRegion {
-  id: number;
-  category: ProductCategory;
-  name: string;
-  description: string | null;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-  company_id: number;
-}
-
-export interface RegionConsumptionRule {
-  id: number;
-  category: ProductCategory;
-  region_id: number;
-  vehicle_size: VehicleSize;
-  meters_consumed: number;
-  created_at: string;
-  updated_at: string;
-  company_id: number;
-}
-
-export interface ServiceItemDetailed {
-  id: number;
-  sale_id: number;
-  category: ProductCategory;
-  product_type_id: number;
-  region_id: number;
-  meters_used: number;
-  unit_price: number;
-  total_price: number;
-  notes: string | null;
-  created_at: string;
-  company_id: number;
-}
+const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
 ```
 
-Atualizar interface `Material`:
+**Novas queries necessarias:**
+
 ```typescript
-export interface Material {
-  // ... campos existentes ...
-  product_type_id: number | null;
+// Carregar tipos de produto
+const { data: productTypes } = useQuery({
+  queryKey: ['product-types', companyId],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from('product_types')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('is_active', true);
+    return data;
+  }
+});
+
+// Carregar regioes do veiculo
+const { data: vehicleRegions } = useQuery({
+  queryKey: ['vehicle-regions', companyId],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from('vehicle_regions')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('is_active', true)
+      .order('sort_order');
+    return data;
+  }
+});
+
+// Carregar regras de consumo
+const { data: consumptionRules } = useQuery({
+  queryKey: ['consumption-rules', companyId],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from('region_consumption_rules')
+      .select('*')
+      .eq('company_id', companyId);
+    return data;
+  }
+});
+```
+
+**Calculo automatico de metros:**
+
+Quando o usuario seleciona uma regiao e o veiculo ja tem tamanho definido:
+
+```typescript
+function calculateMeters(regionId: number, vehicleSize: 'P' | 'M' | 'G', category: string) {
+  const rule = consumptionRules?.find(
+    r => r.region_id === regionId && r.vehicle_size === vehicleSize && r.category === category
+  );
+  return rule?.meters_consumed || 0;
 }
 ```
 
 ---
 
-## Fase 3: Refatoracao da Pagina Estoque
+### 2. Criar Componente ServiceItemRow.tsx
 
-### 3.1 Sistema de Abas Principal
+Componente para cada linha de servico detalhado:
 
-Estrutura com 4 abas usando shadcn/ui Tabs:
+```typescript
+interface ServiceItemRowProps {
+  item: DetailedServiceItem;
+  vehicleSize: 'P' | 'M' | 'G' | null;
+  productTypes: ProductType[];
+  vehicleRegions: VehicleRegion[];
+  consumptionRules: RegionConsumptionRule[];
+  onUpdate: (item: DetailedServiceItem) => void;
+  onRemove: (id: string) => void;
+}
+```
 
+Layout da linha:
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    Gestao de Estoque                            │
-├─────────────┬──────────────────┬─────────────────┬─────────────┤
-│ Materiais   │ Tipos de         │ Regioes do      │ Regras de   │
-│ (Package)   │ Produtos (Tag)   │ Veiculo (Car)   │ Consumo     │
-│             │                  │                 │ (Calculator)│
-├─────────────┴──────────────────┴─────────────────┴─────────────┤
-│                                                                 │
-│  [Conteudo da aba selecionada]                                 │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ [INSULFILM ▼]  [Para-brisa ▼]  [3M G70 ▼]  1.5m  R$ 300,00  [🗑️] │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 3.2 Aba "Tipos de Produtos"
+### 3. Atualizar stockConsumption.ts
 
-**Layout:**
-- Sub-tabs: [INSULFILM] [PPF]
-- Botao [+ Novo Tipo de Produto]
-- Tabela com colunas: Marca | Nome | Transmissao | Custo | Preco | Status | Acoes
+**Criar nova funcao consumeStockForDetailedSale:**
 
-**Modal de Criar/Editar:**
-- category (Select INSULFILM/PPF)
-- brand (Input text obrigatorio)
-- name (Input text obrigatorio)
-- model (Input text opcional)
-- light_transmission (Input - visivel apenas se INSULFILM)
-- description (Textarea)
-- cost_per_meter (Input number)
-- unit_price (Input number)
-
-**Funcionalidades:**
-- CRUD completo com mutations do React Query
-- Toggle ativo/inativo com Switch
-- Validacao com zod
-
----
-
-### 3.3 Aba "Regioes do Veiculo"
-
-**Layout:**
-- Sub-tabs: [INSULFILM] [PPF]
-- Botao [+ Nova Regiao]
-- Lista de Cards ordenavel com drag-and-drop
-
-**Card de Regiao:**
-```text
-┌────────────────────────────────────────────┐
-│ ☰  Nome da Regiao             [✏️] [🗑️]  │
-│     Descricao em texto menor               │
-└────────────────────────────────────────────┘
+```typescript
+async function consumeStockForDetailedSale(
+  saleId: number,
+  detailedItems: ServiceItemDetailed[],
+  vehicleSize: 'P' | 'M' | 'G',
+  companyId: number,
+  userId: string
+): Promise<ConsumptionResult>
 ```
 
-**Funcionalidades:**
-- CRUD completo
-- Drag-and-drop para reordenar (usando @dnd-kit)
-- Atualizacao de sort_order automatica
-- AlertDialog para confirmacao de exclusao
+**Logica:**
+
+1. Para cada item em `detailedItems`:
+   - Buscar material vinculado ao `product_type_id`
+   - Se nao houver material vinculado, adicionar warning
+   - Se houver, calcular metros a consumir
+   - Verificar estoque disponivel
+   - Inserir movimento de saida em `stock_movements`
+2. Retornar resumo do consumo
 
 ---
 
-### 3.4 Aba "Regras de Consumo"
+### 4. Atualizar handleSubmit em NewSaleModal
 
-**Layout:**
-- Sub-tabs: [INSULFILM] [PPF]
-- Botao [Salvar Todas as Regras]
-- Tabela editavel em formato matriz
+**Fluxo de salvamento:**
 
-**Estrutura da Tabela:**
-```text
-┌──────────────────┬───────────────┬─────────────┬─────────────┐
-│ Regiao           │ P (Pequeno)   │ M (Medio)   │ G (Grande)  │
-├──────────────────┼───────────────┼─────────────┼─────────────┤
-│ Para-brisa       │ [1.2] metros  │ [1.5] metros│ [1.8] metros│
-│ Vidro frontal    │               │             │             │
-└──────────────────┴───────────────┴─────────────┴─────────────┘
+```typescript
+const handleSubmit = async () => {
+  // 1. Validacoes
+  if (!selectedClientId || !selectedVehicleId || detailedItems.length === 0) {
+    toast.error("Preencha cliente, veículo e pelo menos um serviço.");
+    return;
+  }
+
+  // 2. Calcular totais
+  const subtotal = detailedItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  const total = subtotal - discount;
+
+  // 3. Criar venda
+  const { data: sale, error: saleError } = await supabase
+    .from('sales')
+    .insert({
+      client_id: selectedClientId,
+      vehicle_id: selectedVehicleId,
+      sale_date: format(saleDate, 'yyyy-MM-dd'),
+      subtotal,
+      discount,
+      total,
+      payment_method: paymentMethod,
+      is_open: isOpen,
+      status: isOpen ? 'Aberta' : 'Fechada',
+      observations: notes,
+      company_id: companyId,
+      seller_id: user?.id,
+    })
+    .select()
+    .single();
+
+  // 4. Criar service_items_detailed
+  const serviceItemsData = detailedItems.map(item => ({
+    sale_id: sale.id,
+    category: item.category,
+    product_type_id: item.productTypeId,
+    region_id: item.regionId,
+    meters_used: item.metersUsed,
+    unit_price: item.unitPrice,
+    total_price: item.totalPrice,
+    company_id: companyId,
+  }));
+
+  await supabase.from('service_items_detailed').insert(serviceItemsData);
+
+  // 5. Consumir estoque
+  const vehicle = vehicles.find(v => v.id === selectedVehicleId);
+  if (vehicle?.size) {
+    await consumeStockForDetailedSale(
+      sale.id,
+      serviceItemsData,
+      vehicle.size as 'P' | 'M' | 'G',
+      companyId,
+      user?.id
+    );
+  }
+
+  // 6. Criar transacao financeira (se fechada)
+  if (!isOpen) {
+    await createTransactionFromSale(...);
+  }
+};
 ```
 
-**Funcionalidades:**
-- Inputs editaveis em tempo real
-- Botao salvar faz UPSERT de todas as regras
-- Estado "dirty" para controlar habilitacao do botao
-
 ---
 
-### 3.5 Atualizacao da Aba "Materiais"
+### 5. Atualizar SaleDetailsModal.tsx
 
-**Adicoes:**
-- Nova coluna "Tipo de Produto" na tabela
-- Select agrupado no modal para vincular material a tipo de produto
-- Filtros por categoria (Todos | INSULFILM | PPF | Genericos)
+Exibir os itens detalhados da venda:
+
+```typescript
+// Query para buscar itens detalhados
+const { data: detailedItems } = useQuery({
+  queryKey: ['sale-detailed-items', sale?.id],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from('service_items_detailed')
+      .select(`
+        *,
+        product_type:product_types(brand, name, model, category),
+        region:vehicle_regions(name, description)
+      `)
+      .eq('sale_id', sale?.id);
+    return data;
+  },
+  enabled: !!sale?.id
+});
+```
+
+Renderizar tabela com:
+| Regiao | Produto | Metros | Preco/m | Total |
+|--------|---------|--------|---------|-------|
+| Para-brisa | 3M G70 | 1.5m | R$ 200 | R$ 300 |
+| Laterais | UltraBlack G5 | 2.5m | R$ 120 | R$ 300 |
 
 ---
 
@@ -330,48 +311,82 @@ Estrutura com 4 abas usando shadcn/ui Tabs:
 
 | Arquivo | Acao |
 |---------|------|
-| `supabase/migrations/XXXX_create_product_types.sql` | Criar |
-| `supabase/migrations/XXXX_create_vehicle_regions.sql` | Criar |
-| `supabase/migrations/XXXX_create_region_consumption_rules.sql` | Criar |
-| `supabase/migrations/XXXX_create_service_items_detailed.sql` | Criar |
-| `supabase/migrations/XXXX_update_materials_add_product_type.sql` | Criar |
-| `src/lib/database.types.ts` | Modificar |
-| `src/integrations/supabase/types.ts` | Sera gerado automaticamente |
-| `src/pages/Estoque.tsx` | Refatorar completamente |
-| `src/components/estoque/ProductTypesTab.tsx` | Criar |
-| `src/components/estoque/VehicleRegionsTab.tsx` | Criar |
-| `src/components/estoque/ConsumptionRulesTab.tsx` | Criar |
-| `src/components/estoque/MaterialsTab.tsx` | Criar (extrair de Estoque.tsx) |
-| `src/components/estoque/NewMaterialModal.tsx` | Modificar |
+| `src/components/vendas/NewSaleModal.tsx` | Refatorar (adicionar servicos detalhados) |
+| `src/components/vendas/ServiceItemRow.tsx` | Criar (componente de linha) |
+| `src/lib/stockConsumption.ts` | Adicionar funcao `consumeStockForDetailedSale` |
+| `src/components/vendas/SaleDetailsModal.tsx` | Atualizar (exibir itens detalhados) |
+| `src/types/sales.ts` | Adicionar tipos para itens detalhados |
 
 ---
 
-## Dependencias a Instalar
+## Fluxo Visual da Interface
 
-```bash
-npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+**Antes (atual):**
+```text
+Cliente → Veiculo → [x] Servico 1 → [x] Servico 2 → Desconto → Salvar
 ```
 
----
-
-## Ordem de Implementacao
-
-1. Criar todas as migrations SQL (5 arquivos)
-2. Atualizar tipos TypeScript
-3. Refatorar Estoque.tsx com sistema de abas
-4. Extrair aba Materiais para componente separado
-5. Implementar aba Tipos de Produtos (com modal CRUD)
-6. Implementar aba Regioes do Veiculo (com drag-and-drop)
-7. Implementar aba Regras de Consumo (tabela editavel)
-8. Atualizar modal de Materiais para vincular com tipos de produtos
+**Depois (novo):**
+```text
+Cliente → Veiculo → [+ Adicionar Regiao]
+                     │
+                     ├── [INSULFILM] [Para-brisa] [3M G70]     1.5m  R$300
+                     ├── [INSULFILM] [Laterais]   [UltraBlack] 2.5m  R$300
+                     └── [INSULFILM] [Vigia]      [UltraBlack] 1.3m  R$156
+                                                              ────────────
+                                                     Subtotal: R$ 756,00
+                                                      Desconto: R$ 0,00
+                                                         TOTAL: R$ 756,00
+```
 
 ---
 
 ## Consideracoes Tecnicas
 
-- Todas as tabelas seguem padrao `int8` (bigint) para IDs
-- RLS policies garantem isolamento multi-tenant
-- Queries usam React Query para cache e estado
-- Mutations incluem tratamento de erro e toast feedback
-- Componentes usam shadcn/ui para consistencia visual
-- Drag-and-drop implementado com @dnd-kit (biblioteca leve e moderna)
+1. **Manter compatibilidade**: O sistema antigo de `services` e `sale_items` continuara funcionando para servicos que nao sao INSULFILM/PPF
+
+2. **Vinculacao de materiais**: Para que o estoque seja baixado, cada `product_type` deve ter um `material` vinculado atraves do campo `materials.product_type_id`
+
+3. **Calculo automatico**: Os metros sao calculados automaticamente baseado no tamanho do veiculo, mas o usuario pode ajustar manualmente se necessario
+
+4. **Validacao de estoque**: O sistema alertara se nao houver estoque suficiente, mas nao bloqueara a venda
+
+5. **Historico completo**: A tabela `service_items_detailed` mantem registro completo de qual produto foi usado em qual regiao, permitindo rastreabilidade
+
+---
+
+## Exemplo Pratico do Fluxo
+
+**Cenario:** Cliente faz INSULFILM nas laterais e vigia com UltraBlack G5, e para-brisa com 3M G70. Veiculo tamanho M.
+
+**Regras de consumo configuradas:**
+- Para-brisa M: 1.5m
+- Laterais M: 2.5m  
+- Vigia M: 1.3m
+
+**Precos por metro:**
+- UltraBlack G5: R$ 120/m
+- 3M G70: R$ 200/m
+
+**Resultado na venda:**
+| Regiao | Produto | Metros | Preco/m | Total |
+|--------|---------|--------|---------|-------|
+| Para-brisa | 3M G70 | 1.5m | R$ 200 | R$ 300 |
+| Laterais | UltraBlack G5 | 2.5m | R$ 120 | R$ 300 |
+| Vigia | UltraBlack G5 | 1.3m | R$ 120 | R$ 156 |
+| **Total** | | **5.3m** | | **R$ 756** |
+
+**Baixa no estoque:**
+- Material vinculado ao UltraBlack G5: -3.8m (2.5 + 1.3)
+- Material vinculado ao 3M G70: -1.5m
+
+---
+
+## Ordem de Implementacao
+
+1. Criar componente `ServiceItemRow.tsx`
+2. Atualizar `NewSaleModal.tsx` com nova interface
+3. Atualizar `stockConsumption.ts` com nova funcao
+4. Atualizar `SaleDetailsModal.tsx` para exibir itens detalhados
+5. Atualizar tipos em `src/types/sales.ts`
+6. Testar fluxo completo
