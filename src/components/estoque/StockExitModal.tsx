@@ -77,7 +77,7 @@ export function StockExitModal({ open, onOpenChange, material, onSuccess }: Stoc
       // Insert stock movement (trigger will update current_stock)
       const { error } = await supabase.from("stock_movements").insert({
         material_id: material.id,
-        movement_type: "saida",
+        movement_type: "Saida",
         quantity: parseFloat(quantity),
         reason: fullReason,
         user_id: user.id,

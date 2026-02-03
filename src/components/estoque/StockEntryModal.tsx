@@ -58,7 +58,7 @@ export function StockEntryModal({ open, onOpenChange, material, onSuccess }: Sto
       // Insert stock movement (trigger will update current_stock)
       const { error } = await supabase.from("stock_movements").insert({
         material_id: material.id,
-        movement_type: "entrada",
+        movement_type: "Entrada",
         quantity: parseFloat(quantity),
         reason: notes || "Entrada manual",
         user_id: user.id,
