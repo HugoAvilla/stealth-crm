@@ -1,0 +1,415 @@
+import { useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Car, Phone, User, Calendar, Clock, DollarSign, Link2, 
+  FileText, MessageSquare, ExternalLink, Trash2, Edit, 
+  CheckCircle, Package, AlertCircle, Loader2
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface SpaceDetails {
+  id: number;
+  name: string;
+  client_id: number | null;
+  vehicle_id: number | null;
+  sale_id: number | null;
+  entry_date: string | null;
+  entry_time: string | null;
+  exit_date: string | null;
+  exit_time: string | null;
+  has_exited: boolean | null;
+  payment_status: string | null;
+  observations: string | null;
+  tag: string | null;
+  discount: number | null;
+  client?: {
+    id: number;
+    name: string;
+    phone: string;
+    birth_date: string | null;
+  } | null;
+  vehicle?: {
+    id: number;
+    brand: string;
+    model: string;
+    plate: string | null;
+    year: number | null;
+  } | null;
+  sale?: {
+    id: number;
+    total: number;
+    subtotal: number;
+    discount: number | null;
+    sale_items?: {
+      id: number;
+      total_price: number;
+      service?: {
+        id: number;
+        name: string;
+      } | null;
+    }[];
+  } | null;
+}
+
+interface SlotDetailsDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  space: SpaceDetails | null;
+  onUpdate?: () => void;
+}
+
+export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotDetailsDrawerProps) {
+  const queryClient = useQueryClient();
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  if (!space) return null;
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "-";
+    return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+  };
+
+  const formatBirthDate = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+  };
+
+  // Calculate totals
+  const subtotal = space.sale?.subtotal || 0;
+  const discount = space.discount || space.sale?.discount || 0;
+  const total = subtotal - discount;
+  const serviceCount = space.sale?.sale_items?.length || 0;
+
+  // Complete slot mutation
+  const completeMutation = useMutation({
+    mutationFn: async (completed: boolean) => {
+      const updateData: any = {
+        has_exited: completed,
+      };
+
+      if (completed) {
+        updateData.exit_date = format(new Date(), 'yyyy-MM-dd');
+        updateData.exit_time = format(new Date(), 'HH:mm');
+      }
+
+      const { error } = await supabase
+        .from('spaces')
+        .update(updateData)
+        .eq('id', space.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(isCompleting ? "Vaga liberada!" : "Vaga reaberta!");
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      onUpdate?.();
+    },
+    onError: (error) => {
+      console.error("Erro ao atualizar vaga:", error);
+      toast.error("Erro ao atualizar vaga");
+    },
+  });
+
+  // Mark as paid mutation
+  const paymentMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('spaces')
+        .update({ payment_status: 'paid' })
+        .eq('id', space.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Pagamento confirmado!");
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      onUpdate?.();
+    },
+    onError: (error) => {
+      console.error("Erro ao confirmar pagamento:", error);
+      toast.error("Erro ao confirmar pagamento");
+    },
+  });
+
+  // Delete slot mutation
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('spaces')
+        .delete()
+        .eq('id', space.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Vaga excluída!");
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      onOpenChange(false);
+      onUpdate?.();
+    },
+    onError: (error) => {
+      console.error("Erro ao excluir vaga:", error);
+      toast.error("Erro ao excluir vaga");
+    },
+  });
+
+  const handleCompleteToggle = (checked: boolean) => {
+    setIsCompleting(checked);
+    completeMutation.mutate(checked);
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Car className="h-5 w-5 text-primary" />
+            {space.name}
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-6">
+          {/* Toggle para concluir */}
+          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border">
+            <div className="flex items-center gap-3">
+              <CheckCircle className={space.has_exited ? "h-5 w-5 text-success" : "h-5 w-5 text-muted-foreground"} />
+              <span className="text-sm font-medium">Concluir vaga e liberar espaço</span>
+            </div>
+            <Switch 
+              checked={space.has_exited || false}
+              onCheckedChange={handleCompleteToggle}
+              disabled={completeMutation.isPending}
+            />
+          </div>
+
+          {/* Info do cliente */}
+          {space.client && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Phone className="h-4 w-4 text-info" />
+                <span>{space.client.phone}</span>
+              </div>
+              {space.client.birth_date && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  <span>Cliente nasceu em {formatBirthDate(space.client.birth_date)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Card do veículo com serviços */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Serviços dessa vaga</h4>
+            <Card className="bg-muted/50 border-border/50">
+              <CardContent className="p-4 space-y-4">
+                {space.vehicle && (
+                  <div className="flex items-center gap-3">
+                    <Car className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">{space.vehicle.brand} {space.vehicle.model}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {space.vehicle.plate && `Placa: ${space.vehicle.plate}`}
+                        {space.vehicle.year && ` | Ano: ${space.vehicle.year}`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
+
+                {/* Serviços */}
+                {space.sale?.sale_items && space.sale.sale_items.length > 0 ? (
+                  <div className="space-y-2">
+                    {space.sale.sale_items.map((item, index) => (
+                      <div key={index} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{item.service?.name || 'Serviço'}</span>
+                        <span className="font-medium">R$ {item.total_price.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    Nenhum serviço vinculado
+                  </p>
+                )}
+
+                <Separator />
+
+                <div className="flex justify-between text-sm font-medium">
+                  <span>Total em serviços</span>
+                  <span className="text-primary">R$ {subtotal.toFixed(2)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Resumo da vaga */}
+          <Card className="bg-muted/30 border-border/50">
+            <CardContent className="p-4 space-y-2">
+              <h4 className="font-medium">Resumo da vaga</h4>
+              <div className="space-y-1 text-sm">
+                <p className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span>Entrada em {formatDate(space.entry_date)} {space.entry_time && `às ${space.entry_time}h`}</span>
+                </p>
+                {space.exit_date && (
+                  <p className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      {space.has_exited ? 'Saída' : 'Saída prevista'} para {formatDate(space.exit_date)} {space.exit_time && `às ${space.exit_time}h`}
+                    </span>
+                  </p>
+                )}
+                <p className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <span>Vaga com {serviceCount} serviço(s)</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <span>Sub-total ficou em R$ {subtotal.toFixed(2)}</span>
+                </p>
+                {discount > 0 && (
+                  <p className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Desconto de R$ {discount.toFixed(2)}</span>
+                  </p>
+                )}
+                <p className="flex items-center gap-2 font-medium text-primary">
+                  <DollarSign className="h-4 w-4" />
+                  <span>Total ficou em R$ {total.toFixed(2)}</span>
+                </p>
+                {space.sale_id && (
+                  <p className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4 text-muted-foreground" />
+                    <span>Vinculado à venda Nº {space.sale_id}</span>
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Status de pagamento */}
+          <div className="flex items-center justify-between p-4 rounded-lg border">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Status do pagamento:</span>
+              <Badge 
+                variant="outline" 
+                className={
+                  space.payment_status === 'paid' 
+                    ? "bg-success/20 text-success border-success/30" 
+                    : "bg-destructive/20 text-destructive border-destructive/30"
+                }
+              >
+                {space.payment_status === 'paid' ? (
+                  <><CheckCircle className="h-3 w-3 mr-1" />Pago</>
+                ) : (
+                  <><AlertCircle className="h-3 w-3 mr-1" />Não pago</>
+                )}
+              </Badge>
+            </div>
+            {space.payment_status !== 'paid' && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="text-success border-success/30 hover:bg-success/10"
+                onClick={() => paymentMutation.mutate()}
+                disabled={paymentMutation.isPending}
+              >
+                {paymentMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>Confirmar pagamento</>
+                )}
+              </Button>
+            )}
+          </div>
+
+          {/* Comprovantes em PDF */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Comprovantes em PDF</h4>
+            <div className="space-y-2">
+              <Button variant="outline" className="w-full justify-start text-destructive" disabled>
+                <FileText className="h-4 w-4 mr-2" />
+                Baixar PDF em formato A4
+              </Button>
+              <Button variant="outline" className="w-full justify-start text-destructive" disabled>
+                <FileText className="h-4 w-4 mr-2" />
+                Baixar PDF em formato Notinha
+              </Button>
+              <Button variant="outline" className="w-full justify-start text-destructive" disabled>
+                <FileText className="h-4 w-4 mr-2" />
+                Baixar PDF em formato Notinha Mini
+              </Button>
+            </div>
+          </div>
+
+          {/* Mais opções */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Mais opções</h4>
+            <div className="space-y-2">
+              <Button variant="outline" className="w-full justify-start text-success" disabled>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Enviar mensagem de entrada
+              </Button>
+              <Button variant="outline" className="w-full justify-start text-warning" disabled>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Enviar mensagem de saída
+              </Button>
+              <Button variant="outline" className="w-full justify-start text-info" disabled>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Exportar para agenda
+              </Button>
+              <Button variant="outline" className="w-full justify-start" disabled>
+                <User className="h-4 w-4 mr-2" />
+                Ver cliente da vaga
+              </Button>
+            </div>
+          </div>
+
+          {/* Observações */}
+          {space.observations && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Observações</h4>
+              <p className="text-sm text-muted-foreground p-3 rounded-lg bg-muted/50">
+                {space.observations}
+              </p>
+            </div>
+          )}
+
+          {/* Botões de ação */}
+          <div className="flex gap-2 pt-4">
+            <Button variant="outline" className="flex-1" disabled>
+              <Edit className="h-4 w-4 mr-2" />
+              Editar
+            </Button>
+            <Button 
+              variant="destructive" 
+              size="icon"
+              onClick={() => {
+                if (confirm("Tem certeza que deseja excluir esta vaga?")) {
+                  deleteMutation.mutate();
+                }
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
