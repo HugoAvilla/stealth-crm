@@ -126,7 +126,7 @@ export async function consumeStockForSale(
         .from("stock_movements")
         .insert({
           material_id: material.id,
-          movement_type: "saida",
+          movement_type: "Saida",
           quantity: consumeAmount,
           reason: `Consumo automático - Venda #${saleId} (${vehicle.brand} ${vehicle.model} - ${vehicleSize})`,
           user_id: userId,
@@ -260,7 +260,7 @@ export async function consumeStockForDetailedSale(
         .from("stock_movements")
         .insert({
           material_id: material.id,
-          movement_type: "saida",
+          movement_type: "Saida",
           quantity: consumeAmount,
           reason: `Consumo automático - Venda #${saleId} (${vehicleBrand} ${vehicleModel} - ${vehicleSize})`,
           user_id: userId,
