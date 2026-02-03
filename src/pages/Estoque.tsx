@@ -184,9 +184,6 @@ export default function Estoque() {
         <TabsContent value="materials" className="space-y-6">
           {/* Header da aba */}
           <div className="flex items-center justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowRules(true)}>
-              <Settings className="h-4 w-4 mr-2" /> Regras Antigas
-            </Button>
             <Button onClick={() => setShowNewMaterial(true)}>
               <Plus className="h-4 w-4 mr-2" /> Novo Material
             </Button>
@@ -289,7 +286,6 @@ export default function Estoque() {
                       <TableHead className="text-center">Estoque Atual</TableHead>
                       <TableHead className="text-center">Mínimo</TableHead>
                       <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-right">Custo Unit.</TableHead>
                       <TableHead className="text-right">Valor Total</TableHead>
                       <TableHead className="w-[100px]"></TableHead>
                     </TableRow>
@@ -322,9 +318,6 @@ export default function Estoque() {
                             <Badge className={cn(stockStatus.bg, stockStatus.color, "border-0")}>
                               {stockStatus.label}
                             </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            R$ {(material.average_cost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}

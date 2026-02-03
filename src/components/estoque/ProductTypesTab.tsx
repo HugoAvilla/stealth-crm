@@ -59,6 +59,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      // Criar tipo de produto
       const { data: result, error } = await supabase
         .from("product_types")
         .insert({
@@ -70,11 +71,33 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         .single();
 
       if (error) throw error;
+
+      // Criar material vinculado automaticamente
+      const materialName = `${data.brand} ${data.name}${data.model ? ` - ${data.model}` : ''}`;
+      const { error: materialError } = await supabase.from("materials").insert({
+        name: materialName,
+        type: data.category,
+        brand: data.brand,
+        unit: "Metros",
+        minimum_stock: 0,
+        current_stock: 0,
+        average_cost: data.cost_per_meter || 0,
+        company_id: companyId,
+        product_type_id: result.id,
+        is_active: true,
+      });
+
+      if (materialError) {
+        console.error("Erro ao criar material vinculado:", materialError);
+        // Não bloqueia, apenas loga o erro
+      }
+
       return result;
     },
     onSuccess: () => {
-      toast.success("Tipo de produto criado com sucesso!");
+      toast.success("Tipo de produto criado e material adicionado ao estoque!");
       queryClient.invalidateQueries({ queryKey: ["product-types"] });
+      queryClient.invalidateQueries({ queryKey: ["materials"] });
       handleCloseModal();
     },
     onError: (error: Error) => {
