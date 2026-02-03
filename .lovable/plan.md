@@ -1,293 +1,227 @@
 
-# Plano: Integração Completa entre Módulos e Correções de Funcionalidade
+
+# Plano: Adicionar Gerenciamento de Categorias no Financeiro
 
 ## Resumo
 
-Este plano aborda múltiplas integrações entre os módulos do sistema, correções de funcionalidade nos botões de Contas, adição de funcionalidade de desvinculação na aba Solicitações, botões de voltar em páginas "aprisionadoras", e aprovação em tempo real via Supabase Realtime.
+Criar funcionalidade para gerenciar categorias financeiras isoladas por empresa, incluindo um modal para criar novas categorias e um botão de gerenciamento integrado ao modal de transacoes.
 
 ---
 
-## 1. Correção da Aba Contas - Integração com Banco de Dados
+## Problema Atual
 
-### Problema Identificado
-A aba Contas (`src/pages/Contas.tsx`) usa dados mock importados de `@/lib/mockData` em vez de dados reais do Supabase. Os botões de criar/editar conta manipulam apenas o estado local, não persistindo no banco.
+As categorias existentes no banco de dados tem `company_id = NULL`, tornando-as globais. Porem, as policies RLS filtram por `company_id = get_user_company_id(auth.uid())`, o que significa que:
 
-### Solução
-Refatorar `Contas.tsx` para:
-- Buscar contas reais da tabela `accounts` via Supabase
-- Buscar transações reais da tabela `transactions`
-- Buscar categorias reais da tabela `categories`
-- Atualizar `EditAccountModal` para salvar no banco de dados
-- Calcular gráficos de formas de pagamento e saídas por categoria com dados reais
+1. Empresas nao conseguem ver as categorias globais (NULL nao passa no filtro)
+2. Empresas nao podem criar suas proprias categorias (sem modal)
+3. O dropdown de categorias pode aparecer vazio
 
-### Arquivos a Modificar
-| Arquivo | Alteração |
+---
+
+## Solucao Proposta
+
+### 1. Criar Modal de Gerenciamento de Categorias
+
+Novo componente `ManageCategoriesModal.tsx` que permite:
+- Listar categorias da empresa
+- Criar novas categorias (entrada ou saida)
+- Editar categorias existentes
+- Excluir categorias (com validacao se nao tem transacoes)
+
+### 2. Integrar Botao no Modal de Transacao
+
+No `AddTransactionModal.tsx`, adicionar um botao de "+" ao lado do select de categoria que abre o modal de criar categoria rapidamente.
+
+### 3. Adicionar Menu de Categorias no Financeiro
+
+No dropdown "Adicionar" da pagina Financeiro, incluir opcao para gerenciar categorias.
+
+---
+
+## Arquivos a Criar
+
+| Arquivo | Descricao |
 |---------|-----------|
-| `src/pages/Contas.tsx` | Trocar mock por queries Supabase |
-| `src/components/contas/EditAccountModal.tsx` | Integrar com Supabase para editar/excluir |
+| `src/components/financeiro/ManageCategoriesModal.tsx` | Modal principal de gerenciamento |
+| `src/components/financeiro/NewCategoryModal.tsx` | Modal simplificado para criar categoria rapida |
 
 ---
 
-## 2. Correção da Aba Financeiro - Modais de Transação e Transferência
+## Arquivos a Modificar
 
-### Problema Identificado
-Os modais `AddTransactionModal` e `AddTransferModal` usam dados mock e apenas exibem toast de sucesso, sem salvar no banco.
-
-### Solução
-- `AddTransactionModal`: Buscar contas e categorias do Supabase, salvar transação na tabela `transactions`
-- `AddTransferModal`: Buscar contas do Supabase, criar registro na tabela `transfers`
-
-### Arquivos a Modificar
-| Arquivo | Alteração |
+| Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/financeiro/AddTransactionModal.tsx` | Integrar com Supabase |
-| `src/components/financeiro/AddTransferModal.tsx` | Integrar com Supabase |
+| `src/pages/Financeiro.tsx` | Adicionar item "Gerenciar Categorias" no dropdown |
+| `src/components/financeiro/AddTransactionModal.tsx` | Adicionar botao "+" ao lado do select de categoria |
 
 ---
 
-## 3. Integração Vendas → Financeiro/Contas
-
-### Situação Atual
-A função `createTransactionFromSale` em `src/lib/stockConsumption.ts` já cria uma transação automaticamente quando uma venda é fechada. Esta integração já existe.
-
-### Melhorias Necessárias
-- Garantir que a transação criada inclua `category_id` (categoria "Venda de Serviços")
-- Atualizar o saldo da conta em tempo real após a transação
-
----
-
-## 4. Integração Módulos → Relatórios
-
-### Problema Identificado
-O modal `ReportConfigModal` gera PDFs com dados mock vazios. Precisa buscar dados reais do Supabase.
-
-### Relatórios a Integrar
-| Relatório | Fonte de Dados |
-|-----------|----------------|
-| DFC (Fluxo de Caixa) | `transactions` por período |
-| DRE (Resultado) | `transactions` (entradas - saídas) |
-| Vendas por Período | `sales` com joins |
-| Vendas por Serviço | `sale_items` + `services` |
-| Vendas por Vendedor | `sales` + `profiles` |
-| Clientes Ativos | `clients` com vendas nos últimos 90 dias |
-| Clientes Inativos | `clients` sem vendas há 90+ dias |
-| Ocupação de Vagas | `spaces` com histórico |
-| Movimentação de Estoque | `stock_movements` |
-| Extrato de Conta | `transactions` por conta |
-
-### Arquivos a Modificar
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/relatorios/ReportConfigModal.tsx` | Implementar queries específicas para cada relatório |
-
----
-
-## 5. Botão de Desvinculação na Aba Solicitações (TeamRequests)
-
-### Funcionalidade
-Adicionar botão "Desvincular" nos cards de membros aprovados para remover o perfil da empresa.
-
-### Implementação
-- Novo botão ao lado de "Aprovado" no histórico
-- Função RPC ou UPDATE direto para:
-  - Limpar `company_id` do profile
-  - Atualizar role para `NENHUM`
-  - Opcional: criar registro de desvinculação
-
-### Arquivo a Modificar
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/pages/TeamRequests.tsx` | Adicionar botão e função de desvincular |
-
----
-
-## 6. Botões de Voltar em Páginas "Aprisionadoras"
-
-### Páginas que Precisam de Botão Voltar
-| Página | Situação Atual | Solução |
-|--------|----------------|---------|
-| `WaitingApproval.tsx` | Já tem botão "Voltar para login" | OK |
-| `CompanyJoin.tsx` | Tem botão para "Criar Empresa" | Adicionar botão voltar ao login |
-| `PendingApprovalModal.tsx` | Só tem "Sair" | OK (é modal de bloqueio proposital) |
-| `Subscription.tsx` | Verificar | Adicionar se necessário |
-
-### Arquivos a Modificar
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/pages/CompanyJoin.tsx` | Adicionar botão "Voltar" mais claro |
-| Todas as páginas principais | MainLayout já permite navegação |
-
----
-
-## 7. Aprovação em Tempo Real via Supabase Realtime
-
-### Funcionalidade
-Quando o admin aprovar uma solicitação, o usuário aguardando deve ser redirecionado imediatamente sem precisar atualizar a página.
-
-### Implementação
-No `CompanyJoin.tsx` (tela de aguardando aprovação):
-
-```typescript
-useEffect(() => {
-  if (!user?.id) return;
-  
-  // Subscribe to realtime changes on company_join_requests
-  const channel = supabase
-    .channel('join-request-updates')
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'company_join_requests',
-        filter: `requester_user_id=eq.${user.id}`,
-      },
-      async (payload) => {
-        const newStatus = payload.new.status;
-        if (newStatus === 'approved') {
-          await refreshUser();
-          navigate('/');
-        } else if (newStatus === 'rejected') {
-          toast({ title: 'Solicitação rejeitada', variant: 'destructive' });
-          setPendingRequest(null);
-        }
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [user?.id]);
-```
-
-### Arquivos a Modificar
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/pages/CompanyJoin.tsx` | Adicionar subscription Realtime |
-
----
-
-## Diagrama de Integrações
+## Estrutura do ManageCategoriesModal
 
 ```text
-                    ┌─────────────────┐
-                    │     VENDAS      │
-                    │    (sales)      │
-                    └────────┬────────┘
-                             │
-          ┌──────────────────┼──────────────────┐
-          │                  │                  │
-          ▼                  ▼                  ▼
-  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐
-  │   FINANCEIRO  │  │    ESPAÇO     │  │   ESTOQUE     │
-  │ (transactions)│  │   (spaces)    │  │  (materials)  │
-  └───────────────┘  └───────────────┘  └───────────────┘
-          │                  │                  │
-          └──────────────────┼──────────────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │   RELATÓRIOS    │
-                    │   (PDF output)  │
-                    └─────────────────┘
-                             │
-                    ┌────────┴────────┐
-                    ▼                 ▼
-            ┌─────────────┐   ┌─────────────┐
-            │    CONTAS   │   │  CLIENTES   │
-            │  (accounts) │   │  (clients)  │
-            └─────────────┘   └─────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  Gerenciar Categorias                                    [X]     │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  [+ Nova Categoria]                                              │
+│                                                                  │
+│  Entradas                                                        │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ ● Vendas                              [Editar] [Excluir]  │  │
+│  │ ● Servicos                            [Editar] [Excluir]  │  │
+│  │ ● Comissoes                           [Editar] [Excluir]  │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  Saidas                                                          │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ ● Custos Fixos                        [Editar] [Excluir]  │  │
+│  │ ● Fornecedores                        [Editar] [Excluir]  │  │
+│  │ ● Marketing                           [Editar] [Excluir]  │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Ordem de Implementação
+## Estrutura do NewCategoryModal
 
-1. **Fase 1 - Contas (Urgente)**
-   - Refatorar `Contas.tsx` para usar Supabase
-   - Corrigir `EditAccountModal.tsx` para salvar no banco
+Modal simplificado para criar categoria rapidamente:
 
-2. **Fase 2 - Financeiro**
-   - Corrigir `AddTransactionModal.tsx`
-   - Corrigir `AddTransferModal.tsx`
-
-3. **Fase 3 - Relatórios**
-   - Implementar queries em `ReportConfigModal.tsx`
-
-4. **Fase 4 - TeamRequests**
-   - Adicionar botão e função de desvincular
-
-5. **Fase 5 - Realtime + UX**
-   - Implementar Supabase Realtime no `CompanyJoin.tsx`
-   - Revisar botões de voltar
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  Nova Categoria                                          [X]     │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Nome *                                                          │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ Ex: Vendas Online                                         │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  Tipo *                                                          │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ [●] Entrada    [○] Saida                                  │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  Cor (opcional)                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ [🟢] [🔵] [🟡] [🔴] [🟣] [⚫]                              │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  [Cancelar]                             [Criar Categoria]        │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Detalhes Técnicos
+## Integracao no AddTransactionModal
 
-### Query para Gráfico de Formas de Pagamento (Contas)
+Adicionar botao "+" ao lado do select de categorias:
+
+```text
+Categoria *
+┌────────────────────────────────────┐  ┌───┐
+│ Selecione...                    ▼  │  │ + │
+└────────────────────────────────────┘  └───┘
+```
+
+Ao clicar no "+":
+1. Abre `NewCategoryModal` com o tipo ja pre-selecionado (entrada/saida)
+2. Apos criar, atualiza a lista de categorias e seleciona a nova
+
+---
+
+## Detalhes Tecnicos
+
+### Query para listar categorias da empresa
 ```typescript
 const { data } = await supabase
+  .from('categories')
+  .select('*')
+  .eq('company_id', companyId)
+  .order('name');
+```
+
+### Insert de nova categoria
+```typescript
+await supabase.from('categories').insert({
+  name: categoryName,
+  type: categoryType, // 'entrada' ou 'saida'
+  color: selectedColor,
+  company_id: companyId
+});
+```
+
+### Validacao antes de excluir
+```typescript
+// Verificar se existem transacoes usando esta categoria
+const { count } = await supabase
   .from('transactions')
-  .select('payment_method, amount')
-  .eq('company_id', companyId)
-  .eq('account_id', selectedAccountId)
-  .eq('type', 'Entrada');
+  .select('*', { count: 'exact', head: true })
+  .eq('category_id', categoryId);
 
-const paymentData = data?.reduce((acc, tx) => {
-  const method = tx.payment_method || 'Outros';
-  acc[method] = (acc[method] || 0) + tx.amount;
-  return acc;
-}, {});
-```
-
-### Query para Relatório de Vendas por Período
-```typescript
-const { data } = await supabase
-  .from('sales')
-  .select(`
-    *,
-    client:clients(name, phone),
-    vehicle:vehicles(brand, model, plate),
-    sale_items(total_price, service:services(name))
-  `)
-  .eq('company_id', companyId)
-  .gte('sale_date', startDate)
-  .lte('sale_date', endDate)
-  .order('sale_date', { ascending: false });
-```
-
-### Função de Desvincular Membro
-```typescript
-const handleUnlinkMember = async (userId: string) => {
-  // Remove company_id from profile
-  await supabase
-    .from('profiles')
-    .update({ company_id: null })
-    .eq('user_id', userId);
-
-  // Set role to NENHUM
-  await supabase
-    .from('user_roles')
-    .update({ role: 'NENHUM' })
-    .eq('user_id', userId);
-
-  toast({ title: 'Membro desvinculado com sucesso' });
-  fetchData();
-};
+if (count > 0) {
+  toast.error(`Esta categoria possui ${count} transacao(oes). Nao pode ser excluida.`);
+  return;
+}
 ```
 
 ---
 
-## Resumo das Alterações por Arquivo
+## Alteracoes no Financeiro.tsx
 
-| Arquivo | Tipo | Descrição |
-|---------|------|-----------|
-| `src/pages/Contas.tsx` | Refatoração | Trocar mock por Supabase |
-| `src/components/contas/EditAccountModal.tsx` | Refatoração | Salvar edições no banco |
-| `src/components/financeiro/AddTransactionModal.tsx` | Refatoração | Buscar contas/categorias e salvar transação |
-| `src/components/financeiro/AddTransferModal.tsx` | Refatoração | Buscar contas e criar transferência |
-| `src/components/relatorios/ReportConfigModal.tsx` | Melhoria | Queries específicas por relatório |
-| `src/pages/TeamRequests.tsx` | Funcionalidade | Botão desvincular membro |
-| `src/pages/CompanyJoin.tsx` | Funcionalidade | Realtime + melhor botão voltar |
+Adicionar no dropdown de acoes:
+
+```tsx
+<DropdownMenuItem onClick={() => setCategoryModalOpen(true)}>
+  <Tag className="h-4 w-4 mr-2" /> Gerenciar Categorias
+</DropdownMenuItem>
+```
+
+---
+
+## Isolamento por Empresa (Seguranca)
+
+As policies RLS ja garantem o isolamento:
+
+```sql
+-- Usuarios so veem categorias da sua empresa
+CREATE POLICY "Users can view categories in their company"
+ON public.categories FOR SELECT TO authenticated
+USING (company_id = get_user_company_id(auth.uid()));
+
+-- Apenas admins podem gerenciar
+CREATE POLICY "Admin can manage categories in their company"
+ON public.categories FOR ALL TO authenticated
+USING (
+  company_id = get_user_company_id(auth.uid()) 
+  AND has_role(auth.uid(), 'ADMIN'::app_role)
+);
+```
+
+Cada categoria tera `company_id` preenchido, garantindo que:
+- Empresa A ve apenas suas categorias
+- Empresa B ve apenas suas categorias
+- Nenhuma informacao e compartilhada entre empresas
+
+---
+
+## Ordem de Implementacao
+
+1. Criar `NewCategoryModal.tsx` (modal simplificado)
+2. Criar `ManageCategoriesModal.tsx` (modal completo de gerenciamento)
+3. Modificar `AddTransactionModal.tsx` (adicionar botao "+")
+4. Modificar `Financeiro.tsx` (adicionar menu de gerenciamento)
+5. Testar criacao e listagem de categorias
+
+---
+
+## Resultado Final
+
+Apos implementacao:
+- Empresas podem criar suas proprias categorias
+- Categorias sao 100% isoladas por empresa (via `company_id`)
+- Usuarios podem criar categorias rapidamente ao registrar transacoes
+- Administradores podem gerenciar todas as categorias da empresa
+
