@@ -2,7 +2,7 @@ import { useState } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Car, Clock, CheckCircle, AlertCircle, Wrench, Plus, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Clock, CheckCircle, AlertCircle, AlertTriangle, Wrench, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { FillSlotModal } from "@/components/espaco/FillSlotModal";
 import { SlotDetailsDrawer } from "@/components/espaco/SlotDetailsDrawer";
 import { SlotsDayDrawer } from "@/components/espaco/SlotsDayDrawer";
 import PaidExitedVehicles from "@/components/espaco/PaidExitedVehicles";
+import UnpaidExitedVehicles from "@/components/espaco/UnpaidExitedVehicles";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -154,6 +155,10 @@ export default function Espaco() {
           <TabsTrigger value="pagos-saida" className="gap-2">
             <CheckCircle className="h-4 w-4" />
             Veículos Pagos (Saída)
+          </TabsTrigger>
+          <TabsTrigger value="nao-pagos-saida" className="gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Não Pagos (Saída)
           </TabsTrigger>
         </TabsList>
 
@@ -322,6 +327,10 @@ export default function Espaco() {
 
         <TabsContent value="pagos-saida" className="mt-6">
           <PaidExitedVehicles refreshTrigger={refreshTrigger} />
+        </TabsContent>
+
+        <TabsContent value="nao-pagos-saida" className="mt-6">
+          <UnpaidExitedVehicles refreshTrigger={refreshTrigger} />
         </TabsContent>
       </Tabs>
 
