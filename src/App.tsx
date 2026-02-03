@@ -20,7 +20,7 @@ import Espaco from "./pages/Espaco";
 import Financeiro from "./pages/Financeiro";
 import Contas from "./pages/Contas";
 import Relatorios from "./pages/Relatorios";
-import Servicos from "./pages/Servicos";
+
 import Garantias from "./pages/Garantias";
 import Estoque from "./pages/Estoque";
 import Pipeline from "./pages/Pipeline";
@@ -152,11 +152,6 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       
-      <Route path="/servicos" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
-          <MainLayout><Servicos /></MainLayout>
-        </ProtectedRoute>
-      } />
       
       <Route path="/garantias" element={
         <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>

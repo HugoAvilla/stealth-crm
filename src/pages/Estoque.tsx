@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Settings, Tag, Car, Calculator } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Car, Calculator, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -122,6 +122,42 @@ export default function Estoque() {
   const handleExit = (material: Material) => {
     setSelectedMaterial(material);
     setShowExit(true);
+  };
+
+  const handleDelete = async (material: Material) => {
+    if (!confirm(`Tem certeza que deseja excluir "${material.name}"?`)) return;
+    
+    try {
+      // Verifica se existem movimentações
+      const { count } = await supabase
+        .from("stock_movements")
+        .select("*", { count: "exact", head: true })
+        .eq("material_id", material.id);
+      
+      if (count && count > 0) {
+        // Soft delete - apenas desativa
+        const { error } = await supabase
+          .from("materials")
+          .update({ is_active: false })
+          .eq("id", material.id);
+        
+        if (error) throw error;
+      } else {
+        // Hard delete - remove completamente
+        const { error } = await supabase
+          .from("materials")
+          .delete()
+          .eq("id", material.id);
+        
+        if (error) throw error;
+      }
+      
+      toast.success("Material excluído com sucesso");
+      fetchMaterials();
+    } catch (error) {
+      console.error("Error deleting material:", error);
+      toast.error("Erro ao excluir material");
+    }
   };
 
   const handleMaterialCreated = () => {
@@ -329,6 +365,15 @@ export default function Estoque() {
                               </Button>
                               <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
                                 <ArrowUp className="h-4 w-4 text-red-500" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleDelete(material)} 
+                                title="Excluir"
+                                className="text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
