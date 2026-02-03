@@ -1,192 +1,342 @@
 
-# Plano: Simplificar Integração entre Tipos de Produtos e Materiais
+# Plano: Sistema Completo de Preenchimento de Vagas no Espaco
 
-## Resumo das Alterações Solicitadas
+## Resumo
 
-O usuário quer simplificar a gestão de estoque, fazendo com que:
-1. Ao cadastrar um "Tipo de Produto", ele já crie automaticamente um registro na aba "Materiais"
-2. O modal "Novo Material" deve mostrar uma lista dos produtos cadastrados em vez de campo de texto livre
-3. Remover campos desnecessários do modal de novo material (Tipo, Marca, Custo Unitário)
-4. Remover botão "Regras Antigas" e coluna "Custo Unit." da tela de materiais
+Implementar um sistema completo de preenchimento de vagas na aba Espaco, permitindo selecionar vendas existentes, configurar datas de entrada/saida, adicionar fotos de checklist, e visualizar detalhes da vaga preenchida.
 
 ---
 
-## Mudanças Detalhadas
+## Componentes a Criar
 
-### 1. ProductTypesTab.tsx - Criar Material Automaticamente
+### 1. FillSlotModal.tsx (Modal Principal de Preenchimento)
 
-Quando um novo tipo de produto for criado, o sistema também criará automaticamente um registro na tabela `materials` vinculado a esse produto.
+Modal completo baseado no print fornecido, com as seguintes secoes:
 
-**Alteração na mutation `createMutation`:**
+**Campos do Modal:**
+- Nome da vaga (opcional)
+- Cliente (Select ou botao "+ Criar novo cliente")
+- Veiculo do cliente (card com info do veiculo selecionado)
+- Servicos da venda (exibe servicos vinculados)
+- Data e Hora de entrada (obrigatorio)
+- Data e Hora de saida (opcional - previsao)
+- Fotos de checklist (upload ate 20 fotos)
+- Campos opcionais (Desconto, Observacoes, Tag, Produtos)
+- Resumo da vaga (calculo automatico)
 
-```typescript
-// Após inserir o product_type, criar material automaticamente
-const { data: result, error } = await supabase
-  .from("product_types")
-  .insert({ ... })
-  .select()
-  .single();
-
-// Criar material vinculado
-await supabase.from("materials").insert({
-  name: `${data.brand} ${data.name}${data.model ? ` - ${data.model}` : ''}`,
-  type: data.category,
-  brand: data.brand,
-  unit: "Metros",
-  minimum_stock: 0,
-  current_stock: 0,
-  average_cost: data.cost_per_meter,
-  company_id: companyId,
-  product_type_id: result.id,
-  is_active: true,
-});
+**Layout do Modal:**
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  Preencher vaga                                             [X]  │
+│  Informe os dados para preencher a vaga                          │
+├──────────────────────────────────────────────────────────────────┤
+│  Nome da vaga (opcional)                                         │
+│  [__________________________________]                            │
+│                                                                  │
+│  Cliente * [+ Criar novo cliente]                                │
+│  [Select: hugo Avila                               ▼]    [🔄]   │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ 🚗 Marca: ALFA ROMEO  Placa: 3849207        [✏️] [🗑️]    │  │
+│  │    Modelo: 23938       Ano: 2020                          │  │
+│  │    ─────────────────────────────────────────────────────   │  │
+│  │    Higienizacao                               R$ 51,55    │  │
+│  │    Total em servicos                          R$ 51,55    │  │
+│  │    ─────────────────────────────────────────────────────   │  │
+│  │    1 servico adicionado R$ 51,55                          │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌──────────────────┐  ┌──────────────────┐                     │
+│  │ Dia da entrada * │  │ Hora da entrada *│                     │
+│  │ [02/02/2026   ▼] │  │ [--:--       ▼] │                     │
+│  └──────────────────┘  └──────────────────┘                     │
+│                                                                  │
+│  ┌──────────────────┐  ┌──────────────────┐                     │
+│  │ Dia da saida     │  │ Hora saida *     │                     │
+│  │ [Selecionar   ▼] │  │ [--:--       ▼] │                     │
+│  └──────────────────┘  └──────────────────┘                     │
+│                                                                  │
+│  Fotos de checklist                                              │
+│  Abaixo estao as fotos dessa vaga                                │
+│  [+ Carregar nova foto 0/20]                                     │
+│                                                                  │
+│  Campos opcionais                                                │
+│  [Desconto] [+ Observacoes] [+ Tag] [+ Produtos]                │
+│                                                                  │
+│  Resumo da vaga                                                  │
+│  ○ Vaga com 1 servico                                           │
+│  $ Sub-total ficou em R$ 51,55                                  │
+│  ○ Desconto de R$ 1,00                                          │
+│  $ Total ficou em R$ 50,55                                      │
+│  📅 Entrada em 02/02/2026                                       │
+│  📷 Nenhuma foto adicionada                                     │
+│  ⚠️ O valor pendente para fechar a venda e de R$ 50,55         │
+│                                                                  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │           Adicionar vaga                           ✓      │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 2. NewMaterialModal.tsx - Usar Select com Produtos Cadastrados
+### 2. SlotDetailsDrawer.tsx (Drawer de Detalhes da Vaga)
 
-**Antes:**
-- Campo "Nome do Material" era um Input de texto livre
-- Campos: Tipo, Marca, Custo Unitário
+Drawer para exibir detalhes quando clicar em uma vaga preenchida:
 
-**Depois:**
-- Campo "Tipo de Produto" será um Select com lista de produtos da tabela `product_types`
-- Remover campos: Tipo, Marca, Custo Unitário
-- A aba será exclusivamente para contagem de estoque
+**Secoes do Drawer:**
+- Header com nome da vaga e botao concluir
+- Info do cliente (telefone, data nascimento)
+- Card do veiculo com servicos
+- Resumo da vaga (datas, valores, venda vinculada)
+- Comprovantes em PDF (3 formatos)
+- Mais opcoes (mensagens, exportar, ver cliente)
+- Botoes de acao (Editar, Excluir)
 
-**Novo layout do modal:**
+**Layout:**
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  🚗 Vaga de hugo Avila                                      [X]  │
+├──────────────────────────────────────────────────────────────────┤
+│  [Toggle: Concluir vaga e liberar espaco                    ○]   │
+│                                                                  │
+│  📞 +55 (17) 99257-3141                                         │
+│  👤 Cliente nasceu em 17/02/2016                                │
+│                                                                  │
+│  Servicos dessa vaga                                             │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ 🚗 ALFA ROMEO  Placa: 3849207                              │  │
+│  │    Modelo: 23938    Ano: 2020                              │  │
+│  │    Higienizacao                               R$ 51,55     │  │
+│  │    Total em servicos                          R$ 51,55     │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  Resumo da vaga                                                  │
+│  📅 Entrada em 02/02/2026 as 04:05h                             │
+│  🕐 Saida prevista para 03/02/2026 as 15:15h                    │
+│  ○ Vaga com 1 servico                                           │
+│  ⚠️ Vaga sem servicos adicionados                               │
+│  $ Sub-total ficou em R$ 51,55                                  │
+│  ○ Desconto de R$ 1,00                                          │
+│  $ Total ficou em R$ 50,55                                      │
+│  🔗 Vinculado a venda Nº 3                                      │
+│                                                                  │
+│  Comprovantes em PDF                                             │
+│  [🔴 Baixar PDF em formato A4                              ]    │
+│  [🔴 Baixar PDF em formato Notinha                         ]    │
+│  [🔴 Baixar PDF em formato Notinha Mini                    ]    │
+│                                                                  │
+│  Mais opcoes                                                     │
+│  [🟢 Enviar mensagem de entrada                            ]    │
+│  [🟡 Enviar mensagem de saida                              ]    │
+│  [🔵 Exportar para agenda                                  ]    │
+│  [🟣 Exportar para orcamento                               ]    │
+│  [🔵 Ver cliente da vaga                                   ]    │
+│                                                                  │
+│  ┌──────────────┐  ┌──────┐  ┌──────┐                           │
+│  │   Editar     │  │  ✏️  │  │  🗑️  │                           │
+│  └──────────────┘  └──────┘  └──────┘                           │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Alteracoes em Arquivos Existentes
+
+### 1. Espaco.tsx
+
+**Adicoes:**
+- Botao "+ Preencher Vaga" no header da pagina
+- Novo estado para controlar drawer de detalhes
+- Query para buscar vagas do Supabase (tabela `spaces`)
+- Substituir dados mock por dados reais
+
+**Refatoracao do calendario:**
+- Exibir vagas por data de entrada
+- Badge de cores por status (ocupada, finalizada)
+
+---
+
+### 2. SlotCard.tsx
+
+**Alteracoes:**
+- Usar dados da tabela `spaces` em vez de mock
+- Ao clicar no card ocupado, abrir SlotDetailsDrawer
+- Mostrar informacoes do cliente e veiculo
+- Exibir timer desde entrada
+
+---
+
+### 3. NewSlotModal.tsx
+
+**Renomear para FillSlotModal.tsx e refatorar:**
+- Interface completa baseada no print
+- Select de cliente com busca
+- Carregamento de vendas em aberto do cliente
+- Card de veiculo com servicos
+- Campos de data/hora
+- Upload de fotos
+- Campos opcionais toggleaveis
+- Resumo dinamico
+- Salvar na tabela `spaces`
+
+---
+
+## Fluxo de Dados
 
 ```text
-┌──────────────────────────────────────────────┐
-│             Novo Material                     │
-├──────────────────────────────────────────────┤
-│  Tipo de Produto *                           │
-│  [Select com lista de product_types]         │
-│    - 3M G70 - Crystalline (INSULFILM)        │
-│    - UltraBlack G5 - Premium (INSULFILM)     │
-│    - XPEL Ultimate (PPF)                     │
-│                                              │
-│  Unidade *                                   │
-│  [Metros ▼]                                  │
-│                                              │
-│  ┌───────────────┬───────────────┐          │
-│  │ Estoque       │ Estoque       │          │
-│  │ Inicial       │ Mínimo        │          │
-│  │ [0]           │ [0]           │          │
-│  └───────────────┴───────────────┘          │
-│                                              │
-│  [Cancelar]              [Cadastrar]         │
-└──────────────────────────────────────────────┘
+1. Usuario clica em "+ Preencher Vaga" ou em vaga disponivel
+                        │
+                        ▼
+2. Abre FillSlotModal
+   - Busca clientes da empresa
+   - Ao selecionar cliente, busca vendas em aberto
+   - Ao selecionar venda, carrega veiculo e servicos
+                        │
+                        ▼
+3. Usuario preenche dados e clica "Adicionar vaga"
+   - Valida campos obrigatorios
+   - INSERT na tabela `spaces`
+   - Atualiza lista de vagas
+                        │
+                        ▼
+4. Vaga aparece no calendario e grid de vagas
+   - Card mostra info do cliente/veiculo
+   - Timer conta desde entrada
+                        │
+                        ▼
+5. Usuario clica na vaga ocupada
+   - Abre SlotDetailsDrawer
+   - Mostra todos os detalhes
+   - Opcoes de acao
+                        │
+                        ▼
+6. Usuario marca "Concluir vaga"
+   - UPDATE em spaces (has_exited = true)
+   - Se pago, aparece em "Veiculos Pagos (Saida)"
 ```
 
-**Campos removidos:**
-- Tipo (Select PPF/Insulfilm/etc)
-- Marca (Input)
-- Custo Unitário (Input)
+---
 
-**Comportamento:**
-- Ao selecionar um produto, o nome do material será preenchido automaticamente com "Marca Nome - Modelo"
-- O `product_type_id` será vinculado ao material
+## Estrutura de Arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| `src/pages/Espaco.tsx` | Refatorar (usar Supabase, adicionar botao) |
+| `src/components/espaco/FillSlotModal.tsx` | Criar (substituir NewSlotModal) |
+| `src/components/espaco/SlotDetailsDrawer.tsx` | Criar |
+| `src/components/espaco/SlotCard.tsx` | Atualizar (dados do Supabase) |
+| `src/components/espaco/NewSlotModal.tsx` | Remover (substituido) |
 
 ---
 
-### 3. Estoque.tsx - Remover Elementos da Aba Materiais
+## Queries Supabase
 
-**Remover:**
-- Botão "Regras Antigas" (linha 187-189)
-- Coluna "Custo Unit." da tabela (TableHead linha 292 e TableCell linhas 326-328)
+**Buscar vagas da empresa:**
+```typescript
+const { data: spaces } = await supabase
+  .from('spaces')
+  .select(`
+    *,
+    client:clients(id, name, phone, birth_date),
+    vehicle:vehicles(id, brand, model, plate, year, size),
+    sale:sales(
+      id, total, subtotal, discount, payment_method,
+      items:service_items_detailed(
+        *,
+        product_type:product_types(brand, name),
+        region:vehicle_regions(name)
+      )
+    )
+  `)
+  .eq('company_id', companyId)
+  .eq('has_exited', false)
+  .order('entry_date', { ascending: false });
+```
 
-**Manter:**
-- Todas as outras funcionalidades de entrada/saída de estoque
-- Valor Total (calculado como estoque x custo médio do produto vinculado)
+**Buscar vendas em aberto do cliente:**
+```typescript
+const { data: sales } = await supabase
+  .from('sales')
+  .select(`
+    *,
+    vehicle:vehicles(*),
+    items:service_items_detailed(
+      *,
+      product_type:product_types(brand, name, model),
+      region:vehicle_regions(name)
+    )
+  `)
+  .eq('client_id', clientId)
+  .eq('company_id', companyId)
+  .eq('is_open', true);
+```
 
 ---
 
-## Arquivos a Modificar
+## Detalhes Tecnicos
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/estoque/ProductTypesTab.tsx` | Adicionar criação automática de material ao criar produto |
-| `src/components/estoque/NewMaterialModal.tsx` | Substituir campo nome por Select de produtos, remover campos tipo/marca/custo |
-| `src/pages/Estoque.tsx` | Remover botão "Regras Antigas" e coluna "Custo Unit." |
-
----
-
-## Fluxo Após Alterações
-
-1. **Usuário cadastra Tipo de Produto** (ex: 3M G70 Crystalline)
-   - Sistema cria registro em `product_types`
-   - Sistema cria automaticamente registro em `materials` vinculado
-
-2. **Usuário adiciona material manualmente** (se necessário)
-   - Abre modal "Novo Material"
-   - Seleciona produto da lista (3M G70, UltraBlack G5, etc)
-   - Define estoque inicial e mínimo
-   - Sistema cria material vinculado ao produto
-
-3. **Baixa de estoque na venda**
-   - Sistema identifica material pelo `product_type_id`
-   - Deduz metros do `current_stock`
-   - Registra movimento em `stock_movements`
-
----
-
-## Detalhes Técnicos da Implementação
-
-### Query para listar produtos no Select:
+### FillSlotModal - Estados:
 
 ```typescript
-const { data: productTypes } = useQuery({
-  queryKey: ['product-types-for-select', companyId],
-  queryFn: async () => {
-    const { data } = await supabase
-      .from('product_types')
-      .select('*')
-      .eq('company_id', companyId)
-      .eq('is_active', true)
-      .order('category')
-      .order('brand')
-      .order('name');
-    return data;
-  }
-});
+const [slotName, setSlotName] = useState("");
+const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+const [selectedSaleId, setSelectedSaleId] = useState<number | null>(null);
+const [entryDate, setEntryDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+const [entryTime, setEntryTime] = useState(format(new Date(), 'HH:mm'));
+const [exitDate, setExitDate] = useState("");
+const [exitTime, setExitTime] = useState("");
+const [photos, setPhotos] = useState<string[]>([]);
+const [discount, setDiscount] = useState(0);
+const [observations, setObservations] = useState("");
+const [tag, setTag] = useState("");
+const [showDiscount, setShowDiscount] = useState(false);
+const [showObservations, setShowObservations] = useState(false);
+const [showTag, setShowTag] = useState(false);
 ```
 
-### Estrutura do Select agrupado:
+### SlotDetailsDrawer - Funcionalidades:
 
-```tsx
-<Select value={selectedProductTypeId} onValueChange={setSelectedProductTypeId}>
-  <SelectTrigger>
-    <SelectValue placeholder="Selecione um produto..." />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectGroup>
-      <SelectLabel>INSULFILM</SelectLabel>
-      {productTypes?.filter(p => p.category === 'INSULFILM').map(p => (
-        <SelectItem key={p.id} value={p.id.toString()}>
-          {p.brand} {p.name} {p.model && `- ${p.model}`}
-        </SelectItem>
-      ))}
-    </SelectGroup>
-    <SelectSeparator />
-    <SelectGroup>
-      <SelectLabel>PPF</SelectLabel>
-      {productTypes?.filter(p => p.category === 'PPF').map(p => (
-        <SelectItem key={p.id} value={p.id.toString()}>
-          {p.brand} {p.name} {p.model && `- ${p.model}`}
-        </SelectItem>
-      ))}
-    </SelectGroup>
-  </SelectContent>
-</Select>
+```typescript
+// Toggle para concluir vaga
+const handleCompleteSlot = async () => {
+  await supabase
+    .from('spaces')
+    .update({
+      has_exited: true,
+      exit_date: format(new Date(), 'yyyy-MM-dd'),
+      exit_time: format(new Date(), 'HH:mm'),
+    })
+    .eq('id', space.id);
+};
+
+// Marcar como pago
+const handleMarkAsPaid = async () => {
+  await supabase
+    .from('spaces')
+    .update({ payment_status: 'paid' })
+    .eq('id', space.id);
+};
 ```
 
 ---
 
-## Benefícios das Alterações
+## Resumo Visual do Calendario
 
-1. **Integração automática**: Não precisa cadastrar manualmente em duas abas
-2. **Consistência de dados**: Material sempre vinculado a um tipo de produto
-3. **Simplicidade**: Modal de material focado apenas em contagem de estoque
-4. **Rastreabilidade**: Fácil identificar qual produto está vinculado a cada material
+O calendario mostrara badges coloridos por dia:
+- **Amarelo**: Vagas em andamento
+- **Verde**: Vagas finalizadas/pagas
+- **Vermelho**: Vagas com pagamento pendente
+
+Ao clicar em um dia, abre o SlotsDayDrawer mostrando todas as vagas daquele dia.
+
+---
+
+## Ordem de Implementacao
+
+1. Criar `FillSlotModal.tsx` com interface completa
+2. Criar `SlotDetailsDrawer.tsx` para visualizar detalhes
+3. Refatorar `Espaco.tsx` para usar Supabase
+4. Atualizar `SlotCard.tsx` para dados reais
+5. Remover dependencias do mockData
+6. Testar fluxo completo
