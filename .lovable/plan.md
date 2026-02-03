@@ -1,49 +1,77 @@
 
 
-# Plano: Adicionar Gerenciamento de Categorias no Financeiro
+# Plano: Remover Pagina Servicos, Corrigir Erro de Estoque e Adicionar Botao Excluir
 
 ## Resumo
 
-Criar funcionalidade para gerenciar categorias financeiras isoladas por empresa, incluindo um modal para criar novas categorias e um botão de gerenciamento integrado ao modal de transacoes.
+Este plano aborda tres correcoes solicitadas:
+1. Remocao completa da pagina Servicos do sistema
+2. Correcao do erro ao registrar entrada/saida de estoque (problema de case-sensitivity)
+3. Adicao de botao de excluir em cada item de material na aba Gestao de Estoque
 
 ---
 
-## Problema Atual
+## 1. Causa do Erro no Estoque
 
-As categorias existentes no banco de dados tem `company_id = NULL`, tornando-as globais. Porem, as policies RLS filtram por `company_id = get_user_company_id(auth.uid())`, o que significa que:
+### Problema Identificado
 
-1. Empresas nao conseguem ver as categorias globais (NULL nao passa no filtro)
-2. Empresas nao podem criar suas proprias categorias (sem modal)
-3. O dropdown de categorias pode aparecer vazio
+O banco de dados possui um **CHECK constraint** na tabela `stock_movements` que aceita apenas os valores exatos:
+- `'Entrada'` (com E maiusculo)
+- `'Saida'` (com S maiusculo)
 
----
+Porem, o codigo nos modais `StockEntryModal.tsx` e `StockExitModal.tsx` esta enviando:
+- `'entrada'` (minusculo) - INCORRETO
+- `'saida'` (minusculo) - INCORRETO
 
-## Solucao Proposta
+### Erro no Log do Banco
+```
+new row for relation "stock_movements" violates check constraint "stock_movements_movement_type_check"
+```
 
-### 1. Criar Modal de Gerenciamento de Categorias
+### Solucao
 
-Novo componente `ManageCategoriesModal.tsx` que permite:
-- Listar categorias da empresa
-- Criar novas categorias (entrada ou saida)
-- Editar categorias existentes
-- Excluir categorias (com validacao se nao tem transacoes)
-
-### 2. Integrar Botao no Modal de Transacao
-
-No `AddTransactionModal.tsx`, adicionar um botao de "+" ao lado do select de categoria que abre o modal de criar categoria rapidamente.
-
-### 3. Adicionar Menu de Categorias no Financeiro
-
-No dropdown "Adicionar" da pagina Financeiro, incluir opcao para gerenciar categorias.
+Corrigir os valores enviados para `'Entrada'` e `'Saida'` com a primeira letra maiuscula.
 
 ---
 
-## Arquivos a Criar
+## 2. Remocao da Pagina Servicos
 
-| Arquivo | Descricao |
-|---------|-----------|
-| `src/components/financeiro/ManageCategoriesModal.tsx` | Modal principal de gerenciamento |
-| `src/components/financeiro/NewCategoryModal.tsx` | Modal simplificado para criar categoria rapida |
+### Arquivos a Modificar
+
+| Arquivo | Acao |
+|---------|------|
+| `src/App.tsx` | Remover import e rota `/servicos` |
+| `src/components/layout/Sidebar.tsx` | Remover item "Servicos" da navegacao |
+
+### Arquivo a Deletar
+
+| Arquivo | Motivo |
+|---------|--------|
+| `src/pages/Servicos.tsx` | Funcionalidade agora esta no modulo Estoque |
+
+---
+
+## 3. Botao Excluir nos Cards de Material
+
+### Funcionalidade
+
+Adicionar um botao de "Excluir" (icone lixeira) em cada linha da tabela de materiais, ao lado dos botoes de Entrada e Saida.
+
+### Comportamento
+
+1. Ao clicar, exibe confirmacao (AlertDialog)
+2. Verifica se existem movimentacoes de estoque para o material
+3. Se existirem movimentacoes: Faz soft delete (is_active = false)
+4. Se nao existirem: Pode fazer hard delete
+5. Atualiza a lista apos exclusao
+
+### Estrutura na Tabela
+
+```text
+| Material | Tipo | Estoque | Min | Status | Valor | Acoes        |
+|----------|------|---------|-----|--------|-------|--------------|
+| PPF 3M   | PPF  | 50m     | 10  | OK     | R$500 | [↓] [↑] [🗑] |
+```
 
 ---
 
@@ -51,177 +79,131 @@ No dropdown "Adicionar" da pagina Financeiro, incluir opcao para gerenciar categ
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/Financeiro.tsx` | Adicionar item "Gerenciar Categorias" no dropdown |
-| `src/components/financeiro/AddTransactionModal.tsx` | Adicionar botao "+" ao lado do select de categoria |
-
----
-
-## Estrutura do ManageCategoriesModal
-
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│  Gerenciar Categorias                                    [X]     │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  [+ Nova Categoria]                                              │
-│                                                                  │
-│  Entradas                                                        │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │ ● Vendas                              [Editar] [Excluir]  │  │
-│  │ ● Servicos                            [Editar] [Excluir]  │  │
-│  │ ● Comissoes                           [Editar] [Excluir]  │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  Saidas                                                          │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │ ● Custos Fixos                        [Editar] [Excluir]  │  │
-│  │ ● Fornecedores                        [Editar] [Excluir]  │  │
-│  │ ● Marketing                           [Editar] [Excluir]  │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Estrutura do NewCategoryModal
-
-Modal simplificado para criar categoria rapidamente:
-
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│  Nova Categoria                                          [X]     │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  Nome *                                                          │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │ Ex: Vendas Online                                         │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  Tipo *                                                          │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │ [●] Entrada    [○] Saida                                  │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  Cor (opcional)                                                  │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │ [🟢] [🔵] [🟡] [🔴] [🟣] [⚫]                              │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  [Cancelar]                             [Criar Categoria]        │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Integracao no AddTransactionModal
-
-Adicionar botao "+" ao lado do select de categorias:
-
-```text
-Categoria *
-┌────────────────────────────────────┐  ┌───┐
-│ Selecione...                    ▼  │  │ + │
-└────────────────────────────────────┘  └───┘
-```
-
-Ao clicar no "+":
-1. Abre `NewCategoryModal` com o tipo ja pre-selecionado (entrada/saida)
-2. Apos criar, atualiza a lista de categorias e seleciona a nova
+| `src/App.tsx` | Remover rota e import de Servicos |
+| `src/components/layout/Sidebar.tsx` | Remover item de menu Servicos |
+| `src/components/estoque/StockEntryModal.tsx` | Corrigir `movement_type: "Entrada"` |
+| `src/components/estoque/StockExitModal.tsx` | Corrigir `movement_type: "Saida"` |
+| `src/pages/Estoque.tsx` | Adicionar botao excluir e funcao de exclusao |
 
 ---
 
 ## Detalhes Tecnicos
 
-### Query para listar categorias da empresa
+### Correcao no StockEntryModal.tsx (linha 59)
+
 ```typescript
-const { data } = await supabase
-  .from('categories')
-  .select('*')
-  .eq('company_id', companyId)
-  .order('name');
+// ANTES (incorreto)
+movement_type: "entrada",
+
+// DEPOIS (correto)
+movement_type: "Entrada",
 ```
 
-### Insert de nova categoria
+### Correcao no StockExitModal.tsx (linha 80)
+
 ```typescript
-await supabase.from('categories').insert({
-  name: categoryName,
-  type: categoryType, // 'entrada' ou 'saida'
-  color: selectedColor,
-  company_id: companyId
-});
+// ANTES (incorreto)
+movement_type: "saida",
+
+// DEPOIS (correto)
+movement_type: "Saida",
 ```
 
-### Validacao antes de excluir
-```typescript
-// Verificar se existem transacoes usando esta categoria
-const { count } = await supabase
-  .from('transactions')
-  .select('*', { count: 'exact', head: true })
-  .eq('category_id', categoryId);
+### Funcao de Exclusao no Estoque.tsx
 
-if (count > 0) {
-  toast.error(`Esta categoria possui ${count} transacao(oes). Nao pode ser excluida.`);
-  return;
-}
+```typescript
+const handleDelete = async (material: Material) => {
+  if (!confirm(`Tem certeza que deseja excluir "${material.name}"?`)) return;
+  
+  try {
+    // Verifica se existem movimentacoes
+    const { count } = await supabase
+      .from("stock_movements")
+      .select("*", { count: "exact", head: true })
+      .eq("material_id", material.id);
+    
+    if (count && count > 0) {
+      // Soft delete - apenas desativa
+      await supabase
+        .from("materials")
+        .update({ is_active: false })
+        .eq("id", material.id);
+    } else {
+      // Hard delete - remove completamente
+      await supabase
+        .from("materials")
+        .delete()
+        .eq("id", material.id);
+    }
+    
+    toast.success("Material excluído com sucesso");
+    fetchMaterials();
+  } catch (error) {
+    toast.error("Erro ao excluir material");
+  }
+};
 ```
 
----
-
-## Alteracoes no Financeiro.tsx
-
-Adicionar no dropdown de acoes:
+### Botao na Tabela
 
 ```tsx
-<DropdownMenuItem onClick={() => setCategoryModalOpen(true)}>
-  <Tag className="h-4 w-4 mr-2" /> Gerenciar Categorias
-</DropdownMenuItem>
+<Button 
+  variant="ghost" 
+  size="icon" 
+  onClick={() => handleDelete(material)} 
+  title="Excluir"
+  className="text-muted-foreground hover:text-destructive"
+>
+  <Trash2 className="h-4 w-4" />
+</Button>
 ```
 
 ---
 
-## Isolamento por Empresa (Seguranca)
+## Fluxo Visual da Exclusao
 
-As policies RLS ja garantem o isolamento:
-
-```sql
--- Usuarios so veem categorias da sua empresa
-CREATE POLICY "Users can view categories in their company"
-ON public.categories FOR SELECT TO authenticated
-USING (company_id = get_user_company_id(auth.uid()));
-
--- Apenas admins podem gerenciar
-CREATE POLICY "Admin can manage categories in their company"
-ON public.categories FOR ALL TO authenticated
-USING (
-  company_id = get_user_company_id(auth.uid()) 
-  AND has_role(auth.uid(), 'ADMIN'::app_role)
-);
+```text
+Usuario clica em [🗑]
+        │
+        ▼
+┌─────────────────────────┐
+│ Confirma exclusao?      │
+│ [Cancelar] [Confirmar]  │
+└─────────────────────────┘
+        │
+        ▼
+   Tem movimentacoes?
+        │
+    ┌───┴───┐
+    Sim     Nao
+    │       │
+    ▼       ▼
+ Soft    Hard
+ Delete  Delete
+    │       │
+    └───┬───┘
+        ▼
+   Lista atualizada
 ```
-
-Cada categoria tera `company_id` preenchido, garantindo que:
-- Empresa A ve apenas suas categorias
-- Empresa B ve apenas suas categorias
-- Nenhuma informacao e compartilhada entre empresas
 
 ---
 
 ## Ordem de Implementacao
 
-1. Criar `NewCategoryModal.tsx` (modal simplificado)
-2. Criar `ManageCategoriesModal.tsx` (modal completo de gerenciamento)
-3. Modificar `AddTransactionModal.tsx` (adicionar botao "+")
-4. Modificar `Financeiro.tsx` (adicionar menu de gerenciamento)
-5. Testar criacao e listagem de categorias
+1. Corrigir `StockEntryModal.tsx` - movement_type para "Entrada"
+2. Corrigir `StockExitModal.tsx` - movement_type para "Saida"
+3. Adicionar botao excluir e funcao em `Estoque.tsx`
+4. Remover import e rota de Servicos em `App.tsx`
+5. Remover item Servicos do menu em `Sidebar.tsx`
+6. Deletar arquivo `src/pages/Servicos.tsx`
 
 ---
 
 ## Resultado Final
 
 Apos implementacao:
-- Empresas podem criar suas proprias categorias
-- Categorias sao 100% isoladas por empresa (via `company_id`)
-- Usuarios podem criar categorias rapidamente ao registrar transacoes
-- Administradores podem gerenciar todas as categorias da empresa
+- Entrada e saida de estoque funcionarao corretamente
+- Cada material tera botao de exclusao com confirmacao
+- A pagina Servicos sera removida do sistema
+- A navegacao ficara mais limpa e consistente
 
