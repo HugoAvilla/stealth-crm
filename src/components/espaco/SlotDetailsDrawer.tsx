@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { UnpaidExitAlertDialog } from "./UnpaidExitAlertDialog";
 
 interface SpaceDetails {
   id: number;
@@ -70,8 +71,10 @@ interface SlotDetailsDrawerProps {
 export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotDetailsDrawerProps) {
   const queryClient = useQueryClient();
   const [isCompleting, setIsCompleting] = useState(false);
+  const [showUnpaidAlert, setShowUnpaidAlert] = useState(false);
+  const [isReleasing, setIsReleasing] = useState(false);
 
-  // Complete slot mutation
+  // Complete slot mutation (for paid vehicles or reopening)
   const completeMutation = useMutation({
     mutationFn: async (completed: boolean) => {
       if (!space) return;
@@ -90,6 +93,16 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
         .eq('id', space.id);
 
       if (error) throw error;
+
+      // If completing with payment already confirmed, close the sale
+      if (completed && space.payment_status === 'paid' && space.sale_id) {
+        const { error: saleError } = await supabase
+          .from('sales')
+          .update({ is_open: false, status: 'Fechada' })
+          .eq('id', space.sale_id);
+        
+        if (saleError) throw saleError;
+      }
     },
     onSuccess: () => {
       toast.success(isCompleting ? "Vaga liberada!" : "Vaga reaberta!");
@@ -167,8 +180,88 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   const serviceCount = space.sale?.sale_items?.length || 0;
 
   const handleCompleteToggle = (checked: boolean) => {
-    setIsCompleting(checked);
-    completeMutation.mutate(checked);
+    if (checked && space.payment_status !== 'paid') {
+      // Show unpaid alert dialog
+      setShowUnpaidAlert(true);
+    } else {
+      // Release normally (paid or reopening)
+      setIsCompleting(checked);
+      completeMutation.mutate(checked);
+    }
+  };
+
+  const handleReleaseWithPayment = async () => {
+    if (!space) return;
+    setIsReleasing(true);
+    
+    try {
+      // Update space with paid status and exit info
+      const { error: spaceError } = await supabase
+        .from('spaces')
+        .update({
+          has_exited: true,
+          payment_status: 'paid',
+          exit_date: format(new Date(), 'yyyy-MM-dd'),
+          exit_time: format(new Date(), 'HH:mm'),
+        })
+        .eq('id', space.id);
+
+      if (spaceError) throw spaceError;
+
+      // Close the linked sale
+      if (space.sale_id) {
+        const { error: saleError } = await supabase
+          .from('sales')
+          .update({ is_open: false, status: 'Fechada' })
+          .eq('id', space.sale_id);
+
+        if (saleError) throw saleError;
+      }
+
+      toast.success("Pagamento confirmado e vaga liberada!");
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      setShowUnpaidAlert(false);
+      onOpenChange(false);
+      onUpdate?.();
+    } catch (error) {
+      console.error("Erro ao liberar com pagamento:", error);
+      toast.error("Erro ao processar liberação");
+    } finally {
+      setIsReleasing(false);
+    }
+  };
+
+  const handleReleaseWithoutPayment = async () => {
+    if (!space) return;
+    setIsReleasing(true);
+    
+    try {
+      // Update space with pending status and exit info
+      const { error: spaceError } = await supabase
+        .from('spaces')
+        .update({
+          has_exited: true,
+          payment_status: 'pending',
+          exit_date: format(new Date(), 'yyyy-MM-dd'),
+          exit_time: format(new Date(), 'HH:mm'),
+        })
+        .eq('id', space.id);
+
+      if (spaceError) throw spaceError;
+
+      // Keep sale open - don't update it
+
+      toast.warning("Vaga liberada sem pagamento. Veículo movido para aba 'Não Pagos'.");
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      setShowUnpaidAlert(false);
+      onOpenChange(false);
+      onUpdate?.();
+    } catch (error) {
+      console.error("Erro ao liberar sem pagamento:", error);
+      toast.error("Erro ao processar liberação");
+    } finally {
+      setIsReleasing(false);
+    }
   };
 
   return (
@@ -413,6 +506,16 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
             </Button>
           </div>
         </div>
+
+        {/* Alert Dialog for Unpaid Exit */}
+        <UnpaidExitAlertDialog
+          open={showUnpaidAlert}
+          onOpenChange={setShowUnpaidAlert}
+          space={space}
+          onReleaseWithPayment={handleReleaseWithPayment}
+          onReleaseWithoutPayment={handleReleaseWithoutPayment}
+          isLoading={isReleasing}
+        />
       </SheetContent>
     </Sheet>
   );
