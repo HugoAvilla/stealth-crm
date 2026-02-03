@@ -71,27 +71,10 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   const queryClient = useQueryClient();
   const [isCompleting, setIsCompleting] = useState(false);
 
-  if (!space) return null;
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "-";
-    return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
-  };
-
-  const formatBirthDate = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
-  };
-
-  // Calculate totals
-  const subtotal = space.sale?.subtotal || 0;
-  const discount = space.discount || space.sale?.discount || 0;
-  const total = subtotal - discount;
-  const serviceCount = space.sale?.sale_items?.length || 0;
-
   // Complete slot mutation
   const completeMutation = useMutation({
     mutationFn: async (completed: boolean) => {
+      if (!space) return;
       const updateData: any = {
         has_exited: completed,
       };
@@ -122,6 +105,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   // Mark as paid mutation
   const paymentMutation = useMutation({
     mutationFn: async () => {
+      if (!space) return;
       const { error } = await supabase
         .from('spaces')
         .update({ payment_status: 'paid' })
@@ -143,6 +127,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   // Delete slot mutation
   const deleteMutation = useMutation({
     mutationFn: async () => {
+      if (!space) return;
       const { error } = await supabase
         .from('spaces')
         .delete()
@@ -161,6 +146,25 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
       toast.error("Erro ao excluir vaga");
     },
   });
+
+  // Early return AFTER all hooks
+  if (!space) return null;
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "-";
+    return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+  };
+
+  const formatBirthDate = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+  };
+
+  // Calculate totals
+  const subtotal = space.sale?.subtotal || 0;
+  const discount = space.discount || space.sale?.discount || 0;
+  const total = subtotal - discount;
+  const serviceCount = space.sale?.sale_items?.length || 0;
 
   const handleCompleteToggle = (checked: boolean) => {
     setIsCompleting(checked);
