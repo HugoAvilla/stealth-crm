@@ -305,10 +305,12 @@ export default function Financeiro() {
         open={transactionModalOpen}
         onOpenChange={setTransactionModalOpen}
         type={transactionType}
+        onSuccess={fetchData}
       />
       <AddTransferModal
         open={transferModalOpen}
         onOpenChange={setTransferModalOpen}
+        onSuccess={fetchData}
       />
       <AddAccountModal
         open={accountModalOpen}

@@ -5,8 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, X, Clock, Users, UserPlus, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Check, X, Clock, Users, UserPlus, AlertCircle, AlertTriangle, UserMinus } from 'lucide-react';
 import { RejectRequestModal } from '@/components/team/RejectRequestModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -14,6 +24,7 @@ interface JoinRequest {
   id: number;
   requester_name: string;
   requester_email: string;
+  requester_user_id: string;
   requested_role: string;
   status: string;
   created_at: string;
@@ -36,6 +47,9 @@ export default function TeamRequests() {
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<JoinRequest | null>(null);
+  const [unlinkModalOpen, setUnlinkModalOpen] = useState(false);
+  const [memberToUnlink, setMemberToUnlink] = useState<JoinRequest | null>(null);
+  const [unlinkLoading, setUnlinkLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -155,6 +169,52 @@ export default function TeamRequests() {
   const openRejectModal = (request: JoinRequest) => {
     setSelectedRequest(request);
     setRejectModalOpen(true);
+  };
+
+  const openUnlinkModal = (request: JoinRequest) => {
+    setMemberToUnlink(request);
+    setUnlinkModalOpen(true);
+  };
+
+  const handleUnlinkMember = async () => {
+    if (!memberToUnlink) return;
+
+    setUnlinkLoading(true);
+    try {
+      // Remove company_id from profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ company_id: null })
+        .eq('user_id', memberToUnlink.requester_user_id);
+
+      if (profileError) throw profileError;
+
+      // Set role to NENHUM
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .update({ role: 'NENHUM' })
+        .eq('user_id', memberToUnlink.requester_user_id);
+
+      if (roleError) throw roleError;
+
+      toast({
+        title: 'Membro desvinculado',
+        description: `${memberToUnlink.requester_name} foi removido da empresa.`,
+      });
+
+      setUnlinkModalOpen(false);
+      setMemberToUnlink(null);
+      fetchData();
+    } catch (error: any) {
+      console.error('Error unlinking member:', error);
+      toast({
+        title: 'Erro ao desvincular',
+        description: error.message || 'Tente novamente',
+        variant: 'destructive',
+      });
+    } finally {
+      setUnlinkLoading(false);
+    }
   };
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -314,6 +374,18 @@ export default function TeamRequests() {
                       }
                     </p>
                   </div>
+                  {/* Unlink button for approved members */}
+                  {request.status === 'approved' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => openUnlinkModal(request)}
+                    >
+                      <UserMinus className="h-4 w-4 mr-1" />
+                      Desvincular
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -331,6 +403,39 @@ export default function TeamRequests() {
         onConfirm={handleReject}
         requesterName={selectedRequest?.requester_name || ''}
       />
+
+      {/* Unlink Confirmation Dialog */}
+      <AlertDialog open={unlinkModalOpen} onOpenChange={setUnlinkModalOpen}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desvincular membro</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja desvincular <strong>{memberToUnlink?.requester_name}</strong> da empresa?
+              <br /><br />
+              O usuário perderá acesso ao sistema e precisará solicitar nova entrada.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border" disabled={unlinkLoading}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleUnlinkMember}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={unlinkLoading}
+            >
+              {unlinkLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Desvinculando...
+                </>
+              ) : (
+                'Desvincular'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

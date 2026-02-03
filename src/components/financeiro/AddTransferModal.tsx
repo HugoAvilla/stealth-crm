@@ -1,26 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowRight } from "lucide-react";
-import { accounts } from "@/lib/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+
+interface Account {
+  id: number;
+  name: string;
+}
 
 interface AddTransferModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export function AddTransferModal({ open, onOpenChange }: AddTransferModalProps) {
+export function AddTransferModal({ open, onOpenChange, onSuccess }: AddTransferModalProps) {
+  const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [fromAccountId, setFromAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [description, setDescription] = useState("");
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [companyId, setCompanyId] = useState<number | null>(null);
 
-  const handleSubmit = () => {
-    if (!amount || !fromAccountId || !toAccountId) {
+  useEffect(() => {
+    if (open) {
+      fetchAccounts();
+    }
+  }, [open, user?.id]);
+
+  const fetchAccounts = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.company_id) return;
+
+      setCompanyId(profile.company_id);
+
+      const { data: accountsData } = await supabase
+        .from("accounts")
+        .select("id, name")
+        .eq("company_id", profile.company_id)
+        .eq("is_active", true);
+
+      setAccounts(accountsData || []);
+    } catch (error) {
+      console.error("Error fetching accounts:", error);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!amount || !fromAccountId || !toAccountId || !companyId) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
@@ -30,9 +73,34 @@ export function AddTransferModal({ open, onOpenChange }: AddTransferModalProps) 
       return;
     }
 
-    toast.success("Transferência realizada com sucesso!");
-    onOpenChange(false);
-    resetForm();
+    setLoading(true);
+
+    try {
+      const amountValue = parseFloat(amount);
+      const today = new Date().toISOString().split('T')[0];
+
+      // Create transfer record
+      const { error } = await supabase.from("transfers").insert({
+        company_id: companyId,
+        from_account_id: parseInt(fromAccountId),
+        to_account_id: parseInt(toAccountId),
+        amount: amountValue,
+        description: description || null,
+        transfer_date: today,
+      });
+
+      if (error) throw error;
+
+      toast.success("Transferência realizada com sucesso!");
+      onOpenChange(false);
+      resetForm();
+      onSuccess?.();
+    } catch (error) {
+      console.error("Error creating transfer:", error);
+      toast.error("Erro ao realizar transferência");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -106,11 +174,11 @@ export function AddTransferModal({ open, onOpenChange }: AddTransferModalProps) 
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleSubmit}>
-              Transferir
+            <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleSubmit} disabled={loading}>
+              {loading ? "Transferindo..." : "Transferir"}
             </Button>
           </div>
         </div>
