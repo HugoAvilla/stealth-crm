@@ -26,10 +26,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import {
   DollarSign,
   CalendarIcon,
@@ -39,12 +39,14 @@ import {
   Percent,
   User,
   Car,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { consumeStockForSale, createTransactionFromSale } from "@/lib/stockConsumption";
+import { consumeStockForDetailedSale, createTransactionFromSale } from "@/lib/stockConsumption";
 import NewClientModal from "@/components/vendas/NewClientModal";
+import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import { toast } from "sonner";
 
 interface Client {
@@ -63,11 +65,29 @@ interface Vehicle {
   client_id: number | null;
 }
 
-interface Service {
+interface ProductType {
   id: number;
+  category: string;
+  brand: string;
   name: string;
-  base_price: number;
+  model: string | null;
+  light_transmission: string | null;
+  unit_price: number;
+}
+
+interface VehicleRegion {
+  id: number;
+  category: string;
+  name: string;
   description: string | null;
+}
+
+interface ConsumptionRule {
+  id: number;
+  category: string;
+  region_id: number;
+  vehicle_size: string;
+  meters_consumed: number;
 }
 
 interface NewSaleModalProps {
@@ -82,19 +102,21 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
   const [saleDate, setSaleDate] = useState<Date>(new Date());
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-  const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [discountValue, setDiscountValue] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Pix");
   const [isOpen, setIsOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [showNotes, setShowNotes] = useState(false);
-  const [showServices, setShowServices] = useState(false);
+  const [showDetailedServices, setShowDetailedServices] = useState(true);
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
+  const [vehicleRegions, setVehicleRegions] = useState<VehicleRegion[]>([]);
+  const [consumptionRules, setConsumptionRules] = useState<ConsumptionRule[]>([]);
+  const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
   const [companyId, setCompanyId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -121,13 +143,17 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
 
       setCompanyId(profile.company_id);
 
-      const [clientsRes, servicesRes] = await Promise.all([
+      const [clientsRes, productTypesRes, regionsRes, rulesRes] = await Promise.all([
         supabase.from('clients').select('id, name, phone, email').eq('company_id', profile.company_id).order('name'),
-        supabase.from('services').select('id, name, base_price, description').eq('company_id', profile.company_id).eq('is_active', true).order('name'),
+        supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
+        supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
+        supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
       ]);
 
       setClients(clientsRes.data || []);
-      setServices(servicesRes.data || []);
+      setProductTypes(productTypesRes.data || []);
+      setVehicleRegions(regionsRes.data || []);
+      setConsumptionRules(rulesRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -156,12 +182,34 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
     fetchVehicles();
   }, [selectedClientId, companyId]);
 
-  // Calculate totals
-  const subtotal = selectedServices.reduce((sum, serviceId) => {
-    const service = services.find((s) => s.id === serviceId);
-    return sum + (service?.base_price || 0);
-  }, 0);
+  // Get selected vehicle
+  const selectedVehicle = vehicles.find(v => v.id === parseInt(selectedVehicleId));
 
+  // Recalculate meters when vehicle changes
+  useEffect(() => {
+    if (selectedVehicle?.size && detailedItems.length > 0) {
+      const updatedItems = detailedItems.map(item => {
+        if (item.regionId) {
+          const rule = consumptionRules.find(
+            r => r.region_id === item.regionId && 
+                r.vehicle_size === selectedVehicle.size && 
+                r.category === item.category
+          );
+          const meters = rule?.meters_consumed || item.metersUsed;
+          return {
+            ...item,
+            metersUsed: meters,
+            totalPrice: meters * item.unitPrice,
+          };
+        }
+        return item;
+      });
+      setDetailedItems(updatedItems);
+    }
+  }, [selectedVehicleId, consumptionRules]);
+
+  // Calculate totals from detailed items
+  const subtotal = detailedItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const discount = discountValue ? parseFloat(discountValue) : 0;
   const total = subtotal - discount;
   const paid = isOpen ? 0 : total;
@@ -187,24 +235,52 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
     }
   };
 
-  const handleServiceToggle = (serviceId: number) => {
-    setSelectedServices((prev) =>
-      prev.includes(serviceId)
-        ? prev.filter((id) => id !== serviceId)
-        : [...prev, serviceId]
+  // Add new detailed service item
+  const handleAddDetailedItem = () => {
+    const newItem: DetailedServiceItem = {
+      id: crypto.randomUUID(),
+      category: 'INSULFILM' as ProductCategory,
+      regionId: null,
+      regionName: "",
+      productTypeId: null,
+      productTypeName: "",
+      metersUsed: 0,
+      unitPrice: 0,
+      totalPrice: 0,
+    };
+    setDetailedItems([...detailedItems, newItem]);
+  };
+
+  // Update detailed service item
+  const handleUpdateDetailedItem = (updatedItem: DetailedServiceItem) => {
+    setDetailedItems(prev =>
+      prev.map(item => item.id === updatedItem.id ? updatedItem : item)
     );
   };
 
+  // Remove detailed service item
+  const handleRemoveDetailedItem = (id: string) => {
+    setDetailedItems(prev => prev.filter(item => item.id !== id));
+  };
+
   const handleSubmit = async () => {
-    if (!selectedClientId || !selectedVehicleId || selectedServices.length === 0 || !companyId) {
+    if (!selectedClientId || !selectedVehicleId || detailedItems.length === 0 || !companyId) {
       toast.error("Preencha cliente, veículo e pelo menos um serviço.");
+      return;
+    }
+
+    // Validate all items have required fields
+    const invalidItems = detailedItems.filter(
+      item => !item.regionId || !item.productTypeId || item.metersUsed <= 0
+    );
+    if (invalidItems.length > 0) {
+      toast.error("Preencha todos os campos de cada serviço (região, produto e metros).");
       return;
     }
 
     setSaving(true);
     try {
       const selectedClient = clients.find(c => c.id === parseInt(selectedClientId));
-      const selectedVehicle = vehicles.find(v => v.id === parseInt(selectedVehicleId));
 
       // Create sale
       const { data: sale, error: saleError } = await supabase
@@ -228,30 +304,32 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
 
       if (saleError) throw saleError;
 
-      // Create sale items
-      const saleItems = selectedServices.map(serviceId => {
-        const service = services.find(s => s.id === serviceId);
-        return {
-          sale_id: sale.id,
-          service_id: serviceId,
-          unit_price: service?.base_price || 0,
-          quantity: 1,
-          total_price: service?.base_price || 0,
-          company_id: companyId,
-        };
-      });
+      // Create service_items_detailed
+      const serviceItemsData = detailedItems.map(item => ({
+        sale_id: sale.id,
+        category: item.category,
+        product_type_id: item.productTypeId!,
+        region_id: item.regionId!,
+        meters_used: item.metersUsed,
+        unit_price: item.unitPrice,
+        total_price: item.totalPrice,
+        company_id: companyId,
+      }));
 
       const { error: itemsError } = await supabase
-        .from('sale_items')
-        .insert(saleItems);
+        .from('service_items_detailed')
+        .insert(serviceItemsData);
 
       if (itemsError) throw itemsError;
 
-      // Consume stock based on vehicle size
+      // Consume stock based on detailed items
       if (selectedVehicle?.size) {
-        await consumeStockForSale(
+        await consumeStockForDetailedSale(
           sale.id,
-          parseInt(selectedVehicleId),
+          serviceItemsData,
+          selectedVehicle.brand,
+          selectedVehicle.model,
+          selectedVehicle.size,
           companyId,
           user?.id || ''
         );
@@ -274,7 +352,7 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
       // Reset form
       setSelectedClientId("");
       setSelectedVehicleId("");
-      setSelectedServices([]);
+      setDetailedItems([]);
       setDiscountValue("");
       setDiscountPercent("");
       setNotes("");
@@ -296,7 +374,7 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-destructive/20">
@@ -392,6 +470,11 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
                             <div className="flex items-center gap-2">
                               <Car className="h-4 w-4" />
                               {vehicle.brand} {vehicle.model} - {vehicle.plate}
+                              {vehicle.size && (
+                                <Badge variant="outline" className="ml-2">
+                                  {vehicle.size}
+                                </Badge>
+                              )}
                             </div>
                           </SelectItem>
                         ))}
@@ -400,6 +483,71 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
                   )}
                 </div>
               )}
+
+              {/* Detailed Services Section */}
+              {selectedVehicleId && (
+                <div className="space-y-3">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between"
+                    onClick={() => setShowDetailedServices(!showDetailedServices)}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Layers className="h-4 w-4" />
+                      Serviços Detalhados
+                      {detailedItems.length > 0 && (
+                        <Badge variant="secondary">{detailedItems.length}</Badge>
+                      )}
+                    </span>
+                    {showDetailedServices ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+
+                  {showDetailedServices && (
+                    <div className="space-y-3">
+                      {!selectedVehicle?.size && (
+                        <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg">
+                          ⚠️ Veículo sem tamanho (P/M/G) cadastrado. Os metros serão calculados manualmente.
+                        </p>
+                      )}
+
+                      {detailedItems.map((item) => (
+                        <ServiceItemRow
+                          key={item.id}
+                          item={item}
+                          vehicleSize={selectedVehicle?.size || null}
+                          productTypes={productTypes}
+                          vehicleRegions={vehicleRegions}
+                          consumptionRules={consumptionRules}
+                          onUpdate={handleUpdateDetailedItem}
+                          onRemove={handleRemoveDetailedItem}
+                        />
+                      ))}
+
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2 border-dashed"
+                        onClick={handleAddDetailedItem}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Adicionar Região / Serviço
+                      </Button>
+
+                      {detailedItems.length > 0 && (
+                        <div className="flex justify-end pt-2">
+                          <span className="text-sm text-muted-foreground">
+                            Subtotal serviços:{" "}
+                            <span className="font-semibold text-foreground">
+                              R$ {subtotal.toFixed(2)}
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <Separator />
 
               {/* Payment Method */}
               <div className="space-y-2">
@@ -481,60 +629,6 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
                 )}
               </div>
 
-              {/* Services */}
-              <div>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between"
-                  onClick={() => setShowServices(!showServices)}
-                >
-                  <span className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Serviços
-                    {selectedServices.length > 0 && (
-                      <Badge variant="secondary">{selectedServices.length}</Badge>
-                    )}
-                  </span>
-                  {showServices ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </Button>
-                {showServices && (
-                  <div className="mt-2 space-y-2 max-h-[200px] overflow-y-auto">
-                    {services.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">Nenhum serviço cadastrado</p>
-                    ) : (
-                      services.map((service) => (
-                        <div
-                          key={service.id}
-                          className={cn(
-                            "flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer",
-                            selectedServices.includes(service.id)
-                              ? "border-primary bg-primary/10"
-                              : "border-border hover:bg-muted/50"
-                          )}
-                          onClick={() => handleServiceToggle(service.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Checkbox
-                              checked={selectedServices.includes(service.id)}
-                              onCheckedChange={() => handleServiceToggle(service.id)}
-                            />
-                            <div>
-                              <p className="font-medium">{service.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {service.description}
-                              </p>
-                            </div>
-                          </div>
-                          <span className="font-semibold">
-                            R$ {service.base_price.toFixed(2)}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-
               {/* Live Summary */}
               <Card className="p-4 bg-muted/30">
                 <h4 className="font-medium mb-3">Resumo da venda</h4>
@@ -545,6 +639,13 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
                       Data da venda
                     </span>
                     <span>{format(saleDate, "dd/MM/yyyy")}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-info" />
+                      Serviços
+                    </span>
+                    <span>{detailedItems.length} item(s)</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground flex items-center gap-2">
