@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
+import { NewCategoryModal } from "./NewCategoryModal";
 interface Account {
   id: number;
   name: string;
@@ -40,6 +41,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
+  const [newCategoryModalOpen, setNewCategoryModalOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -173,18 +175,29 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Categoria *</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id.toString()}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id.toString()}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button 
+                  type="button" 
+                  size="icon" 
+                  variant="outline"
+                  onClick={() => setNewCategoryModalOpen(true)}
+                  title="Nova categoria"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -246,6 +259,16 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
           </div>
         </div>
       </DialogContent>
+
+      <NewCategoryModal
+        open={newCategoryModalOpen}
+        onOpenChange={setNewCategoryModalOpen}
+        defaultType={type}
+        onSuccess={(newCategoryId) => {
+          fetchData();
+          setCategoryId(newCategoryId.toString());
+        }}
+      />
     </Dialog>
   );
 }
