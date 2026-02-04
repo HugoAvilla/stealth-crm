@@ -3,8 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { checkPwnedPassword } from "@/lib/passwordSecurity";
 
 interface ChangePasswordModalProps {
   open: boolean;
@@ -17,8 +19,15 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const resetForm = () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  };
+
+  const handleSubmit = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
       toast.error("Preencha todos os campos");
       return;
@@ -34,15 +43,62 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
       return;
     }
 
-    toast.success("Senha alterada com sucesso!");
-    onOpenChange(false);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    try {
+      setIsLoading(true);
+
+      // Get current user email
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        toast.error("Erro ao obter dados do usuário");
+        return;
+      }
+
+      // Verify current password by attempting re-authentication
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        toast.error("Senha atual incorreta");
+        return;
+      }
+
+      // Check if new password has been exposed in data breaches
+      const pwnedResult = await checkPwnedPassword(newPassword);
+      if (pwnedResult.isPwned) {
+        toast.error(
+          `Esta senha foi exposta em ${pwnedResult.count.toLocaleString()} vazamentos de dados. Por favor, escolha outra senha.`
+        );
+        return;
+      }
+
+      // Update password using Supabase Auth API
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) {
+        toast.error("Erro ao alterar senha: " + updateError.message);
+        return;
+      }
+
+      toast.success("Senha alterada com sucesso!");
+      onOpenChange(false);
+      resetForm();
+    } catch (error) {
+      console.error('Password change error:', error);
+      toast.error("Erro ao alterar senha");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) resetForm();
+      onOpenChange(isOpen);
+    }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Alterar Senha</DialogTitle>
@@ -56,6 +112,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
                 type={showCurrent ? "text" : "password"}
                 value={currentPassword}
                 onChange={e => setCurrentPassword(e.target.value)}
+                disabled={isLoading}
               />
               <Button
                 type="button"
@@ -63,6 +120,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
                 size="icon"
                 className="absolute right-0 top-0 h-full"
                 onClick={() => setShowCurrent(!showCurrent)}
+                disabled={isLoading}
               >
                 {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
@@ -76,6 +134,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
                 type={showNew ? "text" : "password"}
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
+                disabled={isLoading}
               />
               <Button
                 type="button"
@@ -83,6 +142,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
                 size="icon"
                 className="absolute right-0 top-0 h-full"
                 onClick={() => setShowNew(!showNew)}
+                disabled={isLoading}
               >
                 {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
@@ -95,15 +155,32 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
+              disabled={isLoading}
             />
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+            <Button 
+              variant="outline" 
+              className="flex-1" 
+              onClick={() => onOpenChange(false)}
+              disabled={isLoading}
+            >
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleSubmit}>
-              Alterar Senha
+            <Button 
+              className="flex-1" 
+              onClick={handleSubmit}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Alterando...
+                </>
+              ) : (
+                "Alterar Senha"
+              )}
             </Button>
           </div>
         </div>
