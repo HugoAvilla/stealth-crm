@@ -1826,6 +1826,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      master_change_member_limit: {
+        Args: {
+          company_id_input: number
+          new_limit_input: number
+          reason_input: string
+        }
+        Returns: undefined
+      }
       master_change_subscription_price: {
         Args: {
           new_price_input: number

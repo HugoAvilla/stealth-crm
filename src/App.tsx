@@ -9,6 +9,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 // Pages
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Subscription from "./pages/Subscription";
 import WaitingApproval from "./pages/WaitingApproval";
 import CompanySetup from "./pages/CompanySetup";
@@ -51,6 +53,14 @@ function AppRoutes() {
       <Route 
         path="/cadastro" 
         element={isAuthenticated ? <Navigate to="/" replace /> : <SignUp />} 
+      />
+      <Route 
+        path="/esqueci-senha" 
+        element={isAuthenticated ? <Navigate to="/" replace /> : <ForgotPassword />} 
+      />
+      <Route 
+        path="/redefinir-senha" 
+        element={<ResetPassword />} 
       />
 
       {/* Subscription Flow Routes (authenticated but no company yet) */}
