@@ -32,11 +32,10 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
     category: "INSULFILM" as ProductCategory,
     brand: "",
     name: "",
-    model: "",
+    batch: "", // Renamed from model to batch (Lote)
     light_transmission: "",
     description: "",
     cost_per_meter: 0,
-    unit_price: 0,
   });
 
   const { data: productTypes, isLoading } = useQuery({
@@ -59,11 +58,18 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Criar tipo de produto
+      // Criar tipo de produto - map batch to model field in DB
       const { data: result, error } = await supabase
         .from("product_types")
         .insert({
-          ...data,
+          category: data.category,
+          brand: data.brand,
+          name: data.name,
+          model: data.batch, // Save batch as model in DB
+          light_transmission: data.light_transmission,
+          description: data.description,
+          cost_per_meter: data.cost_per_meter,
+          unit_price: 0, // No longer set here, will be set in sales
           company_id: companyId,
           is_active: true,
         })
@@ -73,7 +79,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
       if (error) throw error;
 
       // Criar material vinculado automaticamente
-      const materialName = `${data.brand} ${data.name}${data.model ? ` - ${data.model}` : ''}`;
+      const materialName = `${data.brand} ${data.name}${data.batch ? ` - ${data.batch}` : ''}`;
       const { error: materialError } = await supabase.from("materials").insert({
         name: materialName,
         type: data.category,
@@ -109,7 +115,15 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
     mutationFn: async ({ id, data }: { id: number; data: typeof formData }) => {
       const { data: result, error } = await supabase
         .from("product_types")
-        .update(data)
+        .update({
+          category: data.category,
+          brand: data.brand,
+          name: data.name,
+          model: data.batch, // Save batch as model in DB
+          light_transmission: data.light_transmission,
+          description: data.description,
+          cost_per_meter: data.cost_per_meter,
+        })
         .eq("id", id)
         .eq("company_id", companyId)
         .select()
@@ -155,11 +169,10 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         category: product.category,
         brand: product.brand,
         name: product.name,
-        model: product.model || "",
+        batch: product.model || "", // model in DB is now batch
         light_transmission: product.light_transmission || "",
         description: product.description || "",
         cost_per_meter: product.cost_per_meter,
-        unit_price: product.unit_price,
       });
     } else {
       setEditingProduct(null);
@@ -167,11 +180,10 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         category: activeCategory,
         brand: "",
         name: "",
-        model: "",
+        batch: "",
         light_transmission: "",
         description: "",
         cost_per_meter: 0,
-        unit_price: 0,
       });
     }
     setIsModalOpen(true);
@@ -184,11 +196,10 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
       category: activeCategory,
       brand: "",
       name: "",
-      model: "",
+      batch: "",
       light_transmission: "",
       description: "",
       cost_per_meter: 0,
-      unit_price: 0,
     });
   };
 
@@ -260,10 +271,9 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Marca</TableHead>
-                  <TableHead>Nome/Modelo</TableHead>
+                  <TableHead>Nome/Lote</TableHead>
                   {activeCategory === "INSULFILM" && <TableHead>Transmissão</TableHead>}
                   <TableHead className="text-right">Custo/Metro</TableHead>
-                  <TableHead className="text-right">Preço Venda</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="w-[100px]">Ações</TableHead>
                 </TableRow>
@@ -279,7 +289,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                       <div>
                         <span>{product.name}</span>
                         {product.model && (
-                          <span className="text-muted-foreground ml-1">- {product.model}</span>
+                          <span className="text-muted-foreground ml-1">- Lote {product.model}</span>
                         )}
                       </div>
                     </TableCell>
@@ -288,9 +298,6 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                     )}
                     <TableCell className="text-right">
                       {formatCurrency(product.cost_per_meter)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(product.unit_price)}
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge
@@ -376,11 +383,11 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Modelo</Label>
+                <Label>Lote</Label>
                 <Input
-                  placeholder="Ex: Crystalline, Premium"
-                  value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                  placeholder="Ex: A001, B002, C003"
+                  value={formData.batch}
+                  onChange={(e) => setFormData({ ...formData, batch: e.target.value })}
                 />
               </div>
               {formData.category === "INSULFILM" && (
@@ -397,31 +404,17 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Custo por Metro (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.cost_per_meter}
-                  onChange={(e) =>
-                    setFormData({ ...formData, cost_per_meter: parseFloat(e.target.value) || 0 })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Preço de Venda por Metro (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.unit_price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })
-                  }
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>Custo por Metro (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.cost_per_meter}
+                onChange={(e) =>
+                  setFormData({ ...formData, cost_per_meter: parseFloat(e.target.value) || 0 })
+                }
+              />
             </div>
 
             <div className="space-y-2">

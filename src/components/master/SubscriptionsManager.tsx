@@ -40,6 +40,7 @@ import {
   Loader2,
   Search,
   Power,
+  Users,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -61,7 +62,9 @@ interface SubscriptionWithRelations extends Subscription {
     name: string;
   } | null;
   company?: {
+    id: number;
     company_name: string;
+    max_members: number;
   } | null;
 }
 
@@ -75,6 +78,7 @@ const SubscriptionsManager = () => {
   const [showPriceModal, setShowPriceModal] = useState(false);
   const [showExpiryModal, setShowExpiryModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showMemberLimitModal, setShowMemberLimitModal] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithRelations | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -85,6 +89,8 @@ const SubscriptionsManager = () => {
   const [expiryReason, setExpiryReason] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [statusReason, setStatusReason] = useState("");
+  const [newMemberLimit, setNewMemberLimit] = useState("");
+  const [memberLimitReason, setMemberLimitReason] = useState("");
 
   useEffect(() => {
     fetchSubscriptions();
@@ -111,7 +117,7 @@ const SubscriptionsManager = () => {
 
       const { data: companies } = await supabase
         .from("companies")
-        .select("id, company_name")
+        .select("id, company_name, max_members")
         .in("id", companyIds as number[]);
 
       // Combine data
@@ -211,6 +217,32 @@ const SubscriptionsManager = () => {
     }
   };
 
+  const handleChangeMemberLimit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSub?.company?.id || !newMemberLimit || !memberLimitReason) return;
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.rpc("master_change_member_limit", {
+        company_id_input: selectedSub.company.id,
+        new_limit_input: parseInt(newMemberLimit),
+        reason_input: memberLimitReason,
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Limite de membros alterado com sucesso!" });
+      setShowMemberLimitModal(false);
+      resetForms();
+      fetchSubscriptions();
+    } catch (error) {
+      console.error("Error changing member limit:", error);
+      toast({ title: "Erro ao alterar limite de membros", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const resetForms = () => {
     setSelectedSub(null);
     setNewPrice("");
@@ -219,6 +251,8 @@ const SubscriptionsManager = () => {
     setExpiryReason("");
     setNewStatus("");
     setStatusReason("");
+    setNewMemberLimit("");
+    setMemberLimitReason("");
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -349,6 +383,20 @@ const SubscriptionsManager = () => {
                       >
                         <Calendar className="h-4 w-4 text-purple-500" />
                       </Button>
+                      {sub.company && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedSub(sub);
+                            setNewMemberLimit((sub.company?.max_members || 5).toString());
+                            setShowMemberLimitModal(true);
+                          }}
+                          title="Limite de membros"
+                        >
+                          <Users className="h-4 w-4 text-green-500" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -524,6 +572,61 @@ const SubscriptionsManager = () => {
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Confirmar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Alterar Limite de Membros */}
+      <Dialog open={showMemberLimitModal} onOpenChange={setShowMemberLimitModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Limite de Membros</DialogTitle>
+            <DialogDescription>
+              {selectedSub?.company?.company_name} - Limite atual:{" "}
+              {selectedSub?.company?.max_members || 5} membros
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleChangeMemberLimit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newMemberLimit">Novo Limite de Membros *</Label>
+              <Input
+                id="newMemberLimit"
+                type="number"
+                min="1"
+                max="50"
+                value={newMemberLimit}
+                onChange={(e) => setNewMemberLimit(e.target.value)}
+                required
+              />
+              <p className="text-xs text-muted-foreground">Mínimo 1, máximo 50 membros</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="memberLimitReason">Motivo *</Label>
+              <Textarea
+                id="memberLimitReason"
+                value={memberLimitReason}
+                onChange={(e) => setMemberLimitReason(e.target.value)}
+                placeholder="Ex: Solicitação do cliente, upgrade de plano..."
+                required
+                rows={3}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowMemberLimitModal(false);
+                  resetForms();
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting || !selectedSub?.company?.id}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Confirmar
               </Button>

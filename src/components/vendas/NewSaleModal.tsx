@@ -110,6 +110,7 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
   const [showNotes, setShowNotes] = useState(false);
   const [showDetailedServices, setShowDetailedServices] = useState(true);
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [servicePrice, setServicePrice] = useState("");
 
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -208,11 +209,19 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
     }
   }, [selectedVehicleId, consumptionRules]);
 
-  // Calculate totals from detailed items
-  const subtotal = detailedItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  // Calculate totals - use servicePrice if set, otherwise use calculated subtotal
+  const calculatedSubtotal = detailedItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  const subtotal = servicePrice ? parseFloat(servicePrice) : calculatedSubtotal;
   const discount = discountValue ? parseFloat(discountValue) : 0;
   const total = subtotal - discount;
   const paid = isOpen ? 0 : total;
+
+  // Update service price when calculated subtotal changes (only if not manually set)
+  useEffect(() => {
+    if (calculatedSubtotal > 0 && !servicePrice) {
+      setServicePrice(calculatedSubtotal.toFixed(2));
+    }
+  }, [calculatedSubtotal]);
 
   // Handle discount changes
   const handleDiscountValueChange = (value: string) => {
@@ -355,6 +364,7 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
       setDetailedItems([]);
       setDiscountValue("");
       setDiscountPercent("");
+      setServicePrice("");
       setNotes("");
       setIsOpen(false);
       onOpenChange(false);
@@ -565,6 +575,38 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
                     <SelectItem value="Transferência">Transferência</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Service Price - NEW FIELD */}
+              <div className="space-y-2">
+                <Label>Preço do Serviço (R$)</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    className="pl-9"
+                    value={servicePrice}
+                    onChange={(e) => {
+                      setServicePrice(e.target.value);
+                      // Reset discount when price changes
+                      if (e.target.value) {
+                        const newSubtotal = parseFloat(e.target.value);
+                        if (discountPercent) {
+                          const discValue = (parseFloat(discountPercent) / 100) * newSubtotal;
+                          setDiscountValue(discValue.toFixed(2));
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                {calculatedSubtotal > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Valor calculado: R$ {calculatedSubtotal.toFixed(2)}
+                  </p>
+                )}
               </div>
 
               {/* Discount */}

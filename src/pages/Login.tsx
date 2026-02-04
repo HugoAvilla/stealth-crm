@@ -141,12 +141,17 @@ const Login = () => {
               </Button>
             </form>
 
-            <p className="text-center text-muted-foreground">
-              Não tem uma conta?{' '}
-              <Link to="/cadastro" className="text-primary hover:underline font-medium">
-                Criar conta
+            <div className="text-center space-y-2">
+              <Link to="/esqueci-senha" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                Esqueci minha senha
               </Link>
-            </p>
+              <p className="text-muted-foreground">
+                Não tem uma conta?{' '}
+                <Link to="/cadastro" className="text-primary hover:underline font-medium">
+                  Criar conta
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>
