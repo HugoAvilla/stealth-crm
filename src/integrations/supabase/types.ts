@@ -637,6 +637,223 @@ export type Database = {
           },
         ]
       }
+      pipeline_events: {
+        Row: {
+          company_id: number | null
+          created_at: string | null
+          event_type: string
+          from_stage_id: number | null
+          id: number
+          item_id: number | null
+          pipeline_id: number | null
+          processed: boolean | null
+          processed_at: string | null
+          to_stage_id: number | null
+          user_id: string | null
+        }
+        Insert: {
+          company_id?: number | null
+          created_at?: string | null
+          event_type: string
+          from_stage_id?: number | null
+          id?: number
+          item_id?: number | null
+          pipeline_id?: number | null
+          processed?: boolean | null
+          processed_at?: string | null
+          to_stage_id?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: number | null
+          created_at?: string | null
+          event_type?: string
+          from_stage_id?: number | null
+          id?: number
+          item_id?: number | null
+          pipeline_id?: number | null
+          processed?: boolean | null
+          processed_at?: string | null
+          to_stage_id?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_events_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_events_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipeline_items: {
+        Row: {
+          client_id: number | null
+          company_id: number | null
+          created_at: string | null
+          entity_id: number | null
+          entity_type: string
+          id: number
+          is_urgent: boolean | null
+          metadata: Json | null
+          pipeline_id: number | null
+          position: number | null
+          responsible_id: string | null
+          scheduled_time: string | null
+          stage_id: number | null
+          title: string
+          updated_at: string | null
+          value: number | null
+          vehicle_id: number | null
+        }
+        Insert: {
+          client_id?: number | null
+          company_id?: number | null
+          created_at?: string | null
+          entity_id?: number | null
+          entity_type?: string
+          id?: number
+          is_urgent?: boolean | null
+          metadata?: Json | null
+          pipeline_id?: number | null
+          position?: number | null
+          responsible_id?: string | null
+          scheduled_time?: string | null
+          stage_id?: number | null
+          title: string
+          updated_at?: string | null
+          value?: number | null
+          vehicle_id?: number | null
+        }
+        Update: {
+          client_id?: number | null
+          company_id?: number | null
+          created_at?: string | null
+          entity_id?: number | null
+          entity_type?: string
+          id?: number
+          is_urgent?: boolean | null
+          metadata?: Json | null
+          pipeline_id?: number | null
+          position?: number | null
+          responsible_id?: string | null
+          scheduled_time?: string | null
+          stage_id?: number | null
+          title?: string
+          updated_at?: string | null
+          value?: number | null
+          vehicle_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_items_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_items_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_items_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stage_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_items_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipeline_stage_definitions: {
+        Row: {
+          color: string | null
+          company_id: number | null
+          created_at: string | null
+          id: number
+          is_final: boolean | null
+          is_lost: boolean | null
+          is_won: boolean | null
+          name: string
+          notify_client: boolean | null
+          pipeline_id: number | null
+          position: number | null
+        }
+        Insert: {
+          color?: string | null
+          company_id?: number | null
+          created_at?: string | null
+          id?: number
+          is_final?: boolean | null
+          is_lost?: boolean | null
+          is_won?: boolean | null
+          name: string
+          notify_client?: boolean | null
+          pipeline_id?: number | null
+          position?: number | null
+        }
+        Update: {
+          color?: string | null
+          company_id?: number | null
+          created_at?: string | null
+          id?: number
+          is_final?: boolean | null
+          is_lost?: boolean | null
+          is_won?: boolean | null
+          name?: string
+          notify_client?: boolean | null
+          pipeline_id?: number | null
+          position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_stage_definitions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_stage_definitions_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipeline_stages: {
         Row: {
           client_id: number | null
@@ -694,6 +911,44 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipelines: {
+        Row: {
+          active: boolean | null
+          company_id: number | null
+          created_at: string | null
+          description: string | null
+          id: number
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          company_id?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          company_id?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipelines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1814,6 +2069,136 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_instances: {
+        Row: {
+          api_key: string | null
+          company_id: number | null
+          created_at: string | null
+          id: number
+          instance_id: string | null
+          instance_name: string
+          last_connected_at: string | null
+          phone_name: string | null
+          phone_number: string | null
+          qr_code: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          api_key?: string | null
+          company_id?: number | null
+          created_at?: string | null
+          id?: number
+          instance_id?: string | null
+          instance_name: string
+          last_connected_at?: string | null
+          phone_name?: string | null
+          phone_number?: string | null
+          qr_code?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          api_key?: string | null
+          company_id?: number | null
+          created_at?: string | null
+          id?: number
+          instance_id?: string | null
+          instance_name?: string
+          last_connected_at?: string | null
+          phone_name?: string | null
+          phone_number?: string | null
+          qr_code?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          channel: string | null
+          company_id: number | null
+          content: string
+          created_at: string | null
+          error_message: string | null
+          id: number
+          instance_id: number | null
+          related_client_id: number | null
+          related_pipeline_item: number | null
+          sent_at: string | null
+          status: string | null
+          template_name: string | null
+          to_phone: string
+        }
+        Insert: {
+          channel?: string | null
+          company_id?: number | null
+          content: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: number
+          instance_id?: number | null
+          related_client_id?: number | null
+          related_pipeline_item?: number | null
+          sent_at?: string | null
+          status?: string | null
+          template_name?: string | null
+          to_phone: string
+        }
+        Update: {
+          channel?: string | null
+          company_id?: number | null
+          content?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: number
+          instance_id?: number | null
+          related_client_id?: number | null
+          related_pipeline_item?: number | null
+          sent_at?: string | null
+          status?: string | null
+          template_name?: string | null
+          to_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_related_client_id_fkey"
+            columns: ["related_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_related_pipeline_item_fkey"
+            columns: ["related_pipeline_item"]
+            isOneToOne: false
+            referencedRelation: "pipeline_items"
             referencedColumns: ["id"]
           },
         ]
