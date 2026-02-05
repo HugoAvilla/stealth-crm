@@ -1,292 +1,220 @@
 
-# Plano: Limites por Empresa, Lotes de Produtos e Recuperacao de Senha
+# Plano: Sub-aba Servicos em Garantias e Remover Configuracao de Equipe
 
 ## Resumo das Alteracoes
 
-Este plano aborda tres grandes implementacoes solicitadas:
+Este plano aborda duas solicitacoes:
 
-1. **Limite de Contas no Painel Master** - Adicionar botao para configurar quantidade maxima de membros por empresa
-2. **Ajustes no Modal de Tipos de Produtos** - Trocar "Modelo" por "Lote" e remover preco de venda por metro
-3. **Fluxo de Recuperacao de Senha** - Sistema completo com email, codigo de verificacao 6 digitos e redefinicao
+1. **Aba Garantias** - Criar sub-aba "Servicos" para gerenciar servicos associados a garantias
+2. **Aba Sua Empresa** - Remover botao "Configurar" do card de Equipe (limite de membros so pode ser alterado pelo Master)
 
 ---
 
-## 1. Limite de Contas Vinculadas no Painel Master
+## 1. Sub-aba Servicos na Aba Garantias
 
 ### Objetivo
-Permitir que o Master defina individualmente o limite maximo de membros para cada empresa, diretamente na sub-aba "Assinaturas".
+Criar um sistema de abas dentro da pagina Garantias, permitindo gerenciar servicos associados que podem ser enviados para clientes junto com as garantias.
 
-### Alteracoes Necessarias
-
-**Arquivo: `src/components/master/SubscriptionsManager.tsx`**
-
-Adicionar novo botao de acao na tabela de assinaturas (icone de usuarios) que abre um modal para ajustar o limite de membros da empresa.
-
-| Coluna Atual | Nova Coluna |
-|-------------|-------------|
-| Acoes: [$] [Calendar] [Power] | Acoes: [$] [Calendar] [Users] [Power] |
-
-**Novo Modal: Alterar Limite de Membros**
-- Campo: Novo limite (input number, min=1, max=50)
-- Campo: Motivo da alteracao (textarea obrigatorio)
-- Botoes: Cancelar / Confirmar
-
-**Nova RPC Function: `master_change_member_limit`**
-- Atualiza `companies.max_members`
-- Registra acao na tabela `master_actions`
-
-### Fluxo Visual
+### Estrutura de Abas
 
 ```text
-Tabela Assinaturas
-      |
-      v
-[Users Icon] -> Modal Alterar Limite
-      |
-      v
-Novo limite + Motivo
-      |
-      v
-Salvar no banco
++------------------------------------------+
+|  [Garantias] | [Servicos]                |
++------------------------------------------+
 ```
 
----
+### Sub-aba Garantias (conteudo atual)
+Mantem todo o conteudo existente:
+- Stats (Total Emitidos, Ativas, Modelos)
+- Busca
+- Tabela de garantias
+- Botoes: Criar Garantia Produto, Emitir Garantia
 
-## 2. Ajustes no Modal de Tipos de Produtos
+### Nova Sub-aba Servicos
+Nova interface para gerenciar servicos associados a garantias:
 
-### Mudancas Solicitadas
+**Componentes:**
+- Botao "Criar Servico" no header
+- Tabela com lista de servicos associados
+- Cada servico exibe: Nome, Descricao, Garantia Associada, Acoes (Editar/Excluir/Enviar)
 
-| Campo Atual | Acao |
-|-------------|------|
-| Modelo | **Renomear** para "Lote" |
-| Preco de Venda por Metro (R$) | **Remover** |
+**Modal "Criar Servico Associado":**
+- Campo: Nome do servico
+- Campo: Descricao
+- Campo: Selecionar garantia associada (dropdown com modelos de garantia)
+- Campo: Instrucoes para o cliente (textarea)
+- Botoes: Cancelar / Criar
 
-**Arquivo: `src/components/estoque/ProductTypesTab.tsx`**
+### Nova Tabela no Banco de Dados
 
-Alteracoes no formulario:
-- Renomear label "Modelo" para "Lote"
-- Renomear placeholder "Ex: Crystalline, Premium" para "Ex: A001, B002, C003"
-- Remover campo `unit_price` do formulario
-- Remover coluna "Preco Venda" da tabela
+Sera necessario criar uma tabela `warranty_services` para armazenar os servicos associados:
 
-### Impacto no Banco
-
-O campo `unit_price` continuara existindo na tabela `product_types` mas sera preenchido no momento da venda (ver item 3).
-
----
-
-## 3. Campo de Preco do Servico no Modal de Vendas
-
-### Objetivo
-Mover a definicao do preco do servico para o modal de vendas, entre "Forma de Pagamento" e "Desconto".
-
-**Arquivo: `src/components/vendas/NewSaleModal.tsx`**
-
-Adicionar novo card/campo:
-
-```text
-[Forma de Pagamento]
-        |
-        v
-[Preco do Servico (R$)] <-- NOVO
-        |
-        v
-[Desconto]
+```sql
+CREATE TABLE warranty_services (
+  id SERIAL PRIMARY KEY,
+  company_id INTEGER REFERENCES companies(id),
+  warranty_template_id INTEGER REFERENCES warranty_templates(id),
+  name TEXT NOT NULL,
+  description TEXT,
+  instructions TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
+);
 ```
 
-### Implementacao
-
-- Campo numerico para preco manual
-- Valor pre-preenchido com base no calculo automatico (metros x preco por metro do produto)
-- Permitir edicao manual pelo vendedor
-- O valor final impacta o calculo do subtotal
-
----
-
-## 4. Fluxo Completo de Recuperacao de Senha
-
-### Visao Geral
-
-O usuario esqueceu a senha e precisa redefini-la via email. O fluxo usa o metodo nativo do Supabase Auth (`resetPasswordForEmail`) que envia um magic link por email.
-
-### Paginas a Criar
-
-| Pagina | Rota | Descricao |
-|--------|------|-----------|
-| ForgotPassword | `/esqueci-senha` | Input de email + botao Enviar |
-| ResetPassword | `/redefinir-senha` | Formulario de nova senha |
-
-### Fluxo do Usuario
-
-```text
-Login Page
-    |
-    v
-"Esqueci minha senha" (link)
-    |
-    v
-/esqueci-senha
-[Digite seu email]
-[Enviar]
-    |
-    v
-Email com link de recuperacao
-    |
-    v
-Usuario clica no link
-    |
-    v
-/redefinir-senha (com token na URL)
-[Nova senha]
-[Confirmar senha]
-[Salvar]
-    |
-    v
-Senha atualizada!
-Redirect -> /login
-```
-
-### Alteracoes Necessarias
-
-**1. Pagina de Login (`src/pages/Login.tsx`)**
-- Adicionar link "Esqueci minha senha" abaixo do campo de senha
-
-**2. Nova Pagina: `src/pages/ForgotPassword.tsx`**
-- Input de email
-- Botao "Enviar link de recuperacao"
-- Usa `supabase.auth.resetPasswordForEmail({ email, redirectTo })`
-- Mensagem de sucesso informando para verificar email
-
-**3. Nova Pagina: `src/pages/ResetPassword.tsx`**
-- Formulario com:
-  - Nova senha
-  - Confirmar nova senha
-  - Botao Salvar
-- Validacao de senhas vazadas (HIBP)
-- Usa `supabase.auth.updateUser({ password })`
-- Redirect para login apos sucesso
-
-**4. App.tsx**
-- Adicionar rotas `/esqueci-senha` e `/redefinir-senha`
-
-### Migracao de Banco
-
-Nao e necessaria migracao. O Supabase Auth ja possui a infraestrutura de reset de senha.
-
-### Nota sobre Codigo de 6 Digitos
-
-O Supabase Auth utiliza **magic links** para recuperacao de senha, nao codigos OTP. Para implementar codigo de 6 digitos seria necessario:
-- Uma edge function customizada
-- Integracao com servico de email (Resend)
-- Armazenamento temporario de codigos
-
-**Recomendacao**: Usar o fluxo nativo do Supabase (magic link) que ja esta configurado e e mais seguro. O usuario recebe um link no email que o redireciona diretamente para a pagina de redefinicao.
-
----
-
-## Arquivos a Modificar
+### Arquivos Afetados
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/master/SubscriptionsManager.tsx` | Adicionar botao e modal de limite de membros |
-| `src/components/estoque/ProductTypesTab.tsx` | Renomear "Modelo" para "Lote", remover preco de venda |
-| `src/components/vendas/NewSaleModal.tsx` | Adicionar campo "Preco do Servico" |
-| `src/pages/Login.tsx` | Adicionar link "Esqueci minha senha" |
-| `src/App.tsx` | Adicionar rotas de recuperacao de senha |
+| `src/pages/Garantias.tsx` | Adicionar sistema de Tabs com duas sub-abas |
+| Novo: `src/components/garantias/WarrantyServicesTab.tsx` | Componente da sub-aba Servicos |
+| Novo: `src/components/garantias/NewWarrantyServiceModal.tsx` | Modal para criar servico associado |
 
-## Arquivos a Criar
+---
 
-| Arquivo | Descricao |
-|---------|-----------|
-| `src/pages/ForgotPassword.tsx` | Pagina para solicitar recuperacao |
-| `src/pages/ResetPassword.tsx` | Pagina para definir nova senha |
+## 2. Remover Configuracao de Equipe na Aba Empresa
 
-## Migracao SQL
+### Objetivo
+O botao "Configurar" no card de Equipe permite alterar o limite de membros. Esta funcionalidade deve ser exclusiva do Painel Master, entao o botao sera removido da pagina "Sua Empresa".
 
-```sql
--- Criar funcao para Master alterar limite de membros
-CREATE OR REPLACE FUNCTION master_change_member_limit(
-  company_id_input integer,
-  new_limit_input integer,
-  reason_input text
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  -- Atualizar limite
-  UPDATE companies 
-  SET max_members = new_limit_input
-  WHERE id = company_id_input;
-  
-  -- Registrar acao
-  INSERT INTO master_actions (action_type, target_table, target_id, details, performed_by)
-  VALUES (
-    'update_member_limit',
-    'companies',
-    company_id_input,
-    jsonb_build_object(
-      'new_limit', new_limit_input,
-      'reason', reason_input
-    ),
-    auth.uid()
-  );
-END;
-$$;
+### Alteracoes Visuais
+
+**Antes:**
+```text
++-----------------------------------+
+| Equipe               [Configurar] |
+| Membros              1 de 12      |
+| ================================  |
+| Codigo da Empresa...              |
++-----------------------------------+
 ```
+
+**Depois:**
+```text
++-----------------------------------+
+| Equipe                            |
+| Membros              1 de 12      |
+| ================================  |
+| Codigo da Empresa...              |
++-----------------------------------+
+```
+
+### Arquivos Afetados
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/Empresa.tsx` | Remover botao "Configurar", remover estado `showTeamSettings`, remover import e uso do `TeamSettingsModal` |
 
 ---
 
 ## Resumo Visual
 
 ```text
-+---------------------------+
-|     PAINEL MASTER         |
-|  Aba Assinaturas          |
-|                           |
-|  [Users] Limite Membros   |
-|  Modal: Novo limite + Motivo
-+---------------------------+
+GARANTIAS
++------------------------------------------+
+|  [Garantias] | [Servicos]                |
++------------------------------------------+
+|                                          |
+|  Aba Garantias: Conteudo atual           |
+|                                          |
+|  Aba Servicos:                           |
+|  [+ Criar Servico]                       |
+|  +------------------------------------+  |
+|  | Nome | Descricao | Garantia | Acoes|  |
+|  +------------------------------------+  |
+|                                          |
++------------------------------------------+
 
-+---------------------------+
-|  ESTOQUE > Tipos Produto  |
-|                           |
-|  Modelo -> LOTE           |
-|  Preco Venda -> REMOVIDO  |
-+---------------------------+
+SUA EMPRESA - CARD EQUIPE
++-----------------------------------+
+| Equipe                            |
+| Membros              1 de 12      |
+| ================================  |
+| Codigo da Empresa...              |
++-----------------------------------+
+(Sem botao Configurar - alteracao apenas no Master)
+```
 
-+---------------------------+
-|  VENDAS > Nova Venda      |
-|                           |
-|  Forma Pagamento          |
-|  [Preco Servico] <- NOVO  |
-|  Desconto                 |
-+---------------------------+
+---
 
-+---------------------------+
-|  LOGIN                    |
-|                           |
-|  "Esqueci minha senha"    |
-|         |                 |
-|         v                 |
-|  /esqueci-senha           |
-|  Email -> Link enviado    |
-|         |                 |
-|         v                 |
-|  /redefinir-senha         |
-|  Nova senha -> Salvo!     |
-+---------------------------+
+## Arquivos a Criar
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `src/components/garantias/WarrantyServicesTab.tsx` | Componente para listar e gerenciar servicos associados |
+| `src/components/garantias/NewWarrantyServiceModal.tsx` | Modal para criar novo servico associado a garantia |
+
+## Arquivos a Modificar
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/Garantias.tsx` | Adicionar Tabs (Garantias / Servicos) |
+| `src/pages/Empresa.tsx` | Remover botao Configurar e TeamSettingsModal |
+
+## Migracao SQL
+
+```sql
+-- Criar tabela de servicos associados a garantias
+CREATE TABLE warranty_services (
+  id SERIAL PRIMARY KEY,
+  company_id INTEGER REFERENCES companies(id),
+  warranty_template_id INTEGER REFERENCES warranty_templates(id),
+  name TEXT NOT NULL,
+  description TEXT,
+  instructions TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Habilitar RLS
+ALTER TABLE warranty_services ENABLE ROW LEVEL SECURITY;
+
+-- Politica para empresas verem seus proprios servicos
+CREATE POLICY "Users can view their company warranty services"
+  ON warranty_services FOR SELECT
+  USING (
+    company_id IN (
+      SELECT company_id FROM profiles WHERE user_id = auth.uid()
+    )
+  );
+
+-- Politica para inserir
+CREATE POLICY "Users can insert warranty services for their company"
+  ON warranty_services FOR INSERT
+  WITH CHECK (
+    company_id IN (
+      SELECT company_id FROM profiles WHERE user_id = auth.uid()
+    )
+  );
+
+-- Politica para atualizar
+CREATE POLICY "Users can update their company warranty services"
+  ON warranty_services FOR UPDATE
+  USING (
+    company_id IN (
+      SELECT company_id FROM profiles WHERE user_id = auth.uid()
+    )
+  );
+
+-- Politica para deletar
+CREATE POLICY "Users can delete their company warranty services"
+  ON warranty_services FOR DELETE
+  USING (
+    company_id IN (
+      SELECT company_id FROM profiles WHERE user_id = auth.uid()
+    )
+  );
 ```
 
 ---
 
 ## Ordem de Implementacao
 
-1. Criar migracao SQL para funcao `master_change_member_limit`
-2. Atualizar `SubscriptionsManager.tsx` com novo botao e modal
-3. Atualizar `ProductTypesTab.tsx` (Modelo -> Lote, remover preco venda)
-4. Atualizar `NewSaleModal.tsx` com campo de preco do servico
-5. Adicionar link "Esqueci senha" em `Login.tsx`
-6. Criar paginas `ForgotPassword.tsx` e `ResetPassword.tsx`
-7. Adicionar rotas em `App.tsx`
+1. Criar migracao SQL para tabela `warranty_services`
+2. Atualizar types do Supabase
+3. Criar componente `WarrantyServicesTab.tsx`
+4. Criar componente `NewWarrantyServiceModal.tsx`
+5. Modificar `Garantias.tsx` para usar Tabs
+6. Modificar `Empresa.tsx` para remover configuracao de equipe
