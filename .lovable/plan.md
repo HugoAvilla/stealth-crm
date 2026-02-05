@@ -1,180 +1,321 @@
 
 
-# Revisão Abrangente de Segurança - WFE Evolution CRM
+# Plano Atualizado: Pipeline Escalável + WhatsApp com QR Code (Evolution API)
 
-## Resumo Executivo
+## Nova Funcionalidade: Conexão WhatsApp via QR Code
 
-A auditoria identificou **14 achados** do scanner automático e **2 vulnerabilidades ativas** que precisam de atenção. A maioria dos problemas anteriores foi corrigida ou marcada como aceitável para a arquitetura atual.
+### Conceito
+
+O usuário ADMIN poderá conectar o WhatsApp da empresa diretamente no CRM através de um QR Code, similar ao WhatsApp Web. A conexão é feita via **Evolution API** (API open-source brasileira, amplamente usada).
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    PÁGINA PIPELINE                              │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  ⚙️ Configurações WhatsApp         [Conectar WhatsApp]  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  Ao clicar, abre modal:                                        │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │         📱 Conectar WhatsApp                            │   │
+│  │                                                         │   │
+│  │         ┌─────────────┐                                 │   │
+│  │         │   QR CODE   │                                 │   │
+│  │         │   [:::::]   │  ← Escaneie com WhatsApp       │   │
+│  │         │   [:::::]   │                                 │   │
+│  │         └─────────────┘                                 │   │
+│  │                                                         │   │
+│  │  Status: Aguardando conexão...                          │   │
+│  │                                                         │   │
+│  │  1. Abra o WhatsApp no celular                          │   │
+│  │  2. Vá em Configurações > Aparelhos conectados         │   │
+│  │  3. Toque em "Conectar um aparelho"                     │   │
+│  │  4. Escaneie este QR Code                               │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Status Atual de Segurança
+## Arquitetura Desacoplada
 
-### Vulnerabilidades Ativas (Requerem Ação)
-
-| Prioridade | Problema | Tabela | Risco |
-|------------|----------|--------|-------|
-| ALTO | Dados sensíveis de clientes acessíveis | `clients` | CPF/CNPJ, emails, telefones, datas de nascimento |
-| MÉDIO | Mensagens de chat sem isolamento | `chat_messages` | Conversas privadas visíveis a todos da empresa |
-
-### Achados Revisados e Aceitos (6 itens)
-
-1. **CLIENT_SIDE_AUTH** - Roteamento client-side é padrão para SPAs
-2. **MASTER_EMAIL_HARDCODED** - Aceitável para SaaS single-admin
-3. **CHART_DANGEROUS_HTML** - Padrão shadcn/ui para CSS theming
-4. **SUPABASE_CREDENTIALS** - Arquivo auto-gerado pela Lovable
-5. **OPEN_CORS_EDGE_FUNCTION** - Função de senha não acessa dados sensíveis
-6. **LEAKED_PASSWORD_PROTECTION** - Implementado via HIBP Edge Function
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│                        CRM WFE (React)                           │
+│                                                                  │
+│   [Botão Conectar] ──────▶ Modal QR Code ──────▶ Status Conexão │
+│                                                                  │
+└──────────────────────┬───────────────────────────────────────────┘
+                       │
+                       ▼ API Calls
+┌──────────────────────────────────────────────────────────────────┐
+│                   EDGE FUNCTIONS (Supabase)                      │
+│                                                                  │
+│  ┌────────────────────┐    ┌────────────────────┐               │
+│  │ whatsapp-instance  │    │  whatsapp-sender   │               │
+│  │ - create           │    │  - send message    │               │
+│  │ - qrcode           │    │  - send template   │               │
+│  │ - status           │    │  - send media      │               │
+│  │ - disconnect       │    │                    │               │
+│  └────────────────────┘    └────────────────────┘               │
+│                                                                  │
+└──────────────────────┬───────────────────────────────────────────┘
+                       │
+                       ▼ HTTP Requests
+┌──────────────────────────────────────────────────────────────────┐
+│                     EVOLUTION API                                │
+│              (Self-hosted ou Evolution Cloud)                    │
+│                                                                  │
+│  Endpoints utilizados:                                           │
+│  POST /instance/create     - Cria instância                     │
+│  GET  /instance/qrcode     - Retorna QR Code (base64)           │
+│  GET  /instance/status     - Verifica conexão                   │
+│  POST /message/sendText    - Envia mensagem                     │
+│  DELETE /instance/logout   - Desconecta                         │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Vulnerabilidades que Requerem Correção
+## Novas Tabelas no Banco
 
-### 1. Tabela `clients` - Dados Pessoais Expostos
+### Tabela `whatsapp_instances`
 
-**Problema:**
-A tabela `clients` contém dados altamente sensíveis (CPF/CNPJ, emails, telefones, endereços, data de nascimento) e qualquer usuário VENDEDOR ou ADMIN da mesma empresa pode ver **todos** os clientes.
+Armazena as instâncias WhatsApp conectadas por empresa.
 
-**Política RLS Atual:**
 ```sql
--- Todos VENDEDORs podem ver todos os clientes da empresa
-USING ((company_id = get_user_company_id(auth.uid())) 
-       AND has_any_role(auth.uid(), ARRAY['ADMIN'::app_role, 'VENDEDOR'::app_role]))
+CREATE TABLE whatsapp_instances (
+  id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  company_id BIGINT REFERENCES companies(id) UNIQUE,
+  instance_name TEXT NOT NULL,
+  instance_id TEXT,
+  api_key TEXT, -- API key da instância na Evolution
+  status TEXT DEFAULT 'disconnected', -- 'disconnected', 'connecting', 'connected'
+  phone_number TEXT,
+  phone_name TEXT,
+  last_connected_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 ```
 
-**Risco:**
-- Violação potencial da LGPD
-- Vendedor demitido ainda pode ter visto todos os clientes
-- Competição interna por clientes
+### Atualização `whatsapp_messages`
 
-**Solução Proposta:**
-Não recomendo alterar, pois é o comportamento esperado para um CRM:
-- VENDEDORs precisam ver todos os clientes para evitar cadastro duplicado
-- Vendedor só pode EDITAR clientes que ele criou (já implementado)
-- ADMINs têm controle total
+Adicionar referência à instância:
 
-**Ação:** Marcar como ignorado com justificativa de modelo de negócio
-
-### 2. Tabela `chat_messages` - Conversas Privadas
-
-**Problema:**
-Qualquer VENDEDOR ou ADMIN pode ler todas as mensagens de chat de todos os clientes da empresa.
-
-**Política RLS Atual:**
 ```sql
-USING ((company_id = get_user_company_id(auth.uid())) 
-       AND has_any_role(auth.uid(), ARRAY['ADMIN'::app_role, 'VENDEDOR'::app_role]))
+ALTER TABLE whatsapp_messages 
+ADD COLUMN instance_id BIGINT REFERENCES whatsapp_instances(id);
 ```
 
-**Avaliação:**
-Para um CRM de equipe pequena, esse comportamento é comum e até desejável:
-- Gerentes precisam acompanhar negociações
-- Handoff entre vendedores requer histórico
-- Auditoria de atendimento
-
-**Ação:** Marcar como ignorado com justificativa de modelo de negócio
-
 ---
 
-## Verificações de Segurança Concluídas
+## Edge Functions para Evolution API
 
-### Proteções Implementadas Corretamente
-
-| Área | Status | Detalhes |
-|------|--------|----------|
-| **Senhas** | ✅ | Mínimo 8 caracteres + verificação HIBP |
-| **RLS em todas tabelas** | ✅ | 33 tabelas com políticas ativas |
-| **Isolamento multi-tenant** | ✅ | Todas operações filtram por company_id |
-| **Roles em tabela separada** | ✅ | `user_roles` com funções SECURITY DEFINER |
-| **Master account protegido** | ✅ | Verificação server-side via `is_master_account()` |
-| **Dados bancários protegidos** | ✅ | `system_config` restrito a Master + fluxo pagamento |
-| **Cupons protegidos** | ✅ | RPC `apply_coupon` previne fraudes |
-| **Políticas TO authenticated** | ✅ | Corrigido na migração anterior |
-
-### Supabase Linter
-
-Apenas 1 aviso:
-- **Leaked Password Protection Disabled** - Requer plano Pro, mas temos HIBP implementado
-
----
-
-## Validações Adicionais Verificadas
-
-### AuthContext.tsx
+### 1. `whatsapp-instance` (Gerenciamento de Instância)
 
 ```typescript
-// Linha 103 - Verificação Master
-const isMaster = authUser?.email === 'hg.lavila@gmail.com';
+// supabase/functions/whatsapp-instance/index.ts
+
+// Endpoints:
+// POST /create   - Cria nova instância para a empresa
+// GET  /qrcode   - Retorna QR Code em base64
+// GET  /status   - Verifica status da conexão
+// POST /logout   - Desconecta WhatsApp
+
+// Exemplo de criação de instância:
+const response = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'apikey': EVOLUTION_API_KEY
+  },
+  body: JSON.stringify({
+    instanceName: `wfe_company_${companyId}`,
+    qrcode: true,
+    integration: 'WHATSAPP-BAILEYS'
+  })
+});
 ```
 
-**Análise:**
-- Client-side check para UI apenas
-- Autorização real via `is_master_account()` no banco
-- Aceitável para exibição de menu/rotas
-
-### ProtectedRoute.tsx
-
-**Verificações implementadas:**
-- Autenticação obrigatória
-- Status de subscription
-- Company ID obrigatório
-- Verificação de roles
-- Fluxo de aprovação pendente
-
----
-
-## Recomendações Opcionais (Baixa Prioridade)
-
-### 1. Rate Limiting no Edge Function
-
-Adicionar rate limiting ao `check-pwned-password`:
+### 2. `whatsapp-sender` (Envio de Mensagens)
 
 ```typescript
-// Limitar por IP para prevenir abuso
-const clientIP = req.headers.get('x-forwarded-for') || 'unknown';
-// Implementar contador com Upstash Redis ou similar
+// supabase/functions/whatsapp-sender/index.ts
+
+// Envia mensagem via Evolution API
+const response = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instanceName}`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'apikey': instanceApiKey
+  },
+  body: JSON.stringify({
+    number: phoneNumber,
+    text: message
+  })
+});
+
+// Registra em whatsapp_messages
+await supabase.from('whatsapp_messages').insert({
+  company_id: companyId,
+  instance_id: instanceId,
+  to_phone: phoneNumber,
+  content: message,
+  status: response.ok ? 'sent' : 'failed'
+});
 ```
-
-### 2. CORS Restritivo (Opcional)
-
-Restringir origins no Edge Function:
-
-```typescript
-const ALLOWED_ORIGINS = [
-  'https://id-preview--f627a44c-0749-466b-87e6-c5389310e076.lovable.app',
-  'http://localhost:5173',
-];
-```
-
-### 3. Configurações no Supabase Dashboard
-
-1. **Rate Limiting** (Authentication > Rate Limits):
-   - Sign-in: 5 por minuto
-   - Sign-up: 3 por minuto
-   - Password reset: 3 por hora
-
-2. **MFA** (futuro):
-   - Considerar para conta Master
 
 ---
 
-## Plano de Ação
+## Componentes React
 
-1. **Imediato:** Marcar os 2 achados ativos como ignorados com justificativa de negócio
-2. **Dashboard:** Configurar rate limiting no Supabase
-3. **Opcional:** Adicionar rate limiting ao Edge Function
+### 1. `WhatsAppConnectionModal.tsx`
+
+Modal para exibir QR Code e gerenciar conexão.
+
+```tsx
+interface WhatsAppConnectionModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+// Estados:
+// - loading: Criando instância...
+// - qrcode: Exibindo QR Code para escaneamento
+// - connected: WhatsApp conectado com sucesso
+// - error: Falha na conexão
+```
+
+### 2. `WhatsAppStatusBadge.tsx`
+
+Badge no header do Pipeline mostrando status da conexão.
+
+```tsx
+// 🔴 Desconectado  |  🟡 Conectando...  |  🟢 Conectado (João +55 11 99999-9999)
+```
+
+### 3. Atualização do `Pipeline.tsx`
+
+Adicionar botão de configuração WhatsApp no header.
 
 ---
 
-## Conclusão
+## Fluxo de Conexão
 
-O sistema está com **segurança adequada** para um CRM multi-tenant SaaS:
+```text
+1. ADMIN clica em "Conectar WhatsApp"
+           │
+           ▼
+2. Edge Function cria instância na Evolution API
+           │
+           ▼
+3. Evolution retorna QR Code (base64)
+           │
+           ▼
+4. Modal exibe QR Code + instruções
+           │
+           ▼
+5. Usuário escaneia com WhatsApp
+           │
+           ▼
+6. Evolution notifica via webhook (ou polling)
+           │
+           ▼
+7. Atualiza status para "connected" no banco
+           │
+           ▼
+8. Modal fecha, badge mostra "Conectado"
+```
 
-- Todas as 33 tabelas têm RLS habilitado
-- Isolamento por `company_id` consistente
-- Roles em tabela separada com funções SECURITY DEFINER
-- Validação de senhas comprometidas via HIBP
-- Dados sensíveis (`system_config`) protegidos corretamente
+---
 
-Os 2 achados ativos (`clients` e `chat_messages`) são comportamentos esperados para um CRM onde a equipe de vendas precisa ter visibilidade compartilhada dos clientes e conversas.
+## Secrets Necessários
+
+Para funcionar, o CRM precisa das seguintes variáveis de ambiente:
+
+| Secret | Descrição |
+|--------|-----------|
+| `EVOLUTION_API_URL` | URL da Evolution API (self-hosted ou cloud) |
+| `EVOLUTION_API_KEY` | Chave de API global da Evolution |
+
+---
+
+## Opções de Deploy da Evolution API
+
+### Opção 1: Evolution Cloud (Mais Simples)
+- Serviço gerenciado
+- Sem necessidade de servidor próprio
+- Pago por uso
+
+### Opção 2: Self-Hosted (Mais Controle)
+- Docker + VPS
+- Controle total dos dados
+- Custo fixo de infraestrutura
+
+Para o MVP, recomendo começar com **Evolution Cloud** ou uma instância **Docker simples**.
+
+---
+
+## Estrutura de Arquivos Atualizada
+
+```
+supabase/
+├── functions/
+│   ├── pipeline-orchestrator/
+│   │   └── index.ts
+│   ├── whatsapp-instance/        # NOVO
+│   │   └── index.ts
+│   └── whatsapp-sender/
+│       └── index.ts
+
+src/
+├── components/
+│   └── pipeline/
+│       ├── PipelineBoard.tsx
+│       ├── PipelineCard.tsx
+│       ├── WhatsAppConnectionModal.tsx   # NOVO
+│       ├── WhatsAppStatusBadge.tsx       # NOVO
+│       └── ...
+├── hooks/
+│   ├── useWhatsAppInstance.ts            # NOVO
+│   └── ...
+```
+
+---
+
+## Sequência de Implementação Atualizada
+
+| Ordem | Tarefa | Prioridade |
+|-------|--------|------------|
+| 1 | Criar tabelas pipeline + whatsapp_instances | Alta |
+| 2 | Criar RLS policies | Alta |
+| 3 | Criar Edge Function `whatsapp-instance` | Alta |
+| 4 | Criar componente `WhatsAppConnectionModal` | Alta |
+| 5 | Criar hook `useWhatsAppInstance` | Alta |
+| 6 | Adicionar botão no header do Pipeline | Alta |
+| 7 | Criar trigger de eventos | Média |
+| 8 | Criar Edge Function `whatsapp-sender` | Média |
+| 9 | Criar Edge Function `pipeline-orchestrator` | Média |
+| 10 | Testar fluxo completo de conexão | Alta |
+
+---
+
+## Resultado Esperado
+
+1. **ADMIN acessa Pipeline** → Vê botão "Conectar WhatsApp"
+2. **Clica no botão** → Modal abre com QR Code
+3. **Escaneia com celular** → Conexão estabelecida em segundos
+4. **Badge verde** → "Conectado (Nome +55 11 99999)"
+5. **Ao mover card para "Pronto"** → Mensagem enviada automaticamente via WhatsApp real
+6. **Histórico salvo** → Todas as mensagens registradas na tabela `whatsapp_messages`
+
+---
+
+## Segurança
+
+- API Key da Evolution armazenada em Supabase Secrets (Edge Functions)
+- RLS garante que cada empresa só vê sua instância
+- Apenas ADMIN pode conectar/desconectar WhatsApp
+- Mensagens enviadas são auditadas
 
