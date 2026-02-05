@@ -1,321 +1,124 @@
 
 
-# Plano Atualizado: Pipeline Escalável + WhatsApp com QR Code (Evolution API)
+# Plano: Redirecionamento Direto para WhatsApp Web
 
-## Nova Funcionalidade: Conexão WhatsApp via QR Code
+## Resumo da Mudança
 
-### Conceito
+Substituir o modal de chat interno por redirecionamento direto ao WhatsApp Web, tanto no Pipeline quanto na aba Clientes.
 
-O usuário ADMIN poderá conectar o WhatsApp da empresa diretamente no CRM através de um QR Code, similar ao WhatsApp Web. A conexão é feita via **Evolution API** (API open-source brasileira, amplamente usada).
+---
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    PÁGINA PIPELINE                              │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  ⚙️ Configurações WhatsApp         [Conectar WhatsApp]  │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  Ao clicar, abre modal:                                        │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │         📱 Conectar WhatsApp                            │   │
-│  │                                                         │   │
-│  │         ┌─────────────┐                                 │   │
-│  │         │   QR CODE   │                                 │   │
-│  │         │   [:::::]   │  ← Escaneie com WhatsApp       │   │
-│  │         │   [:::::]   │                                 │   │
-│  │         └─────────────┘                                 │   │
-│  │                                                         │   │
-│  │  Status: Aguardando conexão...                          │   │
-│  │                                                         │   │
-│  │  1. Abra o WhatsApp no celular                          │   │
-│  │  2. Vá em Configurações > Aparelhos conectados         │   │
-│  │  3. Toque em "Conectar um aparelho"                     │   │
-│  │  4. Escaneie este QR Code                               │   │
-│  └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
+## Alterações Necessárias
+
+### 1. Página Pipeline (`src/pages/Pipeline.tsx`)
+
+**Antes:**
+- Botão de chat (MessageCircle) abre `ClientChatModal`
+
+**Depois:**
+- Ao clicar no card do cliente → abre `https://wa.me/{telefone}` em nova aba
+- Remover import e uso do `ClientChatModal`
+- Remover estados `showChatModal` e `chatClient`
+- Manter informações no card: nome, telefone, veículo
+
+**Mudanças específicas:**
+```tsx
+// Remover:
+- import { ClientChatModal }
+- const [showChatModal, setShowChatModal] = useState(false)
+- const [chatClient, setChatClient] = useState<Client | null>(null)
+- função openChat()
+- componente <ClientChatModal />
+
+// Adicionar função helper:
+const openWhatsApp = (phone: string) => {
+  const cleanPhone = phone.replace(/\D/g, '');
+  // Adiciona código do Brasil se não tiver
+  const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+  window.open(`https://wa.me/${formattedPhone}`, '_blank');
+};
+
+// No card, ao clicar no botão de chat:
+onClick={() => client && openWhatsApp(client.phone)}
 ```
 
 ---
 
-## Arquitetura Desacoplada
+### 2. Página Clientes (`src/pages/Clientes.tsx`)
 
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│                        CRM WFE (React)                           │
-│                                                                  │
-│   [Botão Conectar] ──────▶ Modal QR Code ──────▶ Status Conexão │
-│                                                                  │
-└──────────────────────┬───────────────────────────────────────────┘
-                       │
-                       ▼ API Calls
-┌──────────────────────────────────────────────────────────────────┐
-│                   EDGE FUNCTIONS (Supabase)                      │
-│                                                                  │
-│  ┌────────────────────┐    ┌────────────────────┐               │
-│  │ whatsapp-instance  │    │  whatsapp-sender   │               │
-│  │ - create           │    │  - send message    │               │
-│  │ - qrcode           │    │  - send template   │               │
-│  │ - status           │    │  - send media      │               │
-│  │ - disconnect       │    │                    │               │
-│  └────────────────────┘    └────────────────────┘               │
-│                                                                  │
-└──────────────────────┬───────────────────────────────────────────┘
-                       │
-                       ▼ HTTP Requests
-┌──────────────────────────────────────────────────────────────────┐
-│                     EVOLUTION API                                │
-│              (Self-hosted ou Evolution Cloud)                    │
-│                                                                  │
-│  Endpoints utilizados:                                           │
-│  POST /instance/create     - Cria instância                     │
-│  GET  /instance/qrcode     - Retorna QR Code (base64)           │
-│  GET  /instance/status     - Verifica conexão                   │
-│  POST /message/sendText    - Envia mensagem                     │
-│  DELETE /instance/logout   - Desconecta                         │
-└──────────────────────────────────────────────────────────────────┘
+**Antes:**
+- Clicar no telefone abre `ClientChatModal`
+
+**Depois:**
+- Clicar no telefone → abre `https://wa.me/{telefone}` em nova aba
+- Remover import e uso do `ClientChatModal`
+- Remover estados `showChatModal` e `chatClient`
+
+**Mudanças específicas:**
+```tsx
+// Remover:
+- import { ClientChatModal }
+- const [showChatModal, setShowChatModal] = useState(false)
+- const [chatClient, setChatClient] = useState<Client | null>(null)
+- função openChat()
+- componente <ClientChatModal />
+
+// Na coluna Contato da tabela:
+<button
+  onClick={() => openWhatsApp(client.phone)}
+  className="text-primary hover:underline flex items-center gap-1"
+>
+  <MessageCircle className="h-3 w-3" />
+  {client.phone}
+</button>
 ```
 
 ---
 
-## Novas Tabelas no Banco
+### 3. Função Helper Reutilizável (Opcional)
 
-### Tabela `whatsapp_instances`
-
-Armazena as instâncias WhatsApp conectadas por empresa.
-
-```sql
-CREATE TABLE whatsapp_instances (
-  id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  company_id BIGINT REFERENCES companies(id) UNIQUE,
-  instance_name TEXT NOT NULL,
-  instance_id TEXT,
-  api_key TEXT, -- API key da instância na Evolution
-  status TEXT DEFAULT 'disconnected', -- 'disconnected', 'connecting', 'connected'
-  phone_number TEXT,
-  phone_name TEXT,
-  last_connected_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### Atualização `whatsapp_messages`
-
-Adicionar referência à instância:
-
-```sql
-ALTER TABLE whatsapp_messages 
-ADD COLUMN instance_id BIGINT REFERENCES whatsapp_instances(id);
-```
-
----
-
-## Edge Functions para Evolution API
-
-### 1. `whatsapp-instance` (Gerenciamento de Instância)
-
-```typescript
-// supabase/functions/whatsapp-instance/index.ts
-
-// Endpoints:
-// POST /create   - Cria nova instância para a empresa
-// GET  /qrcode   - Retorna QR Code em base64
-// GET  /status   - Verifica status da conexão
-// POST /logout   - Desconecta WhatsApp
-
-// Exemplo de criação de instância:
-const response = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': EVOLUTION_API_KEY
-  },
-  body: JSON.stringify({
-    instanceName: `wfe_company_${companyId}`,
-    qrcode: true,
-    integration: 'WHATSAPP-BAILEYS'
-  })
-});
-```
-
-### 2. `whatsapp-sender` (Envio de Mensagens)
-
-```typescript
-// supabase/functions/whatsapp-sender/index.ts
-
-// Envia mensagem via Evolution API
-const response = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instanceName}`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'apikey': instanceApiKey
-  },
-  body: JSON.stringify({
-    number: phoneNumber,
-    text: message
-  })
-});
-
-// Registra em whatsapp_messages
-await supabase.from('whatsapp_messages').insert({
-  company_id: companyId,
-  instance_id: instanceId,
-  to_phone: phoneNumber,
-  content: message,
-  status: response.ok ? 'sent' : 'failed'
-});
-```
-
----
-
-## Componentes React
-
-### 1. `WhatsAppConnectionModal.tsx`
-
-Modal para exibir QR Code e gerenciar conexão.
+Criar em `src/lib/utils.ts`:
 
 ```tsx
-interface WhatsAppConnectionModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-// Estados:
-// - loading: Criando instância...
-// - qrcode: Exibindo QR Code para escaneamento
-// - connected: WhatsApp conectado com sucesso
-// - error: Falha na conexão
-```
-
-### 2. `WhatsAppStatusBadge.tsx`
-
-Badge no header do Pipeline mostrando status da conexão.
-
-```tsx
-// 🔴 Desconectado  |  🟡 Conectando...  |  🟢 Conectado (João +55 11 99999-9999)
-```
-
-### 3. Atualização do `Pipeline.tsx`
-
-Adicionar botão de configuração WhatsApp no header.
-
----
-
-## Fluxo de Conexão
-
-```text
-1. ADMIN clica em "Conectar WhatsApp"
-           │
-           ▼
-2. Edge Function cria instância na Evolution API
-           │
-           ▼
-3. Evolution retorna QR Code (base64)
-           │
-           ▼
-4. Modal exibe QR Code + instruções
-           │
-           ▼
-5. Usuário escaneia com WhatsApp
-           │
-           ▼
-6. Evolution notifica via webhook (ou polling)
-           │
-           ▼
-7. Atualiza status para "connected" no banco
-           │
-           ▼
-8. Modal fecha, badge mostra "Conectado"
+export const openWhatsApp = (phone: string, message?: string) => {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+  const url = message 
+    ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`
+    : `https://wa.me/${formattedPhone}`;
+  window.open(url, '_blank');
+};
 ```
 
 ---
 
-## Secrets Necessários
+## Arquivos Afetados
 
-Para funcionar, o CRM precisa das seguintes variáveis de ambiente:
-
-| Secret | Descrição |
-|--------|-----------|
-| `EVOLUTION_API_URL` | URL da Evolution API (self-hosted ou cloud) |
-| `EVOLUTION_API_KEY` | Chave de API global da Evolution |
-
----
-
-## Opções de Deploy da Evolution API
-
-### Opção 1: Evolution Cloud (Mais Simples)
-- Serviço gerenciado
-- Sem necessidade de servidor próprio
-- Pago por uso
-
-### Opção 2: Self-Hosted (Mais Controle)
-- Docker + VPS
-- Controle total dos dados
-- Custo fixo de infraestrutura
-
-Para o MVP, recomendo começar com **Evolution Cloud** ou uma instância **Docker simples**.
-
----
-
-## Estrutura de Arquivos Atualizada
-
-```
-supabase/
-├── functions/
-│   ├── pipeline-orchestrator/
-│   │   └── index.ts
-│   ├── whatsapp-instance/        # NOVO
-│   │   └── index.ts
-│   └── whatsapp-sender/
-│       └── index.ts
-
-src/
-├── components/
-│   └── pipeline/
-│       ├── PipelineBoard.tsx
-│       ├── PipelineCard.tsx
-│       ├── WhatsAppConnectionModal.tsx   # NOVO
-│       ├── WhatsAppStatusBadge.tsx       # NOVO
-│       └── ...
-├── hooks/
-│   ├── useWhatsAppInstance.ts            # NOVO
-│   └── ...
-```
-
----
-
-## Sequência de Implementação Atualizada
-
-| Ordem | Tarefa | Prioridade |
-|-------|--------|------------|
-| 1 | Criar tabelas pipeline + whatsapp_instances | Alta |
-| 2 | Criar RLS policies | Alta |
-| 3 | Criar Edge Function `whatsapp-instance` | Alta |
-| 4 | Criar componente `WhatsAppConnectionModal` | Alta |
-| 5 | Criar hook `useWhatsAppInstance` | Alta |
-| 6 | Adicionar botão no header do Pipeline | Alta |
-| 7 | Criar trigger de eventos | Média |
-| 8 | Criar Edge Function `whatsapp-sender` | Média |
-| 9 | Criar Edge Function `pipeline-orchestrator` | Média |
-| 10 | Testar fluxo completo de conexão | Alta |
+| Arquivo | Ação |
+|---------|------|
+| `src/pages/Pipeline.tsx` | Modificar: remover modal, adicionar openWhatsApp |
+| `src/pages/Clientes.tsx` | Modificar: remover modal, adicionar openWhatsApp |
+| `src/lib/utils.ts` | Modificar: adicionar função openWhatsApp |
+| `src/components/clientes/ClientChatModal.tsx` | Pode ser removido (não será mais usado) |
 
 ---
 
 ## Resultado Esperado
 
-1. **ADMIN acessa Pipeline** → Vê botão "Conectar WhatsApp"
-2. **Clica no botão** → Modal abre com QR Code
-3. **Escaneia com celular** → Conexão estabelecida em segundos
-4. **Badge verde** → "Conectado (Nome +55 11 99999)"
-5. **Ao mover card para "Pronto"** → Mensagem enviada automaticamente via WhatsApp real
-6. **Histórico salvo** → Todas as mensagens registradas na tabela `whatsapp_messages`
+### Pipeline:
+- Card mostra: veículo, placa, nome do cliente
+- Ao clicar no ícone de chat → abre WhatsApp Web direto na conversa
+
+### Clientes:
+- Tabela mostra telefone com ícone de WhatsApp
+- Ao clicar no telefone → abre WhatsApp Web direto na conversa
 
 ---
 
-## Segurança
+## Vantagens
 
-- API Key da Evolution armazenada em Supabase Secrets (Edge Functions)
-- RLS garante que cada empresa só vê sua instância
-- Apenas ADMIN pode conectar/desconectar WhatsApp
-- Mensagens enviadas são auditadas
+1. **Simplicidade** - Sem chat interno para manter
+2. **WhatsApp real** - Conversa acontece no app oficial
+3. **Histórico preservado** - Mensagens ficam no WhatsApp do usuário
+4. **Sem dependência de API** - Funciona imediatamente
 
