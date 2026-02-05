@@ -1,142 +1,199 @@
 
-# Plano: Correcoes de Bugs e Remocao de Funcionalidades Redundantes
+# Plano: Correcoes de Seguranca Criticas
 
-## Resumo das Alteracoes
+## Resumo das Correcoes
 
-Este plano aborda seis problemas identificados:
+Este plano aborda 3 vulnerabilidades de seguranca criticas identificadas na auditoria:
 
-1. **Financeiro** - Corrigir criacao de categorias (erro de RLS)
-2. **Clientes** - Adicionar rolagem no modal Editar Cliente
-3. **Garantias** - Remover sub-aba "Servicos"
-4. **Garantias** - Remover card "Servico Associado" do modal "Criar Garantia Produto"
-5. **Garantias** - Alterar modal "Emitir Garantia" para selecionar modelos de garantia em vez de vendas
-6. **Sidebar/Admin** - Remover aba Admin (redundante com Solicitacoes e Empresa)
+1. **Politicas RLS com TO public** - 6 tabelas expostas a acesso nao autenticado
+2. **Dados bancarios expostos** - Tabela system_config acessivel a todos usuarios
+3. **Padronizacao de requisitos de senha** - Inconsistencia entre 6 e 8 caracteres
 
 ---
 
-## 1. Corrigir Criacao de Categorias no Financeiro
+## 1. Corrigir Politicas RLS com TO public
 
 ### Problema Identificado
-A politica RLS da tabela `categories` permite apenas usuarios com role `ADMIN` inserir categorias. Porem, a verificacao usa a funcao `has_role()` que depende da tabela `user_roles`. 
 
-Analisando os dados:
-- As categorias existentes tem `company_id: null` (categorias padrao do sistema)
-- A politica exige `company_id = get_user_company_id(auth.uid())`
+As seguintes tabelas tem politicas RLS configuradas com `TO public` em vez de `TO authenticated`, permitindo potencialmente acesso sem autenticacao:
 
-**Causa provavel**: A politica atual permite apenas `ALL` (SELECT, INSERT, UPDATE, DELETE) para ADMIN, mas nao inclui INSERT explicito. Precisamos criar uma politica separada para INSERT.
+| Tabela | Politicas Afetadas |
+|--------|-------------------|
+| `product_types` | ALL, SELECT |
+| `region_consumption_rules` | ALL, SELECT |
+| `sales` | UPDATE (Admin), DELETE (Admin) |
+| `service_items_detailed` | ALL, SELECT |
+| `vehicle_regions` | ALL, SELECT |
+
+### Risco
+Mesmo que as politicas usem `auth.uid()` na expressao (que retorna NULL para usuarios nao autenticados), a configuracao `TO public` e uma ma pratica que pode causar problemas em cenarios especificos.
 
 ### Solucao
-
-Criar politica RLS especifica para INSERT que permita ADMIN e VENDEDOR criarem categorias:
+Recriar todas as politicas afetadas alterando de `TO public` para `TO authenticated`:
 
 ```sql
-CREATE POLICY "Users can insert categories in their company"
-  ON categories FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    company_id = get_user_company_id(auth.uid())
-    AND has_any_role(auth.uid(), ARRAY['ADMIN'::app_role, 'VENDEDOR'::app_role])
+-- product_types
+DROP POLICY IF EXISTS "Users can manage product_types from their company" ON product_types;
+DROP POLICY IF EXISTS "Users can view product_types from their company" ON product_types;
+
+CREATE POLICY "Users can manage product_types from their company"
+  ON product_types FOR ALL TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()))
+  WITH CHECK (company_id = get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can view product_types from their company"
+  ON product_types FOR SELECT TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()));
+
+-- region_consumption_rules
+DROP POLICY IF EXISTS "Users can manage consumption_rules from their company" ON region_consumption_rules;
+DROP POLICY IF EXISTS "Users can view consumption_rules from their company" ON region_consumption_rules;
+
+CREATE POLICY "Users can manage consumption_rules from their company"
+  ON region_consumption_rules FOR ALL TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()))
+  WITH CHECK (company_id = get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can view consumption_rules from their company"
+  ON region_consumption_rules FOR SELECT TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()));
+
+-- sales (apenas UPDATE e DELETE do Admin)
+DROP POLICY IF EXISTS "Admin can update all sales in company" ON sales;
+DROP POLICY IF EXISTS "Only Admin can delete sales" ON sales;
+
+CREATE POLICY "Admin can update all sales in company"
+  ON sales FOR UPDATE TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()) 
+         AND has_role(auth.uid(), 'ADMIN'::app_role));
+
+CREATE POLICY "Only Admin can delete sales"
+  ON sales FOR DELETE TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()) 
+         AND has_role(auth.uid(), 'ADMIN'::app_role));
+
+-- service_items_detailed
+DROP POLICY IF EXISTS "Users can manage service_items from their company" ON service_items_detailed;
+DROP POLICY IF EXISTS "Users can view service_items from their company" ON service_items_detailed;
+
+CREATE POLICY "Users can manage service_items from their company"
+  ON service_items_detailed FOR ALL TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()))
+  WITH CHECK (company_id = get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can view service_items from their company"
+  ON service_items_detailed FOR SELECT TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()));
+
+-- vehicle_regions
+DROP POLICY IF EXISTS "Users can manage vehicle_regions from their company" ON vehicle_regions;
+DROP POLICY IF EXISTS "Users can view vehicle_regions from their company" ON vehicle_regions;
+
+CREATE POLICY "Users can manage vehicle_regions from their company"
+  ON vehicle_regions FOR ALL TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()))
+  WITH CHECK (company_id = get_user_company_id(auth.uid()));
+
+CREATE POLICY "Users can view vehicle_regions from their company"
+  ON vehicle_regions FOR SELECT TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()));
+```
+
+---
+
+## 2. Proteger Dados Bancarios (system_config)
+
+### Problema Identificado
+
+A tabela `system_config` contem dados sensiveis:
+- Chave PIX: `pix@wfeevolution.com.br`
+- Nome do beneficiario: `WFE Evolution LTDA`
+- CNPJ: `00.000.000/0000-00`
+- Dados bancarios: Banco, agencia, conta
+
+A politica atual permite que **qualquer usuario autenticado** visualize esses dados:
+
+```sql
+-- Politica atual (VULNERAVEL)
+USING (auth.uid() IS NOT NULL)
+```
+
+### Risco
+Usuarios comuns podem acessar dados bancarios que deveriam ser visiveis apenas durante o fluxo de pagamento ou pelo Master.
+
+### Solucao
+Restringir o acesso apenas ao Master account:
+
+```sql
+DROP POLICY IF EXISTS "Authenticated users can view system config" ON system_config;
+
+CREATE POLICY "Only master can view system config"
+  ON system_config FOR SELECT TO authenticated
+  USING (is_master_account(auth.uid()));
+```
+
+### Impacto na Aplicacao
+A tela de pagamento (Subscription) busca dados de `system_config` para mostrar chave PIX. Sera necessario criar uma **Edge Function** para fornecer apenas os dados necessarios para o pagamento, sem expor tudo.
+
+Alternativa mais simples: Criar uma politica que permite acesso durante o fluxo de assinatura:
+
+```sql
+CREATE POLICY "Users can view payment info for subscription"
+  ON system_config FOR SELECT TO authenticated
+  USING (
+    is_master_account(auth.uid()) 
+    OR EXISTS (
+      SELECT 1 FROM subscriptions 
+      WHERE user_id = auth.uid() 
+      AND status IN ('pending_payment', 'payment_submitted')
+    )
   );
 ```
 
-**Arquivo afetado**: Nova migracao SQL
-
 ---
 
-## 2. Adicionar Rolagem no Modal Editar Cliente
+## 3. Padronizar Requisitos de Senha (8 caracteres minimo)
 
-### Problema
-O conteudo do modal ultrapassa a tela e nao ha como visualizar campos adicionais (CPF, Email, Origem) quando expandidos.
+### Problema Identificado
 
-### Analise
-O arquivo `src/components/clientes/EditClientModal.tsx` ja usa `ScrollArea` na linha 114, mas com `className="flex-1 pr-4"`. O problema e que o container pai (`DialogContent`) tem `max-h-[90vh]` mas o ScrollArea precisa de uma altura fixa.
+Inconsistencia nos requisitos de senha entre diferentes telas:
+
+| Arquivo | Requisito Atual |
+|---------|-----------------|
+| `SignUp.tsx` | 6 caracteres (linha 140) |
+| `ResetPassword.tsx` | 8 caracteres (linha 68) |
+| `ChangePasswordModal.tsx` | 6 caracteres (linha 41) |
 
 ### Solucao
-Ajustar o ScrollArea para ter uma altura maxima explicita:
+Padronizar para **8 caracteres minimo** em todos os fluxos:
 
+**SignUp.tsx:**
 ```tsx
-<ScrollArea className="flex-1 pr-4 max-h-[60vh]">
+// Linha 136: placeholder
+placeholder="Mínimo 8 caracteres"
+
+// Linha 140: minLength
+minLength={8}
+
+// Adicionar validacao antes do submit
+if (password.length < 8) {
+  toast({
+    title: 'Senha muito curta',
+    description: 'A senha deve ter no mínimo 8 caracteres',
+    variant: 'destructive',
+  });
+  return;
+}
 ```
 
-**Arquivo afetado**: `src/components/clientes/EditClientModal.tsx`
-
----
-
-## 3. Remover Sub-aba "Servicos" da Aba Garantias
-
-### Problema
-O usuario solicitou a remocao da sub-aba "Servicos" que foi criada anteriormente.
-
-### Solucao
-1. Remover o componente `TabsList` e `TabsTrigger` do arquivo `Garantias.tsx`
-2. Manter apenas o conteudo da aba "Garantias"
-3. Remover import e uso de `WarrantyServicesTab`
-
-**Arquivo afetado**: `src/pages/Garantias.tsx`
-
----
-
-## 4. Remover Card "Servico Associado" do Modal Criar Garantia Produto
-
-### Problema
-No modal `NewWarrantyTemplateModal.tsx`, existe um campo "Servico Associado" que usa dados mock (`services` de mockData). Este campo deve ser removido.
-
-### Solucao
-1. Remover o campo `serviceId` e seu estado
-2. Remover o Select de "Servico Associado"
-3. Ajustar a validacao para nao exigir `serviceId`
-
-**Arquivo afetado**: `src/components/garantias/NewWarrantyTemplateModal.tsx`
-
----
-
-## 5. Alterar Modal "Emitir Garantia" para Selecionar Modelos de Garantia
-
-### Problema Atual
-O modal `IssueWarrantyModal.tsx` atualmente:
-1. Seleciona uma venda primeiro
-2. Depois mostra modelos de garantia baseados nos servicos da venda
-
-### Nova Logica
-O modal deve:
-1. Buscar modelos de garantia (`warranty_templates`) direto do banco de dados
-2. Permitir selecionar um modelo
-3. Preencher os dados do cliente/veiculo baseado em vendas existentes OU input manual
-
-### Solucao
-Reescrever o modal para:
-1. Buscar `warranty_templates` do Supabase em vez de usar mock data
-2. Primeiro selecionar o modelo de garantia
-3. Permitir selecionar cliente/veiculo ou inserir dados manualmente
-4. Manter a funcionalidade de pre-visualizacao
-
-**Arquivo afetado**: `src/components/garantias/IssueWarrantyModal.tsx`
-
----
-
-## 6. Verificar e Manter Botao "Desvincular" + Remover Aba Admin
-
-### Botao Desvincular
-Analisando `TeamRequests.tsx`:
-- Linhas 179-217 implementam `handleUnlinkMember`
-- A funcao atualiza `profiles.company_id = null` e `user_roles.role = 'NENHUM'`
-- O botao esta presente nas linhas 378-387
-
-O botao esta implementado corretamente. Recomendo apenas verificar se funciona no ambiente de producao.
-
-### Remocao da Aba Admin
-A aba Admin (`src/pages/Admin.tsx`) e redundante porque:
-- Gerenciamento de usuarios: ja existe em "Solicitacoes" (aprovar/rejeitar/desvincular)
-- Permissoes: sao definidas no momento da solicitacao de entrada
-
-**Solucao**:
-1. Remover a rota `/admin` de `App.tsx`
-2. Remover o item de navegacao do `Sidebar.tsx`
-3. Manter os arquivos para backup (podem ser uteis futuramente)
-
-**Arquivos afetados**: 
-- `src/App.tsx`
-- `src/components/layout/Sidebar.tsx`
+**ChangePasswordModal.tsx:**
+```tsx
+// Linha 41: alterar de 6 para 8
+if (newPassword.length < 8) {
+  toast.error("A nova senha deve ter pelo menos 8 caracteres");
+  return;
+}
+```
 
 ---
 
@@ -144,95 +201,59 @@ A aba Admin (`src/pages/Admin.tsx`) e redundante porque:
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| Nova migracao SQL | Adicionar politica INSERT para categories |
-| `src/components/clientes/EditClientModal.tsx` | Ajustar altura do ScrollArea |
-| `src/pages/Garantias.tsx` | Remover sub-aba Servicos e Tabs |
-| `src/components/garantias/NewWarrantyTemplateModal.tsx` | Remover campo Servico Associado |
-| `src/components/garantias/IssueWarrantyModal.tsx` | Mudar de selecionar venda para selecionar modelo |
-| `src/App.tsx` | Remover rota /admin |
-| `src/components/layout/Sidebar.tsx` | Remover link Admin do menu |
-
----
-
-## Secao Tecnica: Detalhes da Migracao SQL
-
-```sql
--- Permitir ADMIN e VENDEDOR criarem categorias na sua empresa
-CREATE POLICY "Users can create categories in their company"
-  ON public.categories FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    company_id = get_user_company_id(auth.uid())
-    AND has_any_role(auth.uid(), ARRAY['ADMIN'::app_role, 'VENDEDOR'::app_role])
-  );
-```
-
----
-
-## Secao Tecnica: Alteracao do IssueWarrantyModal
-
-O modal sera reescrito para:
-
-1. **Estado**:
-   - `templateId` - ID do modelo selecionado
-   - `templates` - Lista de modelos do banco
-   - `clientData` - Dados do cliente (nome, telefone, email)
-   - `vehicleData` - Dados do veiculo (marca, modelo, placa, ano)
-
-2. **useEffect**:
-   - Buscar modelos de garantia do Supabase ao abrir
-
-3. **Interface**:
-   - Dropdown para selecionar modelo de garantia (em vez de venda)
-   - Campos editaveis para cliente e veiculo
-   - Manter a aba de pre-visualizacao
+| Nova migracao SQL | Recriar 10 politicas RLS com TO authenticated |
+| Nova migracao SQL | Proteger system_config para Master + fluxo pagamento |
+| `src/pages/SignUp.tsx` | Alterar minLength de 6 para 8, atualizar placeholder |
+| `src/components/perfil/ChangePasswordModal.tsx` | Alterar validacao de 6 para 8 caracteres |
 
 ---
 
 ## Ordem de Implementacao
 
-1. Criar migracao SQL para politica INSERT em categories
-2. Corrigir ScrollArea no EditClientModal
-3. Remover sub-aba Servicos de Garantias.tsx
-4. Remover Servico Associado de NewWarrantyTemplateModal
-5. Reescrever IssueWarrantyModal para usar modelos do banco
-6. Remover aba Admin do Sidebar e App.tsx
+1. Criar migracao SQL para corrigir politicas TO public
+2. Criar migracao SQL para proteger system_config
+3. Atualizar SignUp.tsx com requisito de 8 caracteres
+4. Atualizar ChangePasswordModal.tsx com requisito de 8 caracteres
 
 ---
 
-## Resumo Visual
+## Nota sobre Rate Limiting e Leaked Password Protection
+
+Essas configuracoes sao feitas diretamente no **Supabase Dashboard**, nao via codigo:
+
+### Rate Limiting
+1. Acesse: Supabase Dashboard > Authentication > Rate Limits
+2. Configure limites para:
+   - Sign-in attempts: 5 por minuto
+   - Sign-up attempts: 3 por minuto
+   - Password reset: 3 por hora
+
+### Leaked Password Protection
+1. Acesse: Supabase Dashboard > Authentication > Policies
+2. Ative "Leaked password protection" (requer plano Pro)
+3. Alternativa gratuita: ja implementada via HIBP Edge Function
+
+---
+
+## Resumo Visual das Correcoes
 
 ```text
-FINANCEIRO
-+-----------------------------------+
-| Criar Categoria -> FUNCIONA!      |
-| (RLS ajustada para INSERT)        |
-+-----------------------------------+
+ANTES                              DEPOIS
++----------------------------+     +----------------------------+
+| product_types              |     | product_types              |
+| TO public ⚠️               |     | TO authenticated ✅        |
++----------------------------+     +----------------------------+
 
-CLIENTES > EDITAR CLIENTE
-+-----------------------------------+
-| Modal com SCROLL funcionando      |
-| max-h-[60vh] no ScrollArea        |
-+-----------------------------------+
++----------------------------+     +----------------------------+
+| system_config              |     | system_config              |
+| Qualquer usuario pode ver  |     | Apenas Master ou           |
+| dados bancarios ⚠️         |     | fluxo de pagamento ✅      |
++----------------------------+     +----------------------------+
 
-GARANTIAS
-+-----------------------------------+
-| [Garantias] (sem sub-abas)        |
-|                                   |
-| Criar Garantia Produto:           |
-| - Sem "Servico Associado"         |
-|                                   |
-| Emitir Garantia:                  |
-| - Selecionar Modelo (nao Venda)   |
-+-----------------------------------+
-
-SIDEBAR
-+-----------------------------------+
-| Painel                            |
-| Vendas                            |
-| ...                               |
-| Solicitacoes                      |
-| [Admin REMOVIDO]                  |
-| Painel Master                     |
-+-----------------------------------+
++----------------------------+     +----------------------------+
+| Senha                      |     | Senha                      |
+| 6 chars (signup)           |     | 8 chars (todos) ✅         |
+| 8 chars (reset)            |     |                            |
+| 6 chars (change) ⚠️        |     |                            |
++----------------------------+     +----------------------------+
 ```
