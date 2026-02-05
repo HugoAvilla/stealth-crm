@@ -2,7 +2,7 @@ import { useState } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Car, Clock, CheckCircle, AlertCircle, AlertTriangle, Wrench, Plus, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Clock, CheckCircle, AlertTriangle, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -111,6 +111,23 @@ export default function Espaco() {
     enabled: !!companyId,
   });
 
+  // Fetch unpaid exited vehicles count
+  const { data: unpaidCount } = useQuery({
+    queryKey: ['unpaid-exited-count', companyId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('spaces')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', companyId)
+        .eq('has_exited', true)
+        .or('payment_status.neq.paid,payment_status.is.null');
+
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!companyId,
+  });
+
   // Calculate counts
   const occupiedCount = spaces?.length || 0;
   const availableCount = 10 - occupiedCount; // Assuming 10 slots total
@@ -122,6 +139,7 @@ export default function Espaco() {
 
   const handleSlotFilled = () => {
     queryClient.invalidateQueries({ queryKey: ['spaces'] });
+    queryClient.invalidateQueries({ queryKey: ['unpaid-exited-count'] });
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -159,6 +177,15 @@ export default function Espaco() {
           <TabsTrigger value="nao-pagos-saida" className="gap-2">
             <AlertTriangle className="h-4 w-4" />
             Não Pagos (Saída)
+            {unpaidCount !== undefined && unpaidCount > 0 && (
+              <Badge 
+                variant="destructive" 
+                className="ml-1 px-1.5 py-0.5 text-xs bg-destructive text-destructive-foreground animate-pulse flex items-center gap-0.5"
+              >
+                <AlertTriangle className="h-3 w-3" />
+                {unpaidCount}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
