@@ -1713,6 +1713,57 @@ export type Database = {
           },
         ]
       }
+      warranty_services: {
+        Row: {
+          company_id: number
+          created_at: string | null
+          description: string | null
+          id: number
+          instructions: string | null
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+          warranty_template_id: number | null
+        }
+        Insert: {
+          company_id: number
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          instructions?: string | null
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+          warranty_template_id?: number | null
+        }
+        Update: {
+          company_id?: number
+          created_at?: string | null
+          description?: string | null
+          id?: number
+          instructions?: string | null
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+          warranty_template_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warranty_services_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warranty_services_warranty_template_id_fkey"
+            columns: ["warranty_template_id"]
+            isOneToOne: false
+            referencedRelation: "warranty_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       warranty_templates: {
         Row: {
           company_id: number | null

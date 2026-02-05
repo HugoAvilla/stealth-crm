@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect } from "react";
-import { Phone, Mail, MapPin, Upload, MessageCircle, Edit, Loader2, Users, Settings } from "lucide-react";
+ import { useState, useRef, useEffect } from "react";
+ import { Phone, Mail, MapPin, Upload, MessageCircle, Edit, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EditCompanyModal } from "@/components/empresa/EditCompanyModal";
-import { TeamSettingsModal } from "@/components/empresa/TeamSettingsModal";
+ import { EditCompanyModal } from "@/components/empresa/EditCompanyModal";
 import { CompanyCodeDisplay } from "@/components/team/CompanyCodeDisplay";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -29,7 +28,7 @@ interface CompanyData {
 export default function Empresa() {
   const { user } = useAuth();
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showTeamSettings, setShowTeamSettings] = useState(false);
+
   const [company, setCompany] = useState<CompanyData | null>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -182,22 +181,12 @@ export default function Empresa() {
       {/* Team Stats & Company Code - Only for Admin */}
       {user?.role === 'ADMIN' && (
         <Card className="bg-card/50 border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Users className="h-5 w-5 text-primary" />
-                Equipe
-              </CardTitle>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowTeamSettings(true)}
-              >
-                <Settings className="h-4 w-4 mr-1" />
-                Configurar
-              </Button>
-            </div>
-          </CardHeader>
+           <CardHeader className="pb-3">
+             <CardTitle className="flex items-center gap-2 text-lg">
+               <Users className="h-5 w-5 text-primary" />
+               Equipe
+             </CardTitle>
+           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
@@ -270,14 +259,7 @@ export default function Empresa() {
       </button>
 
       {/* Modals */}
-      <EditCompanyModal open={showEditModal} onOpenChange={setShowEditModal} />
-      <TeamSettingsModal
-        open={showTeamSettings}
-        onOpenChange={setShowTeamSettings}
-        currentLimit={company?.max_members || 5}
-        currentMembers={memberCount}
-        onSaved={fetchCompanyData}
-      />
+       <EditCompanyModal open={showEditModal} onOpenChange={setShowEditModal} />
     </div>
   );
 }
