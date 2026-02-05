@@ -1,11 +1,11 @@
-import { useState } from "react";
+ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { services } from "@/lib/mockData";
+ import { supabase } from "@/integrations/supabase/client";
+ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 interface NewWarrantyTemplateModalProps {
@@ -15,39 +15,71 @@ interface NewWarrantyTemplateModalProps {
 }
 
 export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated }: NewWarrantyTemplateModalProps) {
+   const { user } = useAuth();
   const [name, setName] = useState("");
-  const [serviceId, setServiceId] = useState("");
   const [validityMonths, setValidityMonths] = useState("");
   const [terms, setTerms] = useState("");
   const [coverage, setCoverage] = useState("");
   const [restrictions, setRestrictions] = useState("");
+   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
     setName("");
-    setServiceId("");
     setValidityMonths("");
     setTerms("");
     setCoverage("");
     setRestrictions("");
   };
 
-  const handleSubmit = () => {
-    if (!name || !serviceId || !validityMonths) {
+   const handleSubmit = async () => {
+     if (!name || !validityMonths) {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
 
-    toast.success("Modelo de garantia criado com sucesso!");
-    onOpenChange(false);
-    resetForm();
-    onTemplateCreated?.();
+     setIsSubmitting(true);
+     try {
+       const { data: profile } = await supabase
+         .from('profiles')
+         .select('company_id')
+         .eq('user_id', user?.id)
+         .single();
+ 
+       if (!profile?.company_id) {
+         toast.error("Empresa não encontrada");
+         return;
+       }
+ 
+       const { error } = await supabase
+         .from('warranty_templates')
+         .insert({
+           company_id: profile.company_id,
+           name,
+           validity_months: parseInt(validityMonths),
+           terms: terms || null,
+           coverage: coverage || null,
+           restrictions: restrictions || null,
+         });
+ 
+       if (error) throw error;
+ 
+       toast.success("Modelo de garantia criado com sucesso!");
+       onOpenChange(false);
+       resetForm();
+       onTemplateCreated?.();
+     } catch (error) {
+       console.error('Error creating warranty template:', error);
+       toast.error("Erro ao criar modelo de garantia");
+     } finally {
+       setIsSubmitting(false);
+     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Criar Garantia de Produto</DialogTitle>
+           <DialogTitle>Criar Modelo de Garantia</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -60,32 +92,14 @@ export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Serviço Associado *</Label>
-              <Select value={serviceId} onValueChange={setServiceId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map(service => (
-                    <SelectItem key={service.id} value={service.id.toString()}>
-                      {service.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Validade (Meses) *</Label>
-              <Input
-                type="number"
-                placeholder="24"
-                value={validityMonths}
-                onChange={e => setValidityMonths(e.target.value)}
-              />
-            </div>
+           <div className="space-y-2">
+             <Label>Validade (Meses) *</Label>
+             <Input
+               type="number"
+               placeholder="24"
+               value={validityMonths}
+               onChange={e => setValidityMonths(e.target.value)}
+             />
           </div>
 
           <div className="space-y-2">
@@ -122,7 +136,7 @@ export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleSubmit}>
+             <Button className="flex-1" onClick={handleSubmit} disabled={isSubmitting}>
               Criar Modelo
             </Button>
           </div>

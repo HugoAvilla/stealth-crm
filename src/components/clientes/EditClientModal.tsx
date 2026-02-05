@@ -111,7 +111,7 @@ export function EditClientModal({
             </div>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 pr-4">
+          <ScrollArea className="flex-1 pr-4 max-h-[60vh]">
             <div className="space-y-4">
               {/* Name */}
               <div className="space-y-2">

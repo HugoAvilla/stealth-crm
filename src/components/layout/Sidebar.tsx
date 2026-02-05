@@ -18,7 +18,6 @@ import {
   Target,
   User,
   Building,
-  UserCog,
   ChevronLeft,
   LogOut,
   Crown,
@@ -100,8 +99,7 @@ export function Sidebar() {
     { icon: Target, label: 'Pipeline', path: '/pipeline' },
     { icon: User, label: 'Perfil', path: '/perfil' },
     { icon: Building, label: 'Sua Empresa', path: '/empresa' },
-    { icon: UserPlus, label: 'Solicitações', path: '/equipe/solicitacoes', adminOnly: true, badge: pendingRequestsCount },
-    { icon: UserCog, label: 'Admin', path: '/admin', adminOnly: true },
+     { icon: UserPlus, label: 'Solicitações', path: '/equipe/solicitacoes', adminOnly: true, badge: pendingRequestsCount },
     { icon: Crown, label: 'Painel Master', path: '/master', masterOnly: true },
   ];
 

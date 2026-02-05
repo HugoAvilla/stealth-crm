@@ -1,5 +1,5 @@
- import { useState, useEffect } from "react";
- import { Plus, Search, FileCheck, Send, Download, MoreHorizontal, FilePlus } from "lucide-react";
+  import { useState, useEffect } from "react";
+   import { Plus, Search, FileCheck, Download, MoreHorizontal, FilePlus, Send } from "lucide-react";
  import { Button } from "@/components/ui/button";
  import { Input } from "@/components/ui/input";
  import { Card, CardContent } from "@/components/ui/card";
@@ -7,14 +7,12 @@
  import { Badge } from "@/components/ui/badge";
  import { Skeleton } from "@/components/ui/skeleton";
  import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
- import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
  import { supabase } from "@/integrations/supabase/client";
  import { useAuth } from "@/contexts/AuthContext";
  import { format } from "date-fns";
  import { IssueWarrantyModal } from "@/components/garantias/IssueWarrantyModal";
  import { NewWarrantyTemplateModal } from "@/components/garantias/NewWarrantyTemplateModal";
  import { SendEmailModal } from "@/components/garantias/SendEmailModal";
- import { WarrantyServicesTab } from "@/components/garantias/WarrantyServicesTab";
  import { toast } from "sonner";
  import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
 
@@ -152,26 +150,18 @@ export default function Garantias() {
          </div>
        </div>
  
-       {/* Tabs */}
-       <Tabs defaultValue="garantias" className="w-full">
-         <TabsList>
-           <TabsTrigger value="garantias">Garantias</TabsTrigger>
-           <TabsTrigger value="servicos">Serviços</TabsTrigger>
-         </TabsList>
- 
-         <TabsContent value="garantias" className="space-y-6 mt-6">
-           {/* Header Actions */}
-           <div className="flex justify-end gap-2">
+       {/* Header Actions */}
+       <div className="flex justify-end gap-2">
              <Button variant="outline" onClick={() => setShowTemplateModal(true)}>
                <FilePlus className="h-4 w-4 mr-2" /> Criar Garantia Produto
              </Button>
              <Button onClick={() => setShowIssueModal(true)}>
                <Plus className="h-4 w-4 mr-2" /> Emitir Garantia
              </Button>
-           </div>
+       </div>
  
-           {/* Stats */}
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+       {/* Stats */}
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              <Card className="bg-card/50 border-border/50">
                <CardContent className="p-4">
                  <div className="flex items-center gap-3">
@@ -213,10 +203,10 @@ export default function Garantias() {
                  </div>
                </CardContent>
              </Card>
-           </div>
+       </div>
  
-           {/* Search */}
-           <div className="relative max-w-md">
+       {/* Search */}
+       <div className="relative max-w-md">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
              <Input
                placeholder="Buscar por tipo, cliente ou placa..."
@@ -224,10 +214,10 @@ export default function Garantias() {
                onChange={e => setSearch(e.target.value)}
                className="pl-10"
              />
-           </div>
+       </div>
  
-           {/* Table */}
-           <Card className="bg-card/50 border-border/50">
+       {/* Table */}
+       <Card className="bg-card/50 border-border/50">
              <CardContent className="p-0">
                {loading ? (
                  <div className="p-6 space-y-4">
@@ -293,14 +283,8 @@ export default function Garantias() {
                    </TableBody>
                  </Table>
                )}
-             </CardContent>
-           </Card>
-         </TabsContent>
- 
-         <TabsContent value="servicos" className="mt-6">
-           <WarrantyServicesTab />
-         </TabsContent>
-       </Tabs>
+         </CardContent>
+       </Card>
 
       {/* Modals */}
       <IssueWarrantyModal 
