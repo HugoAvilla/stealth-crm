@@ -33,7 +33,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import NewClientModal from "@/components/vendas/NewClientModal";
 import { ClientProfileModal } from "@/components/clientes/ClientProfileModal";
 import { EditClientModal } from "@/components/clientes/EditClientModal";
-import { ClientChatModal } from "@/components/clientes/ClientChatModal";
+import { openWhatsApp } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,8 +80,6 @@ export default function Clientes() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showChatModal, setShowChatModal] = useState(false);
-  const [chatClient, setChatClient] = useState<Client | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
   const fetchClients = async () => {
@@ -224,10 +222,6 @@ export default function Clientes() {
     }
   };
 
-  const openChat = (client: Client) => {
-    setChatClient(client);
-    setShowChatModal(true);
-  };
 
   const getSortLabel = () => {
     switch (sortBy) {
@@ -338,7 +332,7 @@ export default function Clientes() {
                   </TableCell>
                   <TableCell>
                     <button
-                      onClick={() => openChat(client)}
+                      onClick={() => openWhatsApp(client.phone)}
                       className="text-primary hover:underline flex items-center gap-1"
                     >
                       <MessageCircle className="h-3 w-3" />
@@ -433,11 +427,6 @@ export default function Clientes() {
         </>
       )}
 
-      <ClientChatModal
-        open={showChatModal}
-        onOpenChange={setShowChatModal}
-        client={chatClient as any}
-      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!clientToDelete} onOpenChange={() => setClientToDelete(null)}>
