@@ -28,7 +28,6 @@ import Estoque from "./pages/Estoque";
 import Pipeline from "./pages/Pipeline";
 import Perfil from "./pages/Perfil";
 import Empresa from "./pages/Empresa";
-import Admin from "./pages/Admin";
 import Master from "./pages/Master";
 import TeamRequests from "./pages/TeamRequests";
 import NotFound from "./pages/NotFound";
@@ -194,14 +193,8 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      {/* Protected Routes - ADMIN only */}
-      <Route path="/admin" element={
-        <ProtectedRoute allowedRoles={['ADMIN']}>
-          <MainLayout><Admin /></MainLayout>
-        </ProtectedRoute>
-      } />
-
-      <Route path="/equipe/solicitacoes" element={
+       {/* Protected Routes - ADMIN only */}
+       <Route path="/equipe/solicitacoes" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><TeamRequests /></MainLayout>
         </ProtectedRoute>
