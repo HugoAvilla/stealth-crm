@@ -3,10 +3,9 @@ import { Clock, User, GripVertical, MessageSquare, MessageCircle } from "lucide-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { pipelineItems, sales, getClientById, getVehicleById, getServiceById, type PipelineItem, type Client } from "@/lib/mockData";
-import { cn } from "@/lib/utils";
+import { pipelineItems, sales, getClientById, getVehicleById, getServiceById, type PipelineItem } from "@/lib/mockData";
+import { cn, openWhatsApp } from "@/lib/utils";
 import { toast } from "sonner";
-import { ClientChatModal } from "@/components/clientes/ClientChatModal";
 
 const STAGES = [
   { id: 'Agendados', label: 'Agendados', color: 'bg-blue-500' },
@@ -20,8 +19,6 @@ const STAGES = [
 export default function Pipeline() {
   const [items, setItems] = useState<PipelineItem[]>(pipelineItems);
   const [draggedItem, setDraggedItem] = useState<PipelineItem | null>(null);
-  const [showChatModal, setShowChatModal] = useState(false);
-  const [chatClient, setChatClient] = useState<Client | null>(null);
 
   const handleDragStart = (e: React.DragEvent, item: PipelineItem) => {
     setDraggedItem(item);
@@ -57,11 +54,6 @@ export default function Pipeline() {
 
   const getItemsByStage = (stage: PipelineItem['stage']) => 
     items.filter(item => item.stage === stage);
-
-  const openChat = (client: Client) => {
-    setChatClient(client);
-    setShowChatModal(true);
-  };
 
   return (
     <div className="p-6 space-y-6">
@@ -114,7 +106,7 @@ export default function Pipeline() {
                           draggedItem?.id === item.id && "opacity-50"
                         )}
                       >
-                        {/* Chat button */}
+                        {/* WhatsApp button */}
                         {client && (
                           <Button
                             size="sm"
@@ -122,7 +114,7 @@ export default function Pipeline() {
                             className="absolute top-2 right-2 h-7 w-7 p-0"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openChat(client);
+                              openWhatsApp(client.phone);
                             }}
                           >
                             <MessageCircle className="h-4 w-4" />
@@ -180,7 +172,7 @@ export default function Pipeline() {
                             className="w-full mt-3 text-xs"
                             onClick={() => {
                               if (client) {
-                                toast.success(`Mensagem enviada para ${client.name} via WhatsApp!`);
+                                openWhatsApp(client.phone, `Olá ${client.name}, seu veículo está pronto para retirada!`);
                               }
                             }}
                           >
@@ -203,13 +195,6 @@ export default function Pipeline() {
           );
         })}
       </div>
-
-      {/* Chat Modal */}
-      <ClientChatModal
-        open={showChatModal}
-        onOpenChange={setShowChatModal}
-        client={chatClient}
-      />
     </div>
   );
 }
