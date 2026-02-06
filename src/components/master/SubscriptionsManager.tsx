@@ -78,6 +78,7 @@ interface SubscriptionWithRelations extends Subscription {
     company_name: string;
     max_members: number;
   } | null;
+  userRole?: string | null;
 }
 
 const SubscriptionsManager = () => {
@@ -124,7 +125,7 @@ const SubscriptionsManager = () => {
 
       if (error) throw error;
 
-      // Fetch profiles and companies separately
+      // Fetch profiles, companies and roles separately
       const userIds = subs?.map((s) => s.user_id) || [];
       const companyIds = subs?.map((s) => s.company_id).filter(Boolean) || [];
 
@@ -138,11 +139,17 @@ const SubscriptionsManager = () => {
         .select("id, company_name, max_members")
         .in("id", companyIds as number[]);
 
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", userIds);
+
       // Combine data
       const enrichedSubs: SubscriptionWithRelations[] = (subs || []).map((sub) => ({
         ...sub,
         profile: profiles?.find((p) => p.user_id === sub.user_id) || null,
         company: companies?.find((c) => c.id === sub.company_id) || null,
+        userRole: roles?.find((r) => r.user_id === sub.user_id)?.role || null,
       }));
 
       setSubscriptions(enrichedSubs);
@@ -360,6 +367,21 @@ const SubscriptionsManager = () => {
     }
   };
 
+  const getRoleBadge = (role: string | null | undefined) => {
+    switch (role) {
+      case "ADMIN":
+        return <Badge className="bg-purple-500/20 text-purple-400">Admin</Badge>;
+      case "VENDEDOR":
+        return <Badge className="bg-blue-500/20 text-blue-400">Vendedor</Badge>;
+      case "PRODUCAO":
+        return <Badge className="bg-orange-500/20 text-orange-400">Produção</Badge>;
+      case "NENHUM":
+        return <Badge className="bg-gray-500/20 text-gray-400">Pendente</Badge>;
+      default:
+        return <Badge variant="secondary">—</Badge>;
+    }
+  };
+
   const filteredSubscriptions = subscriptions.filter((sub) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -407,6 +429,7 @@ const SubscriptionsManager = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Usuário</TableHead>
+                <TableHead>Categoria</TableHead>
                 <TableHead>Empresa</TableHead>
                 <TableHead>Preço</TableHead>
                 <TableHead>Expira em</TableHead>
@@ -427,6 +450,9 @@ const SubscriptionsManager = () => {
                         </p>
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {getRoleBadge(sub.userRole)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
