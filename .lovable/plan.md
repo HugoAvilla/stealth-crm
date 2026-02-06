@@ -1,124 +1,272 @@
 
+# Plano: Exclusão de Perfil no Master + Cupons Individuais + Remoção do Pipeline
 
-# Plano: Redirecionamento Direto para WhatsApp Web
+## Resumo das Alterações
 
-## Resumo da Mudança
-
-Substituir o modal de chat interno por redirecionamento direto ao WhatsApp Web, tanto no Pipeline quanto na aba Clientes.
+1. **Botão de Excluir Perfil** no Painel Master (exclusão completa do usuário)
+2. **Cupons de Desconto Individuais** por usuário no Painel Master
+3. **Remoção Completa do Pipeline** (módulo, rota, sidebar, botão no Dashboard)
 
 ---
 
-## Alterações Necessárias
+## 1. Exclusão de Perfil Completo (Painel Master)
 
-### 1. Página Pipeline (`src/pages/Pipeline.tsx`)
+### Lógica de Exclusão
 
-**Antes:**
-- Botão de chat (MessageCircle) abre `ClientChatModal`
+A exclusão de um usuário precisa remover dados em cascata de várias tabelas, respeitando as dependências:
 
-**Depois:**
-- Ao clicar no card do cliente → abre `https://wa.me/{telefone}` em nova aba
-- Remover import e uso do `ClientChatModal`
-- Remover estados `showChatModal` e `chatClient`
-- Manter informações no card: nome, telefone, veículo
+```text
+┌────────────────────────────────────────────────────────────────┐
+│                  EXCLUSÃO DE USUÁRIO                           │
+├────────────────────────────────────────────────────────────────┤
+│  1. subscriptions (user_id)                                    │
+│  2. coupon_usage (user_id)                                     │
+│  3. user_roles (user_id)                                       │
+│  4. profiles (user_id)                                         │
+│  5. auth.users (id) - conta de autenticação                    │
+└────────────────────────────────────────────────────────────────┘
+```
 
-**Mudanças específicas:**
+### Migração SQL Necessária
+
+Nova função RPC `master_delete_user`:
+
+```sql
+CREATE OR REPLACE FUNCTION public.master_delete_user(
+  user_id_input UUID,
+  reason_input TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_profile RECORD;
+BEGIN
+  -- Apenas conta master pode executar
+  IF NOT is_master_account(auth.uid()) THEN
+    RAISE EXCEPTION 'Apenas a conta Master pode excluir usuários';
+  END IF;
+
+  -- Buscar perfil para log
+  SELECT * INTO v_profile FROM profiles WHERE user_id = user_id_input;
+  
+  IF v_profile IS NULL THEN
+    RAISE EXCEPTION 'Usuário não encontrado';
+  END IF;
+
+  -- Registrar ação no log de auditoria
+  INSERT INTO master_actions (action_type, target_id, details, performed_by)
+  VALUES (
+    'user_deleted',
+    user_id_input::text,
+    jsonb_build_object(
+      'reason', reason_input,
+      'email', v_profile.email,
+      'name', v_profile.name
+    ),
+    auth.uid()
+  );
+
+  -- Excluir em cascata (a maioria já tem ON DELETE CASCADE)
+  DELETE FROM subscriptions WHERE user_id = user_id_input;
+  DELETE FROM coupon_usage WHERE user_id = user_id_input;
+  DELETE FROM user_roles WHERE user_id = user_id_input;
+  DELETE FROM profiles WHERE user_id = user_id_input;
+  
+  -- Deletar usuário da tabela auth.users
+  DELETE FROM auth.users WHERE id = user_id_input;
+
+  RETURN true;
+END;
+$$;
+```
+
+### Alterações no Frontend
+
+**Arquivo:** `src/components/master/SubscriptionsManager.tsx`
+
+Adicionar na tabela de assinaturas:
+- Novo botão de ação (ícone Trash2 vermelho)
+- Modal de confirmação com campo de motivo
+- Chamada RPC `master_delete_user`
+
+---
+
+## 2. Cupons Individuais por Usuário
+
+### Conceito
+
+Na aba "Assinaturas" do Painel Master, adicionar um botão para criar cupom exclusivo para aquele usuário específico. O cupom terá:
+- `target_user_id` (novo campo na tabela `discount_coupons`)
+- Limite de uso = 1
+- Código gerado automaticamente baseado no nome do usuário
+
+### Migração SQL Necessária
+
+```sql
+-- Adicionar coluna para cupom individual
+ALTER TABLE public.discount_coupons 
+ADD COLUMN target_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- Atualizar função de validação
+CREATE OR REPLACE FUNCTION public.validate_coupon(coupon_code_input text)
+RETURNS TABLE (
+  valid boolean,
+  discount_type text,
+  discount_value numeric,
+  error_message text
+)
+-- Adicionar verificação: se target_user_id não é null, 
+-- só é válido para aquele usuário
+```
+
+### Alterações no Frontend
+
+**Arquivo:** `src/components/master/SubscriptionsManager.tsx`
+
+Na linha de cada assinatura, adicionar:
+- Botão "Criar Cupom" (ícone Tag)
+- Modal para definir tipo e valor do desconto
+- Código gerado: `{NOME_USUARIO}_{RANDOM4}` (ex: LUCAS_A7X2)
+
+---
+
+## 3. Remoção Completa do Pipeline
+
+### Arquivos a Remover
+
+| Arquivo/Diretório | Ação |
+|-------------------|------|
+| `src/pages/Pipeline.tsx` | Excluir |
+| Tabelas do banco (pipelines, pipeline_*) | Manter (para futuro) |
+
+### Arquivos a Modificar
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/App.tsx` | Remover import e rota `/pipeline` |
+| `src/components/layout/Sidebar.tsx` | Remover item "Pipeline" do navItems |
+| `src/components/dashboard/QuickActions.tsx` | Remover botão "Ver Pipeline" |
+| `src/pages/Dashboard.tsx` | Remover prop `onViewPipeline` |
+
+### Detalhes das Modificações
+
+**`src/App.tsx`:**
 ```tsx
-// Remover:
-- import { ClientChatModal }
-- const [showChatModal, setShowChatModal] = useState(false)
-- const [chatClient, setChatClient] = useState<Client | null>(null)
-- função openChat()
-- componente <ClientChatModal />
+// REMOVER:
+import Pipeline from "./pages/Pipeline";
 
-// Adicionar função helper:
-const openWhatsApp = (phone: string) => {
-  const cleanPhone = phone.replace(/\D/g, '');
-  // Adiciona código do Brasil se não tiver
-  const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-  window.open(`https://wa.me/${formattedPhone}`, '_blank');
-};
+// REMOVER:
+<Route path="/pipeline" element={...} />
+```
 
-// No card, ao clicar no botão de chat:
-onClick={() => client && openWhatsApp(client.phone)}
+**`src/components/layout/Sidebar.tsx`:**
+```tsx
+// REMOVER do array navItems:
+{ icon: Target, label: 'Pipeline', path: '/pipeline' },
+```
+
+**`src/components/dashboard/QuickActions.tsx`:**
+```tsx
+// REMOVER:
+- Prop onViewPipeline
+- Botão "Ver Pipeline" do array actions
+
+// ATUALIZAR interface:
+interface QuickActionsProps {
+  onNewSale: () => void;
+  onNewSlot: () => void;
+  onNewClient: () => void;
+  // onViewPipeline removido
+}
+```
+
+**`src/pages/Dashboard.tsx`:**
+```tsx
+// REMOVER:
+- Prop onViewPipeline do QuickActions
 ```
 
 ---
 
-### 2. Página Clientes (`src/pages/Clientes.tsx`)
+## Estrutura de Arquivos Final
 
-**Antes:**
-- Clicar no telefone abre `ClientChatModal`
+```
+EXCLUIR:
+  src/pages/Pipeline.tsx
 
-**Depois:**
-- Clicar no telefone → abre `https://wa.me/{telefone}` em nova aba
-- Remover import e uso do `ClientChatModal`
-- Remover estados `showChatModal` e `chatClient`
+MODIFICAR:
+  src/App.tsx
+  src/components/layout/Sidebar.tsx
+  src/components/dashboard/QuickActions.tsx
+  src/pages/Dashboard.tsx
+  src/components/master/SubscriptionsManager.tsx
 
-**Mudanças específicas:**
-```tsx
-// Remover:
-- import { ClientChatModal }
-- const [showChatModal, setShowChatModal] = useState(false)
-- const [chatClient, setChatClient] = useState<Client | null>(null)
-- função openChat()
-- componente <ClientChatModal />
-
-// Na coluna Contato da tabela:
-<button
-  onClick={() => openWhatsApp(client.phone)}
-  className="text-primary hover:underline flex items-center gap-1"
->
-  <MessageCircle className="h-3 w-3" />
-  {client.phone}
-</button>
+MIGRAÇÃO SQL:
+  - Função master_delete_user
+  - Coluna target_user_id na tabela discount_coupons
 ```
 
 ---
 
-### 3. Função Helper Reutilizável (Opcional)
+## Sequência de Implementação
 
-Criar em `src/lib/utils.ts`:
-
-```tsx
-export const openWhatsApp = (phone: string, message?: string) => {
-  const cleanPhone = phone.replace(/\D/g, '');
-  const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-  const url = message 
-    ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`
-    : `https://wa.me/${formattedPhone}`;
-  window.open(url, '_blank');
-};
-```
-
----
-
-## Arquivos Afetados
-
-| Arquivo | Ação |
-|---------|------|
-| `src/pages/Pipeline.tsx` | Modificar: remover modal, adicionar openWhatsApp |
-| `src/pages/Clientes.tsx` | Modificar: remover modal, adicionar openWhatsApp |
-| `src/lib/utils.ts` | Modificar: adicionar função openWhatsApp |
-| `src/components/clientes/ClientChatModal.tsx` | Pode ser removido (não será mais usado) |
+| Ordem | Tarefa | Prioridade |
+|-------|--------|------------|
+| 1 | Criar migração SQL (master_delete_user + target_user_id) | Alta |
+| 2 | Adicionar botão de excluir no SubscriptionsManager | Alta |
+| 3 | Adicionar modal de confirmação de exclusão | Alta |
+| 4 | Adicionar botão de criar cupom individual | Alta |
+| 5 | Adicionar modal de criação de cupom individual | Alta |
+| 6 | Remover Pipeline.tsx | Alta |
+| 7 | Remover rota /pipeline do App.tsx | Alta |
+| 8 | Remover item do Sidebar | Alta |
+| 9 | Remover botão "Ver Pipeline" do QuickActions | Alta |
+| 10 | Atualizar Dashboard.tsx | Alta |
 
 ---
 
 ## Resultado Esperado
 
-### Pipeline:
-- Card mostra: veículo, placa, nome do cliente
-- Ao clicar no ícone de chat → abre WhatsApp Web direto na conversa
+### Painel Master - Aba Assinaturas
 
-### Clientes:
-- Tabela mostra telefone com ícone de WhatsApp
-- Ao clicar no telefone → abre WhatsApp Web direto na conversa
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Usuário          │ Empresa │ Preço │ Expira │ Status │     Ações       │
+├──────────────────────────────────────────────────────────────────────────┤
+│  Lucas Avila      │ Hg      │ R$297 │ 29/03  │ Expirado│ $ 📅 👥 ⚡ 🎫 🗑 │
+│  hugoodfort@...   │ custom  │       │ 2026   │        │                 │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Legenda dos ícones:
+$ = Alterar Preço
+📅 = Alterar Expiração  
+👥 = Limite Membros
+⚡ = Alterar Status
+🎫 = Criar Cupom Individual (NOVO)
+🗑 = Excluir Perfil (NOVO)
+```
+
+### Dashboard - Quick Actions (Sem Pipeline)
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  [+ Nova Venda]  [🚗 Preencher Vaga]  [👤 Novo Cliente]    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Sidebar (Sem Pipeline)
+
+O item "Pipeline" será completamente removido da navegação lateral.
 
 ---
 
-## Vantagens
+## Segurança
 
-1. **Simplicidade** - Sem chat interno para manter
-2. **WhatsApp real** - Conversa acontece no app oficial
-3. **Histórico preservado** - Mensagens ficam no WhatsApp do usuário
-4. **Sem dependência de API** - Funciona imediatamente
+- Apenas conta Master pode excluir usuários (verificação via `is_master_account`)
+- Todas as exclusões são registradas em `master_actions` com motivo
+- Cupons individuais validam `target_user_id` na aplicação
+- RLS mantido para todas as operações
 
