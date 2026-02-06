@@ -145,7 +145,6 @@ const Dashboard = () => {
           onNewSale={() => setShowNewSaleModal(true)}
           onNewSlot={() => navigate('/espaco')}
           onNewClient={() => setShowNewClientModal(true)}
-          onViewPipeline={() => navigate('/pipeline')}
         />
       </div>
 
