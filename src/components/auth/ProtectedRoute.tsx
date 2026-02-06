@@ -1,8 +1,9 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth, SubscriptionStatus } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import type { AppRole } from '@/lib/database.types';
 import { PendingApprovalModal } from './PendingApprovalModal';
+import { Button } from '@/components/ui/button';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -19,7 +20,7 @@ export function ProtectedRoute({
   requireActiveSubscription = true,
   requireMaster = false
 }: ProtectedRouteProps) {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, refreshUser, signOut } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -72,14 +73,52 @@ export function ProtectedRoute({
     return <Navigate to="/empresa/cadastro" replace />;
   }
 
-  // User has role NENHUM - pending approval (only for users with company who are NOT owners)
-  // Company owners should have ADMIN role - if they have NENHUM, it's a data issue that was fixed
+  // Company owner with incorrect NENHUM role - show loading/recovery screen
+  if (user.role === 'NENHUM' && user.companyId && user.isCompanyOwner) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4 text-center p-8 max-w-md">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <h2 className="text-xl font-semibold">Configurando sua conta...</h2>
+          <p className="text-muted-foreground">
+            Estamos finalizando a configuração das suas permissões. Por favor, aguarde um momento.
+          </p>
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              await refreshUser();
+              window.location.reload();
+            }}
+          >
+            Atualizar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // User has role NENHUM - pending approval (only for non-owners)
   if (user.role === 'NENHUM' && user.companyId && !user.isCompanyOwner) {
     return <PendingApprovalModal />;
   }
 
-  // Check if user has required role
+  // Check if user has required role - prevent infinite loop
   if (allowedRoles && !allowedRoles.includes(user.role)) {
+    // If already at root, show access restricted message instead of loop
+    if (location.pathname === '/') {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center p-8 max-w-md">
+            <h2 className="text-xl font-semibold mb-2">Acesso Restrito</h2>
+            <p className="text-muted-foreground mb-4">
+              Você não tem permissão para acessar esta área. 
+              Entre em contato com o administrador da sua empresa.
+            </p>
+            <Button onClick={() => signOut()}>Sair</Button>
+          </div>
+        </div>
+      );
+    }
     return <Navigate to="/" replace />;
   }
 
