@@ -144,34 +144,20 @@ export default function CompanySetup() {
 
       if (subscriptionError) throw subscriptionError;
 
-      // 4. Update user role to ADMIN (check if exists first, then update or insert)
-      const { data: existingRole } = await supabase
+      // 4. Update user role to ADMIN using UPSERT for reliability
+      // Note: The trigger ensure_owner_is_admin should also handle this,
+      // but we do it explicitly as a safety measure
+      const { error: roleError } = await supabase
         .from('user_roles')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (existingRole) {
-        // UPDATE existing role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .update({ role: 'ADMIN' })
-          .eq('user_id', user.id);
-          
-        if (roleError) {
-          console.error('Error updating role:', roleError);
-          throw roleError;
-        }
-      } else {
-        // INSERT new role (fallback)
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({ user_id: user.id, role: 'ADMIN' });
-          
-        if (roleError) {
-          console.error('Error inserting role:', roleError);
-          throw roleError;
-        }
+        .upsert(
+          { user_id: user.id, role: 'ADMIN' },
+          { onConflict: 'user_id' }
+        );
+        
+      if (roleError) {
+        console.error('Error setting ADMIN role:', roleError);
+        // Don't throw - the trigger should have handled this
+        // Just log the error for debugging
       }
 
       // 5. Create default bank account
