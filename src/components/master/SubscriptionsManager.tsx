@@ -32,6 +32,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DollarSign,
   Calendar,
   Shield,
@@ -41,6 +51,8 @@ import {
   Search,
   Power,
   Users,
+  Trash2,
+  Tag,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -79,6 +91,8 @@ const SubscriptionsManager = () => {
   const [showExpiryModal, setShowExpiryModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showMemberLimitModal, setShowMemberLimitModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCouponModal, setShowCouponModal] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithRelations | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,6 +105,10 @@ const SubscriptionsManager = () => {
   const [statusReason, setStatusReason] = useState("");
   const [newMemberLimit, setNewMemberLimit] = useState("");
   const [memberLimitReason, setMemberLimitReason] = useState("");
+  const [deleteReason, setDeleteReason] = useState("");
+  const [couponDiscountType, setCouponDiscountType] = useState("percentage");
+  const [couponDiscountValue, setCouponDiscountValue] = useState("");
+  const [couponDescription, setCouponDescription] = useState("");
 
   useEffect(() => {
     fetchSubscriptions();
@@ -243,6 +261,67 @@ const SubscriptionsManager = () => {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!selectedSub || !deleteReason) return;
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.rpc("master_delete_user", {
+        user_id_input: selectedSub.user_id,
+        reason_input: deleteReason,
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Usuário excluído com sucesso!" });
+      setShowDeleteModal(false);
+      resetForms();
+      fetchSubscriptions();
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast({ 
+        title: "Erro ao excluir usuário", 
+        description: error.message || "Tente novamente",
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSub || !couponDiscountValue) return;
+
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc("master_create_individual_coupon", {
+        p_user_id: selectedSub.user_id,
+        p_discount_type: couponDiscountType,
+        p_discount_value: parseFloat(couponDiscountValue),
+        p_description: couponDescription || null,
+      });
+
+      if (error) throw error;
+
+      toast({ 
+        title: "Cupom criado com sucesso!", 
+        description: `Código: ${data}`,
+      });
+      setShowCouponModal(false);
+      resetForms();
+    } catch (error: any) {
+      console.error("Error creating coupon:", error);
+      toast({ 
+        title: "Erro ao criar cupom", 
+        description: error.message || "Tente novamente",
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const resetForms = () => {
     setSelectedSub(null);
     setNewPrice("");
@@ -253,6 +332,10 @@ const SubscriptionsManager = () => {
     setStatusReason("");
     setNewMemberLimit("");
     setMemberLimitReason("");
+    setDeleteReason("");
+    setCouponDiscountType("percentage");
+    setCouponDiscountValue("");
+    setCouponDescription("");
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -408,6 +491,28 @@ const SubscriptionsManager = () => {
                         title="Alterar status"
                       >
                         <Power className="h-4 w-4 text-orange-500" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedSub(sub);
+                          setShowCouponModal(true);
+                        }}
+                        title="Criar cupom individual"
+                      >
+                        <Tag className="h-4 w-4 text-cyan-500" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedSub(sub);
+                          setShowDeleteModal(true);
+                        }}
+                        title="Excluir usuário"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
                   </TableCell>
@@ -634,6 +739,127 @@ const SubscriptionsManager = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Criar Cupom Individual */}
+      <Dialog open={showCouponModal} onOpenChange={setShowCouponModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Cupom Individual</DialogTitle>
+            <DialogDescription>
+              Criar cupom exclusivo para {selectedSub?.profile?.name} ({selectedSub?.profile?.email})
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateCoupon} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="couponDiscountType">Tipo de Desconto *</Label>
+              <Select value={couponDiscountType} onValueChange={setCouponDiscountType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percentage">Porcentagem (%)</SelectItem>
+                  <SelectItem value="fixed">Valor Fixo (R$)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="couponDiscountValue">
+                Valor do Desconto *{" "}
+                {couponDiscountType === "percentage" ? "(%)" : "(R$)"}
+              </Label>
+              <Input
+                id="couponDiscountValue"
+                type="number"
+                step={couponDiscountType === "percentage" ? "1" : "0.01"}
+                min="0"
+                max={couponDiscountType === "percentage" ? "100" : undefined}
+                value={couponDiscountValue}
+                onChange={(e) => setCouponDiscountValue(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="couponDescription">Descrição (opcional)</Label>
+              <Textarea
+                id="couponDescription"
+                value={couponDescription}
+                onChange={(e) => setCouponDescription(e.target.value)}
+                placeholder="Ex: Cupom de fidelidade, desconto especial..."
+                rows={2}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowCouponModal(false);
+                  resetForms();
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Criar Cupom
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Confirmar Exclusão */}
+      <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Excluir Usuário Permanentemente
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Você está prestes a excluir o usuário{" "}
+                <strong>{selectedSub?.profile?.name}</strong> ({selectedSub?.profile?.email}).
+              </p>
+              <p className="font-semibold text-destructive">
+                Esta ação é IRREVERSÍVEL e excluirá:
+              </p>
+              <ul className="list-disc list-inside text-sm">
+                <li>Perfil do usuário</li>
+                <li>Assinatura e histórico de pagamentos</li>
+                <li>Permissões e roles</li>
+                <li>Conta de autenticação</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-4">
+            <Label htmlFor="deleteReason">Motivo da exclusão *</Label>
+            <Textarea
+              id="deleteReason"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Ex: Solicitação do usuário, conta duplicada..."
+              required
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteModal(false);
+              resetForms();
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isSubmitting || !deleteReason}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Excluir Permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

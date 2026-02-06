@@ -25,7 +25,7 @@ import Relatorios from "./pages/Relatorios";
 
 import Garantias from "./pages/Garantias";
 import Estoque from "./pages/Estoque";
-import Pipeline from "./pages/Pipeline";
+
 import Perfil from "./pages/Perfil";
 import Empresa from "./pages/Empresa";
 import Master from "./pages/Master";
@@ -168,11 +168,6 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       
-      <Route path="/pipeline" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
-          <MainLayout><Pipeline /></MainLayout>
-        </ProtectedRoute>
-      } />
       
       <Route path="/perfil" element={
         <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR', 'PRODUCAO']}>

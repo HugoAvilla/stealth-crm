@@ -495,6 +495,7 @@ export type Database = {
           discount_value: number
           id: number
           is_active: boolean | null
+          target_user_id: string | null
           updated_at: string | null
           usage_count: number | null
           usage_limit: number | null
@@ -509,6 +510,7 @@ export type Database = {
           discount_value: number
           id?: never
           is_active?: boolean | null
+          target_user_id?: string | null
           updated_at?: string | null
           usage_count?: number | null
           usage_limit?: number | null
@@ -523,6 +525,7 @@ export type Database = {
           discount_value?: number
           id?: never
           is_active?: boolean | null
+          target_user_id?: string | null
           updated_at?: string | null
           usage_count?: number | null
           usage_limit?: number | null
@@ -2277,6 +2280,19 @@ export type Database = {
           subscription_id_input: number
         }
         Returns: undefined
+      }
+      master_create_individual_coupon: {
+        Args: {
+          p_description?: string
+          p_discount_type: string
+          p_discount_value: number
+          p_user_id: string
+        }
+        Returns: string
+      }
+      master_delete_user: {
+        Args: { reason_input: string; user_id_input: string }
+        Returns: boolean
       }
       master_toggle_subscription_status: {
         Args: {

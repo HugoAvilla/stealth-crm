@@ -12,10 +12,8 @@ import {
   Landmark,
   Users,
   BarChart3,
-  Settings,
   Shield,
   Package,
-  Target,
   User,
   Building,
   ChevronLeft,
@@ -93,13 +91,11 @@ export function Sidebar() {
     { icon: Landmark, label: 'Contas', path: '/contas' },
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
-    
     { icon: Shield, label: 'Garantias', path: '/garantias' },
     { icon: Package, label: 'Estoque', path: '/estoque', productionOnly: true },
-    { icon: Target, label: 'Pipeline', path: '/pipeline' },
     { icon: User, label: 'Perfil', path: '/perfil' },
     { icon: Building, label: 'Sua Empresa', path: '/empresa' },
-     { icon: UserPlus, label: 'Solicitações', path: '/equipe/solicitacoes', adminOnly: true, badge: pendingRequestsCount },
+    { icon: UserPlus, label: 'Solicitações', path: '/equipe/solicitacoes', adminOnly: true, badge: pendingRequestsCount },
     { icon: Crown, label: 'Painel Master', path: '/master', masterOnly: true },
   ];
 
