@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
 import NewClientModal from "@/components/vendas/NewClientModal";
 import { ClientProfileModal } from "@/components/clientes/ClientProfileModal";
 import { EditClientModal } from "@/components/clientes/EditClientModal";

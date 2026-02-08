@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { SlotCard } from "@/components/espaco/SlotCard";
 import { FillSlotModal } from "@/components/espaco/FillSlotModal";
 import { SlotDetailsDrawer } from "@/components/espaco/SlotDetailsDrawer";

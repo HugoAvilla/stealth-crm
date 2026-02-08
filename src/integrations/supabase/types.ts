@@ -1811,9 +1811,11 @@ export type Database = {
           company_id: number
           created_at: string | null
           description: string | null
+          fixed_price: number | null
           id: number
           is_active: boolean | null
           name: string
+          product_type_id: number | null
           sort_order: number | null
         }
         Insert: {
@@ -1821,9 +1823,11 @@ export type Database = {
           company_id: number
           created_at?: string | null
           description?: string | null
+          fixed_price?: number | null
           id?: number
           is_active?: boolean | null
           name: string
+          product_type_id?: number | null
           sort_order?: number | null
         }
         Update: {
@@ -1831,9 +1835,11 @@ export type Database = {
           company_id?: number
           created_at?: string | null
           description?: string | null
+          fixed_price?: number | null
           id?: number
           is_active?: boolean | null
           name?: string
+          product_type_id?: number | null
           sort_order?: number | null
         }
         Relationships: [
@@ -1842,6 +1848,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_regions_product_type_id_fkey"
+            columns: ["product_type_id"]
+            isOneToOne: false
+            referencedRelation: "product_types"
             referencedColumns: ["id"]
           },
         ]

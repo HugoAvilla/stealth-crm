@@ -9,10 +9,11 @@ import { SalesChart } from '@/components/dashboard/SalesChart';
 import { CapacityWidget } from '@/components/dashboard/CapacityWidget';
 import { FinancialSummary } from '@/components/dashboard/FinancialSummary';
 import { ConversionFunnel } from '@/components/dashboard/ConversionFunnel';
+import { HelpOverlay } from '@/components/help/HelpOverlay';
 import { Search, DollarSign, TrendingUp, Users, Phone } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import NewSaleModal from '@/components/vendas/NewSaleModal';
 import NewClientModal from '@/components/vendas/NewClientModal';
+import { FillSlotModal } from '@/components/espaco/FillSlotModal';
 import { startOfMonth, endOfMonth } from 'date-fns';
 
 interface DashboardStats {
@@ -28,7 +29,7 @@ interface DashboardStats {
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [showNewSaleModal, setShowNewSaleModal] = useState(false);
+  const [showFillSlotModal, setShowFillSlotModal] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
@@ -119,6 +120,16 @@ const Dashboard = () => {
 
   return (
     <div className="p-6 lg:p-8 space-y-8">
+      <HelpOverlay
+        tabId="dashboard"
+        title="Bem-vindo ao Painel"
+        description="Este é o seu painel de controle. Aqui você acompanha o desempenho do negócio e acessa as principais funções."
+        steps={[
+          { title: "Preencher Vaga", description: "Registre um veículo que entrou na loja para um serviço" },
+          { title: "Novo Cliente", description: "Cadastre novos clientes rapidamente" },
+          { title: "Estatísticas", description: "Acompanhe faturamento, ticket médio e clientes" },
+        ]}
+      />
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="animate-fade-in">
@@ -142,7 +153,7 @@ const Dashboard = () => {
       {/* Quick Actions */}
       <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
         <QuickActions
-          onNewSlot={() => navigate('/espaco')}
+          onNewSlot={() => setShowFillSlotModal(true)}
           onNewClient={() => setShowNewClientModal(true)}
         />
       </div>
@@ -247,9 +258,10 @@ const Dashboard = () => {
       </div>
 
       {/* Modals */}
-      <NewSaleModal
-        open={showNewSaleModal}
-        onOpenChange={setShowNewSaleModal}
+      <FillSlotModal
+        open={showFillSlotModal}
+        onOpenChange={setShowFillSlotModal}
+        onSlotFilled={() => setShowFillSlotModal(false)}
       />
       <NewClientModal
         open={showNewClientModal}

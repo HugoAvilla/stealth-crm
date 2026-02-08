@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
 import SalesKPIBar from "@/components/vendas/SalesKPIBar";
 import NewSaleModal from "@/components/vendas/NewSaleModal";
 import SalesDayDrawer from "@/components/vendas/SalesDayDrawer";
