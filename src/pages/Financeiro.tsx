@@ -10,6 +10,7 @@ import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { AddTransactionModal } from "@/components/financeiro/AddTransactionModal";
 import { AddTransferModal } from "@/components/financeiro/AddTransferModal";
 import { AddAccountModal } from "@/components/financeiro/AddAccountModal";

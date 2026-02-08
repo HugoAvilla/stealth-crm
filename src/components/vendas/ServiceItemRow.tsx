@@ -140,6 +140,14 @@ const ServiceItemRow = ({
     });
   };
 
+  const handlePriceChange = (value: string) => {
+    const price = parseFloat(value) || 0;
+    onUpdate({
+      ...item,
+      totalPrice: price,
+    });
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
       {/* Category Select */}
@@ -215,9 +223,17 @@ const ServiceItemRow = ({
         <span className="text-sm text-muted-foreground">m</span>
       </div>
 
-      {/* Price Display */}
-      <div className="flex-1 text-right font-medium text-success min-w-[100px]">
-        R$ {item.totalPrice.toFixed(2)}
+      {/* Editable Price Input */}
+      <div className="flex items-center gap-1 min-w-[110px]">
+        <span className="text-sm text-muted-foreground">R$</span>
+        <Input
+          type="number"
+          step="0.01"
+          className="w-[90px] text-right font-medium text-success"
+          value={item.totalPrice || ""}
+          onChange={(e) => handlePriceChange(e.target.value)}
+          placeholder="0.00"
+        />
       </div>
 
       {/* Remove Button */}
