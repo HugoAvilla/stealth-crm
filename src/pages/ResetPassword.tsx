@@ -24,10 +24,86 @@ const ResetPassword = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user has a valid session (came from email link)
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const handleRecovery = async () => {
+      // Parse hash fragment (Supabase sends tokens in the URL hash)
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
       
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      const tokenHash = params.get('token_hash');
+      const type = params.get('type');
+      const error = params.get('error');
+      const errorDescription = params.get('error_description');
+      
+      // Handle error from Supabase
+      if (error) {
+        console.error('Recovery error:', errorDescription);
+        toast({
+          title: "Link inválido",
+          description: errorDescription || "O link de recuperação é inválido ou expirou.",
+          variant: "destructive"
+        });
+        setIsCheckingSession(false);
+        return;
+      }
+      
+      // Method 1: Verify with token_hash (newer Supabase versions)
+      if (tokenHash && type === 'recovery') {
+        try {
+          const { data, error: verifyError } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: 'recovery',
+          });
+          
+          if (verifyError) throw verifyError;
+          
+          if (data.session) {
+            setHasValidSession(true);
+            // Clean URL for security
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+        } catch (err: any) {
+          console.error('Token verification failed:', err);
+          toast({
+            title: "Link expirado ou inválido",
+            description: "Por favor, solicite um novo link de recuperação.",
+            variant: "destructive"
+          });
+        }
+        setIsCheckingSession(false);
+        return;
+      }
+      
+      // Method 2: Set session with access_token (PKCE flow)
+      if (accessToken) {
+        try {
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+          
+          if (sessionError) throw sessionError;
+          
+          if (data.session) {
+            setHasValidSession(true);
+            // Clean URL for security
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+        } catch (err: any) {
+          console.error('Session setup failed:', err);
+          toast({
+            title: "Link expirado ou inválido",
+            description: "Por favor, solicite um novo link de recuperação.",
+            variant: "destructive"
+          });
+        }
+        setIsCheckingSession(false);
+        return;
+      }
+      
+      // Method 3: Check existing session (user already authenticated)
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setHasValidSession(true);
       } else {
@@ -40,15 +116,17 @@ const ResetPassword = () => {
       setIsCheckingSession(false);
     };
 
-    // Listen for auth state changes (for when user clicks the email link)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setHasValidSession(true);
-        setIsCheckingSession(false);
+    // Listen for PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'PASSWORD_RECOVERY' && session) {
+          setHasValidSession(true);
+          setIsCheckingSession(false);
+        }
       }
-    });
+    );
 
-    checkSession();
+    handleRecovery();
 
     return () => subscription.unsubscribe();
   }, [toast]);
