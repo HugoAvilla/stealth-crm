@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, GripVertical, Car } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ProductCategory, VehicleRegion } from "@/lib/database.types";
+import { ProductCategory } from "@/lib/database.types";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DndContext,
@@ -34,6 +34,19 @@ import { CSS } from "@dnd-kit/utilities";
 
 interface VehicleRegionsTabProps {
   companyId: number | null;
+}
+
+interface VehicleRegion {
+  id: number;
+  category: ProductCategory;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  company_id: number;
+  fixed_price: number | null;
+  product_type_id: number | null;
 }
 
 interface SortableRegionCardProps {
@@ -79,6 +92,16 @@ function SortableRegionCard({ region, onEdit, onDelete }: SortableRegionCardProp
         )}
       </div>
 
+      {/* Price column */}
+      <div className="text-right min-w-[100px]">
+        <p className="text-xs text-muted-foreground">Preço</p>
+        <p className="font-medium text-success">
+          {region.fixed_price && region.fixed_price > 0
+            ? `R$ ${region.fixed_price.toFixed(2)}`
+            : "-"}
+        </p>
+      </div>
+
       <div className="flex gap-1">
         <Button variant="ghost" size="icon" onClick={() => onEdit(region)}>
           <Pencil className="h-4 w-4" />
@@ -105,11 +128,12 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
   const [deletingRegion, setDeletingRegion] = useState<VehicleRegion | null>(null);
   const [localRegions, setLocalRegions] = useState<VehicleRegion[]>([]);
 
-  // Form state
+  // Form state - includes fixed_price
   const [formData, setFormData] = useState({
     category: "INSULFILM" as ProductCategory,
     name: "",
     description: "",
+    fixed_price: 0,
   });
 
   const sensors = useSensors(
@@ -160,7 +184,10 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
       const { data: result, error } = await supabase
         .from("vehicle_regions")
         .insert({
-          ...data,
+          name: data.name,
+          description: data.description || null,
+          category: data.category,
+          fixed_price: data.fixed_price || null,
           company_id: companyId,
           sort_order: nextOrder,
           is_active: true,
@@ -172,12 +199,12 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
       return result;
     },
     onSuccess: () => {
-      toast.success("Região criada com sucesso!");
+      toast.success("Serviço criado com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["vehicle-regions"] });
       handleCloseModal();
     },
     onError: (error: Error) => {
-      toast.error("Erro ao criar região: " + error.message);
+      toast.error("Erro ao criar serviço: " + error.message);
     },
   });
 
@@ -185,7 +212,11 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
     mutationFn: async ({ id, data }: { id: number; data: Partial<typeof formData> }) => {
       const { data: result, error } = await supabase
         .from("vehicle_regions")
-        .update(data)
+        .update({
+          name: data.name,
+          description: data.description || null,
+          fixed_price: data.fixed_price || null,
+        })
         .eq("id", id)
         .eq("company_id", companyId)
         .select()
@@ -195,12 +226,12 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
       return result;
     },
     onSuccess: () => {
-      toast.success("Região atualizada!");
+      toast.success("Serviço atualizado!");
       queryClient.invalidateQueries({ queryKey: ["vehicle-regions"] });
       handleCloseModal();
     },
     onError: (error: Error) => {
-      toast.error("Erro ao atualizar região: " + error.message);
+      toast.error("Erro ao atualizar serviço: " + error.message);
     },
   });
 
@@ -215,13 +246,13 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Região excluída!");
+      toast.success("Serviço excluído!");
       queryClient.invalidateQueries({ queryKey: ["vehicle-regions"] });
       setIsDeleteAlertOpen(false);
       setDeletingRegion(null);
     },
     onError: (error: Error) => {
-      toast.error("Erro ao excluir região: " + error.message);
+      toast.error("Erro ao excluir serviço: " + error.message);
     },
   });
 
@@ -235,6 +266,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
         name: region.name,
         description: region.description,
         is_active: region.is_active,
+        fixed_price: region.fixed_price,
       }));
 
       const { error } = await supabase.from("vehicle_regions").upsert(updates);
@@ -272,6 +304,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
         category: region.category,
         name: region.name,
         description: region.description || "",
+        fixed_price: region.fixed_price || 0,
       });
     } else {
       setEditingRegion(null);
@@ -279,6 +312,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
         category: activeCategory,
         name: "",
         description: "",
+        fixed_price: 0,
       });
     }
     setIsModalOpen(true);
@@ -291,19 +325,20 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
       category: activeCategory,
       name: "",
       description: "",
+      fixed_price: 0,
     });
   };
 
   const handleSubmit = () => {
     if (!formData.name.trim()) {
-      toast.error("Nome da região é obrigatório");
+      toast.error("Nome do serviço é obrigatório");
       return;
     }
 
     if (editingRegion) {
       updateMutation.mutate({
         id: editingRegion.id,
-        data: { name: formData.name, description: formData.description },
+        data: { name: formData.name, description: formData.description, fixed_price: formData.fixed_price },
       });
     } else {
       createMutation.mutate(formData);
@@ -340,21 +375,21 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
         </Tabs>
 
         <Button onClick={() => handleOpenModal()}>
-          <Plus className="h-4 w-4 mr-2" /> Nova Região
+          <Plus className="h-4 w-4 mr-2" /> Novo Serviço
         </Button>
       </div>
 
-      {/* Lista de regiões */}
+      {/* Lista de serviços */}
       {localRegions.length === 0 ? (
         <Card className="bg-card/50 border-border/50">
           <CardContent className="p-12 text-center">
-            <Car className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhuma região cadastrada</h3>
+            <Wrench className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">Nenhum serviço cadastrado</h3>
             <p className="text-muted-foreground mb-4">
-              Cadastre as regiões do veículo para {activeCategory}
+              Cadastre os serviços para {activeCategory}
             </p>
             <Button onClick={() => handleOpenModal()}>
-              <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeira Região
+              <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Serviço
             </Button>
           </CardContent>
         </Card>
@@ -387,7 +422,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingRegion ? "Editar Região" : "Nova Região"}
+              {editingRegion ? "Editar Serviço" : "Novo Serviço"}
             </DialogTitle>
           </DialogHeader>
 
@@ -410,9 +445,9 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
             </div>
 
             <div className="space-y-2">
-              <Label>Nome da Região *</Label>
+              <Label>Nome do Serviço *</Label>
               <Input
-                placeholder="Ex: Para-brisa, Capô"
+                placeholder="Ex: Para-brisa, Capô, Vidros Laterais"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
@@ -421,10 +456,24 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
             <div className="space-y-2">
               <Label>Descrição</Label>
               <Textarea
-                placeholder="Descrição da região..."
+                placeholder="Descrição do serviço..."
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Preço Pré-determinado (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.fixed_price || ""}
+                onChange={(e) => setFormData({ ...formData, fixed_price: parseFloat(e.target.value) || 0 })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Este preço aparecerá automaticamente ao preencher vagas
+              </p>
             </div>
           </div>
 
@@ -436,7 +485,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
               onClick={handleSubmit}
               disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {editingRegion ? "Salvar Alterações" : "Criar Região"}
+              {editingRegion ? "Salvar Alterações" : "Criar Serviço"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -448,7 +497,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Isso excluirá permanentemente a região
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente o serviço
               "{deletingRegion?.name}".
             </AlertDialogDescription>
           </AlertDialogHeader>

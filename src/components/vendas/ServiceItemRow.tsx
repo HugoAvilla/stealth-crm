@@ -38,6 +38,7 @@ interface VehicleRegion {
   category: string;
   name: string;
   description: string | null;
+  fixed_price?: number | null;
 }
 
 interface ConsumptionRule {
@@ -106,13 +107,16 @@ const ServiceItemRow = ({
   const handleRegionChange = (regionId: string) => {
     const region = vehicleRegions.find((r) => r.id === parseInt(regionId));
     const meters = calculateMeters(parseInt(regionId), item.category);
+    // Use fixed_price if available, otherwise calculate from meters
+    const fixedPrice = region?.fixed_price || 0;
+    const calculatedPrice = fixedPrice > 0 ? fixedPrice : (meters * item.unitPrice);
 
     onUpdate({
       ...item,
       regionId: parseInt(regionId),
       regionName: region?.name || "",
       metersUsed: meters,
-      totalPrice: meters * item.unitPrice,
+      totalPrice: calculatedPrice,
     });
   };
 
