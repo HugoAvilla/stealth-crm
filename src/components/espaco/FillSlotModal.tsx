@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check } from "lucide-react";
+import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -56,6 +56,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const [exitDate, setExitDate] = useState("");
   const [exitTime, setExitTime] = useState("");
   const [discount, setDiscount] = useState<number>(0);
+  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
   const [observations, setObservations] = useState("");
   const [tag, setTag] = useState("");
   
@@ -151,7 +153,10 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
 
   // Calculate totals
   const subtotal = detailedItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-  const finalTotal = subtotal - (discount || 0);
+  const calculatedDiscount = discountType === 'percent' 
+    ? (subtotal * (discountPercent / 100)) 
+    : (discount || 0);
+  const finalTotal = subtotal - calculatedDiscount;
   const serviceCount = detailedItems.length;
 
   // Reset form when modal closes
@@ -165,6 +170,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       setExitDate("");
       setExitTime("");
       setDiscount(0);
+      setDiscountPercent(0);
+      setDiscountType('fixed');
       setObservations("");
       setTag("");
       setDetailedItems([]);
@@ -269,10 +276,10 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           entry_time: entryTime,
           exit_date: exitDate || null,
           exit_time: exitTime || null,
-          discount: discount || null,
+          discount: calculatedDiscount || null,
           observations: observations || null,
           tag: tag || null,
-          status: 'ocupada',
+          status: 'ocupado',
           payment_status: 'pending',
           has_exited: false,
         })
@@ -562,14 +569,66 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
 
           {/* Campos opcionais expandidos */}
           {showDiscount && (
-            <div className="space-y-2">
-              <Label>Desconto (R$)</Label>
-              <Input 
-                type="number" 
-                value={discount || ""} 
-                onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                placeholder="0.00"
-              />
+            <div className="space-y-3">
+              {/* Seleção do tipo de desconto */}
+              <div className="flex gap-2">
+                <Card 
+                  className={`flex-1 cursor-pointer transition-all ${
+                    discountType === 'fixed' 
+                      ? "border-primary bg-primary/10" 
+                      : "border-border/50 hover:border-muted-foreground"
+                  }`}
+                  onClick={() => setDiscountType('fixed')}
+                >
+                  <CardContent className="p-3 text-center">
+                    <DollarSign className="h-5 w-5 mx-auto mb-1" />
+                    <span className="text-sm font-medium">Valor (R$)</span>
+                  </CardContent>
+                </Card>
+                
+                <Card 
+                  className={`flex-1 cursor-pointer transition-all ${
+                    discountType === 'percent' 
+                      ? "border-primary bg-primary/10" 
+                      : "border-border/50 hover:border-muted-foreground"
+                  }`}
+                  onClick={() => setDiscountType('percent')}
+                >
+                  <CardContent className="p-3 text-center">
+                    <Percent className="h-5 w-5 mx-auto mb-1" />
+                    <span className="text-sm font-medium">Percentual (%)</span>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              {/* Input baseado no tipo selecionado */}
+              {discountType === 'fixed' ? (
+                <div className="space-y-2">
+                  <Label>Desconto (R$)</Label>
+                  <Input 
+                    type="number" 
+                    value={discount || ""} 
+                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Desconto (%)</Label>
+                  <Input 
+                    type="number" 
+                    value={discountPercent || ""} 
+                    onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
+                    placeholder="0"
+                    max={100}
+                  />
+                  {discountPercent > 0 && subtotal > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      = R$ {(subtotal * (discountPercent / 100)).toFixed(2)} de desconto
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -617,10 +676,13 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                     <span>Sub-total: R$ {subtotal.toFixed(2)}</span>
                   </p>
-                  {discount > 0 && (
+                  {calculatedDiscount > 0 && (
                     <p className="flex items-center gap-2">
                       <Tag className="h-4 w-4 text-muted-foreground" />
-                      <span>Desconto: R$ {discount.toFixed(2)}</span>
+                      <span>
+                        Desconto: R$ {calculatedDiscount.toFixed(2)}
+                        {discountType === 'percent' && ` (${discountPercent}%)`}
+                      </span>
                     </p>
                   )}
                   <p className="flex items-center gap-2 font-medium">
