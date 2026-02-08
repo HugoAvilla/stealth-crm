@@ -1,144 +1,222 @@
 
-# Plano: Remover Sidebar Vertical do Menu Mobile
+# Plano: Adicionar Desconto em % e Corrigir Erro ao Preencher Vaga
 
-## Problema Identificado
+## Problemas Identificados
 
-Atualmente, no **mobile** (telas menores que `lg`), a navegação está escondida num menu hambúrguer (Sheet) que abre uma sidebar vertical à esquerda (conforme imagem enviada). O usuário deseja que a navegação fique **sempre visível no topo em formato horizontal**, igual no desktop.
+### Problema 1: Falta opção de Desconto em Porcentagem
+Atualmente existe apenas o campo "Desconto (R$)" para valor fixo. O usuário precisa de um card adicional para aplicar desconto em percentual.
 
-### Layout Atual (Mobile)
-```text
-┌─────────────────────────────────────┐
-│ [Logo]              [☰]    [Usuário]│  ← Clica no ☰ para abrir sidebar
-└─────────────────────────────────────┘
-```
+### Problema 2: Erro ao Preencher Vaga
+O erro ocorre porque o código está enviando `status: 'ocupada'` (linha 275), mas o banco de dados tem um **check constraint** que aceita apenas:
+- `'disponivel'`
+- `'ocupado'` (sem o "a" no final)
 
-### Layout Desejado (Mobile e Desktop)
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ [Logo] [Painel] [Vendas] [Espaço] ... ← scroll →   [Usuário] │
-└───────────────────────────────────────────────────────────────┘
-```
+**Mensagem do erro:** `new row for relation "spaces" violates check constraint "spaces_status_check"`
 
 ---
 
 ## Alterações Necessárias
 
-### Arquivo: `src/components/layout/TopNavigation.tsx`
+### Arquivo: `src/components/espaco/FillSlotModal.tsx`
 
-#### 1. Remover o Menu Hambúrguer (Sheet)
+#### Correção 1: Corrigir o Status da Vaga
 
-Deletar completamente:
-- O import do `Sheet` (linha 35)
-- O state `mobileOpen` (linha 49)
-- Todo o bloco `<Sheet>` (linhas 163-231)
-
-#### 2. Tornar a Navegação Horizontal Sempre Visível
-
-Alterar a nav desktop para aparecer em **todas** as telas:
+Alterar o valor de `status` de `'ocupada'` para `'ocupado'`:
 
 ```tsx
-// ANTES (linha 156):
-<nav className="hidden lg:flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
+// ANTES (linha 275):
+status: 'ocupada',
 
 // DEPOIS:
-<nav className="flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
+status: 'ocupado',
 ```
 
-#### 3. Ajustar o NavLink para Mobile
+#### Correção 2: Adicionar Estado e Lógica para Desconto em %
 
-Os links devem ficar menores em telas pequenas:
+Adicionar novos estados para controlar o tipo de desconto:
 
 ```tsx
-const NavLink = ({ item }: { item: NavItem }) => {
-  const isActive = location.pathname === item.path;
-  const Icon = item.icon;
-
-  return (
-    <Link
-      to={item.path}
-      className={cn(
-        "flex items-center gap-1 px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0",
-        isActive
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-      )}
-    >
-      <Icon className="w-4 h-4" />
-      <span className="hidden sm:inline">{item.label}</span>
-      {item.badge && item.badge > 0 && (
-        <Badge variant="destructive" className="h-4 min-w-4 sm:h-5 sm:min-w-5 text-[10px] sm:text-xs">
-          {item.badge}
-        </Badge>
-      )}
-    </Link>
-  );
-};
+// Novos estados (após linha 58):
+const [discount, setDiscount] = useState<number>(0);
+const [discountPercent, setDiscountPercent] = useState<number>(0);
+const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
 ```
 
-Em telas muito pequenas, os labels ficarão ocultos e aparecerão apenas os ícones. O usuário pode dar scroll horizontal para ver todos os itens.
+#### Correção 3: Atualizar Cálculo do Total
 
-#### 4. Ajustar o Dropdown do Usuário para Mobile
-
-Alterar o dropdown para aparecer em todas as telas:
+Modificar a lógica de cálculo para considerar ambos os tipos de desconto:
 
 ```tsx
-// ANTES (linha 236):
-<Button variant="ghost" className="hidden lg:flex items-center gap-2 ml-auto">
+// ANTES (linha 154):
+const finalTotal = subtotal - (discount || 0);
 
 // DEPOIS:
-<Button variant="ghost" className="flex items-center gap-1 sm:gap-2 ml-auto">
+const calculatedDiscount = discountType === 'percent' 
+  ? (subtotal * (discountPercent / 100)) 
+  : (discount || 0);
+const finalTotal = subtotal - calculatedDiscount;
 ```
 
-#### 5. Adicionar Perfil e Empresa no NavItems
+#### Correção 4: Adicionar UI de Seleção de Tipo de Desconto
 
-Atualmente "Perfil" e "Sua Empresa" só aparecem no dropdown. Para manter consistência, adicionar esses itens na lista `navItems`:
+Quando o usuário clicar em "Desconto", mostrar duas opções em cards lado a lado:
 
 ```tsx
-const navItems: NavItem[] = [
-  { icon: LayoutDashboard, label: 'Painel', path: '/' },
-  { icon: DollarSign, label: 'Vendas', path: '/vendas' },
-  // ... outros itens ...
-  { icon: User, label: 'Perfil', path: '/perfil' },
-  { icon: Building, label: 'Empresa', path: '/empresa', adminOnly: true },
-];
+{showDiscount && (
+  <div className="space-y-3">
+    {/* Seleção do tipo de desconto */}
+    <div className="flex gap-2">
+      <Card 
+        className={cn(
+          "flex-1 cursor-pointer transition-all",
+          discountType === 'fixed' 
+            ? "border-primary bg-primary/10" 
+            : "border-border/50 hover:border-muted-foreground"
+        )}
+        onClick={() => setDiscountType('fixed')}
+      >
+        <CardContent className="p-3 text-center">
+          <DollarSign className="h-5 w-5 mx-auto mb-1" />
+          <span className="text-sm font-medium">Valor (R$)</span>
+        </CardContent>
+      </Card>
+      
+      <Card 
+        className={cn(
+          "flex-1 cursor-pointer transition-all",
+          discountType === 'percent' 
+            ? "border-primary bg-primary/10" 
+            : "border-border/50 hover:border-muted-foreground"
+        )}
+        onClick={() => setDiscountType('percent')}
+      >
+        <CardContent className="p-3 text-center">
+          <Percent className="h-5 w-5 mx-auto mb-1" />
+          <span className="text-sm font-medium">Percentual (%)</span>
+        </CardContent>
+      </Card>
+    </div>
+    
+    {/* Input baseado no tipo selecionado */}
+    {discountType === 'fixed' ? (
+      <div className="space-y-2">
+        <Label>Desconto (R$)</Label>
+        <Input 
+          type="number" 
+          value={discount || ""} 
+          onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+          placeholder="0.00"
+        />
+      </div>
+    ) : (
+      <div className="space-y-2">
+        <Label>Desconto (%)</Label>
+        <Input 
+          type="number" 
+          value={discountPercent || ""} 
+          onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
+          placeholder="0"
+          max={100}
+        />
+        {discountPercent > 0 && subtotal > 0 && (
+          <p className="text-xs text-muted-foreground">
+            = R$ {(subtotal * (discountPercent / 100)).toFixed(2)} de desconto
+          </p>
+        )}
+      </div>
+    )}
+  </div>
+)}
+```
+
+#### Correção 5: Adicionar Import do Ícone Percent
+
+```tsx
+// Adicionar na linha 14:
+import { ..., Percent, ... } from "lucide-react";
+```
+
+#### Correção 6: Atualizar o Reset do Modal
+
+Incluir os novos estados no reset:
+
+```tsx
+// Na função useEffect de reset (linhas 158-175):
+setDiscount(0);
+setDiscountPercent(0);
+setDiscountType('fixed');
+```
+
+#### Correção 7: Atualizar o Resumo da Vaga
+
+Mostrar o desconto aplicado de forma clara:
+
+```tsx
+{calculatedDiscount > 0 && (
+  <p className="flex items-center gap-2">
+    <Tag className="h-4 w-4 text-muted-foreground" />
+    <span>
+      Desconto: R$ {calculatedDiscount.toFixed(2)}
+      {discountType === 'percent' && ` (${discountPercent}%)`}
+    </span>
+  </p>
+)}
+```
+
+#### Correção 8: Atualizar o Insert para Usar o Desconto Correto
+
+```tsx
+// Na mutation (linha 272):
+discount: calculatedDiscount || null,
 ```
 
 ---
 
-## Resultado Final
+## Resumo das Mudanças
 
-### Desktop (telas grandes)
+| Problema | Causa | Solução |
+|----------|-------|---------|
+| Erro ao preencher vaga | `status: 'ocupada'` inválido | Alterar para `'ocupado'` |
+| Falta desconto em % | Campo não existe | Adicionar cards de seleção e lógica de cálculo |
+
+---
+
+## Resultado Visual Esperado
+
 ```text
-┌───────────────────────────────────────────────────────────────────────┐
-│ [Logo] [Painel] [Vendas] [Espaço] [Financ.] [...] ←scroll→ [H User ▼] │
-└───────────────────────────────────────────────────────────────────────┘
-```
+Campos opcionais
+[$ Desconto]  [📝 Observações]  [🏷 Tag]
 
-### Mobile (telas pequenas)
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ [Logo] [🏠] [💵] [🏢] [💳] [🏛] [...] ←scroll→     [H ▼]   │
-└─────────────────────────────────────────────────────────────┘
-```
+↓ Ao clicar em "Desconto":
 
-- Apenas ícones visíveis em telas muito pequenas
-- Scroll horizontal para acessar todos os itens
-- Dropdown do usuário sempre visível (compacto)
+┌─────────────────┐  ┌─────────────────┐
+│       $         │  │       %         │
+│   Valor (R$)    │  │  Percentual (%)  │
+└─────────────────┘  └─────────────────┘
+       ▲ selecionado
+
+Desconto (R$)
+[  50.00  ]
+
+---
+
+Ou se selecionar Percentual:
+
+┌─────────────────┐  ┌─────────────────┐
+│       $         │  │       %         │
+│   Valor (R$)    │  │  Percentual (%)  │
+└─────────────────┘  └─────────────────┘
+                           ▲ selecionado
+
+Desconto (%)
+[  10  ]
+= R$ 90.00 de desconto
+```
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/layout/TopNavigation.tsx` | Remover Sheet mobile, tornar nav horizontal sempre visível, adicionar Perfil e Empresa nos navItems |
-
----
-
-## Detalhes Técnicos
-
-1. Remover imports não utilizados: `Sheet`, `SheetContent`, `SheetTrigger`, `Menu`, `X`
-2. Remover state `mobileOpen`
-3. A navegação usará `overflow-x-auto scrollbar-hide` para permitir scroll horizontal
-4. Em telas `< sm`, apenas ícones aparecerão (`hidden sm:inline` no label)
-5. O usuário poderá ver todos os módulos arrastando horizontalmente a barra de navegação
+| Arquivo | Alterações |
+|---------|------------|
+| `src/components/espaco/FillSlotModal.tsx` | Corrigir status `'ocupado'`, adicionar lógica de desconto em % |
