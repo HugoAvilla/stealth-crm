@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { cn } from "@/lib/utils";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { AddAccountModal } from "@/components/financeiro/AddAccountModal";
 import { EditAccountModal } from "@/components/contas/EditAccountModal";
 import { supabase } from "@/integrations/supabase/client";
@@ -210,6 +211,17 @@ export default function Contas() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
+      <HelpOverlay
+        tabId="contas"
+        title="Detalhes das Contas"
+        description="Visualize o extrato detalhado de cada conta bancária ou carteira."
+        steps={[
+          { title: "Selecionar Conta", description: "Clique em uma conta na barra lateral para ver detalhes" },
+          { title: "Gráficos", description: "Analise formas de pagamento e categorias de gastos" },
+          { title: "Extrato", description: "Veja todas as transações da conta selecionada" },
+        ]}
+      />
+
       {/* Left sidebar - Account selection */}
       <div className="w-72 border-r border-border/50 p-4 space-y-4 overflow-y-auto">
         <div className="flex items-center justify-between">

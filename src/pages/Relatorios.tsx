@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { reportTypes, type ReportType } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { ReportConfigModal } from "@/components/relatorios/ReportConfigModal";
 
 const GROUP_LABELS = {
@@ -31,6 +32,17 @@ export default function Relatorios() {
 
   return (
     <div className="space-y-6 p-6">
+      <HelpOverlay
+        tabId="relatorios"
+        title="Relatórios"
+        description="Gere relatórios detalhados do seu negócio para análise e tomada de decisão."
+        steps={[
+          { title: "Escolher Relatório", description: "Selecione o tipo de relatório que deseja gerar" },
+          { title: "Configurar", description: "Defina o período e filtros desejados" },
+          { title: "Exportar", description: "Baixe o relatório em PDF ou Excel" },
+        ]}
+      />
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Relatórios</h1>

@@ -244,6 +244,17 @@ export default function Clientes() {
 
   return (
     <div className="space-y-6">
+      <HelpOverlay
+        tabId="clientes"
+        title="Gestão de Clientes"
+        description="Cadastre e gerencie seus clientes com informações de contato e veículos."
+        steps={[
+          { title: "Novo Cliente", description: "Clique para cadastrar um novo cliente" },
+          { title: "Pesquisar", description: "Busque por nome, telefone, veículo ou placa" },
+          { title: "Ver Perfil", description: "Clique no menu para ver detalhes completos do cliente" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

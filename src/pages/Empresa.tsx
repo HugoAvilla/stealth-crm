@@ -1,8 +1,9 @@
- import { useState, useRef, useEffect } from "react";
- import { Phone, Mail, MapPin, Upload, MessageCircle, Edit, Loader2, Users } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Phone, Mail, MapPin, Upload, MessageCircle, Edit, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
- import { EditCompanyModal } from "@/components/empresa/EditCompanyModal";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
+import { EditCompanyModal } from "@/components/empresa/EditCompanyModal";
 import { CompanyCodeDisplay } from "@/components/team/CompanyCodeDisplay";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -133,6 +134,17 @@ export default function Empresa() {
 
   return (
     <div className="space-y-6 p-6 max-w-4xl mx-auto">
+      <HelpOverlay
+        tabId="empresa"
+        title="Dados da Empresa"
+        description="Configure as informações da sua empresa que aparecem em documentos e garantias."
+        steps={[
+          { title: "Logo", description: "Clique na área da logo para fazer upload da imagem" },
+          { title: "Editar Dados", description: "Atualize nome, CNPJ, telefone e endereço" },
+          { title: "Código da Equipe", description: "Compartilhe o código para colaboradores entrarem" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

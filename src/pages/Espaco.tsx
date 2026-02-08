@@ -152,6 +152,17 @@ export default function Espaco() {
 
   return (
     <div className="space-y-6 p-6">
+      <HelpOverlay
+        tabId="espaco"
+        title="Gestão de Vagas"
+        description="Gerencie a ocupação das vagas do seu estabelecimento e acompanhe os veículos."
+        steps={[
+          { title: "Preencher Vaga", description: "Registre a entrada de um veículo com cliente e serviços" },
+          { title: "Vagas Ativas", description: "Veja os veículos atualmente ocupando vagas" },
+          { title: "Veículos Pagos", description: "Consulte o histórico de veículos que já saíram e pagaram" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
