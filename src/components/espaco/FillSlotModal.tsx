@@ -15,6 +15,8 @@ import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package,
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
+import NewVehicleModal from "@/components/vendas/NewVehicleModal";
 
 interface FillSlotModalProps {
   open: boolean;
@@ -23,32 +25,21 @@ interface FillSlotModalProps {
   preselectedDate?: Date;
 }
 
-interface ClientSale {
+interface ClientVehicle {
   id: number;
-  total: number;
-  subtotal: number;
-  discount: number | null;
-  sale_date: string;
-  vehicle: {
-    id: number;
-    brand: string;
-    model: string;
-    plate: string | null;
-    year: number | null;
-    size: string | null;
-  } | null;
-  sale_items: {
-    id: number;
-    service_id: number | null;
-    quantity: number | null;
-    unit_price: number;
-    total_price: number;
-    service: {
-      id: number;
-      name: string;
-      base_price: number;
-    } | null;
-  }[];
+  brand: string;
+  model: string;
+  plate: string | null;
+  year: number | null;
+  size: string | null;
+}
+
+interface VehicleRegion {
+  id: number;
+  category: string;
+  name: string;
+  description: string | null;
+  fixed_price: number | null;
 }
 
 export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDate }: FillSlotModalProps) {
@@ -59,7 +50,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   // Form state
   const [slotName, setSlotName] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<string>("");
-  const [selectedSaleId, setSelectedSaleId] = useState<string>("");
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [entryDate, setEntryDate] = useState(format(preselectedDate || new Date(), 'yyyy-MM-dd'));
   const [entryTime, setEntryTime] = useState(format(new Date(), 'HH:mm'));
   const [exitDate, setExitDate] = useState("");
@@ -67,6 +58,12 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const [discount, setDiscount] = useState<number>(0);
   const [observations, setObservations] = useState("");
   const [tag, setTag] = useState("");
+  
+  // Detailed services state
+  const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
+  
+  // New vehicle modal
+  const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
   
   // Toggle states for optional fields
   const [showDiscount, setShowDiscount] = useState(false);
@@ -88,53 +85,81 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
     enabled: !!companyId && open,
   });
 
-  // Fetch client's open sales
-  const { data: clientSales, isLoading: loadingSales } = useQuery({
-    queryKey: ['client-open-sales', selectedClientId, companyId],
+  // Fetch client's vehicles
+  const { data: clientVehicles, isLoading: loadingVehicles, refetch: refetchVehicles } = useQuery({
+    queryKey: ['client-vehicles', selectedClientId, companyId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('sales')
-        .select(`
-          id,
-          total,
-          subtotal,
-          discount,
-          sale_date,
-          vehicle:vehicles(id, brand, model, plate, year, size),
-          sale_items(
-            id,
-            service_id,
-            quantity,
-            unit_price,
-            total_price,
-            service:services(id, name, base_price)
-          )
-        `)
+        .from('vehicles')
+        .select('id, brand, model, plate, year, size')
         .eq('client_id', parseInt(selectedClientId))
-        .eq('company_id', companyId)
-        .eq('is_open', true)
-        .order('sale_date', { ascending: false });
+        .eq('company_id', companyId);
       if (error) throw error;
-      return data as unknown as ClientSale[];
+      return data as ClientVehicle[];
     },
     enabled: !!selectedClientId && !!companyId,
   });
 
-  // Get selected sale details
-  const selectedSale = clientSales?.find(s => s.id === parseInt(selectedSaleId));
+  // Fetch product types for services
+  const { data: productTypes } = useQuery({
+    queryKey: ['product-types', companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('product_types')
+        .select('id, category, brand, name, model, light_transmission, unit_price')
+        .eq('company_id', companyId)
+        .eq('is_active', true);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!companyId && open,
+  });
+
+  // Fetch vehicle regions (services) with fixed_price
+  const { data: vehicleRegions } = useQuery({
+    queryKey: ['vehicle-regions-with-price', companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vehicle_regions')
+        .select('id, category, name, description, fixed_price')
+        .eq('company_id', companyId)
+        .eq('is_active', true)
+        .order('sort_order');
+      if (error) throw error;
+      return data as VehicleRegion[];
+    },
+    enabled: !!companyId && open,
+  });
+
+  // Fetch consumption rules
+  const { data: consumptionRules } = useQuery({
+    queryKey: ['consumption-rules', companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('region_consumption_rules')
+        .select('id, category, region_id, vehicle_size, meters_consumed')
+        .eq('company_id', companyId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!companyId && open,
+  });
+
+  // Get selected data
   const selectedClient = clients?.find(c => c.id === parseInt(selectedClientId));
+  const selectedVehicle = clientVehicles?.find(v => v.id === parseInt(selectedVehicleId));
 
   // Calculate totals
-  const subtotal = selectedSale?.subtotal || 0;
+  const subtotal = detailedItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
   const finalTotal = subtotal - (discount || 0);
-  const serviceCount = selectedSale?.sale_items?.length || 0;
+  const serviceCount = detailedItems.length;
 
   // Reset form when modal closes
   useEffect(() => {
     if (!open) {
       setSlotName("");
       setSelectedClientId("");
-      setSelectedSaleId("");
+      setSelectedVehicleId("");
       setEntryDate(format(new Date(), 'yyyy-MM-dd'));
       setEntryTime(format(new Date(), 'HH:mm'));
       setExitDate("");
@@ -142,6 +167,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       setDiscount(0);
       setObservations("");
       setTag("");
+      setDetailedItems([]);
       setShowDiscount(false);
       setShowObservations(false);
       setShowTag(false);
@@ -155,23 +181,90 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
     }
   }, [preselectedDate]);
 
-  // Reset sale when client changes
+  // Reset vehicle and services when client changes
   useEffect(() => {
-    setSelectedSaleId("");
+    setSelectedVehicleId("");
+    setDetailedItems([]);
   }, [selectedClientId]);
 
-  // Mutation to create space
+  // Handle adding a new detailed service item
+  const handleAddDetailedItem = () => {
+    const newItem: DetailedServiceItem = {
+      id: crypto.randomUUID(),
+      category: "INSULFILM" as ProductCategory,
+      regionId: null,
+      regionName: "",
+      productTypeId: null,
+      productTypeName: "",
+      metersUsed: 0,
+      unitPrice: 0,
+      totalPrice: 0,
+    };
+    setDetailedItems([...detailedItems, newItem]);
+  };
+
+  // Handle updating a detailed service item with fixed_price support
+  const handleUpdateDetailedItem = (updatedItem: DetailedServiceItem) => {
+    // If region changed, apply fixed_price if available
+    const region = vehicleRegions?.find(r => r.id === updatedItem.regionId);
+    if (region?.fixed_price && region.fixed_price > 0 && updatedItem.totalPrice === 0) {
+      updatedItem = { ...updatedItem, totalPrice: region.fixed_price };
+    }
+    
+    setDetailedItems(items =>
+      items.map(item => item.id === updatedItem.id ? updatedItem : item)
+    );
+  };
+
+  // Handle removing a detailed service item
+  const handleRemoveDetailedItem = (itemId: string) => {
+    setDetailedItems(items => items.filter(item => item.id !== itemId));
+  };
+
+  // Handle new vehicle created
+  const handleVehicleCreated = async (vehicleData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .insert({
+          client_id: parseInt(selectedClientId),
+          brand: vehicleData.brand,
+          model: vehicleData.model,
+          plate: vehicleData.plate,
+          year: vehicleData.year,
+          size: vehicleData.size,
+          company_id: companyId,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success("Veículo cadastrado com sucesso!");
+      refetchVehicles();
+      setSelectedVehicleId(data.id.toString());
+      setShowNewVehicleModal(false);
+    } catch (error) {
+      console.error("Erro ao cadastrar veículo:", error);
+      toast.error("Erro ao cadastrar veículo");
+    }
+  };
+
+  // Mutation to create space (without sale_id)
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedSale || !companyId) throw new Error("Dados inválidos");
+      if (!companyId || !selectedClientId || !selectedVehicleId) {
+        throw new Error("Dados inválidos");
+      }
 
-      const { data, error } = await supabase
+      // Insert space without sale_id
+      const { data: spaceData, error: spaceError } = await supabase
         .from('spaces')
         .insert({
           name: slotName || `Vaga de ${selectedClient?.name}`,
           client_id: parseInt(selectedClientId),
-          vehicle_id: selectedSale.vehicle?.id || null,
-          sale_id: selectedSale.id,
+          vehicle_id: parseInt(selectedVehicleId),
+          sale_id: null, // No sale yet - will be created later
           company_id: companyId,
           entry_date: entryDate,
           entry_time: entryTime,
@@ -187,8 +280,27 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
+      if (spaceError) throw spaceError;
+
+      // Note: Detailed services are stored in the space context
+      // They will be used when creating the sale later
+      // For now we store the summary in observations if services exist
+      if (detailedItems.length > 0) {
+        const servicesDesc = detailedItems.map(item => 
+          `${item.regionName || 'Serviço'}: R$ ${item.totalPrice.toFixed(2)}`
+        ).join(' | ');
+        
+        const fullObs = observations 
+          ? `${observations}\n\nServiços: ${servicesDesc}` 
+          : `Serviços: ${servicesDesc}`;
+        
+        await supabase
+          .from('spaces')
+          .update({ observations: fullObs })
+          .eq('id', spaceData.id);
+      }
+
+      return spaceData;
     },
     onSuccess: () => {
       toast.success("Vaga preenchida com sucesso!");
@@ -207,8 +319,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       toast.error("Selecione um cliente");
       return;
     }
-    if (!selectedSaleId) {
-      toast.error("Selecione uma venda");
+    if (!selectedVehicleId) {
+      toast.error("Selecione um veículo");
       return;
     }
     if (!entryDate || !entryTime) {
@@ -271,93 +383,87 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             </Select>
           </div>
 
-          {/* Vendas do cliente */}
+          {/* Veículo */}
           {selectedClientId && (
             <div className="space-y-2">
-              <Label>Venda em aberto *</Label>
-              {loadingSales ? (
+              <Label>Veículo *</Label>
+              {loadingVehicles ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
-              ) : clientSales && clientSales.length > 0 ? (
-                <Select value={selectedSaleId} onValueChange={setSelectedSaleId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma venda" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientSales.map(sale => (
-                      <SelectItem key={sale.id} value={sale.id.toString()}>
-                        <div className="flex items-center gap-2">
-                          <span>Venda #{sale.id}</span>
-                          <span className="text-muted-foreground">-</span>
-                          <span>{sale.vehicle?.brand} {sale.vehicle?.model}</span>
-                          <Badge variant="outline" className="ml-2">
-                            R$ {sale.total.toFixed(2)}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               ) : (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  Este cliente não possui vendas em aberto.
-                </p>
+                <div className="flex gap-2">
+                  <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Selecione um veículo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientVehicles && clientVehicles.length > 0 ? (
+                        clientVehicles.map(vehicle => (
+                          <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
+                            <div className="flex items-center gap-2">
+                              <Car className="h-4 w-4 text-muted-foreground" />
+                              <span>{vehicle.brand} {vehicle.model}</span>
+                              {vehicle.plate && (
+                                <Badge variant="outline" className="text-xs">{vehicle.plate}</Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="none" disabled>
+                          Nenhum veículo cadastrado
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" onClick={() => setShowNewVehicleModal(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> Novo
+                  </Button>
+                </div>
               )}
             </div>
           )}
 
-          {/* Card do veículo e serviços */}
-          {selectedSale && (
-            <Card className="bg-muted/50 border-border/50">
-              <CardContent className="p-4 space-y-4">
-                {/* Veículo */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Car className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        Marca: <span className="font-medium text-foreground">{selectedSale.vehicle?.brand}</span>
-                        {selectedSale.vehicle?.plate && (
-                          <span className="ml-4">Placa: <span className="font-medium text-foreground">{selectedSale.vehicle.plate}</span></span>
-                        )}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Modelo: <span className="font-medium text-foreground">{selectedSale.vehicle?.model}</span>
-                        {selectedSale.vehicle?.year && (
-                          <span className="ml-4">Ano: <span className="font-medium text-foreground">{selectedSale.vehicle.year}</span></span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+          {/* Serviços Detalhados */}
+          {selectedVehicleId && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Serviços</Label>
+                <Button variant="outline" size="sm" onClick={handleAddDetailedItem}>
+                  <Plus className="h-4 w-4 mr-1" /> Adicionar Serviço
+                </Button>
+              </div>
 
-                <Separator />
-
-                {/* Serviços */}
+              {detailedItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Clique em "Adicionar Serviço" para incluir serviços na vaga
+                </p>
+              ) : (
                 <div className="space-y-2">
-                  {selectedSale.sale_items.map((item, index) => (
-                    <div key={index} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{item.service?.name || 'Serviço'}</span>
-                      <span className="font-medium">R$ {item.total_price.toFixed(2)}</span>
-                    </div>
+                  {detailedItems.map(item => (
+                    <ServiceItemRow
+                      key={item.id}
+                      item={item}
+                      vehicleSize={selectedVehicle?.size || null}
+                      productTypes={productTypes || []}
+                      vehicleRegions={vehicleRegions || []}
+                      consumptionRules={consumptionRules || []}
+                      onUpdate={handleUpdateDetailedItem}
+                      onRemove={handleRemoveDetailedItem}
+                    />
                   ))}
                 </div>
+              )}
 
-                <Separator />
-
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total em serviços</span>
-                  <span className="font-bold text-primary">R$ {subtotal.toFixed(2)}</span>
+              {detailedItems.length > 0 && (
+                <div className="flex justify-end">
+                  <Badge variant="secondary">
+                    {serviceCount} serviço(s) - R$ {subtotal.toFixed(2)}
+                  </Badge>
                 </div>
-
-                <Badge variant="secondary" className="text-xs">
-                  {serviceCount} serviço(s) adicionado(s) R$ {subtotal.toFixed(2)}
-                </Badge>
-              </CardContent>
-            </Card>
+              )}
+            </div>
           )}
 
           {/* Datas de entrada e saída */}
@@ -491,40 +597,40 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           )}
 
           {/* Resumo da vaga */}
-          {selectedSale && (
+          {selectedVehicleId && (
             <Card className="bg-muted/30 border-border/50">
               <CardContent className="p-4 space-y-2">
                 <h4 className="font-medium">Resumo da vaga</h4>
                 <div className="space-y-1 text-sm">
                   <p className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedClient?.name}</span>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Car className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedVehicle?.brand} {selectedVehicle?.model} {selectedVehicle?.plate && `- ${selectedVehicle.plate}`}</span>
+                  </p>
+                  <p className="flex items-center gap-2">
                     <Package className="h-4 w-4 text-muted-foreground" />
-                    <span>Vaga com {serviceCount} serviço(s)</span>
+                    <span>{serviceCount} serviço(s) adicionado(s)</span>
                   </p>
                   <p className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    <span>Sub-total ficou em R$ {subtotal.toFixed(2)}</span>
+                    <span>Sub-total: R$ {subtotal.toFixed(2)}</span>
                   </p>
                   {discount > 0 && (
                     <p className="flex items-center gap-2">
                       <Tag className="h-4 w-4 text-muted-foreground" />
-                      <span>Desconto de R$ {discount.toFixed(2)}</span>
+                      <span>Desconto: R$ {discount.toFixed(2)}</span>
                     </p>
                   )}
                   <p className="flex items-center gap-2 font-medium">
                     <DollarSign className="h-4 w-4 text-primary" />
-                    <span className="text-primary">Total ficou em R$ {finalTotal.toFixed(2)}</span>
+                    <span className="text-primary">Total: R$ {finalTotal.toFixed(2)}</span>
                   </p>
                   <p className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>Entrada em {format(new Date(entryDate), "dd/MM/yyyy", { locale: ptBR })}</span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <Camera className="h-4 w-4 text-muted-foreground" />
-                    <span>Nenhuma foto adicionada</span>
-                  </p>
-                  <p className="flex items-center gap-2 text-warning">
-                    <span className="text-lg">⚠️</span>
-                    <span>O valor pendente para fechar a venda é de R$ {finalTotal.toFixed(2)}</span>
                   </p>
                 </div>
               </CardContent>
@@ -536,7 +642,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             className="w-full" 
             size="lg"
             onClick={handleSubmit}
-            disabled={createMutation.isPending || !selectedClientId || !selectedSaleId}
+            disabled={createMutation.isPending || !selectedClientId || !selectedVehicleId}
           >
             {createMutation.isPending ? (
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -547,6 +653,13 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           </Button>
         </div>
       </DialogContent>
+
+      {/* New Vehicle Modal */}
+      <NewVehicleModal
+        open={showNewVehicleModal}
+        onOpenChange={setShowNewVehicleModal}
+        onVehicleCreated={handleVehicleCreated}
+      />
     </Dialog>
   );
 }

@@ -31,6 +31,8 @@ export interface VehicleRegion {
   is_active: boolean;
   created_at: string;
   company_id: number;
+  fixed_price: number | null;
+  product_type_id: number | null;
 }
 
 export interface RegionConsumptionRule {
