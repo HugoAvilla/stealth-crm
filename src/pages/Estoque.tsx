@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Car, Calculator, Trash2 } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,8 +15,7 @@ import { StockEntryModal } from "@/components/estoque/StockEntryModal";
 import { StockExitModal } from "@/components/estoque/StockExitModal";
 import { ConsumptionRulesModal } from "@/components/estoque/ConsumptionRulesModal";
 import { ProductTypesTab } from "@/components/estoque/ProductTypesTab";
-import { VehicleRegionsTab } from "@/components/estoque/VehicleRegionsTab";
-import { ConsumptionRulesTab } from "@/components/estoque/ConsumptionRulesTab";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { toast } from "sonner";
 
 interface Material {
@@ -189,30 +188,32 @@ export default function Estoque() {
 
   return (
     <div className="space-y-6 p-6">
+      <HelpOverlay
+        tabId="estoque"
+        title="Gestão de Estoque"
+        description="Aqui você gerencia os materiais e produtos utilizados nos serviços."
+        steps={[
+          { title: "Tipos de Produtos", description: "Cadastre os tipos de películas e produtos (marca, modelo, transmissão de luz)" },
+          { title: "Materiais", description: "Controle a quantidade em estoque, entradas e saídas de cada material" },
+        ]}
+      />
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Gestão de Estoque</h1>
-        <p className="text-muted-foreground">Controle de materiais, produtos e regras de consumo</p>
+        <p className="text-muted-foreground">Controle de materiais e tipos de produtos</p>
       </div>
 
       {/* Sistema de Abas Principal */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
-          <TabsTrigger value="materials" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            <span className="hidden sm:inline">Materiais</span>
-          </TabsTrigger>
+        <TabsList className="grid grid-cols-2 w-full max-w-md">
           <TabsTrigger value="product-types" className="flex items-center gap-2">
             <Tag className="h-4 w-4" />
             <span className="hidden sm:inline">Tipos de Produtos</span>
           </TabsTrigger>
-          <TabsTrigger value="vehicle-regions" className="flex items-center gap-2">
-            <Car className="h-4 w-4" />
-            <span className="hidden sm:inline">Regiões do Veículo</span>
-          </TabsTrigger>
-          <TabsTrigger value="consumption-rules" className="flex items-center gap-2">
-            <Calculator className="h-4 w-4" />
-            <span className="hidden sm:inline">Regras de Consumo</span>
+          <TabsTrigger value="materials" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            <span className="hidden sm:inline">Materiais</span>
           </TabsTrigger>
         </TabsList>
 
@@ -390,16 +391,6 @@ export default function Estoque() {
         {/* Aba Tipos de Produtos */}
         <TabsContent value="product-types">
           <ProductTypesTab companyId={companyId} />
-        </TabsContent>
-
-        {/* Aba Regiões do Veículo */}
-        <TabsContent value="vehicle-regions">
-          <VehicleRegionsTab companyId={companyId} />
-        </TabsContent>
-
-        {/* Aba Regras de Consumo */}
-        <TabsContent value="consumption-rules">
-          <ConsumptionRulesTab companyId={companyId} />
         </TabsContent>
       </Tabs>
 

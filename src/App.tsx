@@ -26,6 +26,7 @@ import Relatorios from "./pages/Relatorios";
 
 import Garantias from "./pages/Garantias";
 import Estoque from "./pages/Estoque";
+import Servicos from "./pages/Servicos";
 
 import Perfil from "./pages/Perfil";
 import Empresa from "./pages/Empresa";
@@ -186,6 +187,13 @@ function AppRoutes() {
       <Route path="/estoque" element={
         <ProtectedRoute allowedRoles={['ADMIN', 'PRODUCAO']}>
           <MainLayout><Estoque /></MainLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Protected Routes - Serviços */}
+      <Route path="/servicos" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR', 'PRODUCAO']}>
+          <MainLayout><Servicos /></MainLayout>
         </ProtectedRoute>
       } />
 
