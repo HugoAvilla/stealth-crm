@@ -72,7 +72,7 @@ interface ProductType {
   name: string;
   model: string | null;
   light_transmission: string | null;
-  unit_price: number;
+  // unit_price removido - preço vem do serviço
 }
 
 interface VehicleRegion {
@@ -80,6 +80,7 @@ interface VehicleRegion {
   category: string;
   name: string;
   description: string | null;
+  fixed_price: number | null;
 }
 
 interface ConsumptionRule {
@@ -186,7 +187,7 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
   // Get selected vehicle
   const selectedVehicle = vehicles.find(v => v.id === parseInt(selectedVehicleId));
 
-  // Recalculate meters when vehicle changes
+  // Recalculate meters when vehicle changes (mantém o preço do serviço)
   useEffect(() => {
     if (selectedVehicle?.size && detailedItems.length > 0) {
       const updatedItems = detailedItems.map(item => {
@@ -200,7 +201,7 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
           return {
             ...item,
             metersUsed: meters,
-            totalPrice: meters * item.unitPrice,
+            // Mantém totalPrice - preço vem do serviço, não recalcula
           };
         }
         return item;
@@ -254,7 +255,6 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
       productTypeId: null,
       productTypeName: "",
       metersUsed: 0,
-      unitPrice: 0,
       totalPrice: 0,
     };
     setDetailedItems([...detailedItems, newItem]);
@@ -320,7 +320,7 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
         product_type_id: item.productTypeId!,
         region_id: item.regionId!,
         meters_used: item.metersUsed,
-        unit_price: item.unitPrice,
+        unit_price: 0, // Preço unitário não é mais usado
         total_price: item.totalPrice,
         company_id: companyId,
       }));
