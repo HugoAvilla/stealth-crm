@@ -154,6 +154,17 @@ export default function Financeiro() {
 
   return (
     <div className="space-y-6 p-6">
+      <HelpOverlay
+        tabId="financeiro"
+        title="Visão Financeira"
+        description="Acompanhe o fluxo de caixa da empresa com entradas, saídas e evolução do saldo."
+        steps={[
+          { title: "Adicionar", description: "Registre entradas, saídas, transferências e novas contas" },
+          { title: "Gráficos", description: "Visualize a evolução do saldo nos últimos 7 dias" },
+          { title: "Minhas Contas", description: "Veja o saldo de cada conta cadastrada" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

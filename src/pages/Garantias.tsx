@@ -1,20 +1,21 @@
-  import { useState, useEffect } from "react";
-   import { Plus, Search, FileCheck, Download, MoreHorizontal, FilePlus, Send } from "lucide-react";
- import { Button } from "@/components/ui/button";
- import { Input } from "@/components/ui/input";
- import { Card, CardContent } from "@/components/ui/card";
- import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
- import { Badge } from "@/components/ui/badge";
- import { Skeleton } from "@/components/ui/skeleton";
- import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
- import { supabase } from "@/integrations/supabase/client";
- import { useAuth } from "@/contexts/AuthContext";
- import { format } from "date-fns";
- import { IssueWarrantyModal } from "@/components/garantias/IssueWarrantyModal";
- import { NewWarrantyTemplateModal } from "@/components/garantias/NewWarrantyTemplateModal";
- import { SendEmailModal } from "@/components/garantias/SendEmailModal";
- import { toast } from "sonner";
- import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
+import { useState, useEffect } from "react";
+import { Plus, Search, FileCheck, Download, MoreHorizontal, FilePlus, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { format } from "date-fns";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
+import { IssueWarrantyModal } from "@/components/garantias/IssueWarrantyModal";
+import { NewWarrantyTemplateModal } from "@/components/garantias/NewWarrantyTemplateModal";
+import { SendEmailModal } from "@/components/garantias/SendEmailModal";
+import { toast } from "sonner";
+import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
 
 interface Warranty {
   id: number;
@@ -139,16 +140,27 @@ export default function Garantias() {
 
   const activeCount = warranties.filter(w => getStatus(w.expiry_date).label === 'Ativa').length;
 
- 
-   return (
-     <div className="space-y-6 p-6">
-       {/* Header */}
-       <div className="flex items-center justify-between">
-         <div>
-           <h1 className="text-2xl font-bold">Garantias</h1>
-           <p className="text-muted-foreground">Gerencie certificados de garantia e serviços</p>
-         </div>
-       </div>
+
+  return (
+    <div className="space-y-6 p-6">
+      <HelpOverlay
+        tabId="garantias"
+        title="Gestão de Garantias"
+        description="Gerencie certificados de garantia emitidos para seus clientes."
+        steps={[
+          { title: "Emitir Garantia", description: "Crie um novo certificado de garantia para um serviço" },
+          { title: "Criar Modelo", description: "Configure modelos de garantia com validade e termos" },
+          { title: "Enviar", description: "Envie o certificado por email ou baixe o PDF" },
+        ]}
+      />
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Garantias</h1>
+          <p className="text-muted-foreground">Gerencie certificados de garantia e serviços</p>
+        </div>
+      </div>
  
        {/* Header Actions */}
        <div className="flex justify-end gap-2">

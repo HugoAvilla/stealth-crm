@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { EditInfoModal } from "@/components/perfil/EditInfoModal";
 import { ChangePasswordModal } from "@/components/perfil/ChangePasswordModal";
 import { toast } from "sonner";
@@ -75,6 +76,17 @@ export default function Perfil() {
 
   return (
     <div className="space-y-6 p-6 max-w-3xl mx-auto">
+      <HelpOverlay
+        tabId="perfil"
+        title="Meu Perfil"
+        description="Gerencie suas informações pessoais e preferências de acesso."
+        steps={[
+          { title: "Editar", description: "Atualize seu nome e foto de perfil" },
+          { title: "Senha", description: "Altere sua senha de acesso" },
+          { title: "Assinatura", description: "Veja os dias restantes do seu plano" },
+        ]}
+      />
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Meu Perfil</h1>

@@ -153,7 +153,7 @@ export function TopNavigation() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden lg:flex items-center gap-1 flex-1 overflow-x-auto">
+        <nav className="hidden lg:flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
           {filteredItems.map(item => (
             <NavLink key={item.path} item={item} />
           ))}

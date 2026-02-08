@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Check, X, Clock, Users, UserPlus, AlertCircle, AlertTriangle, UserMinus } from 'lucide-react';
+import { HelpOverlay } from '@/components/help/HelpOverlay';
 import { RejectRequestModal } from '@/components/team/RejectRequestModal';
 import {
   AlertDialog,
@@ -230,6 +231,17 @@ export default function TeamRequests() {
 
   return (
     <div className="space-y-6">
+      <HelpOverlay
+        tabId="solicitacoes"
+        title="Solicitações de Acesso"
+        description="Gerencie as solicitações de pessoas que querem entrar na sua equipe."
+        steps={[
+          { title: "Aprovar", description: "Aceite colaboradores para acessar o sistema" },
+          { title: "Rejeitar", description: "Recuse solicitações informando o motivo" },
+          { title: "Desvincular", description: "Remova membros que já não fazem parte da equipe" },
+        ]}
+      />
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
