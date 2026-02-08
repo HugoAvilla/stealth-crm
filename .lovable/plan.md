@@ -1,212 +1,251 @@
 
-# Plano: Correções na Navegação e HelpOverlay
+# Plano: Corrigir Lógica de Preço nos Serviços Detalhados
 
-## Resumo das Alterações
+## Problema Identificado
 
-Duas correções solicitadas:
-1. **TopNavigation**: Ajustar para que as abas fiquem em uma barra horizontal contínua igual à imagem de referência
-2. **HelpOverlay**: Adicionar janelas de ajuda nas abas que estão faltando
+Quando o usuário seleciona um serviço detalhado, o sistema está pegando o preço do **material** (`unit_price` na tabela `product_types`) ao invés do **preço pré-determinado do serviço** (`fixed_price` na tabela `vehicle_regions`).
 
----
+### Fluxo Atual (Incorreto)
+1. Usuário seleciona Categoria (INSULFILM/PPF)
+2. Usuário seleciona Serviço (Parabrisa) → `fixed_price = R$ 900.00`
+3. Usuário seleciona Produto (3m ceramic) → **Sobrescreve o preço com `unit_price = R$ 300.00`**
 
-## Item 1: Navegação Horizontal (Estilo da Imagem)
-
-### Análise da Imagem de Referência
-
-A imagem mostra uma barra de navegação com:
-- Logo à esquerda
-- Todas as abas em uma linha horizontal única
-- Rolagem horizontal quando necessário (scroll)
-- Sem dropdown para o menu principal
-
-### Modificações no `TopNavigation.tsx`
-
-O componente atual já está bem estruturado, mas preciso garantir que:
-1. As abas apareçam em uma linha única horizontalmente
-2. Tenha rolagem horizontal no desktop quando exceder o espaço
-3. O estilo seja similar ao da imagem de referência
-
-```tsx
-// Alterar a nav para ter scroll horizontal
-<nav className="hidden lg:flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
-  {filteredItems.map(item => (
-    <NavLink key={item.path} item={item} />
-  ))}
-</nav>
-```
-
-Adicionar estilos CSS para esconder scrollbar mas manter funcionalidade.
+### Fluxo Correto
+1. Usuário seleciona Categoria
+2. Usuário seleciona Serviço → Aplica `fixed_price = R$ 900.00`
+3. Usuário seleciona Produto → **Mantém o preço do serviço**
 
 ---
 
-## Item 2: Adicionar HelpOverlay nas Páginas que Faltam
+## Alterações Necessárias
 
-### Páginas que Precisam de HelpOverlay
+### 1. Remover `unit_price` da Tabela `product_types`
 
-| Página | Status | Ação |
-|--------|--------|------|
-| Vendas | Tem import, mas não renderiza | Adicionar `<HelpOverlay />` no JSX |
-| Espaço | Tem import, mas não renderiza | Adicionar `<HelpOverlay />` no JSX |
-| Financeiro | Tem import, mas não renderiza | Adicionar `<HelpOverlay />` no JSX |
-| Contas | Não tem | Adicionar import e componente |
-| Clientes | Verificar | - |
-| Relatórios | Não tem | Adicionar import e componente |
-| Garantias | Não tem | Adicionar import e componente |
-| Solicitações | Não tem | Adicionar import e componente |
-| Empresa | Não tem | Adicionar import e componente |
-| Perfil | Não tem | Adicionar import e componente |
+**Arquivo**: `src/components/estoque/ProductTypesTab.tsx`
 
-### Conteúdo de Ajuda por Página
+O campo `unit_price` não é mais necessário pois o preço de venda é definido no serviço. 
+- Atualmente: linha 72 define `unit_price: 0` ao criar produto
+- Manter apenas `cost_per_meter` (custo por metro) para controle interno
 
-**Vendas (`src/pages/Vendas.tsx`)**:
+O campo já não aparece na tabela de listagem (apenas "Custo/Metro"), então não há alterações visuais necessárias nesta aba.
+
+### 2. Corrigir `ServiceItemRow.tsx` - Lógica de Preço
+
+**Arquivo**: `src/components/vendas/ServiceItemRow.tsx`
+
+#### 2a. Remover interface de `unit_price` do ProductType
+
 ```tsx
-<HelpOverlay
-  tabId="vendas"
-  title="Gestão de Vendas"
-  description="Aqui você acompanha todas as vendas realizadas pela empresa em formato de calendário ou lista."
-  steps={[
-    { title: "Nova Venda", description: "Clique no botão para registrar uma nova venda com cliente, veículo e serviços" },
-    { title: "Calendário", description: "Visualize as vendas por dia no calendário mensal" },
-    { title: "Ver Gráficos", description: "Analise o desempenho de vendas com gráficos detalhados" },
-  ]}
-/>
+interface ProductType {
+  id: number;
+  category: string;
+  brand: string;
+  name: string;
+  model: string | null;
+  light_transmission: string | null;
+  // REMOVER: unit_price: number;
+}
 ```
 
-**Espaço (`src/pages/Espaco.tsx`)**:
+#### 2b. Atualizar `handleProductChange` para NÃO sobrescrever o preço
+
 ```tsx
-<HelpOverlay
-  tabId="espaco"
-  title="Gestão de Vagas"
-  description="Gerencie a ocupação das vagas do seu estabelecimento e acompanhe os veículos."
-  steps={[
-    { title: "Preencher Vaga", description: "Registre a entrada de um veículo com cliente e serviços" },
-    { title: "Vagas Ativas", description: "Veja os veículos atualmente ocupando vagas" },
-    { title: "Veículos Pagos", description: "Consulte o histórico de veículos que já saíram e pagaram" },
-  ]}
-/>
+// ANTES (linha 123-136):
+const handleProductChange = (productTypeId: string) => {
+  const product = productTypes.find((p) => p.id === parseInt(productTypeId));
+  const unitPrice = product?.unit_price || 0;  // ❌ Pega preço do material
+  onUpdate({
+    ...item,
+    productTypeId: parseInt(productTypeId),
+    productTypeName: product ? ... : "",
+    unitPrice,
+    totalPrice: item.metersUsed * unitPrice,  // ❌ Sobrescreve o preço
+  });
+};
+
+// DEPOIS:
+const handleProductChange = (productTypeId: string) => {
+  const product = productTypes.find((p) => p.id === parseInt(productTypeId));
+  onUpdate({
+    ...item,
+    productTypeId: parseInt(productTypeId),
+    productTypeName: product
+      ? `${product.brand} ${product.name}${product.light_transmission ? ` ${product.light_transmission}` : ""}`
+      : "",
+    // Não altera unitPrice nem totalPrice - mantém o preço do serviço
+  });
+};
 ```
 
-**Financeiro (`src/pages/Financeiro.tsx`)**:
+#### 2c. Atualizar `handleRegionChange` para sempre usar `fixed_price`
+
 ```tsx
-<HelpOverlay
-  tabId="financeiro"
-  title="Visão Financeira"
-  description="Acompanhe o fluxo de caixa da empresa com entradas, saídas e evolução do saldo."
-  steps={[
-    { title: "Adicionar", description: "Registre entradas, saídas, transferências e novas contas" },
-    { title: "Gráficos", description: "Visualize a evolução do saldo nos últimos 7 dias" },
-    { title: "Minhas Contas", description: "Veja o saldo de cada conta cadastrada" },
-  ]}
-/>
+// ANTES (linha 107-121):
+const handleRegionChange = (regionId: string) => {
+  const region = vehicleRegions.find((r) => r.id === parseInt(regionId));
+  const meters = calculateMeters(parseInt(regionId), item.category);
+  const fixedPrice = region?.fixed_price || 0;
+  const calculatedPrice = fixedPrice > 0 ? fixedPrice : (meters * item.unitPrice);  // ❌ Fallback usa unitPrice
+
+  onUpdate({
+    ...item,
+    regionId: parseInt(regionId),
+    regionName: region?.name || "",
+    metersUsed: meters,
+    totalPrice: calculatedPrice,
+  });
+};
+
+// DEPOIS:
+const handleRegionChange = (regionId: string) => {
+  const region = vehicleRegions.find((r) => r.id === parseInt(regionId));
+  const meters = calculateMeters(parseInt(regionId), item.category);
+  // Usar APENAS o fixed_price do serviço
+  const fixedPrice = region?.fixed_price || 0;
+
+  onUpdate({
+    ...item,
+    regionId: parseInt(regionId),
+    regionName: region?.name || "",
+    metersUsed: meters,
+    totalPrice: fixedPrice,  // Sempre usa o preço do serviço
+  });
+};
 ```
 
-**Contas (`src/pages/Contas.tsx`)**:
+#### 2d. Atualizar `handleMetersChange` para não recalcular preço baseado em unitPrice
+
 ```tsx
-<HelpOverlay
-  tabId="contas"
-  title="Detalhes das Contas"
-  description="Visualize o extrato detalhado de cada conta bancária ou carteira."
-  steps={[
-    { title: "Selecionar Conta", description: "Clique em uma conta na barra lateral para ver detalhes" },
-    { title: "Gráficos", description: "Analise formas de pagamento e categorias de gastos" },
-    { title: "Extrato", description: "Veja todas as transações da conta selecionada" },
-  ]}
-/>
+// ANTES (linha 138-145):
+const handleMetersChange = (value: string) => {
+  const meters = parseFloat(value) || 0;
+  onUpdate({
+    ...item,
+    metersUsed: meters,
+    totalPrice: meters * item.unitPrice,  // ❌ Recalcula usando unitPrice
+  });
+};
+
+// DEPOIS:
+const handleMetersChange = (value: string) => {
+  const meters = parseFloat(value) || 0;
+  onUpdate({
+    ...item,
+    metersUsed: meters,
+    // NÃO altera totalPrice - metros é apenas informativo para baixa de estoque
+  });
+};
 ```
 
-**Relatórios (`src/pages/Relatorios.tsx`)**:
+### 3. Simplificar Interface `DetailedServiceItem`
+
+**Arquivo**: `src/components/vendas/ServiceItemRow.tsx`
+
 ```tsx
-<HelpOverlay
-  tabId="relatorios"
-  title="Relatórios"
-  description="Gere relatórios detalhados do seu negócio para análise e tomada de decisão."
-  steps={[
-    { title: "Escolher Relatório", description: "Selecione o tipo de relatório que deseja gerar" },
-    { title: "Configurar", description: "Defina o período e filtros desejados" },
-    { title: "Exportar", description: "Baixe o relatório em PDF ou Excel" },
-  ]}
-/>
+// ANTES:
+export interface DetailedServiceItem {
+  id: string;
+  category: ProductCategory;
+  regionId: number | null;
+  regionName: string;
+  productTypeId: number | null;
+  productTypeName: string;
+  metersUsed: number;
+  unitPrice: number;      // ❌ REMOVER
+  totalPrice: number;
+}
+
+// DEPOIS:
+export interface DetailedServiceItem {
+  id: string;
+  category: ProductCategory;
+  regionId: number | null;
+  regionName: string;
+  productTypeId: number | null;
+  productTypeName: string;
+  metersUsed: number;
+  totalPrice: number;     // Este é o preço do serviço (fixed_price)
+}
 ```
 
-**Garantias (`src/pages/Garantias.tsx`)**:
+### 4. Atualizar `FillSlotModal.tsx` que usa a interface
+
+**Arquivo**: `src/components/espaco/FillSlotModal.tsx`
+
+Remover `unitPrice` da criação de novos itens detalhados:
+
 ```tsx
-<HelpOverlay
-  tabId="garantias"
-  title="Gestão de Garantias"
-  description="Gerencie certificados de garantia emitidos para seus clientes."
-  steps={[
-    { title: "Emitir Garantia", description: "Crie um novo certificado de garantia para um serviço" },
-    { title: "Criar Modelo", description: "Configure modelos de garantia com validade e termos" },
-    { title: "Enviar", description: "Envie o certificado por email ou baixe o PDF" },
-  ]}
-/>
+// ANTES:
+const handleAddDetailedItem = () => {
+  setDetailedItems([...detailedItems, {
+    id: crypto.randomUUID(),
+    category: "INSULFILM",
+    regionId: null,
+    regionName: "",
+    productTypeId: null,
+    productTypeName: "",
+    metersUsed: 0,
+    unitPrice: 0,      // ❌ REMOVER
+    totalPrice: 0,
+  }]);
+};
+
+// DEPOIS:
+const handleAddDetailedItem = () => {
+  setDetailedItems([...detailedItems, {
+    id: crypto.randomUUID(),
+    category: "INSULFILM",
+    regionId: null,
+    regionName: "",
+    productTypeId: null,
+    productTypeName: "",
+    metersUsed: 0,
+    totalPrice: 0,
+  }]);
+};
 ```
 
-**Solicitações (`src/pages/TeamRequests.tsx`)**:
-```tsx
-<HelpOverlay
-  tabId="solicitacoes"
-  title="Solicitações de Acesso"
-  description="Gerencie as solicitações de pessoas que querem entrar na sua equipe."
-  steps={[
-    { title: "Aprovar", description: "Aceite colaboradores para acessar o sistema" },
-    { title: "Rejeitar", description: "Recuse solicitações informando o motivo" },
-    { title: "Desvincular", description: "Remova membros que já não fazem parte da equipe" },
-  ]}
-/>
-```
+### 5. Atualizar `NewSaleModal.tsx` se também usar a interface
 
-**Empresa (`src/pages/Empresa.tsx`)**:
-```tsx
-<HelpOverlay
-  tabId="empresa"
-  title="Dados da Empresa"
-  description="Configure as informações da sua empresa que aparecem em documentos e garantias."
-  steps={[
-    { title: "Logo", description: "Clique na área da logo para fazer upload da imagem" },
-    { title: "Editar Dados", description: "Atualize nome, CNPJ, telefone e endereço" },
-    { title: "Código da Equipe", description: "Compartilhe o código para colaboradores entrarem" },
-  ]}
-/>
-```
-
-**Perfil (`src/pages/Perfil.tsx`)**:
-```tsx
-<HelpOverlay
-  tabId="perfil"
-  title="Meu Perfil"
-  description="Gerencie suas informações pessoais e preferências de acesso."
-  steps={[
-    { title: "Editar", description: "Atualize seu nome e foto de perfil" },
-    { title: "Senha", description: "Altere sua senha de acesso" },
-    { title: "Assinatura", description: "Veja os dias restantes do seu plano" },
-  ]}
-/>
-```
+Verificar se o modal de nova venda também usa `DetailedServiceItem` e fazer as mesmas correções.
 
 ---
 
-## Arquivos a Modificar
+## Resumo das Mudanças
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/layout/TopNavigation.tsx` | Adicionar classe para scroll horizontal suave |
-| `src/index.css` | Adicionar classe `.scrollbar-hide` para esconder scrollbar |
-| `src/pages/Vendas.tsx` | Adicionar `<HelpOverlay />` no JSX (já tem import) |
-| `src/pages/Espaco.tsx` | Adicionar `<HelpOverlay />` no JSX (já tem import) |
-| `src/pages/Financeiro.tsx` | Adicionar `<HelpOverlay />` no JSX (já tem import) |
-| `src/pages/Contas.tsx` | Adicionar import e `<HelpOverlay />` |
-| `src/pages/Relatorios.tsx` | Adicionar import e `<HelpOverlay />` |
-| `src/pages/Garantias.tsx` | Adicionar import e `<HelpOverlay />` |
-| `src/pages/TeamRequests.tsx` | Adicionar import e `<HelpOverlay />` |
-| `src/pages/Empresa.tsx` | Adicionar import e `<HelpOverlay />` |
-| `src/pages/Perfil.tsx` | Adicionar import e `<HelpOverlay />` |
+| `src/components/vendas/ServiceItemRow.tsx` | Remover `unitPrice` da interface e lógica |
+| `src/components/espaco/FillSlotModal.tsx` | Remover `unitPrice` na criação de itens |
+| `src/components/vendas/NewSaleModal.tsx` | Verificar e ajustar se necessário |
+| `src/lib/database.types.ts` | Manter `unit_price` no ProductType pois existe no banco |
 
 ---
 
-## Ordem de Implementação
+## Fluxo Corrigido
 
-1. **Primeiro**: Ajustar CSS e TopNavigation para navegação horizontal correta
-2. **Segundo**: Adicionar HelpOverlay em todas as páginas listadas
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  SELEÇÃO DE SERVIÇO DETALHADO                                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. [INSULFILM ▼]  ← Escolhe categoria                                 │
+│                                                                         │
+│  2. [Parabrisa ▼]  ← fixed_price = R$ 900.00 → DEFINE O PREÇO         │
+│                                                                         │
+│  3. [3m Ceramic ▼] ← Apenas para baixa de estoque (custo interno)      │
+│                                                                         │
+│  4. [1.2 m]        ← Metros para consumo de estoque                    │
+│                                                                         │
+│  5. R$ [900.00]    ← Preço vem do SERVIÇO, pode ser editado manualmente│
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-Total de arquivos: 11 modificações
+---
+
+## Detalhes Técnicos
+
+A tabela `product_types` no banco continuará tendo o campo `unit_price`, mas ele não será mais utilizado na lógica de precificação. O campo `cost_per_meter` é usado apenas para cálculo de custo interno e margem de lucro.
+
+O preço exibido ao cliente vem exclusivamente do campo `fixed_price` da tabela `vehicle_regions` (que representa os serviços).
