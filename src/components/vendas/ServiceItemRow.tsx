@@ -19,8 +19,7 @@ export interface DetailedServiceItem {
   productTypeId: number | null;
   productTypeName: string;
   metersUsed: number;
-  unitPrice: number;
-  totalPrice: number;
+  totalPrice: number; // Preço vem do serviço (fixed_price), não do material
 }
 
 interface ProductType {
@@ -30,7 +29,7 @@ interface ProductType {
   name: string;
   model: string | null;
   light_transmission: string | null;
-  unit_price: number;
+  // unit_price removido - preço vem do serviço, não do material
 }
 
 interface VehicleRegion {
@@ -99,7 +98,6 @@ const ServiceItemRow = ({
       productTypeId: null,
       productTypeName: "",
       metersUsed: 0,
-      unitPrice: 0,
       totalPrice: 0,
     });
   };
@@ -107,31 +105,28 @@ const ServiceItemRow = ({
   const handleRegionChange = (regionId: string) => {
     const region = vehicleRegions.find((r) => r.id === parseInt(regionId));
     const meters = calculateMeters(parseInt(regionId), item.category);
-    // Use fixed_price if available, otherwise calculate from meters
+    // Usar APENAS o fixed_price do serviço
     const fixedPrice = region?.fixed_price || 0;
-    const calculatedPrice = fixedPrice > 0 ? fixedPrice : (meters * item.unitPrice);
 
     onUpdate({
       ...item,
       regionId: parseInt(regionId),
       regionName: region?.name || "",
       metersUsed: meters,
-      totalPrice: calculatedPrice,
+      totalPrice: fixedPrice, // Sempre usa o preço do serviço
     });
   };
 
   const handleProductChange = (productTypeId: string) => {
     const product = productTypes.find((p) => p.id === parseInt(productTypeId));
-    const unitPrice = product?.unit_price || 0;
-
+    // Não altera o preço - apenas atualiza o produto para baixa de estoque
     onUpdate({
       ...item,
       productTypeId: parseInt(productTypeId),
       productTypeName: product
         ? `${product.brand} ${product.name}${product.light_transmission ? ` ${product.light_transmission}` : ""}`
         : "",
-      unitPrice,
-      totalPrice: item.metersUsed * unitPrice,
+      // Mantém o totalPrice definido pelo serviço (região)
     });
   };
 
@@ -140,7 +135,7 @@ const ServiceItemRow = ({
     onUpdate({
       ...item,
       metersUsed: meters,
-      totalPrice: meters * item.unitPrice,
+      // NÃO altera totalPrice - metros é apenas para baixa de estoque
     });
   };
 

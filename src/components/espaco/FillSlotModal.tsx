@@ -197,7 +197,6 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       productTypeId: null,
       productTypeName: "",
       metersUsed: 0,
-      unitPrice: 0,
       totalPrice: 0,
     };
     setDetailedItems([...detailedItems, newItem]);
