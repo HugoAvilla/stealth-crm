@@ -142,7 +142,6 @@ const Dashboard = () => {
       {/* Quick Actions */}
       <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
         <QuickActions
-          onNewSale={() => setShowNewSaleModal(true)}
           onNewSlot={() => navigate('/espaco')}
           onNewClient={() => setShowNewClientModal(true)}
         />

@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sidebar } from './Sidebar';
+import { TopNavigation } from './TopNavigation';
 import { Loader2 } from 'lucide-react';
 
 interface MainLayoutProps {
@@ -36,8 +36,8 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar />
-      <main className="pl-16 md:pl-64 transition-all duration-300">
+      <TopNavigation />
+      <main className="pt-16">
         <div className="min-h-screen">
           {children}
         </div>
