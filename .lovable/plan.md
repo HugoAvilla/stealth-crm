@@ -1,308 +1,187 @@
 
-# Plano: Correções no Fluxo de Vagas e Serviços
+# Plano: Correções na Navegação e HelpOverlay
 
 ## Resumo das Alterações
 
-Duas correções principais:
-1. **FillSlotModal**: Remover dependência de "venda em aberto" - cliente pode preencher vaga diretamente selecionando cliente, veículo e serviços detalhados
-2. **VehicleRegionsTab (Serviços)**: Mudar "Nova Região" para "Novo Serviço" e adicionar campo/coluna de preço pré-determinado
+Duas correções solicitadas:
+1. **TopNavigation**: Ajustar para que as abas fiquem em uma barra horizontal contínua igual à imagem de referência
+2. **HelpOverlay**: Adicionar janelas de ajuda nas abas que estão faltando
 
 ---
 
-## Item 1: FillSlotModal - Novo Fluxo Independente de Vendas
+## Item 1: Navegação Horizontal (Estilo da Imagem)
 
-### Mudanças na Lógica
+### Análise da Imagem de Referência
 
-**ANTES:**
-- Cliente → Venda em aberto → Vaga
+A imagem mostra uma barra de navegação com:
+- Logo à esquerda
+- Todas as abas em uma linha horizontal única
+- Rolagem horizontal quando necessário (scroll)
+- Sem dropdown para o menu principal
 
-**DEPOIS:**
-- Cliente → Veículo → Serviços detalhados → Vaga
+### Modificações no `TopNavigation.tsx`
 
-### Alterações no Arquivo `src/components/espaco/FillSlotModal.tsx`
+O componente atual já está bem estruturado, mas preciso garantir que:
+1. As abas apareçam em uma linha única horizontalmente
+2. Tenha rolagem horizontal no desktop quando exceder o espaço
+3. O estilo seja similar ao da imagem de referência
 
-1. **Remover** a seção "Venda em aberto" completamente (linhas 274-308)
-
-2. **Adicionar** busca de veículos do cliente (igual ao NewSaleModal):
 ```tsx
-// Fetch client's vehicles
-const { data: clientVehicles } = useQuery({
-  queryKey: ['client-vehicles', selectedClientId, companyId],
-  queryFn: async () => {
-    const { data, error } = await supabase
-      .from('vehicles')
-      .select('id, brand, model, plate, year, size')
-      .eq('client_id', parseInt(selectedClientId))
-      .eq('company_id', companyId);
-    if (error) throw error;
-    return data;
-  },
-  enabled: !!selectedClientId && !!companyId,
-});
-```
-
-3. **Adicionar** seletor de veículo + botão "Novo Veículo":
-```tsx
-<div className="space-y-2">
-  <Label>Veículo *</Label>
-  <div className="flex gap-2">
-    <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
-      <SelectTrigger className="flex-1">
-        <SelectValue placeholder="Selecione um veículo" />
-      </SelectTrigger>
-      <SelectContent>
-        {clientVehicles?.map(vehicle => (
-          <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
-            {vehicle.brand} {vehicle.model} - {vehicle.plate}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-    <Button variant="outline" onClick={() => setShowNewVehicleModal(true)}>
-      <Plus className="h-4 w-4" /> Novo
-    </Button>
-  </div>
-</div>
-```
-
-4. **Adicionar** busca de dados para serviços detalhados:
-```tsx
-// Fetch product types, vehicle regions, consumption rules
-const { data: productTypes } = useQuery({...});
-const { data: vehicleRegions } = useQuery({
-  queryKey: ['vehicle-regions', companyId],
-  queryFn: async () => {
-    // Inclui fixed_price na seleção
-    const { data } = await supabase
-      .from('vehicle_regions')
-      .select('id, category, name, description, fixed_price')
-      .eq('company_id', companyId)
-      .eq('is_active', true);
-    return data;
-  },
-});
-const { data: consumptionRules } = useQuery({...});
-```
-
-5. **Adicionar** seção de serviços detalhados (reutilizando `ServiceItemRow`):
-```tsx
-{/* Serviços Detalhados */}
-<div className="space-y-3">
-  <div className="flex justify-between items-center">
-    <Label>Serviços *</Label>
-    <Button variant="outline" size="sm" onClick={handleAddDetailedItem}>
-      <Plus className="h-4 w-4 mr-1" /> Adicionar Serviço
-    </Button>
-  </div>
-  
-  {detailedItems.map(item => (
-    <ServiceItemRow
-      key={item.id}
-      item={item}
-      vehicleSize={selectedVehicle?.size || null}
-      productTypes={productTypes || []}
-      vehicleRegions={vehicleRegions || []}
-      consumptionRules={consumptionRules || []}
-      onUpdate={handleUpdateDetailedItem}
-      onRemove={handleRemoveDetailedItem}
-    />
+// Alterar a nav para ter scroll horizontal
+<nav className="hidden lg:flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
+  {filteredItems.map(item => (
+    <NavLink key={item.path} item={item} />
   ))}
-</div>
+</nav>
 ```
 
-6. **Atualizar** lógica de preço com base no `fixed_price`:
-```tsx
-// Ao selecionar região, usar fixed_price se disponível
-const handleRegionChange = (regionId: string) => {
-  const region = vehicleRegions.find(r => r.id === parseInt(regionId));
-  const meters = calculateMeters(parseInt(regionId), item.category);
-  const fixedPrice = region?.fixed_price || 0;
-  
-  onUpdate({
-    ...item,
-    regionId: parseInt(regionId),
-    regionName: region?.name || "",
-    metersUsed: meters,
-    totalPrice: fixedPrice > 0 ? fixedPrice : (meters * item.unitPrice),
-  });
-};
-```
-
-7. **Atualizar** mutação para salvar sem `sale_id`:
-```tsx
-const { data, error } = await supabase
-  .from('spaces')
-  .insert({
-    name: slotName || `Vaga de ${selectedClient?.name}`,
-    client_id: parseInt(selectedClientId),
-    vehicle_id: parseInt(selectedVehicleId),
-    sale_id: null, // Venda será criada depois
-    company_id: companyId,
-    // ... resto dos campos
-  });
-```
-
-8. **Salvar** os serviços detalhados na tabela `service_items_detailed` (ou em uma nova tabela `space_services`):
-```tsx
-// Salvar serviços detalhados vinculados ao espaço
-const detailedInserts = detailedItems.map(item => ({
-  space_id: createdSpace.id, // Novo campo
-  category: item.category,
-  region_id: item.regionId,
-  product_type_id: item.productTypeId,
-  meters_used: item.metersUsed,
-  total_price: item.totalPrice,
-  company_id: companyId,
-}));
-```
-
-### Novo State Necessário
-
-```tsx
-const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
-const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
-```
+Adicionar estilos CSS para esconder scrollbar mas manter funcionalidade.
 
 ---
 
-## Item 2: VehicleRegionsTab - Renomear e Adicionar Preço
+## Item 2: Adicionar HelpOverlay nas Páginas que Faltam
 
-### Alterações no Arquivo `src/components/estoque/VehicleRegionsTab.tsx`
+### Páginas que Precisam de HelpOverlay
 
-### 2a. Renomear Textos
+| Página | Status | Ação |
+|--------|--------|------|
+| Vendas | Tem import, mas não renderiza | Adicionar `<HelpOverlay />` no JSX |
+| Espaço | Tem import, mas não renderiza | Adicionar `<HelpOverlay />` no JSX |
+| Financeiro | Tem import, mas não renderiza | Adicionar `<HelpOverlay />` no JSX |
+| Contas | Não tem | Adicionar import e componente |
+| Clientes | Verificar | - |
+| Relatórios | Não tem | Adicionar import e componente |
+| Garantias | Não tem | Adicionar import e componente |
+| Solicitações | Não tem | Adicionar import e componente |
+| Empresa | Não tem | Adicionar import e componente |
+| Perfil | Não tem | Adicionar import e componente |
 
-| Antes | Depois |
-|-------|--------|
-| "Nova Região" | "Novo Serviço" |
-| "Editar Região" | "Editar Serviço" |
-| "Criar Região" | "Criar Serviço" |
-| "Nome da Região *" | "Nome do Serviço *" |
-| "Descrição da região..." | "Descrição do serviço..." |
-| "Nenhuma região cadastrada" | "Nenhum serviço cadastrado" |
-| "Cadastrar Primeira Região" | "Cadastrar Primeiro Serviço" |
+### Conteúdo de Ajuda por Página
 
-### 2b. Adicionar Coluna de Preço na Lista
-
-Atualizar o `SortableRegionCard` para mostrar o preço:
-
+**Vendas (`src/pages/Vendas.tsx`)**:
 ```tsx
-function SortableRegionCard({ region, onEdit, onDelete }: SortableRegionCardProps) {
-  return (
-    <div className="flex items-center gap-3 p-4 bg-card border...">
-      <button {...attributes} {...listeners}>
-        <GripVertical className="h-5 w-5" />
-      </button>
-
-      <div className="flex-1">
-        <p className="font-medium">{region.name}</p>
-        {region.description && (
-          <p className="text-sm text-muted-foreground">{region.description}</p>
-        )}
-      </div>
-
-      {/* NOVO: Coluna de preço */}
-      <div className="text-right min-w-[100px]">
-        <p className="text-sm text-muted-foreground">Preço</p>
-        <p className="font-medium text-success">
-          {region.fixed_price 
-            ? `R$ ${region.fixed_price.toFixed(2)}` 
-            : "-"}
-        </p>
-      </div>
-
-      <div className="flex gap-1">
-        <Button variant="ghost" size="icon" onClick={() => onEdit(region)}>
-          <Pencil className="h-4 w-4" />
-        </Button>
-        ...
-      </div>
-    </div>
-  );
-}
+<HelpOverlay
+  tabId="vendas"
+  title="Gestão de Vendas"
+  description="Aqui você acompanha todas as vendas realizadas pela empresa em formato de calendário ou lista."
+  steps={[
+    { title: "Nova Venda", description: "Clique no botão para registrar uma nova venda com cliente, veículo e serviços" },
+    { title: "Calendário", description: "Visualize as vendas por dia no calendário mensal" },
+    { title: "Ver Gráficos", description: "Analise o desempenho de vendas com gráficos detalhados" },
+  ]}
+/>
 ```
 
-### 2c. Adicionar Campo de Preço no Modal
-
-Atualizar o formulário do modal:
-
+**Espaço (`src/pages/Espaco.tsx`)**:
 ```tsx
-// Adicionar ao formData state
-const [formData, setFormData] = useState({
-  category: "INSULFILM" as ProductCategory,
-  name: "",
-  description: "",
-  fixed_price: 0, // NOVO
-});
-
-// No modal, adicionar campo:
-<div className="space-y-2">
-  <Label>Preço Pré-determinado (R$)</Label>
-  <Input
-    type="number"
-    step="0.01"
-    placeholder="0.00"
-    value={formData.fixed_price || ""}
-    onChange={(e) => setFormData({ 
-      ...formData, 
-      fixed_price: parseFloat(e.target.value) || 0 
-    })}
-  />
-  <p className="text-xs text-muted-foreground">
-    Este preço aparecerá automaticamente ao preencher vagas
-  </p>
-</div>
+<HelpOverlay
+  tabId="espaco"
+  title="Gestão de Vagas"
+  description="Gerencie a ocupação das vagas do seu estabelecimento e acompanhe os veículos."
+  steps={[
+    { title: "Preencher Vaga", description: "Registre a entrada de um veículo com cliente e serviços" },
+    { title: "Vagas Ativas", description: "Veja os veículos atualmente ocupando vagas" },
+    { title: "Veículos Pagos", description: "Consulte o histórico de veículos que já saíram e pagaram" },
+  ]}
+/>
 ```
 
-### 2d. Atualizar Interface VehicleRegion
-
-Em `src/lib/database.types.ts`:
-
+**Financeiro (`src/pages/Financeiro.tsx`)**:
 ```tsx
-export interface VehicleRegion {
-  id: number;
-  category: ProductCategory;
-  name: string;
-  description: string | null;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-  company_id: number;
-  fixed_price: number | null;      // NOVO
-  product_type_id: number | null;  // NOVO
-}
+<HelpOverlay
+  tabId="financeiro"
+  title="Visão Financeira"
+  description="Acompanhe o fluxo de caixa da empresa com entradas, saídas e evolução do saldo."
+  steps={[
+    { title: "Adicionar", description: "Registre entradas, saídas, transferências e novas contas" },
+    { title: "Gráficos", description: "Visualize a evolução do saldo nos últimos 7 dias" },
+    { title: "Minhas Contas", description: "Veja o saldo de cada conta cadastrada" },
+  ]}
+/>
 ```
 
-### 2e. Incluir `fixed_price` nas Queries e Mutations
-
+**Contas (`src/pages/Contas.tsx`)**:
 ```tsx
-// Na query
-const { data: regions } = useQuery({
-  queryFn: async () => {
-    const { data } = await supabase
-      .from("vehicle_regions")
-      .select("*, fixed_price, product_type_id")  // Incluir novos campos
-      ...
-  },
-});
+<HelpOverlay
+  tabId="contas"
+  title="Detalhes das Contas"
+  description="Visualize o extrato detalhado de cada conta bancária ou carteira."
+  steps={[
+    { title: "Selecionar Conta", description: "Clique em uma conta na barra lateral para ver detalhes" },
+    { title: "Gráficos", description: "Analise formas de pagamento e categorias de gastos" },
+    { title: "Extrato", description: "Veja todas as transações da conta selecionada" },
+  ]}
+/>
+```
 
-// Na createMutation
-const { data: result } = await supabase
-  .from("vehicle_regions")
-  .insert({
-    ...data,
-    fixed_price: data.fixed_price || null,  // NOVO
-    company_id: companyId,
-  });
+**Relatórios (`src/pages/Relatorios.tsx`)**:
+```tsx
+<HelpOverlay
+  tabId="relatorios"
+  title="Relatórios"
+  description="Gere relatórios detalhados do seu negócio para análise e tomada de decisão."
+  steps={[
+    { title: "Escolher Relatório", description: "Selecione o tipo de relatório que deseja gerar" },
+    { title: "Configurar", description: "Defina o período e filtros desejados" },
+    { title: "Exportar", description: "Baixe o relatório em PDF ou Excel" },
+  ]}
+/>
+```
 
-// Na updateMutation
-const { data: result } = await supabase
-  .from("vehicle_regions")
-  .update({
-    name: formData.name, 
-    description: formData.description,
-    fixed_price: formData.fixed_price || null,  // NOVO
-  });
+**Garantias (`src/pages/Garantias.tsx`)**:
+```tsx
+<HelpOverlay
+  tabId="garantias"
+  title="Gestão de Garantias"
+  description="Gerencie certificados de garantia emitidos para seus clientes."
+  steps={[
+    { title: "Emitir Garantia", description: "Crie um novo certificado de garantia para um serviço" },
+    { title: "Criar Modelo", description: "Configure modelos de garantia com validade e termos" },
+    { title: "Enviar", description: "Envie o certificado por email ou baixe o PDF" },
+  ]}
+/>
+```
+
+**Solicitações (`src/pages/TeamRequests.tsx`)**:
+```tsx
+<HelpOverlay
+  tabId="solicitacoes"
+  title="Solicitações de Acesso"
+  description="Gerencie as solicitações de pessoas que querem entrar na sua equipe."
+  steps={[
+    { title: "Aprovar", description: "Aceite colaboradores para acessar o sistema" },
+    { title: "Rejeitar", description: "Recuse solicitações informando o motivo" },
+    { title: "Desvincular", description: "Remova membros que já não fazem parte da equipe" },
+  ]}
+/>
+```
+
+**Empresa (`src/pages/Empresa.tsx`)**:
+```tsx
+<HelpOverlay
+  tabId="empresa"
+  title="Dados da Empresa"
+  description="Configure as informações da sua empresa que aparecem em documentos e garantias."
+  steps={[
+    { title: "Logo", description: "Clique na área da logo para fazer upload da imagem" },
+    { title: "Editar Dados", description: "Atualize nome, CNPJ, telefone e endereço" },
+    { title: "Código da Equipe", description: "Compartilhe o código para colaboradores entrarem" },
+  ]}
+/>
+```
+
+**Perfil (`src/pages/Perfil.tsx`)**:
+```tsx
+<HelpOverlay
+  tabId="perfil"
+  title="Meu Perfil"
+  description="Gerencie suas informações pessoais e preferências de acesso."
+  steps={[
+    { title: "Editar", description: "Atualize seu nome e foto de perfil" },
+    { title: "Senha", description: "Altere sua senha de acesso" },
+    { title: "Assinatura", description: "Veja os dias restantes do seu plano" },
+  ]}
+/>
 ```
 
 ---
@@ -311,68 +190,23 @@ const { data: result } = await supabase
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/espaco/FillSlotModal.tsx` | Remover dependência de venda, adicionar seleção de veículo + serviços detalhados |
-| `src/components/estoque/VehicleRegionsTab.tsx` | Renomear "Região" → "Serviço", adicionar campo/coluna de preço |
-| `src/lib/database.types.ts` | Adicionar `fixed_price` e `product_type_id` à interface `VehicleRegion` |
-| `src/components/vendas/ServiceItemRow.tsx` | Atualizar interface `VehicleRegion` para incluir `fixed_price` |
+| `src/components/layout/TopNavigation.tsx` | Adicionar classe para scroll horizontal suave |
+| `src/index.css` | Adicionar classe `.scrollbar-hide` para esconder scrollbar |
+| `src/pages/Vendas.tsx` | Adicionar `<HelpOverlay />` no JSX (já tem import) |
+| `src/pages/Espaco.tsx` | Adicionar `<HelpOverlay />` no JSX (já tem import) |
+| `src/pages/Financeiro.tsx` | Adicionar `<HelpOverlay />` no JSX (já tem import) |
+| `src/pages/Contas.tsx` | Adicionar import e `<HelpOverlay />` |
+| `src/pages/Relatorios.tsx` | Adicionar import e `<HelpOverlay />` |
+| `src/pages/Garantias.tsx` | Adicionar import e `<HelpOverlay />` |
+| `src/pages/TeamRequests.tsx` | Adicionar import e `<HelpOverlay />` |
+| `src/pages/Empresa.tsx` | Adicionar import e `<HelpOverlay />` |
+| `src/pages/Perfil.tsx` | Adicionar import e `<HelpOverlay />` |
 
 ---
 
-## Fluxo Visual Atualizado
+## Ordem de Implementação
 
-```text
-┌──────────────────────────────────────────────────────────────────────┐
-│  PREENCHER VAGA (FillSlotModal)                                      │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  Nome da vaga (opcional): [_______________]                          │
-│                                                                      │
-│  Cliente *: [Hugo Luz ▼]                         [🔄 Atualizar]      │
-│                                                                      │
-│  Veículo *: [Civic 2022 - ABC-1234 ▼]            [+ Novo]           │
-│                                                                      │
-│  ─────────────────────────────────────────────────────────────────  │
-│  Serviços *                                        [+ Adicionar]     │
-│  ─────────────────────────────────────────────────────────────────  │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ [INSULFILM ▼] [Parabrisa ▼] [Película X ▼] [1.2m] R$ [85.00] │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ [PPF ▼]       [Capô ▼]       [PPF Y ▼]     [2.5m] R$ [350.00]│    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│                                                                      │
-│  Entrada: [08/02/2026] [15:50]    Saída: [__/__/____] [--:--]       │
-│                                                                      │
-│  [ Desconto ] [ Observações ] [ Tag ]                                │
-│                                                                      │
-│                        [✓ Adicionar vaga]                            │
-└──────────────────────────────────────────────────────────────────────┘
-```
+1. **Primeiro**: Ajustar CSS e TopNavigation para navegação horizontal correta
+2. **Segundo**: Adicionar HelpOverlay em todas as páginas listadas
 
----
-
-## Resultado na Aba de Serviços
-
-```text
-┌──────────────────────────────────────────────────────────────────────┐
-│  Gestão de Serviços                                                  │
-│  Gerencie serviços e regras de consumo de materiais                 │
-├──────────────────────────────────────────────────────────────────────┤
-│  [🔧 Serviços] [📊 Regras de Consumo]                                │
-│                                                                      │
-│  [INSULFILM] [PPF]                            [+ Novo Serviço]       │
-│                                                                      │
-│  ┌────────────────────────────────────────────────────────────┐     │
-│  │ ⋮⋮  Parabrisa                          Preço        ✏️  🗑️ │     │
-│  │                                     R$ 85.00              │     │
-│  └────────────────────────────────────────────────────────────┘     │
-│  ┌────────────────────────────────────────────────────────────┐     │
-│  │ ⋮⋮  Vidros Laterais                    Preço        ✏️  🗑️ │     │
-│  │                                     R$ 120.00             │     │
-│  └────────────────────────────────────────────────────────────┘     │
-│  ┌────────────────────────────────────────────────────────────┐     │
-│  │ ⋮⋮  Vigia Traseiro                     Preço        ✏️  🗑️ │     │
-│  │                                        -                  │     │
-│  └────────────────────────────────────────────────────────────┘     │
-└──────────────────────────────────────────────────────────────────────┘
-```
+Total de arquivos: 11 modificações
