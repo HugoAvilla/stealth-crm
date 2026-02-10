@@ -41,6 +41,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import NewVehicleModal from "@/components/vendas/NewVehicleModal";
+import PhoneInputWithDDI from "@/components/ui/PhoneInputWithDDI";
 
 interface Vehicle {
   id: number;
@@ -115,6 +116,8 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
     if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
     return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
   };
+
+  // Keep formatPhone for potential other uses, but phone input now uses PhoneInputWithDDI
 
   const formatCpfCnpj = (value: string) => {
     const numbers = value.replace(/\D/g, "");
@@ -209,7 +212,7 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
         .from('clients')
         .insert({
           name: name.trim(),
-          phone: `+55 ${phone}`,
+          phone: phone,
           email: email || null,
           cpf_cnpj: cpf || null,
           origem: origem || 'Passante',
@@ -298,17 +301,10 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
                   <Phone className="h-4 w-4" />
                   WhatsApp *
                 </Label>
-                <div className="flex">
-                  <span className="inline-flex items-center px-3 bg-muted border border-r-0 border-input rounded-l-md text-sm text-muted-foreground">
-                    +55
-                  </span>
-                  <Input
-                    placeholder="(17) 99999-9999"
-                    className="rounded-l-none"
-                    value={phone}
-                    onChange={(e) => setPhone(formatPhone(e.target.value))}
-                  />
-                </div>
+                <PhoneInputWithDDI
+                  value={phone}
+                  onChange={setPhone}
+                />
               </div>
             </div>
 

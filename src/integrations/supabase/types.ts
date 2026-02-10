@@ -1645,6 +1645,36 @@ export type Database = {
         }
         Relationships: []
       }
+      terms_acceptances: {
+        Row: {
+          accepted_at: string
+          id: number
+          ip_address: string | null
+          terms_version: string
+          user_email: string
+          user_id: string | null
+          user_name: string
+        }
+        Insert: {
+          accepted_at?: string
+          id?: number
+          ip_address?: string | null
+          terms_version?: string
+          user_email: string
+          user_id?: string | null
+          user_name: string
+        }
+        Update: {
+          accepted_at?: string
+          id?: number
+          ip_address?: string | null
+          terms_version?: string
+          user_email?: string
+          user_id?: string | null
+          user_name?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           account_id: number | null
