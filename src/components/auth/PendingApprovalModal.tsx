@@ -1,4 +1,5 @@
 import { AlertCircle, LogOut } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import wfeLogo from '@/assets/wfe-logo.png';
@@ -11,11 +12,13 @@ export function PendingApprovalModal() {
       <div className="max-w-md w-full bg-card border border-border rounded-xl p-8 text-center space-y-6">
         {/* Logo */}
         <div className="flex justify-center mb-4">
-          <img 
-            src={wfeLogo} 
-            alt="WFE Evolution" 
-            className="h-16 w-auto object-contain"
-          />
+          <Link to="/login">
+            <img 
+              src={wfeLogo} 
+              alt="WFE Evolution" 
+              className="h-16 w-auto object-contain cursor-pointer"
+            />
+          </Link>
         </div>
 
         {/* Icon */}

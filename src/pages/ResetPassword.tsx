@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -214,7 +214,9 @@ const ResetPassword = () => {
         {/* Logo */}
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-3 mb-8">
-            <img src={wfeLogo} alt="WFE Evolution" className="h-12 w-auto object-contain" />
+            <Link to="/login">
+              <img src={wfeLogo} alt="WFE Evolution" className="h-12 w-auto object-contain cursor-pointer" />
+            </Link>
             
           </div>
         </div>
