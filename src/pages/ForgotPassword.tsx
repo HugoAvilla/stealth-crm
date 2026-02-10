@@ -57,7 +57,9 @@ const ForgotPassword = () => {
         {/* Logo */}
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-3 mb-8">
-            <img src={wfeLogo} alt="WFE Evolution" className="h-12 w-auto object-contain" />
+            <Link to="/login">
+              <img src={wfeLogo} alt="WFE Evolution" className="h-12 w-auto object-contain cursor-pointer" />
+            </Link>
             <span className="text-xl font-semibold tracking-tight">
           </span>
           </div>
