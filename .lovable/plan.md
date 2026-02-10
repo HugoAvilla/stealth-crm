@@ -1,150 +1,53 @@
 
+# Plano: Tornar Logo Clicavel em Todas as Paginas
 
-# Plano: Seletor de DDI no Cadastro, Termos de Uso e Integração WhatsApp
+## Objetivo
+Adicionar navegacao ao clicar na logo WFE em todas as paginas:
+- **Paginas pre-login** (Login, Esqueci Senha, Redefinir Senha, Aprovacao Pendente): clicar na logo redireciona para `/login`
+- **Paginas pos-login** (TopNavigation/Sidebar): ja funciona corretamente com `<Link to="/">`
 
-## Visao Geral
+## Paginas que precisam de alteracao
 
-Tres implementacoes principais:
-1. Seletor de codigo de pais (DDI) com bandeiras no campo de telefone (cadastro de usuario e de cliente)
-2. Checkbox de aceite dos Termos e Politicas no cadastro
-3. Tabela e aba no Painel Master para visualizar aceites dos termos
+### 1. Login.tsx (linha 64)
+A logo no topo esquerdo sera envolvida em um `<Link to="/login">` (ou simplesmente recarrega a pagina). Como ja esta na tela de login, o clique apenas recarrega a pagina.
 
----
+### 2. ForgotPassword.tsx (linha 60)
+Envolver a `<img>` da logo em um `<Link to="/login">` com estilo cursor pointer.
 
-## Item 1: Seletor de DDI com Bandeiras
+### 3. ResetPassword.tsx (linha 217)
+Envolver a `<img>` da logo em um `<Link to="/login">` com estilo cursor pointer.
 
-### Problema Atual
-O telefone e salvo com `+55` fixo (hardcoded). Isso impede o uso correto do link `wa.me/` para clientes internacionais.
+### 4. PendingApprovalModal.tsx (linha 14-17)
+Envolver a `<img>` da logo em um `<Link to="/login">` com estilo cursor pointer.
 
-### Solucao
-Criar um componente reutilizavel `PhoneInputWithDDI` que inclui:
-- Um `Select` dropdown com bandeira + codigo do pais
-- Lista dos DDIs mais comuns (Brasil, EUA, Portugal, Argentina, Paraguai, Uruguai, Colombia, Mexico, Chile, Espanha, Italia, Franca, Alemanha, Reino Unido, Canada, Japao, etc.)
-- Bandeiras usando emojis unicode (nao precisa de imagens externas)
-- O DDI selecionado e armazenado junto com o numero no banco
+### Paginas pos-login
+- **TopNavigation.tsx** - Ja possui `<Link to="/">` na logo (linha 148). Nenhuma alteracao necessaria.
+- **Sidebar.tsx** - Verificar se precisa de link (provavelmente nao esta em uso ativo).
 
-### Arquivos Afetados
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/components/ui/PhoneInputWithDDI.tsx` | **NOVO** - Componente reutilizavel |
-| `src/pages/SignUp.tsx` | Substituir campo de telefone pelo novo componente |
-| `src/components/vendas/NewClientModal.tsx` | Substituir campo de telefone pelo novo componente |
+## Detalhes Tecnicos
 
-### Formato de Armazenamento
-O numero sera salvo no formato `+{DDI} {numero}`, por exemplo:
-- `+55 (17) 99999-9999` (Brasil)
-- `+1 (555) 123-4567` (EUA)
-- `+351 912 345 678` (Portugal)
+Cada arquivo afetado recebera:
+- Import de `Link` do `react-router-dom` (se ainda nao existir)
+- A tag `<img>` da logo sera envolvida em `<Link to="/login">` (pre-login) ou `<Link to="/">` (pos-login)
+- Adicionado `cursor-pointer` para feedback visual
 
-### Impacto no WhatsApp
-A funcao `openWhatsApp` em `src/lib/utils.ts` ja remove caracteres nao numericos, entao o formato `+55 (17) 99999-9999` sera convertido automaticamente para `5517999999999`, funcionando corretamente com `wa.me/`.
+### Exemplo da alteracao:
+```tsx
+// Antes
+<img src={wfeLogo} alt="WFE Evolution" className="h-12 w-auto object-contain" />
 
----
-
-## Item 2: Checkbox de Termos e Politicas
-
-### Requisitos Legais (LGPD - Lei Geral de Protecao de Dados)
-O checkbox deve cobrir:
-- **Termos de Uso** da plataforma
-- **Politica de Privacidade** (coleta e tratamento de dados pessoais)
-- **Politica de Seguranca de Dados** (armazenamento e protecao)
-- **Consentimento para comunicacao** (WhatsApp, email)
-
-### Implementacao na Tela de Cadastro
-Adicionar entre "Confirmar senha" e "Criar conta":
-
-```text
-[x] Li e aceito os Termos de Uso, Politica de Privacidade
-    e Politica de Seguranca de Dados da plataforma.
+// Depois
+<Link to="/login">
+  <img src={wfeLogo} alt="WFE Evolution" className="h-12 w-auto object-contain cursor-pointer" />
+</Link>
 ```
 
-- O texto "Termos de Uso", "Politica de Privacidade" e "Politica de Seguranca de Dados" serao links clicaveis (podem abrir modais ou paginas)
-- O botao "Criar conta" fica desabilitado ate o checkbox ser marcado
-- A data/hora do aceite e o IP (se disponivel) sao salvos no banco
+## Arquivos afetados
 
-### Arquivo Afetado
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/pages/SignUp.tsx` | Adicionar checkbox + validacao + salvar aceite no banco |
-
----
-
-## Item 3: Tabela de Aceites no Banco de Dados
-
-### Nova Tabela: `terms_acceptances`
-
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| `id` | bigint (PK) | ID auto-incremento |
-| `user_id` | uuid (FK -> auth.users) | Usuario que aceitou |
-| `user_email` | text | Email do usuario no momento do aceite |
-| `user_name` | text | Nome do usuario no momento do aceite |
-| `terms_version` | text | Versao dos termos (ex: "1.0") |
-| `accepted_at` | timestamptz | Data/hora do aceite |
-| `ip_address` | text | IP do usuario (se disponivel) |
-
-### Migracao SQL
-```sql
-CREATE TABLE public.terms_acceptances (
-  id bigint generated by default as identity primary key,
-  user_id uuid references auth.users(id) on delete cascade,
-  user_email text not null,
-  user_name text not null,
-  terms_version text not null default '1.0',
-  accepted_at timestamptz not null default now(),
-  ip_address text
-);
-
-ALTER TABLE public.terms_acceptances ENABLE ROW LEVEL SECURITY;
-
--- Master pode ver todos
-CREATE POLICY "Master can view all acceptances"
-  ON public.terms_acceptances FOR SELECT
-  TO authenticated
-  USING (
-    auth.uid() IN (
-      SELECT user_id FROM profiles WHERE email = 'hg.lavila@gmail.com'
-    )
-  );
-
--- Usuario pode inserir seu proprio aceite
-CREATE POLICY "Users can insert own acceptance"
-  ON public.terms_acceptances FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = user_id);
-```
-
----
-
-## Item 4: Aba no Painel Master para Visualizar Aceites
-
-### Nova aba "Termos" no Painel Master
-
-Adicionar uma terceira aba no `Tabs` do `Master.tsx`:
-- Icone: `FileCheck` do lucide-react
-- Label: "Termos"
-
-### Conteudo da Aba
-- Cards de estatisticas: total de aceites, aceites no ultimo mes
-- Tabela com colunas: Nome, Email, Versao dos Termos, Data do Aceite, IP
-- Filtro por nome/email
-- Botao para exportar CSV (opcional)
-
-### Arquivo Afetado
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/Master.tsx` | Adicionar aba "Termos" com tabela de aceites |
-
----
-
-## Resumo de Todos os Arquivos
-
-| Arquivo | Tipo | Descricao |
-|---------|------|-----------|
-| `src/components/ui/PhoneInputWithDDI.tsx` | **NOVO** | Componente de telefone com seletor de DDI e bandeiras |
-| `src/pages/SignUp.tsx` | Editar | Trocar campo telefone + adicionar checkbox de termos |
-| `src/components/vendas/NewClientModal.tsx` | Editar | Trocar campo telefone pelo novo componente |
-| `src/pages/Master.tsx` | Editar | Adicionar aba "Termos" |
-| `src/integrations/supabase/types.ts` | Editar | Adicionar tipo da nova tabela |
-| Migracao SQL | **NOVO** | Criar tabela `terms_acceptances` |
-
+| `src/pages/Login.tsx` | Envolver logo em `<Link to="/login">` |
+| `src/pages/ForgotPassword.tsx` | Envolver logo em `<Link to="/login">` |
+| `src/pages/ResetPassword.tsx` | Envolver logo em `<Link to="/login">` |
+| `src/components/auth/PendingApprovalModal.tsx` | Envolver logo em `<Link to="/login">` |
+| `src/components/layout/TopNavigation.tsx` | Ja implementado, nenhuma alteracao |
