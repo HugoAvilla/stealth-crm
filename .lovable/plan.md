@@ -1,144 +1,150 @@
 
-# Plano: 4 Correções no Módulo Espaço (Preencher Vaga + Detalhes da Vaga)
 
-## Item 1: Trocar "Atualizar" por "+Novo" no seletor de cliente
+# Plano: Seletor de DDI no Cadastro, Termos de Uso e Integração WhatsApp
 
-**Arquivo:** `src/components/espaco/FillSlotModal.tsx`
+## Visao Geral
 
-No card de seleção de cliente (linhas 360-390), o botao "Atualizar" (com icone RefreshCw) sera substituido por um botao "+Novo" que abre o modal `NewClientModal` para cadastrar novos clientes diretamente no fluxo de preenchimento.
-
-**Alteracoes:**
-- Importar `NewClientModal` de `@/components/vendas/NewClientModal`
-- Adicionar estado `showNewClientModal`
-- Trocar o botao "Atualizar" por "+Novo" com icone `Plus`
-- Ao criar cliente com sucesso, fazer `refetchClients()` e selecionar o novo cliente automaticamente
-- Renderizar o `NewClientModal` no final do componente
+Tres implementacoes principais:
+1. Seletor de codigo de pais (DDI) com bandeiras no campo de telefone (cadastro de usuario e de cliente)
+2. Checkbox de aceite dos Termos e Politicas no cadastro
+3. Tabela e aba no Painel Master para visualizar aceites dos termos
 
 ---
 
-## Item 2: Corrigir "Nenhum servico vinculado" no Drawer de Detalhes
+## Item 1: Seletor de DDI com Bandeiras
 
-**Problema raiz:** Quando a vaga e criada no `FillSlotModal`, os servicos adicionados pelo usuario **nao sao salvos no banco de dados**. O codigo atual (linhas 294-306) apenas concatena os nomes dos servicos no campo `observations` como texto. Porem, o `SlotDetailsDrawer` tenta ler servicos de `space.sale?.sale_items` (linha 328), que e sempre `null` porque nenhuma venda e criada nesse momento.
+### Problema Atual
+O telefone e salvo com `+55` fixo (hardcoded). Isso impede o uso correto do link `wa.me/` para clientes internacionais.
 
-**Solucao:** Adicionar uma coluna JSONB `services_data` na tabela `spaces` para armazenar os servicos diretamente na vaga, independente de uma venda vinculada.
+### Solucao
+Criar um componente reutilizavel `PhoneInputWithDDI` que inclui:
+- Um `Select` dropdown com bandeira + codigo do pais
+- Lista dos DDIs mais comuns (Brasil, EUA, Portugal, Argentina, Paraguai, Uruguai, Colombia, Mexico, Chile, Espanha, Italia, Franca, Alemanha, Reino Unido, Canada, Japao, etc.)
+- Bandeiras usando emojis unicode (nao precisa de imagens externas)
+- O DDI selecionado e armazenado junto com o numero no banco
 
-**Alteracoes:**
+### Arquivos Afetados
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/components/ui/PhoneInputWithDDI.tsx` | **NOVO** - Componente reutilizavel |
+| `src/pages/SignUp.tsx` | Substituir campo de telefone pelo novo componente |
+| `src/components/vendas/NewClientModal.tsx` | Substituir campo de telefone pelo novo componente |
 
-1. **Migracao SQL:** Adicionar coluna `services_data` (JSONB) na tabela `spaces`
+### Formato de Armazenamento
+O numero sera salvo no formato `+{DDI} {numero}`, por exemplo:
+- `+55 (17) 99999-9999` (Brasil)
+- `+1 (555) 123-4567` (EUA)
+- `+351 912 345 678` (Portugal)
+
+### Impacto no WhatsApp
+A funcao `openWhatsApp` em `src/lib/utils.ts` ja remove caracteres nao numericos, entao o formato `+55 (17) 99999-9999` sera convertido automaticamente para `5517999999999`, funcionando corretamente com `wa.me/`.
+
+---
+
+## Item 2: Checkbox de Termos e Politicas
+
+### Requisitos Legais (LGPD - Lei Geral de Protecao de Dados)
+O checkbox deve cobrir:
+- **Termos de Uso** da plataforma
+- **Politica de Privacidade** (coleta e tratamento de dados pessoais)
+- **Politica de Seguranca de Dados** (armazenamento e protecao)
+- **Consentimento para comunicacao** (WhatsApp, email)
+
+### Implementacao na Tela de Cadastro
+Adicionar entre "Confirmar senha" e "Criar conta":
+
+```text
+[x] Li e aceito os Termos de Uso, Politica de Privacidade
+    e Politica de Seguranca de Dados da plataforma.
+```
+
+- O texto "Termos de Uso", "Politica de Privacidade" e "Politica de Seguranca de Dados" serao links clicaveis (podem abrir modais ou paginas)
+- O botao "Criar conta" fica desabilitado ate o checkbox ser marcado
+- A data/hora do aceite e o IP (se disponivel) sao salvos no banco
+
+### Arquivo Afetado
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/SignUp.tsx` | Adicionar checkbox + validacao + salvar aceite no banco |
+
+---
+
+## Item 3: Tabela de Aceites no Banco de Dados
+
+### Nova Tabela: `terms_acceptances`
+
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| `id` | bigint (PK) | ID auto-incremento |
+| `user_id` | uuid (FK -> auth.users) | Usuario que aceitou |
+| `user_email` | text | Email do usuario no momento do aceite |
+| `user_name` | text | Nome do usuario no momento do aceite |
+| `terms_version` | text | Versao dos termos (ex: "1.0") |
+| `accepted_at` | timestamptz | Data/hora do aceite |
+| `ip_address` | text | IP do usuario (se disponivel) |
+
+### Migracao SQL
 ```sql
-ALTER TABLE spaces ADD COLUMN services_data jsonb DEFAULT '[]';
+CREATE TABLE public.terms_acceptances (
+  id bigint generated by default as identity primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  user_email text not null,
+  user_name text not null,
+  terms_version text not null default '1.0',
+  accepted_at timestamptz not null default now(),
+  ip_address text
+);
+
+ALTER TABLE public.terms_acceptances ENABLE ROW LEVEL SECURITY;
+
+-- Master pode ver todos
+CREATE POLICY "Master can view all acceptances"
+  ON public.terms_acceptances FOR SELECT
+  TO authenticated
+  USING (
+    auth.uid() IN (
+      SELECT user_id FROM profiles WHERE email = 'hg.lavila@gmail.com'
+    )
+  );
+
+-- Usuario pode inserir seu proprio aceite
+CREATE POLICY "Users can insert own acceptance"
+  ON public.terms_acceptances FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
 ```
-
-2. **`FillSlotModal.tsx`** (linhas 267-307): Ao criar a vaga, salvar `services_data` com os dados dos servicos:
-```json
-[
-  {"regionName": "Para-brisa", "productTypeName": "Insulfilm G5", "totalPrice": 150.00, "metersUsed": 2.5},
-  {"regionName": "Laterais", "productTypeName": "Insulfilm G5", "totalPrice": 200.00, "metersUsed": 3.0}
-]
-```
-
-3. **`SlotDetailsDrawer.tsx`** (linhas 328-341): Alterar a exibicao de servicos para ler de `space.services_data` (JSONB) quando `sale_items` nao existir:
-```tsx
-const services = space.sale?.sale_items?.length > 0
-  ? space.sale.sale_items.map(item => ({ name: item.service?.name, price: item.total_price }))
-  : (space.services_data || []).map(s => ({ name: s.regionName, price: s.totalPrice }));
-```
-
-4. **`SlotDetailsDrawer.tsx`**: Atualizar o calculo de `subtotal` e `serviceCount` para considerar `services_data`
-
-5. **`Espaco.tsx`**: A query ja usa `select(*)` para spaces, entao `services_data` sera incluida automaticamente
 
 ---
 
-## Item 3: Ativar botoes de "Comprovantes em PDF" e "Mais opcoes"
+## Item 4: Aba no Painel Master para Visualizar Aceites
 
-**Arquivo:** `src/components/espaco/SlotDetailsDrawer.tsx`
+### Nova aba "Termos" no Painel Master
 
-Todos os botoes atualmente estao `disabled`. Alteracoes:
+Adicionar uma terceira aba no `Tabs` do `Master.tsx`:
+- Icone: `FileCheck` do lucide-react
+- Label: "Termos"
 
-| Botao | Acao |
-|-------|------|
-| Baixar PDF em formato A4 | Gerar PDF A4 usando `jsPDF` com dados da vaga |
-| Baixar PDF em formato Notinha | Gerar PDF notinha (80mm) com dados da vaga |
-| Baixar PDF em formato Notinha Mini | Gerar PDF notinha mini (58mm) com dados da vaga |
-| Enviar mensagem de entrada | Abrir novo modal WhatsApp (Item 4) |
-| Enviar mensagem de saida | Abrir novo modal WhatsApp (Item 4) |
-| **Exportar para agenda** | **REMOVER** este botao |
-| Ver cliente da vaga | Navegar para pagina de Clientes ou abrir perfil do cliente |
+### Conteudo da Aba
+- Cards de estatisticas: total de aceites, aceites no ultimo mes
+- Tabela com colunas: Nome, Email, Versao dos Termos, Data do Aceite, IP
+- Filtro por nome/email
+- Botao para exportar CSV (opcional)
 
-**Para PDFs:** Criar funcao `generateSpacePDF()` em `src/lib/pdfGenerator.ts` que recebe os dados da vaga e gera o comprovante de ocupacao, similar ao que ja existe para vendas.
-
-**Para "Ver cliente da vaga":** Usar `useNavigate` para redirecionar para `/clientes` ou abrir o `ClientProfileModal`.
-
----
-
-## Item 4: Criar modal de mensagem WhatsApp para entrada/saida
-
-**Novo arquivo:** `src/components/espaco/SpaceWhatsAppModal.tsx`
-
-Baseado nas imagens de referencia fornecidas, o modal tera:
-
-### Modo Visualizacao (padrao):
-- 3 botoes no topo: **"Enviar WhatsApp"** (verde), **"Editar mensagem"** (azul), **"Fechar"** (vermelho)
-- Preview da mensagem em estilo WhatsApp (fundo bege com padrao, balao verde claro)
-- Mensagem pre-preenchida com dados da vaga (nome do cliente, veiculo, placa, data entrada, data saida prevista, observacao)
-
-### Modo Edicao (ao clicar "Editar mensagem"):
-- 2 botoes no topo: **"Salvar"** (verde), **"Fechar"** (vermelho)
-- Textarea editavel dentro do balao WhatsApp
-- Barra inferior com botoes de formatacao e variaveis:
-  - **Negrito**, **Italico** (formatacao WhatsApp com `*texto*` e `_texto_`)
-  - **+ Nome Empresa**, **+ Veiculo**, **+ Cliente**, **+ Servicos**, **+ Data entrada**, **+ Data saida**, **+ Descricao**, **+ Subtotal**, **+ Desconto**, **+ Total**
-  - (Excluindo "Produtos" e "Estofados" conforme solicitado)
-
-### Mensagem padrao de ENTRADA:
-```
-Ola {cliente}!
-O seu veiculo {veiculo} ja esta sob os cuidados da nossa equipe. Agradecemos pela confianca em nosso trabalho.
-
-*Entrada:*
-{dataEntrada}
-
-*Saida prevista:*
-{dataSaida}
-
-_Obs.: Uma mensagem sera enviada assim que o servico estiver pronto!_
-```
-
-### Mensagem padrao de SAIDA:
-```
-Ola {cliente}!
-Seu veiculo {veiculo} esta pronto para retirada!
-
-*Servicos realizados:*
-{servicos}
-
-*Total:* R$ {total}
-
-Agradecemos a preferencia! Qualquer duvida estamos a disposicao.
-```
-
-### Variaveis disponiveis (botoes na barra inferior):
-- `{cliente}` - Nome do cliente
-- `{veiculo}` - Marca + Modelo + Placa do veiculo
-- `{nomeEmpresa}` - Nome da empresa
-- `{servicos}` - Lista de servicos
-- `{dataEntrada}` - Data/hora de entrada
-- `{dataSaida}` - Data/hora de saida
-- `{descricao}` - Observacoes da vaga
-- `{subtotal}` - Subtotal dos servicos
-- `{desconto}` - Valor do desconto
-- `{total}` - Valor total
+### Arquivo Afetado
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/pages/Master.tsx` | Adicionar aba "Termos" com tabela de aceites |
 
 ---
 
-## Resumo dos Arquivos
+## Resumo de Todos os Arquivos
 
-| Arquivo | Acao |
-|---------|------|
-| `src/components/espaco/FillSlotModal.tsx` | Trocar "Atualizar" por "+Novo" cliente; salvar `services_data` como JSONB |
-| `src/components/espaco/SlotDetailsDrawer.tsx` | Ler servicos de `services_data`; ativar botoes PDF/WhatsApp/cliente; remover "Exportar agenda" |
-| `src/components/espaco/SpaceWhatsAppModal.tsx` | **NOVO** - Modal WhatsApp com preview, edicao e variaveis |
-| `src/lib/pdfGenerator.ts` | Adicionar funcao `generateSpacePDF()` para comprovantes de vaga |
-| Migracao SQL | Adicionar coluna `services_data jsonb` na tabela `spaces` |
-| `src/integrations/supabase/types.ts` | Atualizar tipos para incluir `services_data` |
+| Arquivo | Tipo | Descricao |
+|---------|------|-----------|
+| `src/components/ui/PhoneInputWithDDI.tsx` | **NOVO** | Componente de telefone com seletor de DDI e bandeiras |
+| `src/pages/SignUp.tsx` | Editar | Trocar campo telefone + adicionar checkbox de termos |
+| `src/components/vendas/NewClientModal.tsx` | Editar | Trocar campo telefone pelo novo componente |
+| `src/pages/Master.tsx` | Editar | Adicionar aba "Termos" |
+| `src/integrations/supabase/types.ts` | Editar | Adicionar tipo da nova tabela |
+| Migracao SQL | **NOVO** | Criar tabela `terms_acceptances` |
+
