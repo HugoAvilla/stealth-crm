@@ -1,53 +1,78 @@
 
-# Plano: Tornar Logo Clicavel em Todas as Paginas
+# Plano: Correcao WhatsApp, Persistencia de Edicoes e DDI em Empresa/Perfil
 
-## Objetivo
-Adicionar navegacao ao clicar na logo WFE em todas as paginas:
-- **Paginas pre-login** (Login, Esqueci Senha, Redefinir Senha, Aprovacao Pendente): clicar na logo redireciona para `/login`
-- **Paginas pos-login** (TopNavigation/Sidebar): ja funciona corretamente com `<Link to="/">`
+## Problema 1: WhatsApp Bloqueado (api.whatsapp.com)
 
-## Paginas que precisam de alteracao
+O erro "api.whatsapp.com esta bloqueado" acontece porque o link `wa.me/` redireciona para `api.whatsapp.com`, que bloqueia acesso dentro de iframes. A solucao e trocar todos os links de WhatsApp para usar `https://web.whatsapp.com/send?phone=NUMERO&text=MENSAGEM`, que funciona corretamente.
 
-### 1. Login.tsx (linha 64)
-A logo no topo esquerdo sera envolvida em um `<Link to="/login">` (ou simplesmente recarrega a pagina). Como ja esta na tela de login, o clique apenas recarrega a pagina.
+### Arquivos afetados
+| Arquivo | Problema |
+|---------|----------|
+| `src/lib/utils.ts` | Funcao `openWhatsApp` usa `wa.me/` |
+| `src/components/vendas/WhatsAppPreviewModal.tsx` | Usa `wa.me/` direto (linha 58) |
+| `src/components/espaco/SpaceWhatsAppModal.tsx` | Usa `wa.me/` no handleSend |
+| `src/components/clientes/ClientProfileModal.tsx` | Usa `wa.me/` direto (linha 70) |
+| `src/pages/WaitingApproval.tsx` | Usa `wa.me/` direto (linha 74) |
+| `src/pages/Subscription.tsx` | Usa `wa.me/` direto (linha 214) |
 
-### 2. ForgotPassword.tsx (linha 60)
-Envolver a `<img>` da logo em um `<Link to="/login">` com estilo cursor pointer.
-
-### 3. ResetPassword.tsx (linha 217)
-Envolver a `<img>` da logo em um `<Link to="/login">` com estilo cursor pointer.
-
-### 4. PendingApprovalModal.tsx (linha 14-17)
-Envolver a `<img>` da logo em um `<Link to="/login">` com estilo cursor pointer.
-
-### Paginas pos-login
-- **TopNavigation.tsx** - Ja possui `<Link to="/">` na logo (linha 148). Nenhuma alteracao necessaria.
-- **Sidebar.tsx** - Verificar se precisa de link (provavelmente nao esta em uso ativo).
-
-## Detalhes Tecnicos
-
-Cada arquivo afetado recebera:
-- Import de `Link` do `react-router-dom` (se ainda nao existir)
-- A tag `<img>` da logo sera envolvida em `<Link to="/login">` (pre-login) ou `<Link to="/">` (pos-login)
-- Adicionado `cursor-pointer` para feedback visual
-
-### Exemplo da alteracao:
-```tsx
-// Antes
-<img src={wfeLogo} alt="WFE Evolution" className="h-12 w-auto object-contain" />
-
-// Depois
-<Link to="/login">
-  <img src={wfeLogo} alt="WFE Evolution" className="h-12 w-auto object-contain cursor-pointer" />
-</Link>
+### Correcao
+Atualizar a funcao `openWhatsApp` em `utils.ts`:
+```typescript
+export const openWhatsApp = (phone: string, message?: string) => {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const url = message 
+    ? `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`
+    : `https://web.whatsapp.com/send?phone=${cleanPhone}`;
+  window.open(url, '_blank');
+};
 ```
+Tambem remover a logica que adiciona `55` automaticamente -- agora o DDI ja vem salvo no numero. Atualizar os demais arquivos que usam `wa.me/` diretamente para usar essa funcao centralizada.
 
-## Arquivos afetados
+---
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/Login.tsx` | Envolver logo em `<Link to="/login">` |
-| `src/pages/ForgotPassword.tsx` | Envolver logo em `<Link to="/login">` |
-| `src/pages/ResetPassword.tsx` | Envolver logo em `<Link to="/login">` |
-| `src/components/auth/PendingApprovalModal.tsx` | Envolver logo em `<Link to="/login">` |
-| `src/components/layout/TopNavigation.tsx` | Ja implementado, nenhuma alteracao |
+## Problema 2: EditCompanyModal nao salva no banco
+
+O modal `EditCompanyModal` carrega dados de `companySettings` (dados mock/estaticos) e o `handleSubmit` apenas mostra um toast, sem salvar nada no Supabase.
+
+### Correcao
+- Receber `companyId` e dados atuais como props do componente pai (`Empresa.tsx`)
+- Inicializar os campos com os dados reais do banco
+- No `handleSubmit`, fazer `supabase.from('companies').update(...)` com os campos editados
+- Separar o endereco em campos individuais (rua, numero, bairro, cidade, estado, CEP) -- a tabela ja tem esses campos
+- Apos salvar, chamar callback para atualizar os dados na tela pai
+- Substituir o campo de telefone pelo componente `PhoneInputWithDDI`
+
+---
+
+## Problema 3: EditInfoModal nao salva no banco
+
+O modal `EditInfoModal` tem um `TODO: Implement profile update with Supabase`. Ele nao salva nada.
+
+### Correcao
+- No `handleSubmit`, fazer `supabase.from('profiles').update({ name, phone })` com o `user.id`
+- Apos salvar, atualizar o contexto de autenticacao para refletir os novos dados
+- Substituir o campo de telefone pelo componente `PhoneInputWithDDI`
+
+---
+
+## Problema 4: Adicionar PhoneInputWithDDI nas telas Empresa e Perfil
+
+Substituir os campos `<Input>` de telefone pelo componente reutilizavel `PhoneInputWithDDI` nos seguintes modais:
+- `EditCompanyModal.tsx` (campo WhatsApp da empresa)
+- `EditInfoModal.tsx` (campo telefone do perfil)
+
+---
+
+## Resumo de Todos os Arquivos
+
+| Arquivo | Tipo | Alteracao |
+|---------|------|-----------|
+| `src/lib/utils.ts` | Editar | Trocar `wa.me/` por `web.whatsapp.com/send`, remover prefixo 55 hardcoded |
+| `src/components/vendas/WhatsAppPreviewModal.tsx` | Editar | Usar funcao `openWhatsApp` centralizada |
+| `src/components/espaco/SpaceWhatsAppModal.tsx` | Editar | Usar funcao `openWhatsApp` centralizada |
+| `src/components/clientes/ClientProfileModal.tsx` | Editar | Usar funcao `openWhatsApp` centralizada |
+| `src/pages/WaitingApproval.tsx` | Editar | Usar `web.whatsapp.com/send` |
+| `src/pages/Subscription.tsx` | Editar | Usar `web.whatsapp.com/send` |
+| `src/components/empresa/EditCompanyModal.tsx` | Editar | Carregar dados reais, salvar no Supabase, adicionar PhoneInputWithDDI, separar campos de endereco |
+| `src/components/perfil/EditInfoModal.tsx` | Editar | Salvar no Supabase (profiles), adicionar PhoneInputWithDDI |
+| `src/pages/Empresa.tsx` | Editar | Passar dados da empresa e callback de refresh como props para o modal |
