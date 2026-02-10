@@ -2,6 +2,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +11,14 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { 
   Car, Phone, User, Calendar, Clock, DollarSign, Link2, 
-  FileText, MessageSquare, ExternalLink, Trash2, Edit, 
+  FileText, MessageSquare, Trash2, Edit, 
   CheckCircle, Package, AlertCircle, Loader2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UnpaidExitAlertDialog } from "./UnpaidExitAlertDialog";
+import { SpaceWhatsAppModal } from "./SpaceWhatsAppModal";
+import { generateSpacePDFA4, generateSpacePDFReceipt } from "@/lib/pdfGenerator";
 
 interface SpaceDetails {
   id: number;
@@ -32,6 +35,7 @@ interface SpaceDetails {
   observations: string | null;
   tag: string | null;
   discount: number | null;
+  services_data?: any[];
   client?: {
     id: number;
     name: string;
@@ -70,9 +74,12 @@ interface SlotDetailsDrawerProps {
 
 export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotDetailsDrawerProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [isCompleting, setIsCompleting] = useState(false);
   const [showUnpaidAlert, setShowUnpaidAlert] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
+  const [whatsAppType, setWhatsAppType] = useState<'entrada' | 'saida'>('entrada');
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
 
   // Complete slot mutation (for paid vehicles or reopening)
   const completeMutation = useMutation({
@@ -94,7 +101,6 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
 
       if (error) throw error;
 
-      // If completing with payment already confirmed, close the sale
       if (completed && space.payment_status === 'paid' && space.sale_id) {
         const { error: saleError } = await supabase
           .from('sales')
@@ -165,26 +171,37 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "-";
-    return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+    return format(new Date(dateStr + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR });
   };
 
   const formatBirthDate = (dateStr: string | null) => {
     if (!dateStr) return null;
-    return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+    return format(new Date(dateStr + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR });
   };
 
+  // Get services from sale_items or services_data
+  const saleServices = space.sale?.sale_items?.map(item => ({
+    name: item.service?.name || 'Serviço',
+    price: item.total_price,
+  })) || [];
+
+  const jsonServices = ((space as any).services_data || []).map((s: any) => ({
+    name: s.regionName || 'Serviço',
+    price: s.totalPrice || 0,
+  }));
+
+  const services = saleServices.length > 0 ? saleServices : jsonServices;
+
   // Calculate totals
-  const subtotal = space.sale?.subtotal || 0;
+  const subtotal = space.sale?.subtotal || services.reduce((sum: number, s: any) => sum + s.price, 0);
   const discount = space.discount || space.sale?.discount || 0;
   const total = subtotal - discount;
-  const serviceCount = space.sale?.sale_items?.length || 0;
+  const serviceCount = services.length;
 
   const handleCompleteToggle = (checked: boolean) => {
     if (checked && space.payment_status !== 'paid') {
-      // Show unpaid alert dialog
       setShowUnpaidAlert(true);
     } else {
-      // Release normally (paid or reopening)
       setIsCompleting(checked);
       completeMutation.mutate(checked);
     }
@@ -195,7 +212,6 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     setIsReleasing(true);
     
     try {
-      // Update space with paid status and exit info
       const { error: spaceError } = await supabase
         .from('spaces')
         .update({
@@ -208,7 +224,6 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
 
       if (spaceError) throw spaceError;
 
-      // Close the linked sale
       if (space.sale_id) {
         const { error: saleError } = await supabase
           .from('sales')
@@ -236,7 +251,6 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     setIsReleasing(true);
     
     try {
-      // Update space with pending status and exit info
       const { error: spaceError } = await supabase
         .from('spaces')
         .update({
@@ -249,8 +263,6 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
 
       if (spaceError) throw spaceError;
 
-      // Keep sale open - don't update it
-
       toast.warning("Vaga liberada sem pagamento. Veículo movido para aba 'Não Pagos'.");
       queryClient.invalidateQueries({ queryKey: ['spaces'] });
       setShowUnpaidAlert(false);
@@ -262,6 +274,53 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     } finally {
       setIsReleasing(false);
     }
+  };
+
+  const handlePDF = (format: 'a4' | '80mm' | '58mm') => {
+    const pdfData = {
+      id: space.id,
+      client_name: space.client?.name || 'N/A',
+      client_phone: space.client?.phone || 'N/A',
+      vehicle_brand: space.vehicle?.brand || '',
+      vehicle_model: space.vehicle?.model || '',
+      vehicle_plate: space.vehicle?.plate || 'N/A',
+      entry_date: space.entry_date || '',
+      entry_time: space.entry_time || '',
+      exit_date: space.exit_date || '',
+      exit_time: space.exit_time || '',
+      services,
+      subtotal,
+      discount,
+      total,
+    };
+
+    if (format === 'a4') {
+      generateSpacePDFA4(pdfData);
+    } else {
+      generateSpacePDFReceipt(pdfData, format);
+    }
+    toast.success("PDF gerado com sucesso!");
+  };
+
+  const handleOpenWhatsApp = (type: 'entrada' | 'saida') => {
+    setWhatsAppType(type);
+    setShowWhatsApp(true);
+  };
+
+  const whatsAppSpaceData = {
+    id: space.id,
+    name: space.name,
+    entry_date: space.entry_date,
+    entry_time: space.entry_time,
+    exit_date: space.exit_date,
+    exit_time: space.exit_time,
+    observations: space.observations,
+    discount,
+    client: space.client ? { name: space.client.name, phone: space.client.phone } : null,
+    vehicle: space.vehicle ? { brand: space.vehicle.brand, model: space.vehicle.model, plate: space.vehicle.plate } : null,
+    services,
+    subtotal,
+    total,
   };
 
   return (
@@ -325,12 +384,12 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
                 <Separator />
 
                 {/* Serviços */}
-                {space.sale?.sale_items && space.sale.sale_items.length > 0 ? (
+                {services.length > 0 ? (
                   <div className="space-y-2">
-                    {space.sale.sale_items.map((item, index) => (
+                    {services.map((item: any, index: number) => (
                       <div key={index} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{item.service?.name || 'Serviço'}</span>
-                        <span className="font-medium">R$ {item.total_price.toFixed(2)}</span>
+                        <span className="text-muted-foreground">{item.name}</span>
+                        <span className="font-medium">R$ {item.price.toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -434,15 +493,15 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Comprovantes em PDF</h4>
             <div className="space-y-2">
-              <Button variant="outline" className="w-full justify-start text-destructive" disabled>
+              <Button variant="outline" className="w-full justify-start text-destructive" onClick={() => handlePDF('a4')}>
                 <FileText className="h-4 w-4 mr-2" />
                 Baixar PDF em formato A4
               </Button>
-              <Button variant="outline" className="w-full justify-start text-destructive" disabled>
+              <Button variant="outline" className="w-full justify-start text-destructive" onClick={() => handlePDF('80mm')}>
                 <FileText className="h-4 w-4 mr-2" />
                 Baixar PDF em formato Notinha
               </Button>
-              <Button variant="outline" className="w-full justify-start text-destructive" disabled>
+              <Button variant="outline" className="w-full justify-start text-destructive" onClick={() => handlePDF('58mm')}>
                 <FileText className="h-4 w-4 mr-2" />
                 Baixar PDF em formato Notinha Mini
               </Button>
@@ -453,19 +512,22 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Mais opções</h4>
             <div className="space-y-2">
-              <Button variant="outline" className="w-full justify-start text-success" disabled>
+              <Button variant="outline" className="w-full justify-start text-success" onClick={() => handleOpenWhatsApp('entrada')}>
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Enviar mensagem de entrada
               </Button>
-              <Button variant="outline" className="w-full justify-start text-warning" disabled>
+              <Button variant="outline" className="w-full justify-start text-warning" onClick={() => handleOpenWhatsApp('saida')}>
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Enviar mensagem de saída
               </Button>
-              <Button variant="outline" className="w-full justify-start text-info" disabled>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Exportar para agenda
-              </Button>
-              <Button variant="outline" className="w-full justify-start" disabled>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start" 
+                onClick={() => {
+                  onOpenChange(false);
+                  navigate('/clientes');
+                }}
+              >
                 <User className="h-4 w-4 mr-2" />
                 Ver cliente da vaga
               </Button>
@@ -515,6 +577,14 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           onReleaseWithPayment={handleReleaseWithPayment}
           onReleaseWithoutPayment={handleReleaseWithoutPayment}
           isLoading={isReleasing}
+        />
+
+        {/* WhatsApp Modal */}
+        <SpaceWhatsAppModal
+          open={showWhatsApp}
+          onOpenChange={setShowWhatsApp}
+          space={whatsAppSpaceData}
+          type={whatsAppType}
         />
       </SheetContent>
     </Sheet>

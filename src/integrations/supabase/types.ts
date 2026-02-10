@@ -1370,6 +1370,7 @@ export type Database = {
           payment_status: string | null
           photos: Json | null
           sale_id: number | null
+          services_data: Json | null
           status: string | null
           tag: string | null
           updated_at: string | null
@@ -1391,6 +1392,7 @@ export type Database = {
           payment_status?: string | null
           photos?: Json | null
           sale_id?: number | null
+          services_data?: Json | null
           status?: string | null
           tag?: string | null
           updated_at?: string | null
@@ -1412,6 +1414,7 @@ export type Database = {
           payment_status?: string | null
           photos?: Json | null
           sale_id?: number | null
+          services_data?: Json | null
           status?: string | null
           tag?: string | null
           updated_at?: string | null

@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import NewVehicleModal from "@/components/vendas/NewVehicleModal";
+import NewClientModal from "@/components/vendas/NewClientModal";
 
 interface FillSlotModalProps {
   open: boolean;
@@ -66,6 +67,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   
   // New vehicle modal
   const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
+  const [showNewClientModal, setShowNewClientModal] = useState(false);
   
   // Toggle states for optional fields
   const [showDiscount, setShowDiscount] = useState(false);
@@ -288,21 +290,18 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
 
       if (spaceError) throw spaceError;
 
-      // Note: Detailed services are stored in the space context
-      // They will be used when creating the sale later
-      // For now we store the summary in observations if services exist
+      // Save services data as JSONB
       if (detailedItems.length > 0) {
-        const servicesDesc = detailedItems.map(item => 
-          `${item.regionName || 'Serviço'}: R$ ${item.totalPrice.toFixed(2)}`
-        ).join(' | ');
-        
-        const fullObs = observations 
-          ? `${observations}\n\nServiços: ${servicesDesc}` 
-          : `Serviços: ${servicesDesc}`;
+        const servicesData = detailedItems.map(item => ({
+          regionName: item.regionName || 'Serviço',
+          productTypeName: item.productTypeName || '',
+          totalPrice: item.totalPrice || 0,
+          metersUsed: item.metersUsed || 0,
+        }));
         
         await supabase
           .from('spaces')
-          .update({ observations: fullObs })
+          .update({ services_data: servicesData } as any)
           .eq('id', spaceData.id);
       }
 
@@ -360,13 +359,13 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             <div className="flex items-center justify-between">
               <Label>Cliente *</Label>
               <Button 
-                variant="ghost" 
+                variant="outline" 
                 size="sm" 
-                onClick={() => refetchClients()}
+                onClick={() => setShowNewClientModal(true)}
                 className="h-8 text-xs"
               >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Atualizar
+                <Plus className="h-3 w-3 mr-1" />
+                Novo
               </Button>
             </div>
             <Select value={selectedClientId} onValueChange={setSelectedClientId}>
@@ -720,6 +719,16 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
         open={showNewVehicleModal}
         onOpenChange={setShowNewVehicleModal}
         onVehicleCreated={handleVehicleCreated}
+      />
+
+      {/* New Client Modal */}
+      <NewClientModal
+        open={showNewClientModal}
+        onOpenChange={setShowNewClientModal}
+        onClientCreated={() => {
+          refetchClients();
+          setShowNewClientModal(false);
+        }}
       />
     </Dialog>
   );
