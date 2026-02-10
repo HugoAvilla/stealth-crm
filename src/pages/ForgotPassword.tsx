@@ -8,16 +8,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import wfeLogo from '@/assets/wfe-logo.png';
-
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!email) {
       toast({
         title: "Email obrigatório",
@@ -26,24 +25,21 @@ const ForgotPassword = () => {
       });
       return;
     }
-
     setIsLoading(true);
-
     try {
       const redirectUrl = `${window.location.origin}/redefinir-senha`;
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
+      const {
+        error
+      } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl
       });
-
       if (error) {
         throw error;
       }
-
       setEmailSent(true);
       toast({
         title: "Email enviado!",
-        description: "Verifique sua caixa de entrada para redefinir sua senha.",
+        description: "Verifique sua caixa de entrada para redefinir sua senha."
       });
     } catch (error: any) {
       console.error('Error sending reset email:', error);
@@ -56,19 +52,14 @@ const ForgotPassword = () => {
       setIsLoading(false);
     }
   };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+  return <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-3 mb-8">
-            <img 
-              src={wfeLogo} 
-              alt="WFE Evolution" 
-              className="h-12 w-auto object-contain"
-            />
-            <span className="text-xl font-semibold tracking-tight">WFE EVOLUTION</span>
+            <img src={wfeLogo} alt="WFE Evolution" className="h-12 w-auto object-contain" />
+            <span className="text-xl font-semibold tracking-tight">
+          </span>
           </div>
         </div>
 
@@ -78,16 +69,12 @@ const ForgotPassword = () => {
               {emailSent ? "Email Enviado!" : "Recuperar Senha"}
             </CardTitle>
             <CardDescription>
-              {emailSent 
-                ? "Verifique sua caixa de entrada e clique no link para redefinir sua senha."
-                : "Insira seu email e enviaremos um link para redefinir sua senha."
-              }
+              {emailSent ? "Verifique sua caixa de entrada e clique no link para redefinir sua senha." : "Insira seu email e enviaremos um link para redefinir sua senha."}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
-            {emailSent ? (
-              <div className="space-y-6">
+            {emailSent ? <div className="space-y-6">
                 <div className="flex justify-center">
                   <div className="p-4 rounded-full bg-success/20">
                     <CheckCircle className="h-12 w-12 text-success" />
@@ -98,10 +85,7 @@ const ForgotPassword = () => {
                   <p className="font-medium text-foreground">{email}</p>
                   <p className="pt-4">
                     Não recebeu o email? Verifique sua pasta de spam ou{' '}
-                    <button 
-                      onClick={() => setEmailSent(false)} 
-                      className="text-primary hover:underline"
-                    >
+                    <button onClick={() => setEmailSent(false)} className="text-primary hover:underline">
                       tente novamente
                     </button>
                   </p>
@@ -112,38 +96,20 @@ const ForgotPassword = () => {
                     Voltar para o login
                   </Button>
                 </Link>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              </div> : <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      className="pl-10"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={isLoading}
-                    />
+                    <Input id="email" type="email" placeholder="seu@email.com" className="pl-10" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} />
                   </div>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Enviando...
-                    </>
-                  ) : (
-                    'Enviar link de recuperação'
-                  )}
+                    </> : 'Enviar link de recuperação'}
                 </Button>
 
                 <Link to="/login" className="block">
@@ -152,13 +118,10 @@ const ForgotPassword = () => {
                     Voltar para o login
                   </Button>
                 </Link>
-              </form>
-            )}
+              </form>}
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default ForgotPassword;
