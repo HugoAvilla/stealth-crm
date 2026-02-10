@@ -67,7 +67,7 @@ export function ClientProfileModal({
 
   const openWhatsApp = () => {
     const cleanPhone = client.phone.replace(/\D/g, '');
-    window.open(`https://wa.me/${cleanPhone}`, '_blank');
+    window.open(`https://web.whatsapp.com/send?phone=${cleanPhone}`, '_blank');
   };
 
   const getServiceNames = (serviceIds: number[]) => {

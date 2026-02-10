@@ -90,7 +90,7 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
       return;
     }
     const encodedMessage = encodeURIComponent(messageToSend);
-    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, "_blank");
+    window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`, "_blank");
     toast.success("WhatsApp aberto!");
     onOpenChange(false);
   };

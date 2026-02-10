@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import PhoneInputWithDDI from "@/components/ui/PhoneInputWithDDI";
+import { Loader2 } from "lucide-react";
 
 interface EditInfoModalProps {
   open: boolean;
@@ -12,20 +15,38 @@ interface EditInfoModalProps {
 }
 
 export function EditInfoModal({ open, onOpenChange }: EditInfoModalProps) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [name, setName] = useState(user?.profile?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState(user?.profile?.phone || "");
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name || !email) {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
 
-    // TODO: Implement profile update with Supabase
-    toast.success("Informações atualizadas com sucesso!");
-    onOpenChange(false);
+    if (!user?.id) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name, phone })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      await refreshUser();
+      toast.success("Informações atualizadas com sucesso!");
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error("Erro ao atualizar informações");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -57,10 +78,9 @@ export function EditInfoModal({ open, onOpenChange }: EditInfoModalProps) {
 
           <div className="space-y-2">
             <Label>Telefone</Label>
-            <Input
+            <PhoneInputWithDDI
               value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="+55 (00) 00000-0000"
+              onChange={setPhone}
             />
           </div>
 
@@ -68,7 +88,8 @@ export function EditInfoModal({ open, onOpenChange }: EditInfoModalProps) {
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleSubmit}>
+            <Button className="flex-1" onClick={handleSubmit} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Salvar
             </Button>
           </div>

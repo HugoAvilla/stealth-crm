@@ -211,7 +211,7 @@ export default function Subscription() {
   };
 
   const openWhatsApp = () => {
-    window.open('https://wa.me/5500000000000?text=Preciso de ajuda com o pagamento do WFE Evolution CRM', '_blank');
+    window.open('https://web.whatsapp.com/send?phone=5500000000000&text=' + encodeURIComponent('Preciso de ajuda com o pagamento do WFE Evolution CRM'), '_blank');
   };
 
   if (isLoading) {

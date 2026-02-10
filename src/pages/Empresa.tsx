@@ -271,7 +271,7 @@ export default function Empresa() {
       </button>
 
       {/* Modals */}
-       <EditCompanyModal open={showEditModal} onOpenChange={setShowEditModal} />
+       <EditCompanyModal open={showEditModal} onOpenChange={setShowEditModal} onSaved={fetchCompanyData} />
     </div>
   );
 }
