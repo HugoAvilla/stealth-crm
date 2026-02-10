@@ -1,222 +1,144 @@
 
-# Plano: Adicionar Desconto em % e Corrigir Erro ao Preencher Vaga
+# Plano: 4 Correções no Módulo Espaço (Preencher Vaga + Detalhes da Vaga)
 
-## Problemas Identificados
+## Item 1: Trocar "Atualizar" por "+Novo" no seletor de cliente
 
-### Problema 1: Falta opção de Desconto em Porcentagem
-Atualmente existe apenas o campo "Desconto (R$)" para valor fixo. O usuário precisa de um card adicional para aplicar desconto em percentual.
+**Arquivo:** `src/components/espaco/FillSlotModal.tsx`
 
-### Problema 2: Erro ao Preencher Vaga
-O erro ocorre porque o código está enviando `status: 'ocupada'` (linha 275), mas o banco de dados tem um **check constraint** que aceita apenas:
-- `'disponivel'`
-- `'ocupado'` (sem o "a" no final)
+No card de seleção de cliente (linhas 360-390), o botao "Atualizar" (com icone RefreshCw) sera substituido por um botao "+Novo" que abre o modal `NewClientModal` para cadastrar novos clientes diretamente no fluxo de preenchimento.
 
-**Mensagem do erro:** `new row for relation "spaces" violates check constraint "spaces_status_check"`
-
----
-
-## Alterações Necessárias
-
-### Arquivo: `src/components/espaco/FillSlotModal.tsx`
-
-#### Correção 1: Corrigir o Status da Vaga
-
-Alterar o valor de `status` de `'ocupada'` para `'ocupado'`:
-
-```tsx
-// ANTES (linha 275):
-status: 'ocupada',
-
-// DEPOIS:
-status: 'ocupado',
-```
-
-#### Correção 2: Adicionar Estado e Lógica para Desconto em %
-
-Adicionar novos estados para controlar o tipo de desconto:
-
-```tsx
-// Novos estados (após linha 58):
-const [discount, setDiscount] = useState<number>(0);
-const [discountPercent, setDiscountPercent] = useState<number>(0);
-const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
-```
-
-#### Correção 3: Atualizar Cálculo do Total
-
-Modificar a lógica de cálculo para considerar ambos os tipos de desconto:
-
-```tsx
-// ANTES (linha 154):
-const finalTotal = subtotal - (discount || 0);
-
-// DEPOIS:
-const calculatedDiscount = discountType === 'percent' 
-  ? (subtotal * (discountPercent / 100)) 
-  : (discount || 0);
-const finalTotal = subtotal - calculatedDiscount;
-```
-
-#### Correção 4: Adicionar UI de Seleção de Tipo de Desconto
-
-Quando o usuário clicar em "Desconto", mostrar duas opções em cards lado a lado:
-
-```tsx
-{showDiscount && (
-  <div className="space-y-3">
-    {/* Seleção do tipo de desconto */}
-    <div className="flex gap-2">
-      <Card 
-        className={cn(
-          "flex-1 cursor-pointer transition-all",
-          discountType === 'fixed' 
-            ? "border-primary bg-primary/10" 
-            : "border-border/50 hover:border-muted-foreground"
-        )}
-        onClick={() => setDiscountType('fixed')}
-      >
-        <CardContent className="p-3 text-center">
-          <DollarSign className="h-5 w-5 mx-auto mb-1" />
-          <span className="text-sm font-medium">Valor (R$)</span>
-        </CardContent>
-      </Card>
-      
-      <Card 
-        className={cn(
-          "flex-1 cursor-pointer transition-all",
-          discountType === 'percent' 
-            ? "border-primary bg-primary/10" 
-            : "border-border/50 hover:border-muted-foreground"
-        )}
-        onClick={() => setDiscountType('percent')}
-      >
-        <CardContent className="p-3 text-center">
-          <Percent className="h-5 w-5 mx-auto mb-1" />
-          <span className="text-sm font-medium">Percentual (%)</span>
-        </CardContent>
-      </Card>
-    </div>
-    
-    {/* Input baseado no tipo selecionado */}
-    {discountType === 'fixed' ? (
-      <div className="space-y-2">
-        <Label>Desconto (R$)</Label>
-        <Input 
-          type="number" 
-          value={discount || ""} 
-          onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-          placeholder="0.00"
-        />
-      </div>
-    ) : (
-      <div className="space-y-2">
-        <Label>Desconto (%)</Label>
-        <Input 
-          type="number" 
-          value={discountPercent || ""} 
-          onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
-          placeholder="0"
-          max={100}
-        />
-        {discountPercent > 0 && subtotal > 0 && (
-          <p className="text-xs text-muted-foreground">
-            = R$ {(subtotal * (discountPercent / 100)).toFixed(2)} de desconto
-          </p>
-        )}
-      </div>
-    )}
-  </div>
-)}
-```
-
-#### Correção 5: Adicionar Import do Ícone Percent
-
-```tsx
-// Adicionar na linha 14:
-import { ..., Percent, ... } from "lucide-react";
-```
-
-#### Correção 6: Atualizar o Reset do Modal
-
-Incluir os novos estados no reset:
-
-```tsx
-// Na função useEffect de reset (linhas 158-175):
-setDiscount(0);
-setDiscountPercent(0);
-setDiscountType('fixed');
-```
-
-#### Correção 7: Atualizar o Resumo da Vaga
-
-Mostrar o desconto aplicado de forma clara:
-
-```tsx
-{calculatedDiscount > 0 && (
-  <p className="flex items-center gap-2">
-    <Tag className="h-4 w-4 text-muted-foreground" />
-    <span>
-      Desconto: R$ {calculatedDiscount.toFixed(2)}
-      {discountType === 'percent' && ` (${discountPercent}%)`}
-    </span>
-  </p>
-)}
-```
-
-#### Correção 8: Atualizar o Insert para Usar o Desconto Correto
-
-```tsx
-// Na mutation (linha 272):
-discount: calculatedDiscount || null,
-```
+**Alteracoes:**
+- Importar `NewClientModal` de `@/components/vendas/NewClientModal`
+- Adicionar estado `showNewClientModal`
+- Trocar o botao "Atualizar" por "+Novo" com icone `Plus`
+- Ao criar cliente com sucesso, fazer `refetchClients()` e selecionar o novo cliente automaticamente
+- Renderizar o `NewClientModal` no final do componente
 
 ---
 
-## Resumo das Mudanças
+## Item 2: Corrigir "Nenhum servico vinculado" no Drawer de Detalhes
 
-| Problema | Causa | Solução |
-|----------|-------|---------|
-| Erro ao preencher vaga | `status: 'ocupada'` inválido | Alterar para `'ocupado'` |
-| Falta desconto em % | Campo não existe | Adicionar cards de seleção e lógica de cálculo |
+**Problema raiz:** Quando a vaga e criada no `FillSlotModal`, os servicos adicionados pelo usuario **nao sao salvos no banco de dados**. O codigo atual (linhas 294-306) apenas concatena os nomes dos servicos no campo `observations` como texto. Porem, o `SlotDetailsDrawer` tenta ler servicos de `space.sale?.sale_items` (linha 328), que e sempre `null` porque nenhuma venda e criada nesse momento.
 
----
+**Solucao:** Adicionar uma coluna JSONB `services_data` na tabela `spaces` para armazenar os servicos diretamente na vaga, independente de uma venda vinculada.
 
-## Resultado Visual Esperado
+**Alteracoes:**
 
-```text
-Campos opcionais
-[$ Desconto]  [📝 Observações]  [🏷 Tag]
-
-↓ Ao clicar em "Desconto":
-
-┌─────────────────┐  ┌─────────────────┐
-│       $         │  │       %         │
-│   Valor (R$)    │  │  Percentual (%)  │
-└─────────────────┘  └─────────────────┘
-       ▲ selecionado
-
-Desconto (R$)
-[  50.00  ]
-
----
-
-Ou se selecionar Percentual:
-
-┌─────────────────┐  ┌─────────────────┐
-│       $         │  │       %         │
-│   Valor (R$)    │  │  Percentual (%)  │
-└─────────────────┘  └─────────────────┘
-                           ▲ selecionado
-
-Desconto (%)
-[  10  ]
-= R$ 90.00 de desconto
+1. **Migracao SQL:** Adicionar coluna `services_data` (JSONB) na tabela `spaces`
+```sql
+ALTER TABLE spaces ADD COLUMN services_data jsonb DEFAULT '[]';
 ```
 
+2. **`FillSlotModal.tsx`** (linhas 267-307): Ao criar a vaga, salvar `services_data` com os dados dos servicos:
+```json
+[
+  {"regionName": "Para-brisa", "productTypeName": "Insulfilm G5", "totalPrice": 150.00, "metersUsed": 2.5},
+  {"regionName": "Laterais", "productTypeName": "Insulfilm G5", "totalPrice": 200.00, "metersUsed": 3.0}
+]
+```
+
+3. **`SlotDetailsDrawer.tsx`** (linhas 328-341): Alterar a exibicao de servicos para ler de `space.services_data` (JSONB) quando `sale_items` nao existir:
+```tsx
+const services = space.sale?.sale_items?.length > 0
+  ? space.sale.sale_items.map(item => ({ name: item.service?.name, price: item.total_price }))
+  : (space.services_data || []).map(s => ({ name: s.regionName, price: s.totalPrice }));
+```
+
+4. **`SlotDetailsDrawer.tsx`**: Atualizar o calculo de `subtotal` e `serviceCount` para considerar `services_data`
+
+5. **`Espaco.tsx`**: A query ja usa `select(*)` para spaces, entao `services_data` sera incluida automaticamente
+
 ---
 
-## Arquivos a Modificar
+## Item 3: Ativar botoes de "Comprovantes em PDF" e "Mais opcoes"
 
-| Arquivo | Alterações |
-|---------|------------|
-| `src/components/espaco/FillSlotModal.tsx` | Corrigir status `'ocupado'`, adicionar lógica de desconto em % |
+**Arquivo:** `src/components/espaco/SlotDetailsDrawer.tsx`
+
+Todos os botoes atualmente estao `disabled`. Alteracoes:
+
+| Botao | Acao |
+|-------|------|
+| Baixar PDF em formato A4 | Gerar PDF A4 usando `jsPDF` com dados da vaga |
+| Baixar PDF em formato Notinha | Gerar PDF notinha (80mm) com dados da vaga |
+| Baixar PDF em formato Notinha Mini | Gerar PDF notinha mini (58mm) com dados da vaga |
+| Enviar mensagem de entrada | Abrir novo modal WhatsApp (Item 4) |
+| Enviar mensagem de saida | Abrir novo modal WhatsApp (Item 4) |
+| **Exportar para agenda** | **REMOVER** este botao |
+| Ver cliente da vaga | Navegar para pagina de Clientes ou abrir perfil do cliente |
+
+**Para PDFs:** Criar funcao `generateSpacePDF()` em `src/lib/pdfGenerator.ts` que recebe os dados da vaga e gera o comprovante de ocupacao, similar ao que ja existe para vendas.
+
+**Para "Ver cliente da vaga":** Usar `useNavigate` para redirecionar para `/clientes` ou abrir o `ClientProfileModal`.
+
+---
+
+## Item 4: Criar modal de mensagem WhatsApp para entrada/saida
+
+**Novo arquivo:** `src/components/espaco/SpaceWhatsAppModal.tsx`
+
+Baseado nas imagens de referencia fornecidas, o modal tera:
+
+### Modo Visualizacao (padrao):
+- 3 botoes no topo: **"Enviar WhatsApp"** (verde), **"Editar mensagem"** (azul), **"Fechar"** (vermelho)
+- Preview da mensagem em estilo WhatsApp (fundo bege com padrao, balao verde claro)
+- Mensagem pre-preenchida com dados da vaga (nome do cliente, veiculo, placa, data entrada, data saida prevista, observacao)
+
+### Modo Edicao (ao clicar "Editar mensagem"):
+- 2 botoes no topo: **"Salvar"** (verde), **"Fechar"** (vermelho)
+- Textarea editavel dentro do balao WhatsApp
+- Barra inferior com botoes de formatacao e variaveis:
+  - **Negrito**, **Italico** (formatacao WhatsApp com `*texto*` e `_texto_`)
+  - **+ Nome Empresa**, **+ Veiculo**, **+ Cliente**, **+ Servicos**, **+ Data entrada**, **+ Data saida**, **+ Descricao**, **+ Subtotal**, **+ Desconto**, **+ Total**
+  - (Excluindo "Produtos" e "Estofados" conforme solicitado)
+
+### Mensagem padrao de ENTRADA:
+```
+Ola {cliente}!
+O seu veiculo {veiculo} ja esta sob os cuidados da nossa equipe. Agradecemos pela confianca em nosso trabalho.
+
+*Entrada:*
+{dataEntrada}
+
+*Saida prevista:*
+{dataSaida}
+
+_Obs.: Uma mensagem sera enviada assim que o servico estiver pronto!_
+```
+
+### Mensagem padrao de SAIDA:
+```
+Ola {cliente}!
+Seu veiculo {veiculo} esta pronto para retirada!
+
+*Servicos realizados:*
+{servicos}
+
+*Total:* R$ {total}
+
+Agradecemos a preferencia! Qualquer duvida estamos a disposicao.
+```
+
+### Variaveis disponiveis (botoes na barra inferior):
+- `{cliente}` - Nome do cliente
+- `{veiculo}` - Marca + Modelo + Placa do veiculo
+- `{nomeEmpresa}` - Nome da empresa
+- `{servicos}` - Lista de servicos
+- `{dataEntrada}` - Data/hora de entrada
+- `{dataSaida}` - Data/hora de saida
+- `{descricao}` - Observacoes da vaga
+- `{subtotal}` - Subtotal dos servicos
+- `{desconto}` - Valor do desconto
+- `{total}` - Valor total
+
+---
+
+## Resumo dos Arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| `src/components/espaco/FillSlotModal.tsx` | Trocar "Atualizar" por "+Novo" cliente; salvar `services_data` como JSONB |
+| `src/components/espaco/SlotDetailsDrawer.tsx` | Ler servicos de `services_data`; ativar botoes PDF/WhatsApp/cliente; remover "Exportar agenda" |
+| `src/components/espaco/SpaceWhatsAppModal.tsx` | **NOVO** - Modal WhatsApp com preview, edicao e variaveis |
+| `src/lib/pdfGenerator.ts` | Adicionar funcao `generateSpacePDF()` para comprovantes de vaga |
+| Migracao SQL | Adicionar coluna `services_data jsonb` na tabela `spaces` |
+| `src/integrations/supabase/types.ts` | Atualizar tipos para incluir `services_data` |
