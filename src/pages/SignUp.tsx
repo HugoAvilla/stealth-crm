@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plane, Eye, EyeOff, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Loader2, Plane, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import jetFighter from '@/assets/jet-fighter.jpg';
+import PhoneInputWithDDI from '@/components/ui/PhoneInputWithDDI';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function SignUp() {
   const [name, setName] = useState('');
@@ -18,21 +21,10 @@ export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingPassword, setIsCheckingPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 2) return numbers;
-    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-    if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
-    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPhone(formatPhone(e.target.value));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +33,15 @@ export default function SignUp() {
       toast({
         title: 'Erro',
         description: 'As senhas não coincidem',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!acceptedTerms) {
+      toast({
+        title: 'Termos obrigatórios',
+        description: 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para criar sua conta.',
         variant: 'destructive',
       });
       return;
@@ -61,6 +62,21 @@ export default function SignUp() {
       });
       setIsLoading(false);
       return;
+    }
+
+    // Save terms acceptance
+    try {
+      const { data: { user: newUser } } = await supabase.auth.getUser();
+      if (newUser) {
+        await supabase.from('terms_acceptances' as any).insert({
+          user_id: newUser.id,
+          user_email: email,
+          user_name: name,
+          terms_version: '1.0',
+        });
+      }
+    } catch (err) {
+      console.error('Error saving terms acceptance:', err);
     }
 
     toast({
@@ -117,13 +133,9 @@ export default function SignUp() {
 
               <div className="space-y-2">
                 <Label htmlFor="phone">WhatsApp</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="(00) 00000-0000"
+                <PhoneInputWithDDI
                   value={phone}
-                  onChange={handlePhoneChange}
-                  maxLength={15}
+                  onChange={setPhone}
                 />
               </div>
               
@@ -165,7 +177,28 @@ export default function SignUp() {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              {/* Terms Acceptance Checkbox */}
+              <div className="flex items-start space-x-2 py-2">
+                <Checkbox
+                  id="terms"
+                  checked={acceptedTerms}
+                  onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                  className="mt-0.5"
+                />
+                <label
+                  htmlFor="terms"
+                  className="text-sm leading-snug text-muted-foreground cursor-pointer"
+                >
+                  Li e aceito os{' '}
+                  <span className="text-primary underline font-medium">Termos de Uso</span>,{' '}
+                  <span className="text-primary underline font-medium">Política de Privacidade</span>{' '}
+                  e{' '}
+                  <span className="text-primary underline font-medium">Política de Segurança de Dados</span>{' '}
+                  da plataforma.
+                </label>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isLoading || !acceptedTerms}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
