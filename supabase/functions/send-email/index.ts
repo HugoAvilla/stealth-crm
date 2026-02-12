@@ -23,11 +23,10 @@ Deno.serve(async (req) => {
     const CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
     const REFRESH_TOKEN = Deno.env.get("REFRESH_TOKEN")!;
 
-    // Debug: verificar se secrets estão carregados (mostra apenas primeiros caracteres)
-    console.log("CLIENT_ID starts with:", CLIENT_ID?.substring(0, 10) || "EMPTY");
-    console.log("CLIENT_SECRET starts with:", CLIENT_SECRET?.substring(0, 10) || "EMPTY");
-    console.log("REFRESH_TOKEN starts with:", REFRESH_TOKEN?.substring(0, 10) || "EMPTY");
-    console.log("GMAIL_USER:", GMAIL_USER || "EMPTY");
+    console.log("CLIENT_ID length:", CLIENT_ID?.length, "first20:", CLIENT_ID?.substring(0, 20));
+    console.log("CLIENT_SECRET length:", CLIENT_SECRET?.length, "first20:", CLIENT_SECRET?.substring(0, 20));
+    console.log("REFRESH_TOKEN length:", REFRESH_TOKEN?.length);
+    console.log("GMAIL_USER:", GMAIL_USER);
 
     // Step 1: Get access token using refresh token
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
