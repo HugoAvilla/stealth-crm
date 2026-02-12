@@ -1,78 +1,76 @@
 
-# Plano: Correcao WhatsApp, Persistencia de Edicoes e DDI em Empresa/Perfil
+# Plano: Integracao Gmail SMTP para Envio de Emails de Garantia
 
-## Problema 1: WhatsApp Bloqueado (api.whatsapp.com)
+## Resumo
+Criar uma Edge Function que envia emails reais via Gmail SMTP e atualizar o modal de envio para usa-la. O email chegara com o nome "CRM WFE" para o cliente.
 
-O erro "api.whatsapp.com esta bloqueado" acontece porque o link `wa.me/` redireciona para `api.whatsapp.com`, que bloqueia acesso dentro de iframes. A solucao e trocar todos os links de WhatsApp para usar `https://web.whatsapp.com/send?phone=NUMERO&text=MENSAGEM`, que funciona corretamente.
+## Passo 1: Adicionar Secrets
 
-### Arquivos afetados
-| Arquivo | Problema |
-|---------|----------|
-| `src/lib/utils.ts` | Funcao `openWhatsApp` usa `wa.me/` |
-| `src/components/vendas/WhatsAppPreviewModal.tsx` | Usa `wa.me/` direto (linha 58) |
-| `src/components/espaco/SpaceWhatsAppModal.tsx` | Usa `wa.me/` no handleSend |
-| `src/components/clientes/ClientProfileModal.tsx` | Usa `wa.me/` direto (linha 70) |
-| `src/pages/WaitingApproval.tsx` | Usa `wa.me/` direto (linha 74) |
-| `src/pages/Subscription.tsx` | Usa `wa.me/` direto (linha 214) |
+Armazenar de forma segura as credenciais:
+- **GMAIL_USER**: `Hg.lavila@gmail.com`
+- **GMAIL_APP_PASSWORD**: `qiyg orxr elyk zxod`
 
-### Correcao
-Atualizar a funcao `openWhatsApp` em `utils.ts`:
-```typescript
-export const openWhatsApp = (phone: string, message?: string) => {
-  const cleanPhone = phone.replace(/\D/g, '');
-  const url = message 
-    ? `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`
-    : `https://web.whatsapp.com/send?phone=${cleanPhone}`;
-  window.open(url, '_blank');
-};
+## Passo 2: Criar Edge Function `send-email`
+
+Arquivo: `supabase/functions/send-email/index.ts`
+
+- Conectar ao SMTP do Gmail (`smtp.gmail.com:465`) usando o modulo `https://deno.land/x/smtp@v0.7.0/mod.ts`
+- Configurar o remetente como `"CRM WFE" <Hg.lavila@gmail.com>` para que o cliente veja "CRM WFE" como nome do remetente
+- Receber `to`, `subject`, `html` e `text` no body da requisicao
+- Validar autenticacao JWT do usuario
+- Retornar sucesso/erro
+
+### Configuracao no config.toml:
+```toml
+[functions.send-email]
+verify_jwt = false
 ```
-Tambem remover a logica que adiciona `55` automaticamente -- agora o DDI ja vem salvo no numero. Atualizar os demais arquivos que usam `wa.me/` diretamente para usar essa funcao centralizada.
 
----
+## Passo 3: Atualizar `SendEmailModal.tsx`
 
-## Problema 2: EditCompanyModal nao salva no banco
+- Importar o cliente Supabase
+- No `handleSend`, chamar `supabase.functions.invoke('send-email', { body: { to, subject, html, text } })`
+- Adicionar estado de loading com spinner no botao
+- Tratar erros reais da Edge Function
+- Montar corpo HTML profissional com dados da garantia (numero do certificado, cliente, etc.)
 
-O modal `EditCompanyModal` carrega dados de `companySettings` (dados mock/estaticos) e o `handleSubmit` apenas mostra um toast, sem salvar nada no Supabase.
+## Arquivos Afetados
 
-### Correcao
-- Receber `companyId` e dados atuais como props do componente pai (`Empresa.tsx`)
-- Inicializar os campos com os dados reais do banco
-- No `handleSubmit`, fazer `supabase.from('companies').update(...)` com os campos editados
-- Separar o endereco em campos individuais (rua, numero, bairro, cidade, estado, CEP) -- a tabela ja tem esses campos
-- Apos salvar, chamar callback para atualizar os dados na tela pai
-- Substituir o campo de telefone pelo componente `PhoneInputWithDDI`
-
----
-
-## Problema 3: EditInfoModal nao salva no banco
-
-O modal `EditInfoModal` tem um `TODO: Implement profile update with Supabase`. Ele nao salva nada.
-
-### Correcao
-- No `handleSubmit`, fazer `supabase.from('profiles').update({ name, phone })` com o `user.id`
-- Apos salvar, atualizar o contexto de autenticacao para refletir os novos dados
-- Substituir o campo de telefone pelo componente `PhoneInputWithDDI`
-
----
-
-## Problema 4: Adicionar PhoneInputWithDDI nas telas Empresa e Perfil
-
-Substituir os campos `<Input>` de telefone pelo componente reutilizavel `PhoneInputWithDDI` nos seguintes modais:
-- `EditCompanyModal.tsx` (campo WhatsApp da empresa)
-- `EditInfoModal.tsx` (campo telefone do perfil)
-
----
-
-## Resumo de Todos os Arquivos
-
-| Arquivo | Tipo | Alteracao |
+| Arquivo | Tipo | Descricao |
 |---------|------|-----------|
-| `src/lib/utils.ts` | Editar | Trocar `wa.me/` por `web.whatsapp.com/send`, remover prefixo 55 hardcoded |
-| `src/components/vendas/WhatsAppPreviewModal.tsx` | Editar | Usar funcao `openWhatsApp` centralizada |
-| `src/components/espaco/SpaceWhatsAppModal.tsx` | Editar | Usar funcao `openWhatsApp` centralizada |
-| `src/components/clientes/ClientProfileModal.tsx` | Editar | Usar funcao `openWhatsApp` centralizada |
-| `src/pages/WaitingApproval.tsx` | Editar | Usar `web.whatsapp.com/send` |
-| `src/pages/Subscription.tsx` | Editar | Usar `web.whatsapp.com/send` |
-| `src/components/empresa/EditCompanyModal.tsx` | Editar | Carregar dados reais, salvar no Supabase, adicionar PhoneInputWithDDI, separar campos de endereco |
-| `src/components/perfil/EditInfoModal.tsx` | Editar | Salvar no Supabase (profiles), adicionar PhoneInputWithDDI |
-| `src/pages/Empresa.tsx` | Editar | Passar dados da empresa e callback de refresh como props para o modal |
+| Secrets (GMAIL_USER, GMAIL_APP_PASSWORD) | Novo | Credenciais Gmail armazenadas com seguranca |
+| `supabase/config.toml` | Editar | Adicionar config da funcao send-email |
+| `supabase/functions/send-email/index.ts` | Novo | Edge Function SMTP Gmail |
+| `src/components/garantias/SendEmailModal.tsx` | Editar | Integrar com Edge Function real |
+
+## Detalhes Tecnicos
+
+### Edge Function - Estrutura principal:
+```typescript
+import { SMTPClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+
+// Conexao SMTP
+const client = new SMTPClient({
+  connection: {
+    hostname: "smtp.gmail.com",
+    port: 465,
+    tls: true,
+    auth: {
+      username: Deno.env.get("GMAIL_USER"),
+      password: Deno.env.get("GMAIL_APP_PASSWORD"),
+    },
+  },
+});
+
+// Envio com nome "CRM WFE"
+await client.send({
+  from: { name: "CRM WFE", address: Deno.env.get("GMAIL_USER") },
+  to: destinatario,
+  subject: assunto,
+  content: textoPlano,
+  html: htmlFormatado,
+});
+```
+
+### Nome do Remetente
+O campo `from` sera configurado como `"CRM WFE" <Hg.lavila@gmail.com>`, fazendo com que o cliente veja **CRM WFE** como remetente na caixa de entrada.
