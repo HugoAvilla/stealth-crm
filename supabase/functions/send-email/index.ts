@@ -18,10 +18,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const GMAIL_USER = Deno.env.get("GMAIL_USER")!;
-    const CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
-    const CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
-    const REFRESH_TOKEN = Deno.env.get("REFRESH_TOKEN")!;
+    const GMAIL_USER = Deno.env.get("GMAIL_USER")!.trim();
+    const CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!.replace(/\s/g, '');
+    const CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!.replace(/\s/g, '');
+    const REFRESH_TOKEN = Deno.env.get("REFRESH_TOKEN")!.replace(/\s/g, '');
 
     console.log("CLIENT_ID length:", CLIENT_ID?.length, "first20:", CLIENT_ID?.substring(0, 20));
     console.log("CLIENT_SECRET length:", CLIENT_SECRET?.length, "first20:", CLIENT_SECRET?.substring(0, 20));
