@@ -1,76 +1,49 @@
 
-# Plano: Integracao Gmail SMTP para Envio de Emails de Garantia
+
+# Plano: Migrar para Gmail API (OAuth 2.0) com novo email
 
 ## Resumo
-Criar uma Edge Function que envia emails reais via Gmail SMTP e atualizar o modal de envio para usa-la. O email chegara com o nome "CRM WFE" para o cliente.
+Substituir o envio SMTP/nodemailer pelo Gmail API via OAuth 2.0 e atualizar o email remetente para `customapp01@gmail.com`.
 
-## Passo 1: Adicionar Secrets
+## Passo 1: Adicionar Secrets OAuth
 
-Armazenar de forma segura as credenciais:
-- **GMAIL_USER**: `Hg.lavila@gmail.com`
-- **GMAIL_APP_PASSWORD**: `qiyg orxr elyk zxod`
+Cadastrar no Supabase:
+- **GOOGLE_CLIENT_ID**: `795735742039-ddf3gvbioqap540ag01m19ubl8n9t8qc.apps.googleusercontent.com`
+- **GOOGLE_CLIENT_SECRET**: `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`
 
-## Passo 2: Criar Edge Function `send-email`
+Atualizar o secret existente:
+- **GMAIL_USER**: alterar de `Hg.lavila@gmail.com` para `customapp01@gmail.com`
+
+Secrets ja existentes que serao utilizados:
+- **REFRESH_TOKEN**: ja cadastrado
+
+Secrets que podem ser removidos depois:
+- **GMAIL_APP_PASSWORD**: nao sera mais necessario
+
+## Passo 2: Reescrever Edge Function `send-email`
 
 Arquivo: `supabase/functions/send-email/index.ts`
 
-- Conectar ao SMTP do Gmail (`smtp.gmail.com:465`) usando o modulo `https://deno.land/x/smtp@v0.7.0/mod.ts`
-- Configurar o remetente como `"CRM WFE" <Hg.lavila@gmail.com>` para que o cliente veja "CRM WFE" como nome do remetente
-- Receber `to`, `subject`, `html` e `text` no body da requisicao
-- Validar autenticacao JWT do usuario
-- Retornar sucesso/erro
+Mudancas:
+- Remover `nodemailer` completamente
+- Usar Gmail API REST via `fetch`
+- Fluxo:
+  1. Receber `{ to, subject, html, text }` do body
+  2. Obter access_token via `POST https://oauth2.googleapis.com/token` usando REFRESH_TOKEN, GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET
+  3. Montar email RFC 2822 com `From: "CRM WFE" <customapp01@gmail.com>`
+  4. Codificar em base64url
+  5. Enviar via `POST https://gmail.googleapis.com/gmail/v1/users/me/messages/send`
+  6. Retornar sucesso ou erro
+- Manter CORS headers e validacao de campos
 
-### Configuracao no config.toml:
-```toml
-[functions.send-email]
-verify_jwt = false
-```
+## Passo 3: Frontend
 
-## Passo 3: Atualizar `SendEmailModal.tsx`
-
-- Importar o cliente Supabase
-- No `handleSend`, chamar `supabase.functions.invoke('send-email', { body: { to, subject, html, text } })`
-- Adicionar estado de loading com spinner no botao
-- Tratar erros reais da Edge Function
-- Montar corpo HTML profissional com dados da garantia (numero do certificado, cliente, etc.)
+Nenhuma alteracao necessaria. O `SendEmailModal.tsx` ja chama `supabase.functions.invoke('send-email')` com o formato correto.
 
 ## Arquivos Afetados
 
 | Arquivo | Tipo | Descricao |
 |---------|------|-----------|
-| Secrets (GMAIL_USER, GMAIL_APP_PASSWORD) | Novo | Credenciais Gmail armazenadas com seguranca |
-| `supabase/config.toml` | Editar | Adicionar config da funcao send-email |
-| `supabase/functions/send-email/index.ts` | Novo | Edge Function SMTP Gmail |
-| `src/components/garantias/SendEmailModal.tsx` | Editar | Integrar com Edge Function real |
+| Secrets (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GMAIL_USER) | Novo/Atualizar | Credenciais OAuth e novo email |
+| `supabase/functions/send-email/index.ts` | Reescrever | Trocar SMTP por Gmail API REST |
 
-## Detalhes Tecnicos
-
-### Edge Function - Estrutura principal:
-```typescript
-import { SMTPClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
-
-// Conexao SMTP
-const client = new SMTPClient({
-  connection: {
-    hostname: "smtp.gmail.com",
-    port: 465,
-    tls: true,
-    auth: {
-      username: Deno.env.get("GMAIL_USER"),
-      password: Deno.env.get("GMAIL_APP_PASSWORD"),
-    },
-  },
-});
-
-// Envio com nome "CRM WFE"
-await client.send({
-  from: { name: "CRM WFE", address: Deno.env.get("GMAIL_USER") },
-  to: destinatario,
-  subject: assunto,
-  content: textoPlano,
-  html: htmlFormatado,
-});
-```
-
-### Nome do Remetente
-O campo `from` sera configurado como `"CRM WFE" <Hg.lavila@gmail.com>`, fazendo com que o cliente veja **CRM WFE** como remetente na caixa de entrada.
