@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Mail } from "lucide-react";
-import { getClientById, issuedWarranties } from "@/lib/mockData";
+import { Send, Mail, Loader2 } from "lucide-react";
+import { issuedWarranties, getClientById } from "@/lib/mockData";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface SendEmailModalProps {
@@ -19,17 +20,58 @@ export function SendEmailModal({ open, onOpenChange, warranty }: SendEmailModalP
   const [email, setEmail] = useState(client?.email || "");
   const [subject, setSubject] = useState(`Certificado de Garantia - ${warranty?.certificate_number || ''}`);
   const [message, setMessage] = useState(
-    `Olá ${client?.name || ''},\n\nSegue em anexo o certificado de garantia ${warranty?.certificate_number || ''} referente ao serviço realizado.\n\nAtenciosamente,\nWFE Evolution`
+    `Olá ${client?.name || ''},\n\nSegue em anexo o certificado de garantia ${warranty?.certificate_number || ''} referente ao serviço realizado.\n\nAtenciosamente,\nCRM WFE`
   );
+  const [sending, setSending] = useState(false);
 
-  const handleSend = () => {
+  const buildHtmlEmail = () => {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: #1a1a2e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">CRM WFE</h1>
+          <p style="margin: 5px 0 0; opacity: 0.8;">Certificado de Garantia</p>
+        </div>
+        <div style="border: 1px solid #e0e0e0; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
+          <h2 style="color: #333; margin-top: 0;">Certificado: ${warranty?.certificate_number || ''}</h2>
+          <p style="color: #555; white-space: pre-line;">${message}</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            Este email foi enviado automaticamente pelo CRM WFE.<br/>
+            Por favor, não responda a este email.
+          </p>
+        </div>
+      </div>
+    `;
+  };
+
+  const handleSend = async () => {
     if (!email) {
       toast.error("Informe o email de destino");
       return;
     }
 
-    toast.success(`Email enviado para ${email}!`);
-    onOpenChange(false);
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: email,
+          subject,
+          html: buildHtmlEmail(),
+          text: message,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Email enviado com sucesso para ${email}!`);
+      onOpenChange(false);
+    } catch (err: any) {
+      console.error("Erro ao enviar email:", err);
+      toast.error(err.message || "Erro ao enviar email. Tente novamente.");
+    } finally {
+      setSending(false);
+    }
   };
 
   if (!warranty) return null;
@@ -76,11 +118,15 @@ export function SendEmailModal({ open, onOpenChange, warranty }: SendEmailModalP
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={sending}>
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleSend}>
-              <Send className="h-4 w-4 mr-2" /> Enviar
+            <Button className="flex-1" onClick={handleSend} disabled={sending}>
+              {sending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Enviando...</>
+              ) : (
+                <><Send className="h-4 w-4 mr-2" /> Enviar</>
+              )}
             </Button>
           </div>
         </div>
