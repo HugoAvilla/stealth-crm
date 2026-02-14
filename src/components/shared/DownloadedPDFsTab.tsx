@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { FileText, Trash2, X, ExternalLink } from 'lucide-react';
+import { FileText, Trash2, X, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { getPDFRecords, deletePDFRecord, clearPDFRecords, type PDFRecord } from '@/lib/pdfStorage';
+import { getPDFRecords, deletePDFRecord, clearPDFRecords, getPDFSignedUrl, type PDFRecord } from '@/lib/pdfStorage';
 import { toast } from 'sonner';
 
 interface DownloadedPDFsTabProps {
@@ -14,13 +14,12 @@ interface DownloadedPDFsTabProps {
 
 export function DownloadedPDFsTab({ module }: DownloadedPDFsTabProps) {
   const [records, setRecords] = useState<PDFRecord[]>([]);
+  const [openingId, setOpeningId] = useState<string | null>(null);
 
-  // Refresh records every time this component mounts or module changes
   useEffect(() => {
     setRecords(getPDFRecords(module));
   }, [module]);
 
-  // Also refresh on window focus (user may have generated PDF in another tab)
   useEffect(() => {
     const handleFocus = () => setRecords(getPDFRecords(module));
     window.addEventListener('focus', handleFocus);
@@ -41,11 +40,24 @@ export function DownloadedPDFsTab({ module }: DownloadedPDFsTabProps) {
     toast.success('Histórico limpo');
   };
 
-  const handleOpenPDF = (record: PDFRecord) => {
-    if (record.dataUrl) {
-      window.open(record.dataUrl, '_blank');
-    } else {
+  const handleOpenPDF = async (record: PDFRecord) => {
+    if (!record.storagePath) {
       toast.info('PDF não disponível para visualização. Gere o documento novamente.');
+      return;
+    }
+
+    setOpeningId(record.id);
+    try {
+      const signedUrl = await getPDFSignedUrl(record.storagePath, 600);
+      if (signedUrl) {
+        window.open(signedUrl, '_blank');
+      } else {
+        toast.error('Erro ao gerar link do PDF. Tente gerar o documento novamente.');
+      }
+    } catch {
+      toast.error('Erro ao abrir PDF.');
+    } finally {
+      setOpeningId(null);
     }
   };
 
@@ -78,7 +90,11 @@ export function DownloadedPDFsTab({ module }: DownloadedPDFsTabProps) {
             <CardContent className="p-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-destructive/10">
-                  <FileText className="h-4 w-4 text-destructive" />
+                  {openingId === record.id ? (
+                    <Loader2 className="h-4 w-4 text-destructive animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 text-destructive" />
+                  )}
                 </div>
                 <div>
                   <p className="text-sm font-medium">{record.filename}</p>
@@ -86,7 +102,7 @@ export function DownloadedPDFsTab({ module }: DownloadedPDFsTabProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {record.dataUrl && (
+                {record.storagePath && (
                   <ExternalLink className="h-3 w-3 text-muted-foreground" />
                 )}
                 <Badge variant="outline" className="text-[10px]">{record.type}</Badge>
