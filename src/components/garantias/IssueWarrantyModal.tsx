@@ -15,7 +15,7 @@ import { ptBR } from "date-fns/locale";
 import { Send, Download, FileText, MessageCircle } from "lucide-react";
 import wfeLogo from "@/assets/wfe-logo.png";
 import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
-import { savePDFRecord } from "@/lib/pdfStorage";
+
 
 interface IssueWarrantyModalProps {
   open: boolean;
@@ -167,7 +167,13 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
 
           const phone = selectedClient.phone.replace(/\D/g, '');
           const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
-          window.open(url, '_blank');
+          const link = document.createElement('a');
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
         }
 
         toast.success(`Garantia emitida e enviada via WhatsApp!`);
@@ -216,12 +222,6 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
     };
 
     generateWarrantyPDF(pdfData);
-    savePDFRecord({
-      filename: `garantia-${certNumber}.pdf`,
-      type: 'Garantia',
-      module: 'garantias',
-      details: `${selectedClient.name} - ${selectedTemplate.name}`,
-    });
     toast.success("Certificado baixado com sucesso!");
   };
 
