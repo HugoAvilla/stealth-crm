@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { getPDFRecords, deletePDFRecord, clearPDFRecords, getPDFSignedUrl, type PDFRecord } from '@/lib/pdfStorage';
+import { getPDFRecords, deletePDFRecord, clearPDFRecords, getPDFProxyUrl, type PDFRecord } from '@/lib/pdfStorage';
 import { toast } from 'sonner';
 
 interface DownloadedPDFsTabProps {
@@ -40,25 +40,14 @@ export function DownloadedPDFsTab({ module }: DownloadedPDFsTabProps) {
     toast.success('Histórico limpo');
   };
 
-  const handleOpenPDF = async (record: PDFRecord) => {
+  const handleOpenPDF = (record: PDFRecord) => {
     if (!record.storagePath) {
       toast.info('PDF não disponível para visualização. Gere o documento novamente.');
       return;
     }
 
-    setOpeningId(record.id);
-    try {
-      const signedUrl = await getPDFSignedUrl(record.storagePath, 600);
-      if (signedUrl) {
-        window.open(signedUrl, '_blank');
-      } else {
-        toast.error('Erro ao gerar link do PDF. Tente gerar o documento novamente.');
-      }
-    } catch {
-      toast.error('Erro ao abrir PDF.');
-    } finally {
-      setOpeningId(null);
-    }
+    const proxyUrl = getPDFProxyUrl(record.storagePath);
+    window.open(proxyUrl, '_blank');
   };
 
   if (records.length === 0) {
