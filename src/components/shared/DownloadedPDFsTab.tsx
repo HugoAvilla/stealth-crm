@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { FileText, Trash2, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileText, Trash2, X, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,19 @@ interface DownloadedPDFsTabProps {
 }
 
 export function DownloadedPDFsTab({ module }: DownloadedPDFsTabProps) {
-  const [records, setRecords] = useState(() => getPDFRecords(module));
+  const [records, setRecords] = useState<PDFRecord[]>([]);
+
+  // Refresh records every time this component mounts or module changes
+  useEffect(() => {
+    setRecords(getPDFRecords(module));
+  }, [module]);
+
+  // Also refresh on window focus (user may have generated PDF in another tab)
+  useEffect(() => {
+    const handleFocus = () => setRecords(getPDFRecords(module));
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [module]);
 
   const refresh = () => setRecords(getPDFRecords(module));
 
@@ -27,6 +39,14 @@ export function DownloadedPDFsTab({ module }: DownloadedPDFsTabProps) {
     clearPDFRecords(module);
     refresh();
     toast.success('Histórico limpo');
+  };
+
+  const handleOpenPDF = (record: PDFRecord) => {
+    if (record.dataUrl) {
+      window.open(record.dataUrl, '_blank');
+    } else {
+      toast.info('PDF não disponível para visualização. Gere o documento novamente.');
+    }
   };
 
   if (records.length === 0) {
@@ -50,7 +70,11 @@ export function DownloadedPDFsTab({ module }: DownloadedPDFsTabProps) {
 
       <div className="space-y-2">
         {records.map(record => (
-          <Card key={record.id} className="bg-card/50 border-border/50">
+          <Card
+            key={record.id}
+            className="bg-card/50 border-border/50 cursor-pointer hover:bg-card/80 transition-colors"
+            onClick={() => handleOpenPDF(record)}
+          >
             <CardContent className="p-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-destructive/10">
@@ -62,11 +86,22 @@ export function DownloadedPDFsTab({ module }: DownloadedPDFsTabProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {record.dataUrl && (
+                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                )}
                 <Badge variant="outline" className="text-[10px]">{record.type}</Badge>
                 <span className="text-xs text-muted-foreground">
                   {format(new Date(record.createdAt), "dd/MM/yy HH:mm", { locale: ptBR })}
                 </span>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(record.id)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(record.id);
+                  }}
+                >
                   <X className="h-3 w-3" />
                 </Button>
               </div>

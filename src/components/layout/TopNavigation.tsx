@@ -131,7 +131,7 @@ export function TopNavigation() {
         )}
       >
         <Icon className="w-4 h-4" />
-        <span className="whitespace-nowrap">{item.label}</span>
+        <span className="whitespace-nowrap sm:inline">{item.label}</span>
         {item.badge && item.badge > 0 && (
           <Badge variant="destructive" className="h-4 min-w-4 sm:h-5 sm:min-w-5 flex items-center justify-center text-[10px] sm:text-xs">
             {item.badge}
@@ -150,7 +150,7 @@ export function TopNavigation() {
         </Link>
 
         {/* Horizontal Navigation - Always visible */}
-        <nav className="flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
+        <nav className="flex items-center gap-1 flex-1 overflow-x-auto sm:flex-wrap sm:overflow-x-visible">
           {filteredItems.map(item => (
             <NavLink key={item.path} item={item} />
           ))}

@@ -12,8 +12,10 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Send, Download, FileText } from "lucide-react";
+import { Send, Download, FileText, MessageCircle } from "lucide-react";
 import wfeLogo from "@/assets/wfe-logo.png";
+import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
+import { savePDFRecord } from "@/lib/pdfStorage";
 
 interface IssueWarrantyModalProps {
   open: boolean;
@@ -121,41 +123,63 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
      setVehicleId(""); // Reset vehicle when client changes
    };
 
-   const handleSend = async () => {
-     if (!templateId || !clientId || !vehicleId) {
-       toast.error("Preencha todos os campos obrigatórios");
-      return;
-    }
+    const handleSend = async () => {
+      if (!templateId || !clientId || !vehicleId) {
+        toast.error("Preencha todos os campos obrigatórios");
+        return;
+      }
 
-     setIsSubmitting(true);
-     try {
-       const issueDate = new Date();
-       const expiryDate = new Date();
-       expiryDate.setMonth(expiryDate.getMonth() + (selectedTemplate?.validity_months || 12));
+      setIsSubmitting(true);
+      try {
+        const issueDate = new Date();
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + (selectedTemplate?.validity_months || 12));
 
-       const { error } = await supabase.from('warranties').insert({
-         company_id: companyId,
-         warranty_type: selectedTemplate?.name || '',
-         issue_date: issueDate.toISOString().split('T')[0],
-         expiry_date: expiryDate.toISOString().split('T')[0],
-         client_id: parseInt(clientId),
-         vehicle_id: parseInt(vehicleId),
-         warranty_text: warrantyTerms,
-         status: 'Ativa',
-       });
+        const { data: inserted, error } = await supabase.from('warranties').insert({
+          company_id: companyId,
+          warranty_type: selectedTemplate?.name || '',
+          issue_date: issueDate.toISOString().split('T')[0],
+          expiry_date: expiryDate.toISOString().split('T')[0],
+          client_id: parseInt(clientId),
+          vehicle_id: parseInt(vehicleId),
+          warranty_text: warrantyTerms,
+          status: 'Ativa',
+        }).select('id').single();
 
-       if (error) throw error;
+        if (error) throw error;
 
-       toast.success(`Garantia emitida com sucesso!`);
-       onOpenChange(false);
-       resetForm();
-     } catch (error) {
-       console.error('Error issuing warranty:', error);
-       toast.error("Erro ao emitir garantia");
-     } finally {
-       setIsSubmitting(false);
-     }
-  };
+        // Send via WhatsApp
+        if (selectedClient?.phone) {
+          const certNumber = `WFE-${(inserted?.id || 0).toString().padStart(4, '0')}`;
+          const vehicleInfo = selectedVehicle
+            ? `${selectedVehicle.brand} ${selectedVehicle.model} - Placa: ${selectedVehicle.plate || 'N/A'}`
+            : 'N/A';
+          const fmtDate = (d: Date) => d.toLocaleDateString('pt-BR');
+
+          const message = `🛡️ *CERTIFICADO DE GARANTIA*\n\n` +
+            `📋 Nº ${certNumber}\n` +
+            `🔧 Serviço: ${selectedTemplate?.name}\n` +
+            `🚗 Veículo: ${vehicleInfo}\n` +
+            `📅 Emissão: ${fmtDate(issueDate)}\n` +
+            `📅 Validade: ${fmtDate(expiryDate)}\n\n` +
+            (warrantyTerms ? `📄 Termos:\n${warrantyTerms}\n\n` : '') +
+            `_WFE EVOLUTION - Garantia Intransferível_`;
+
+          const phone = selectedClient.phone.replace(/\D/g, '');
+          const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+          window.open(url, '_blank');
+        }
+
+        toast.success(`Garantia emitida e enviada via WhatsApp!`);
+        onOpenChange(false);
+        resetForm();
+      } catch (error) {
+        console.error('Error issuing warranty:', error);
+        toast.error("Erro ao emitir garantia");
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
 
    const resetForm = () => {
      setTemplateId("");
@@ -165,10 +189,39 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
    };
 
   const handleDownload = () => {
-     if (!templateId || !clientId || !vehicleId) {
-       toast.error("Preencha todos os campos obrigatórios");
+    if (!templateId || !clientId || !vehicleId || !selectedTemplate || !selectedClient || !selectedVehicle) {
+      toast.error("Preencha todos os campos obrigatórios");
       return;
     }
+
+    const issueDate = new Date();
+    const expiryDate = new Date();
+    expiryDate.setMonth(expiryDate.getMonth() + (selectedTemplate.validity_months || 12));
+    const certNumber = `WFE-PREV-${Date.now()}`;
+
+    const pdfData: WarrantyPDFData = {
+      certificate_number: certNumber,
+      client_name: selectedClient.name,
+      client_phone: selectedClient.phone,
+      client_email: selectedClient.email || undefined,
+      vehicle_brand: selectedVehicle.brand,
+      vehicle_model: selectedVehicle.model,
+      vehicle_plate: selectedVehicle.plate || '',
+      vehicle_year: selectedVehicle.year || undefined,
+      service_name: selectedTemplate.name,
+      issue_date: issueDate.toISOString().split('T')[0],
+      expiry_date: expiryDate.toISOString().split('T')[0],
+      warranty_text: warrantyTerms || undefined,
+      company_name: 'WFE EVOLUTION',
+    };
+
+    generateWarrantyPDF(pdfData);
+    savePDFRecord({
+      filename: `garantia-${certNumber}.pdf`,
+      type: 'Garantia',
+      module: 'garantias',
+      details: `${selectedClient.name} - ${selectedTemplate.name}`,
+    });
     toast.success("Certificado baixado com sucesso!");
   };
 
@@ -275,8 +328,8 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
                   <Download className="h-4 w-4 mr-2" /> Baixar PDF
                 </Button>
                  <Button onClick={handleSend} disabled={!selectedTemplate || !selectedClient || !selectedVehicle || isSubmitting}>
-                  <Send className="h-4 w-4 mr-2" /> Enviar para Cliente
-                </Button>
+                   <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
+                 </Button>
               </div>
             </div>
           </TabsContent>
