@@ -1,121 +1,106 @@
+# Plano: Edge Function Proxy para PDFs + Correcoes WhatsApp
 
-# Plano: PDFs no Supabase Storage + WhatsApp via wa.me + Barra de Navegacao
+## Problema Central
 
-## Visao Geral
+O frontend esta usando Signed URLs do Supabase (`/storage/v1/object/sign/...`) diretamente. Browsers e extensoes (AdBlock, uBlock, Brave Shields) bloqueiam essas URLs com `ERR_BLOCKED_BY_CLIENT`. Isso quebra:
 
-Migrar toda a arquitetura de PDFs de localStorage (base64) para Supabase Storage com signed URLs, corrigir o WhatsApp para usar `wa.me`, e ajustar a barra de navegacao desktop.
+- Visualizacao de PDFs na aba "PDFs Baixados"
+- Links de PDF enviados via WhatsApp
+- Preview de documentos
 
----
+## Solucao: Edge Function Proxy
 
-## 1. Criar bucket privado no Supabase Storage
-
-Criar um bucket `pdfs` privado com politicas RLS para:
-- Upload: usuarios autenticados podem fazer upload no caminho do seu company_id
-- Download: usuarios autenticados podem ler arquivos do seu company_id
-
-**Migracao SQL:**
-```sql
-INSERT INTO storage.buckets (id, name, public) VALUES ('pdfs', 'pdfs', false);
-
-CREATE POLICY "Users can upload PDFs to their company folder"
-ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'pdfs');
-
-CREATE POLICY "Users can read PDFs from their company folder"
-ON storage.objects FOR SELECT TO authenticated
-USING (bucket_id = 'pdfs');
-```
+Criar uma Edge Function que recebe o `storagePath`, gera o signed URL internamente (no backend), faz fetch do PDF, e retorna o binario com headers corretos. O frontend nunca ve o signed URL.
 
 ---
 
-## 2. Refatorar pdfStorage.ts
+## 1. Criar Edge Function `serve-pdf`
 
-Remover o campo `dataUrl` (base64) do localStorage. Passar a armazenar apenas metadados + `storagePath` (caminho no Supabase Storage).
+**Arquivo:** `supabase/functions/serve-pdf/index.ts`
 
-**Novo fluxo de savePDFRecord:**
-- Recebe o `Blob` do PDF (via `doc.output('blob')`)
-- Faz upload para Supabase Storage no caminho `{companyId}/{module}/{filename}`
-- Salva metadados no localStorage com `storagePath` em vez de `dataUrl`
+Fluxo:
 
-**Arquivo:** `src/lib/pdfStorage.ts`
-- Remover campo `dataUrl`
-- Adicionar campo `storagePath`
-- Criar funcao `uploadPDFToStorage(blob, path)` que faz o upload
-- Criar funcao `getPDFSignedUrl(storagePath)` que gera signed URL (10 min)
+1. Frontend chama: `GET /serve-pdf?path=42/garantias/garantia-WFE-0001.pdf`
+2. Edge Function valida autenticacao (JWT do header Authorization)
+3. Gera signed URL internamente
+4. Faz fetch do PDF usando o signed URL
+5. Retorna o binario com `Content-Type: application/pdf` e `Content-Disposition: inline`
 
----
+O frontend recebe um PDF puro, sem URL de storage exposta.
 
-## 3. Refatorar pdfGenerator.ts
-
-Todas as funcoes de geracao (`generateSalePDFA4`, `generateSalePDFReceipt`, `generateWarrantyPDF`, `generateReportPDF`, `generateSpacePDF*`) serao alteradas para:
-- Usar `doc.output('blob')` em vez de `doc.output('datauristring')`
-- Chamar `doc.save()` para download local (mantido)
-- Chamar `uploadPDFToStorage()` para enviar ao Supabase
-- Salvar metadados com `storagePath` no localStorage
-
-Essas funcoes precisarao receber `companyId` como parametro para definir o caminho de storage.
-
-**Arquivo:** `src/lib/pdfGenerator.ts`
+**Config:** `supabase/config.toml` - adicionar `[functions.serve-pdf]` com `verify_jwt = false` (validacao manual no codigo)
 
 ---
 
-## 4. Refatorar DownloadedPDFsTab.tsx
+## 2. Refatorar `pdfStorage.ts`
 
-Ao clicar num PDF:
-- Buscar `storagePath` do registro
-- Gerar signed URL via `supabase.storage.from('pdfs').createSignedUrl(storagePath, 600)`
-- Abrir em nova aba via `window.open(signedUrl, '_blank')`
-
-**Arquivo:** `src/components/shared/DownloadedPDFsTab.tsx`
-
----
-
-## 5. WhatsApp via wa.me com link do PDF
-
-No `IssueWarrantyModal.tsx`, o fluxo de "Enviar WhatsApp":
-- Gerar o PDF
-- Upload para Supabase Storage
-- Gerar signed URL com validade de 7 dias (604800 segundos)
-- Montar mensagem com template + link do PDF
-- Abrir `https://wa.me/55NUMERO?text=MENSAGEM` (nao `web.whatsapp.com`)
-
-A mesma correcao sera aplicada em `Garantias.tsx` (handleSendWhatsApp na lista).
-
-**Arquivos:** `src/components/garantias/IssueWarrantyModal.tsx`, `src/pages/Garantias.tsx`
+- Remover a funcao `getPDFSignedUrl` (nao sera mais usada no frontend)
+- Criar funcao `getPDFProxyUrl(storagePath)` que retorna a URL da Edge Function:
+  ```
+  https://{project}.supabase.co/functions/v1/serve-pdf?path={encodedPath}
+  ```
+- Manter `uploadPDFToStorage` como esta (funciona corretamente)
+- Manter metadados no localStorage com `storagePath`
 
 ---
 
-## 6. Barra de navegacao desktop - linha unica
+## 3. Refatorar `DownloadedPDFsTab.tsx`
 
-O label atualmente usa `whitespace-nowrap sm:inline` sem `hidden`, entao aparece em todas as telas. No desktop, com muitos itens, nao cabe em uma linha.
+- Em vez de gerar signed URL e abrir com `window.open(signedUrl)`, usar a URL do proxy
+- A URL do proxy e um link HTTPS normal que retorna PDF inline - nao e bloqueada
+- Continuar usando `window.open(proxyUrl, '_blank')` (funciona porque e URL normal)
 
-**Correcao:** Restaurar `hidden sm:inline` no span do label para que no mobile aparecam apenas icones (com scroll horizontal), e no desktop aparecam icone + label (tambem com scroll horizontal se necessario). A scrollbar fina ja esta implementada via `.nav-scrollbar`.
+---
 
-**Arquivo:** `src/components/layout/TopNavigation.tsx`
-- Linha 134: trocar `whitespace-nowrap sm:inline` por `hidden sm:inline`
+## 4. Corrigir WhatsApp no `IssueWarrantyModal.tsx`
+
+O fluxo de "Enviar WhatsApp" atualmente:
+
+1. Gera PDF e faz upload
+2. Espera 1.5s
+3. Gera signed URL (7 dias)
+4. Inclui signed URL na mensagem WhatsApp
+
+**Problema:** O signed URL na mensagem sera bloqueado pelo browser do destinatario tambem.
+
+**Correcao:** Usar a URL do proxy na mensagem. Como a Edge Function valida JWT, o link so funciona para usuarios logados. Para o cliente final (sem login), ha duas opcoes:
+
+- **Opcao escolhida:** A Edge Function `serve-pdf` tera um modo "public token" - aceita um token curto (hash) como query param em vez de JWT, permitindo acesso temporario sem login. Isso e mais simples que tornar o bucket publico.
+
+Na pratica: ao gerar o link para WhatsApp, o sistema cria um signed URL de 7 dias no backend e salva o token no localStorage. A Edge Function aceita `?token=SIGNED_URL_TOKEN` como alternativa ao JWT.
+
+**Simplificacao:** Na verdade, a forma mais simples e: a Edge Function gera o signed URL internamente e redireciona (302) para ele. O signed URL so aparece no redirect final, nao na barra de endereco original. Isso evita bloqueio porque a URL que o usuario/cliente ve e `/functions/v1/serve-pdf?path=...`.
+
+---
+
+## 5. Corrigir WhatsApp no `Garantias.tsx`
+
+O `handleSendWhatsApp` na lista de garantias nao inclui link do PDF. Para manter consistencia:
+
+- Adicionar o link do proxy na mensagem (se o PDF existir no storage)
+- Usar `window.location.href` em vez de criar elemento `<a>` para garantir que funciona
+
+---
 
 ---
 
 ## Resumo de Arquivos
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| Migracao SQL | Criar bucket `pdfs` privado + politicas RLS |
-| `src/lib/pdfStorage.ts` | Remover dataUrl, adicionar storagePath, funcoes de upload/signed URL |
-| `src/lib/pdfGenerator.ts` | Usar blob + upload ao Supabase em todas as funcoes de geracao |
-| `src/components/shared/DownloadedPDFsTab.tsx` | Abrir PDF via signed URL |
-| `src/components/garantias/IssueWarrantyModal.tsx` | WhatsApp via wa.me + link signed URL do PDF |
-| `src/pages/Garantias.tsx` | WhatsApp via wa.me + link signed URL |
-| `src/components/layout/TopNavigation.tsx` | Restaurar `hidden sm:inline` no label |
-| `src/components/vendas/PdfA4Modal.tsx` | Passar companyId para funcoes de geracao |
-| `src/components/vendas/PdfNotinhaModal.tsx` | Passar companyId para funcoes de geracao |
+
+| Arquivo                                           | Alteracao                                     |
+| ------------------------------------------------- | --------------------------------------------- |
+| `supabase/functions/serve-pdf/index.ts`           | **NOVO** - Edge Function proxy para PDFs      |
+| `supabase/config.toml`                            | Adicionar config da nova funcao               |
+| `src/lib/pdfStorage.ts`                           | Trocar `getPDFSignedUrl` por `getPDFProxyUrl` |
+| `src/components/shared/DownloadedPDFsTab.tsx`     | Usar URL do proxy em vez de signed URL        |
+| `src/components/garantias/IssueWarrantyModal.tsx` | Usar URL do proxy na mensagem WhatsApp        |
+| `src/pages/Garantias.tsx`                         | Adicionar link do proxy na mensagem WhatsApp  |
+
 
 ## Detalhes Tecnicos
 
-- O bucket sera **privado** - PDFs so acessiveis via signed URL
-- Signed URL para preview interno: 600 segundos (10 min)
-- Signed URL para envio ao cliente via WhatsApp: 604800 segundos (7 dias)
-- Path no storage: `{companyId}/{module}/{filename}` (ex: `42/garantias/garantia-WFE-0001.pdf`)
-- localStorage continuara guardando metadados (sem base64), mantendo o historico leve
-- `wa.me` e o unico dominio usado para WhatsApp - nunca `web.whatsapp.com`
-- Content-Type sera `application/pdf` automaticamente pelo Supabase Storage ao fazer upload de blob PDF
+- A Edge Function usa `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` (variaveis de ambiente automaticas do Supabase) para gerar signed URLs no backend
+- O proxy retorna o PDF com `Content-Type: application/pdf` - browsers renderizam nativamente
+- URLs do tipo `/functions/v1/serve-pdf?path=...` nao sao bloqueadas por AdBlock
+- Para links enviados via WhatsApp ao cliente final (sem JWT), a Edge Function fara redirect 302 para o signed URL - o redirect acontece server-side, entao o browser do cliente nao bloqueia
+- Timeout da Edge Function: padrao (60s) e suficiente para PDFs pequenos
