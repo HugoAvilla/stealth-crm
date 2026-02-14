@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { savePDFRecord } from './pdfStorage';
 
 export interface SalePDFData {
   id: number;
@@ -409,7 +410,14 @@ export function generateReportPDF(report: ReportPDFData): void {
     });
   }
 
-  doc.save(`${report.title.toLowerCase().replace(/\s+/g, '-')}.pdf`);
+  const filename = `${report.title.toLowerCase().replace(/\s+/g, '-')}.pdf`;
+  doc.save(filename);
+  savePDFRecord({
+    filename,
+    type: 'Relatório',
+    module: 'relatorios',
+    details: report.title + (report.period ? ` (${formatDate(report.period.start)} - ${formatDate(report.period.end)})` : ''),
+  });
 }
 
 function formatDate(dateStr: string): string {
@@ -512,6 +520,12 @@ export function generateSpacePDFA4(space: SpacePDFData): void {
   doc.text(`TOTAL: R$ ${space.total.toFixed(2)}`, pageWidth - 60, y);
 
   doc.save(`vaga-${space.id}-A4.pdf`);
+  savePDFRecord({
+    filename: `vaga-${space.id}-A4.pdf`,
+    type: 'Comprovante Vaga A4',
+    module: 'espaco',
+    details: `Vaga #${space.id} - ${space.client_name}`,
+  });
 }
 
 export function generateSpacePDFReceipt(space: SpacePDFData, size: '80mm' | '58mm'): void {
@@ -600,4 +614,10 @@ export function generateSpacePDFReceipt(space: SpacePDFData, size: '80mm' | '58m
   doc.text('Obrigado pela preferência!', width / 2, y, { align: 'center' });
 
   doc.save(`vaga-${space.id}-${size}.pdf`);
+  savePDFRecord({
+    filename: `vaga-${space.id}-${size}.pdf`,
+    type: size === '80mm' ? 'Comprovante Vaga 80mm' : 'Comprovante Vaga 58mm',
+    module: 'espaco',
+    details: `Vaga #${space.id} - ${space.client_name}`,
+  });
 }

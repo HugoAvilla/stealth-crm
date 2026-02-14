@@ -2,7 +2,7 @@ import { useState } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Car, Clock, CheckCircle, AlertTriangle, Plus, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Clock, CheckCircle, AlertTriangle, Plus, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import { SlotDetailsDrawer } from "@/components/espaco/SlotDetailsDrawer";
 import { SlotsDayDrawer } from "@/components/espaco/SlotsDayDrawer";
 import PaidExitedVehicles from "@/components/espaco/PaidExitedVehicles";
 import UnpaidExitedVehicles from "@/components/espaco/UnpaidExitedVehicles";
+import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -199,6 +200,10 @@ export default function Espaco() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="pdfs" className="gap-2">
+            <Download className="h-4 w-4" />
+            PDFs Baixados
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="vagas" className="space-y-6 mt-6">
@@ -370,6 +375,10 @@ export default function Espaco() {
 
         <TabsContent value="nao-pagos-saida" className="mt-6">
           <UnpaidExitedVehicles refreshTrigger={refreshTrigger} />
+        </TabsContent>
+
+        <TabsContent value="pdfs" className="mt-6">
+          <DownloadedPDFsTab module="espaco" />
         </TabsContent>
       </Tabs>
 

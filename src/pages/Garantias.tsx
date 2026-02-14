@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, FileCheck, Download, MoreHorizontal, FilePlus, Send } from "lucide-react";
+import { Plus, Search, FileCheck, Download, MoreHorizontal, FilePlus, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,9 +14,10 @@ import { format } from "date-fns";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { IssueWarrantyModal } from "@/components/garantias/IssueWarrantyModal";
 import { NewWarrantyTemplateModal } from "@/components/garantias/NewWarrantyTemplateModal";
-import { SendEmailModal } from "@/components/garantias/SendEmailModal";
+import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
 import { toast } from "sonner";
 import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
+import { savePDFRecord } from "@/lib/pdfStorage";
 
 interface Warranty {
   id: number;
@@ -41,11 +43,10 @@ export default function Garantias() {
   const [search, setSearch] = useState("");
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [selectedWarranty, setSelectedWarranty] = useState<Warranty | null>(null);
   const [warranties, setWarranties] = useState<Warranty[]>([]);
   const [templates, setTemplates] = useState<WarrantyTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("garantias");
 
   useEffect(() => {
     fetchData();
@@ -67,7 +68,6 @@ export default function Garantias() {
         return;
       }
 
-      // Fetch warranties
       const { data: warrantiesData } = await supabase
         .from('warranties')
         .select(`
@@ -78,7 +78,6 @@ export default function Garantias() {
         .eq('company_id', profile.company_id)
         .order('issue_date', { ascending: false });
 
-      // Fetch templates
       const { data: templatesData } = await supabase
         .from('warranty_templates')
         .select('*')
@@ -102,14 +101,40 @@ export default function Garantias() {
     );
   });
 
-  const handleSendEmail = (warranty: Warranty) => {
-    setSelectedWarranty(warranty);
-    setShowEmailModal(true);
+  const handleSendWhatsApp = (warranty: Warranty) => {
+    if (!warranty.client?.phone) {
+      toast.error('Cliente não possui telefone cadastrado');
+      return;
+    }
+
+    const certNumber = `WFE-${warranty.id.toString().padStart(4, '0')}`;
+    const vehicleInfo = warranty.vehicle
+      ? `${warranty.vehicle.brand} ${warranty.vehicle.model} - Placa: ${warranty.vehicle.plate || 'N/A'}`
+      : 'N/A';
+
+    const formatDate = (d: string) => {
+      try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; }
+    };
+
+    const message = `🛡️ *CERTIFICADO DE GARANTIA*\n\n` +
+      `📋 Nº ${certNumber}\n` +
+      `🔧 Serviço: ${warranty.warranty_type}\n` +
+      `🚗 Veículo: ${vehicleInfo}\n` +
+      `📅 Emissão: ${formatDate(warranty.issue_date)}\n` +
+      `📅 Validade: ${formatDate(warranty.expiry_date)}\n\n` +
+      (warranty.warranty_text ? `📄 Termos:\n${warranty.warranty_text}\n\n` : '') +
+      `_WFE EVOLUTION - Garantia Intransferível_`;
+
+    const phone = warranty.client.phone.replace(/\D/g, '');
+    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+    toast.success('Abrindo WhatsApp...');
   };
 
   const handleDownload = (warranty: Warranty) => {
+    const certNumber = `WFE-${warranty.id.toString().padStart(4, '0')}`;
     const pdfData: WarrantyPDFData = {
-      certificate_number: `WFE-${warranty.id.toString().padStart(4, '0')}`,
+      certificate_number: certNumber,
       client_name: warranty.client?.name || 'Cliente',
       client_phone: warranty.client?.phone || '',
       client_email: warranty.client?.email || undefined,
@@ -125,6 +150,12 @@ export default function Garantias() {
     };
 
     generateWarrantyPDF(pdfData);
+    savePDFRecord({
+      filename: `garantia-${certNumber}.pdf`,
+      type: 'Garantia',
+      module: 'garantias',
+      details: `${warranty.client?.name || 'Cliente'} - ${warranty.warranty_type}`,
+    });
     toast.success(`Certificado da garantia baixado!`);
   };
 
@@ -140,7 +171,6 @@ export default function Garantias() {
 
   const activeCount = warranties.filter(w => getStatus(w.expiry_date).label === 'Ativa').length;
 
-
   return (
     <div className="space-y-6 p-6">
       <HelpOverlay
@@ -150,7 +180,7 @@ export default function Garantias() {
         steps={[
           { title: "Emitir Garantia", description: "Crie um novo certificado de garantia para um serviço" },
           { title: "Criar Modelo", description: "Configure modelos de garantia com validade e termos" },
-          { title: "Enviar", description: "Envie o certificado por email ou baixe o PDF" },
+          { title: "Enviar", description: "Envie o certificado por WhatsApp ou baixe o PDF" },
         ]}
       />
 
@@ -161,142 +191,162 @@ export default function Garantias() {
           <p className="text-muted-foreground">Gerencie certificados de garantia e serviços</p>
         </div>
       </div>
- 
-       {/* Header Actions */}
-       <div className="flex justify-end gap-2">
-             <Button variant="outline" onClick={() => setShowTemplateModal(true)}>
-               <FilePlus className="h-4 w-4 mr-2" /> Criar Garantia Produto
-             </Button>
-             <Button onClick={() => setShowIssueModal(true)}>
-               <Plus className="h-4 w-4 mr-2" /> Emitir Garantia
-             </Button>
-       </div>
- 
-       {/* Stats */}
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-             <Card className="bg-card/50 border-border/50">
-               <CardContent className="p-4">
-                 <div className="flex items-center gap-3">
-                   <div className="p-2 rounded-lg bg-primary/10">
-                     <FileCheck className="h-5 w-5 text-primary" />
-                   </div>
-                   <div>
-                     <p className="text-sm text-muted-foreground">Total Emitidos</p>
-                     <p className="text-2xl font-bold">{warranties.length}</p>
-                   </div>
-                 </div>
-               </CardContent>
-             </Card>
- 
-             <Card className="bg-card/50 border-border/50">
-               <CardContent className="p-4">
-                 <div className="flex items-center gap-3">
-                   <div className="p-2 rounded-lg bg-green-500/10">
-                     <FileCheck className="h-5 w-5 text-green-500" />
-                   </div>
-                   <div>
-                     <p className="text-sm text-muted-foreground">Ativas</p>
-                     <p className="text-2xl font-bold text-green-500">{activeCount}</p>
-                   </div>
-                 </div>
-               </CardContent>
-             </Card>
- 
-             <Card className="bg-card/50 border-border/50">
-               <CardContent className="p-4">
-                 <div className="flex items-center gap-3">
-                   <div className="p-2 rounded-lg bg-blue-500/10">
-                     <FileCheck className="h-5 w-5 text-blue-500" />
-                   </div>
-                   <div>
-                     <p className="text-sm text-muted-foreground">Modelos</p>
-                     <p className="text-2xl font-bold">{templates.length}</p>
-                   </div>
-                 </div>
-               </CardContent>
-             </Card>
-       </div>
- 
-       {/* Search */}
-       <div className="relative max-w-md">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-             <Input
-               placeholder="Buscar por tipo, cliente ou placa..."
-               value={search}
-               onChange={e => setSearch(e.target.value)}
-               className="pl-10"
-             />
-       </div>
- 
-       {/* Table */}
-       <Card className="bg-card/50 border-border/50">
-             <CardContent className="p-0">
-               {loading ? (
-                 <div className="p-6 space-y-4">
-                   {Array.from({ length: 5 }).map((_, i) => (
-                     <Skeleton key={i} className="h-12" />
-                   ))}
-                 </div>
-               ) : filteredWarranties.length === 0 ? (
-                 <div className="text-center py-12 text-muted-foreground">
-                   {warranties.length === 0 ? 'Nenhuma garantia emitida ainda' : 'Nenhuma garantia encontrada'}
-                 </div>
-               ) : (
-                 <Table>
-                   <TableHeader>
-                     <TableRow>
-                       <TableHead>Tipo</TableHead>
-                       <TableHead>Cliente</TableHead>
-                       <TableHead>Veículo</TableHead>
-                       <TableHead className="text-center">Validade</TableHead>
-                       <TableHead className="text-center">Status</TableHead>
-                       <TableHead className="w-[80px]"></TableHead>
-                     </TableRow>
-                   </TableHeader>
-                   <TableBody>
-                     {filteredWarranties.map(warranty => {
-                       const status = getStatus(warranty.expiry_date);
- 
-                       return (
-                         <TableRow key={warranty.id}>
-                           <TableCell className="font-medium">
-                             {warranty.warranty_type}
-                           </TableCell>
-                           <TableCell>{warranty.client?.name || '-'}</TableCell>
-                           <TableCell>
-                             {warranty.vehicle ? `${warranty.vehicle.model} - ${warranty.vehicle.plate}` : '-'}
-                           </TableCell>
-                           <TableCell className="text-center text-sm">
-                             {format(new Date(warranty.expiry_date), "dd/MM/yyyy")}
-                           </TableCell>
-                           <TableCell className="text-center">
-                             <Badge className={status.color}>{status.label}</Badge>
-                           </TableCell>
-                           <TableCell>
-                             <DropdownMenu>
-                               <DropdownMenuTrigger asChild>
-                                 <Button variant="ghost" size="icon">
-                                   <MoreHorizontal className="h-4 w-4" />
-                                 </Button>
-                               </DropdownMenuTrigger>
-                               <DropdownMenuContent align="end">
-                                 <DropdownMenuItem onClick={() => handleDownload(warranty)}>
-                                   <Download className="h-4 w-4 mr-2" /> Baixar PDF
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => handleSendEmail(warranty)}>
-                                   <Send className="h-4 w-4 mr-2" /> Enviar por Email
-                                 </DropdownMenuItem>
-                               </DropdownMenuContent>
-                             </DropdownMenu>
-                           </TableCell>
-                         </TableRow>
-                       );
-                     })}
-                   </TableBody>
-                 </Table>
-               )}
-         </CardContent>
-       </Card>
+
+      {/* Header Actions */}
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => setShowTemplateModal(true)}>
+          <FilePlus className="h-4 w-4 mr-2" /> Criar Garantia Produto
+        </Button>
+        <Button onClick={() => setShowIssueModal(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Emitir Garantia
+        </Button>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="garantias" className="gap-2">
+            <FileCheck className="h-4 w-4" />
+            Garantias
+          </TabsTrigger>
+          <TabsTrigger value="pdfs" className="gap-2">
+            <Download className="h-4 w-4" />
+            PDFs Baixados
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="garantias" className="space-y-6 mt-4">
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <FileCheck className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Emitidos</p>
+                    <p className="text-2xl font-bold">{warranties.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <FileCheck className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Ativas</p>
+                    <p className="text-2xl font-bold text-green-500">{activeCount}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <FileCheck className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Modelos</p>
+                    <p className="text-2xl font-bold">{templates.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por tipo, cliente ou placa..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Table */}
+          <Card className="bg-card/50 border-border/50">
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-6 space-y-4">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12" />
+                  ))}
+                </div>
+              ) : filteredWarranties.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  {warranties.length === 0 ? 'Nenhuma garantia emitida ainda' : 'Nenhuma garantia encontrada'}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Veículo</TableHead>
+                      <TableHead className="text-center">Validade</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="w-[80px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredWarranties.map(warranty => {
+                      const status = getStatus(warranty.expiry_date);
+
+                      return (
+                        <TableRow key={warranty.id}>
+                          <TableCell className="font-medium">
+                            {warranty.warranty_type}
+                          </TableCell>
+                          <TableCell>{warranty.client?.name || '-'}</TableCell>
+                          <TableCell>
+                            {warranty.vehicle ? `${warranty.vehicle.model} - ${warranty.vehicle.plate}` : '-'}
+                          </TableCell>
+                          <TableCell className="text-center text-sm">
+                            {format(new Date(warranty.expiry_date), "dd/MM/yyyy")}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge className={status.color}>{status.label}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleDownload(warranty)}>
+                                  <Download className="h-4 w-4 mr-2" /> Baixar PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleSendWhatsApp(warranty)}>
+                                  <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pdfs" className="mt-4">
+          <DownloadedPDFsTab module="garantias" />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <IssueWarrantyModal 
@@ -312,20 +362,6 @@ export default function Garantias() {
           setShowTemplateModal(open);
           if (!open) fetchData();
         }} 
-      />
-      <SendEmailModal
-        open={showEmailModal}
-        onOpenChange={setShowEmailModal}
-        warranty={selectedWarranty ? {
-          id: selectedWarranty.id,
-          template_id: 0,
-          sale_id: 0,
-          client_id: selectedWarranty.client?.id || 0,
-          vehicle_id: selectedWarranty.vehicle?.id || 0,
-          issued_at: selectedWarranty.issue_date,
-          expires_at: selectedWarranty.expiry_date,
-          certificate_number: `WFE-${selectedWarranty.id.toString().padStart(4, '0')}`,
-        } : null}
       />
     </div>
   );

@@ -193,14 +193,14 @@ export default function Contas() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-4rem)]">
-        <div className="w-72 border-r border-border/50 p-4 space-y-4">
+      <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
+        <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-border/50 p-4 space-y-4">
           <Skeleton className="h-8 w-32" />
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-24" />)}
         </div>
         <div className="flex-1 p-6 space-y-6">
           <Skeleton className="h-32" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Skeleton className="h-64" />
             <Skeleton className="h-64" />
           </div>
@@ -210,7 +210,7 @@ export default function Contas() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
       <HelpOverlay
         tabId="contas"
         title="Detalhes das Contas"
@@ -223,7 +223,7 @@ export default function Contas() {
       />
 
       {/* Left sidebar - Account selection */}
-      <div className="w-72 border-r border-border/50 p-4 space-y-4 overflow-y-auto">
+      <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-border/50 p-4 space-y-4 overflow-x-auto md:overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Contas</h2>
           <div className="flex gap-1">
@@ -244,13 +244,13 @@ export default function Contas() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="flex md:flex-col gap-2 md:space-y-0">
             {accounts.map(account => (
               <button
                 key={account.id}
                 onClick={() => setSelectedAccountId(account.id)}
                 className={cn(
-                  "w-full p-3 rounded-lg text-left transition-colors relative group",
+                  "min-w-[200px] md:min-w-0 w-full p-3 rounded-lg text-left transition-colors relative group flex-shrink-0",
                   selectedAccountId === account.id
                     ? "bg-primary/10 border border-primary/30"
                     : "bg-card/50 border border-border/50 hover:bg-accent"

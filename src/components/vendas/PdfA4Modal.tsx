@@ -16,6 +16,7 @@ import { FileText, Download, X } from "lucide-react";
 import { SaleWithDetails } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
 import { generateSalePDFA4, type SalePDFData } from "@/lib/pdfGenerator";
+import { savePDFRecord } from "@/lib/pdfStorage";
 
 interface PdfA4ModalProps {
   open: boolean;
@@ -74,6 +75,12 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
     };
 
     generateSalePDFA4(pdfData, options);
+    savePDFRecord({
+      filename: `venda-${sale.id}-A4.pdf`,
+      type: 'Recibo A4',
+      module: 'vendas',
+      details: `Venda #${sale.id} - ${client?.name || 'Cliente'}`,
+    });
     
     toast({
       title: "PDF gerado!",
