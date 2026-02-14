@@ -12,6 +12,8 @@ export interface PDFRecord {
 
 const STORAGE_KEY = 'wfe_downloaded_pdfs';
 
+const SUPABASE_PROJECT_URL = "https://msdpmhtdjyoqdmjwunkm.supabase.co";
+
 export async function uploadPDFToStorage(blob: Blob, storagePath: string): Promise<string | null> {
   try {
     const { error } = await supabase.storage
@@ -33,22 +35,14 @@ export async function uploadPDFToStorage(blob: Blob, storagePath: string): Promi
   }
 }
 
-export async function getPDFSignedUrl(storagePath: string, expiresIn = 600): Promise<string | null> {
-  try {
-    const { data, error } = await supabase.storage
-      .from('pdfs')
-      .createSignedUrl(storagePath, expiresIn);
-
-    if (error || !data?.signedUrl) {
-      console.error('Error creating signed URL:', error);
-      return null;
-    }
-
-    return data.signedUrl;
-  } catch (e) {
-    console.error('Error getting signed URL:', e);
-    return null;
-  }
+/**
+ * Returns the Edge Function proxy URL for a PDF.
+ * This URL is NOT blocked by ad blockers (unlike signed URLs).
+ * The Edge Function fetches the PDF server-side and returns it with proper headers.
+ */
+export function getPDFProxyUrl(storagePath: string): string {
+  const encodedPath = encodeURIComponent(storagePath);
+  return `${SUPABASE_PROJECT_URL}/functions/v1/serve-pdf?path=${encodedPath}`;
 }
 
 export function savePDFRecord(record: Omit<PDFRecord, 'id' | 'createdAt'>): void {

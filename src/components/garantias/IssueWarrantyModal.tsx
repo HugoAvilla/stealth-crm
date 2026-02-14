@@ -15,7 +15,7 @@ import { ptBR } from "date-fns/locale";
 import { Send, Download, FileText, MessageCircle } from "lucide-react";
 import wfeLogo from "@/assets/wfe-logo.png";
 import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
-import { getPDFSignedUrl } from "@/lib/pdfStorage";
+import { getPDFProxyUrl } from "@/lib/pdfStorage";
 
 interface IssueWarrantyModalProps {
   open: boolean;
@@ -167,20 +167,10 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
       // Generate PDF (this also uploads to storage)
       generateWarrantyPDF(pdfData, companyId || undefined);
 
-      // Wait a moment for upload, then get signed URL for WhatsApp
+      // Build WhatsApp message with PDF link via proxy
       if (selectedClient?.phone) {
-        // Build WhatsApp message with PDF link
         const storagePath = companyId ? `${companyId}/garantias/garantia-${certNumber}.pdf` : null;
-        let pdfLink = '';
-        
-        if (storagePath) {
-          // Wait briefly for upload to complete
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          const signedUrl = await getPDFSignedUrl(storagePath, 604800); // 7 days
-          if (signedUrl) {
-            pdfLink = signedUrl;
-          }
-        }
+        const pdfLink = storagePath ? getPDFProxyUrl(storagePath) : '';
 
         const vehicleInfo = selectedVehicle
           ? `${selectedVehicle.brand} ${selectedVehicle.model} - Placa: ${selectedVehicle.plate || 'N/A'}`
@@ -199,13 +189,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
 
         const phone = selectedClient.phone.replace(/\D/g, '');
         const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-        const link = document.createElement('a');
-        link.href = url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        window.location.href = url;
       }
 
       toast.success(`Garantia emitida e enviada via WhatsApp!`);
