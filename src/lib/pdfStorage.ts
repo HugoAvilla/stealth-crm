@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 export interface PDFRecord {
   id: string;
   filename: string;
@@ -5,10 +7,49 @@ export interface PDFRecord {
   module: 'vendas' | 'garantias' | 'relatorios' | 'espaco';
   createdAt: string;
   details: string;
-  dataUrl?: string;
+  storagePath?: string;
 }
 
 const STORAGE_KEY = 'wfe_downloaded_pdfs';
+
+export async function uploadPDFToStorage(blob: Blob, storagePath: string): Promise<string | null> {
+  try {
+    const { error } = await supabase.storage
+      .from('pdfs')
+      .upload(storagePath, blob, {
+        contentType: 'application/pdf',
+        upsert: true,
+      });
+
+    if (error) {
+      console.error('Error uploading PDF to storage:', error);
+      return null;
+    }
+
+    return storagePath;
+  } catch (e) {
+    console.error('Error uploading PDF:', e);
+    return null;
+  }
+}
+
+export async function getPDFSignedUrl(storagePath: string, expiresIn = 600): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.storage
+      .from('pdfs')
+      .createSignedUrl(storagePath, expiresIn);
+
+    if (error || !data?.signedUrl) {
+      console.error('Error creating signed URL:', error);
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch (e) {
+    console.error('Error getting signed URL:', e);
+    return null;
+  }
+}
 
 export function savePDFRecord(record: Omit<PDFRecord, 'id' | 'createdAt'>): void {
   const records = getPDFRecords();
@@ -17,19 +58,17 @@ export function savePDFRecord(record: Omit<PDFRecord, 'id' | 'createdAt'>): void
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
   });
-  // Keep max 30 records (with dataUrl they can be large)
-  if (records.length > 30) records.length = 30;
+  // Keep max 50 records (no base64 data, just metadata)
+  if (records.length > 50) records.length = 50;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
   } catch (e) {
-    // If localStorage is full, remove oldest records and retry
-    records.length = 15;
+    records.length = 25;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     } catch {
-      // Remove dataUrls to save space
-      const slim = records.map(({ dataUrl, ...rest }) => rest);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+      // Last resort
+      console.error('Failed to save PDF record to localStorage');
     }
   }
 }

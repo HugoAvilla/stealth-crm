@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { savePDFRecord } from './pdfStorage';
+import { savePDFRecord, uploadPDFToStorage } from './pdfStorage';
 
 export interface SalePDFData {
   id: number;
@@ -43,7 +43,39 @@ export interface ReportPDFData {
   summary?: { label: string; value: string }[];
 }
 
-export function generateSalePDFA4(sale: SalePDFData, options: Record<string, boolean> = {}): void {
+async function saveAndUploadPDF(
+  doc: jsPDF,
+  filename: string,
+  type: any,
+  module: any,
+  details: string,
+  companyId?: number
+): Promise<void> {
+  // Download locally
+  doc.save(filename);
+
+  // Upload to Supabase Storage
+  let storagePath: string | undefined;
+  if (companyId) {
+    const blob = doc.output('blob');
+    const path = `${companyId}/${module}/${filename}`;
+    const uploaded = await uploadPDFToStorage(blob, path);
+    if (uploaded) {
+      storagePath = uploaded;
+    }
+  }
+
+  // Save metadata record
+  savePDFRecord({
+    filename,
+    type,
+    module,
+    details,
+    storagePath,
+  });
+}
+
+export function generateSalePDFA4(sale: SalePDFData, options: Record<string, boolean> = {}, companyId?: number): void {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 15;
@@ -69,12 +101,10 @@ export function generateSalePDFA4(sale: SalePDFData, options: Record<string, boo
     y += 10;
   }
 
-  // Line separator
   doc.setLineWidth(0.5);
   doc.line(15, y, pageWidth - 15, y);
   y += 8;
 
-  // Client Info
   if (options.clientName !== false || options.clientWhatsApp !== false) {
     doc.setFillColor(245, 245, 245);
     doc.rect(15, y - 2, pageWidth - 30, 18, 'F');
@@ -93,14 +123,12 @@ export function generateSalePDFA4(sale: SalePDFData, options: Record<string, boo
     }
   }
 
-  // Vehicle
   if (options.vehicle !== false) {
     doc.setFont('helvetica', 'bold');
     doc.text(`Veículo: ${sale.vehicle_brand} ${sale.vehicle_model} (${sale.vehicle_plate})`, 20, y);
     y += 10;
   }
 
-  // Services Table
   if (options.serviceName !== false) {
     const tableData = sale.services.map(s => [
       s.name,
@@ -124,7 +152,6 @@ export function generateSalePDFA4(sale: SalePDFData, options: Record<string, boo
     y = (doc as any).lastAutoTable.finalY + 10;
   }
 
-  // Totals
   if (options.subtotal !== false) {
     doc.text(`Subtotal: R$ ${sale.subtotal.toFixed(2)}`, pageWidth - 60, y);
     y += 6;
@@ -147,18 +174,11 @@ export function generateSalePDFA4(sale: SalePDFData, options: Record<string, boo
     doc.text(`Forma de Pagamento: ${sale.payment_method}`, pageWidth - 60, y);
   }
 
-  const dataUrl = doc.output('datauristring');
-  doc.save(`venda-${sale.id}-A4.pdf`);
-  savePDFRecord({
-    filename: `venda-${sale.id}-A4.pdf`,
-    type: 'Recibo A4',
-    module: 'vendas',
-    details: `Venda #${sale.id} - ${sale.client_name}`,
-    dataUrl,
-  });
+  const filename = `venda-${sale.id}-A4.pdf`;
+  saveAndUploadPDF(doc, filename, 'Recibo A4', 'vendas', `Venda #${sale.id} - ${sale.client_name}`, companyId);
 }
 
-export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm', options: Record<string, boolean> = {}): void {
+export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm', options: Record<string, boolean> = {}, companyId?: number): void {
   const width = size === '80mm' ? 80 : 58;
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -168,18 +188,15 @@ export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm',
 
   let y = 8;
   const margin = 3;
-  const contentWidth = width - margin * 2;
 
   doc.setFontSize(size === '80mm' ? 12 : 10);
 
-  // Header
   if (options.companyName !== false) {
     doc.setFont('helvetica', 'bold');
     doc.text(sale.company_name || 'WFE EVOLUTION', width / 2, y, { align: 'center' });
     y += 6;
   }
 
-  // Date
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.text(formatDate(sale.date), width / 2, y, { align: 'center' });
@@ -192,12 +209,10 @@ export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm',
     y += 6;
   }
 
-  // Dashed line
   doc.setLineDashPattern([1, 1], 0);
   doc.line(margin, y, width - margin, y);
   y += 4;
 
-  // Client
   if (options.clientName !== false || options.clientWhatsApp !== false) {
     doc.setFontSize(7);
     doc.text('CLIENTE', margin, y);
@@ -213,7 +228,6 @@ export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm',
     }
   }
 
-  // Vehicle
   if (options.vehicle !== false) {
     doc.setFontSize(7);
     doc.text('VEÍCULO', margin, y);
@@ -225,7 +239,6 @@ export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm',
     y += 4;
   }
 
-  // Services
   if (options.serviceName !== false) {
     doc.setFontSize(7);
     doc.text('SERVIÇOS', margin, y);
@@ -241,11 +254,9 @@ export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm',
     });
   }
 
-  // Dashed line
   doc.line(margin, y, width - margin, y);
   y += 4;
 
-  // Totals
   doc.setFontSize(7);
   doc.text('VALORES', margin, y);
   y += 3;
@@ -273,46 +284,34 @@ export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm',
     y += 6;
   }
 
-  // Footer
   doc.line(margin, y, width - margin, y);
   y += 4;
   doc.setFontSize(7);
   doc.text('Obrigado pela preferência!', width / 2, y, { align: 'center' });
 
-  const dataUrl = doc.output('datauristring');
-  doc.save(`venda-${sale.id}-${size}.pdf`);
-  savePDFRecord({
-    filename: `venda-${sale.id}-${size}.pdf`,
-    type: size === '80mm' ? 'Notinha 80mm' : 'Notinha 58mm',
-    module: 'vendas',
-    details: `Venda #${sale.id} - ${sale.client_name}`,
-    dataUrl,
-  });
+  const filename = `venda-${sale.id}-${size}.pdf`;
+  saveAndUploadPDF(doc, filename, size === '80mm' ? 'Notinha 80mm' : 'Notinha 58mm', 'vendas', `Venda #${sale.id} - ${sale.client_name}`, companyId);
 }
 
-export function generateWarrantyPDF(warranty: WarrantyPDFData): void {
+export function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?: number): void {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
 
-  // Header
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
   doc.text('CERTIFICADO DE GARANTIA', pageWidth / 2, y, { align: 'center' });
   y += 15;
 
-  // Certificate number
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
   doc.text(`Nº ${warranty.certificate_number}`, pageWidth / 2, y, { align: 'center' });
   y += 15;
 
-  // Line
   doc.setLineWidth(0.5);
   doc.line(20, y, pageWidth - 20, y);
   y += 10;
 
-  // Client Info
   doc.setFillColor(245, 245, 245);
   doc.rect(20, y, pageWidth - 40, 25, 'F');
   y += 8;
@@ -329,7 +328,6 @@ export function generateWarrantyPDF(warranty: WarrantyPDFData): void {
   }
   y += 15;
 
-  // Vehicle Info
   doc.setFillColor(245, 245, 245);
   doc.rect(20, y, pageWidth - 40, 20, 'F');
   y += 8;
@@ -343,14 +341,12 @@ export function generateWarrantyPDF(warranty: WarrantyPDFData): void {
   }
   y += 15;
 
-  // Service
   doc.setFont('helvetica', 'bold');
   doc.text('Serviço Realizado:', 25, y);
   doc.setFont('helvetica', 'normal');
   doc.text(warranty.service_name, 70, y);
   y += 10;
 
-  // Dates
   doc.setFont('helvetica', 'bold');
   doc.text('Data de Emissão:', 25, y);
   doc.setFont('helvetica', 'normal');
@@ -362,7 +358,6 @@ export function generateWarrantyPDF(warranty: WarrantyPDFData): void {
   doc.text(formatDate(warranty.expiry_date), 70, y);
   y += 15;
 
-  // Warranty Terms
   if (warranty.warranty_text) {
     doc.setFont('helvetica', 'bold');
     doc.text('Termos da Garantia:', 25, y);
@@ -374,33 +369,23 @@ export function generateWarrantyPDF(warranty: WarrantyPDFData): void {
     y += lines.length * 5 + 10;
   }
 
-  // Footer
   doc.setFontSize(8);
   doc.text('Este certificado é intransferível e válido apenas para o veículo especificado.', pageWidth / 2, 280, { align: 'center' });
 
-  const dataUrl = doc.output('datauristring');
-  doc.save(`garantia-${warranty.certificate_number}.pdf`);
-  savePDFRecord({
-    filename: `garantia-${warranty.certificate_number}.pdf`,
-    type: 'Garantia',
-    module: 'garantias',
-    details: `${warranty.client_name} - ${warranty.service_name}`,
-    dataUrl,
-  });
+  const filename = `garantia-${warranty.certificate_number}.pdf`;
+  saveAndUploadPDF(doc, filename, 'Garantia', 'garantias', `${warranty.client_name} - ${warranty.service_name}`, companyId);
 }
 
-export function generateReportPDF(report: ReportPDFData): void {
+export function generateReportPDF(report: ReportPDFData, companyId?: number): void {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
 
-  // Title
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text(report.title, pageWidth / 2, y, { align: 'center' });
   y += 10;
 
-  // Period
   if (report.period) {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -408,7 +393,6 @@ export function generateReportPDF(report: ReportPDFData): void {
     y += 10;
   }
 
-  // Table
   autoTable(doc, {
     startY: y,
     head: [report.columns],
@@ -421,7 +405,6 @@ export function generateReportPDF(report: ReportPDFData): void {
 
   y = (doc as any).lastAutoTable.finalY + 10;
 
-  // Summary
   if (report.summary && report.summary.length > 0) {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -435,15 +418,7 @@ export function generateReportPDF(report: ReportPDFData): void {
   }
 
   const filename = `${report.title.toLowerCase().replace(/\s+/g, '-')}.pdf`;
-  const dataUrl = doc.output('datauristring');
-  doc.save(filename);
-  savePDFRecord({
-    filename,
-    type: 'Relatório',
-    module: 'relatorios',
-    details: report.title + (report.period ? ` (${formatDate(report.period.start)} - ${formatDate(report.period.end)})` : ''),
-    dataUrl,
-  });
+  saveAndUploadPDF(doc, filename, 'Relatório', 'relatorios', report.title + (report.period ? ` (${formatDate(report.period.start)} - ${formatDate(report.period.end)})` : ''), companyId);
 }
 
 function formatDate(dateStr: string): string {
@@ -474,7 +449,7 @@ export interface SpacePDFData {
   total: number;
 }
 
-export function generateSpacePDFA4(space: SpacePDFData): void {
+export function generateSpacePDFA4(space: SpacePDFData, companyId?: number): void {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 15;
@@ -493,7 +468,6 @@ export function generateSpacePDFA4(space: SpacePDFData): void {
   doc.line(15, y, pageWidth - 15, y);
   y += 8;
 
-  // Client
   doc.setFillColor(245, 245, 245);
   doc.rect(15, y - 2, pageWidth - 30, 18, 'F');
   doc.setFontSize(11);
@@ -506,19 +480,16 @@ export function generateSpacePDFA4(space: SpacePDFData): void {
   doc.text(`Telefone: ${space.client_phone}`, 20, y);
   y += 8;
 
-  // Vehicle
   doc.setFont('helvetica', 'bold');
   doc.text(`Veículo: ${space.vehicle_brand} ${space.vehicle_model} (${space.vehicle_plate})`, 20, y);
   y += 10;
 
-  // Dates
   doc.setFont('helvetica', 'normal');
   doc.text(`Entrada: ${space.entry_date ? formatDate(space.entry_date) : '-'} ${space.entry_time ? `às ${space.entry_time}h` : ''}`, 20, y);
   y += 5;
   doc.text(`Saída: ${space.exit_date ? formatDate(space.exit_date) : '-'} ${space.exit_time ? `às ${space.exit_time}h` : ''}`, 20, y);
   y += 10;
 
-  // Services
   if (space.services.length > 0) {
     const tableData = space.services.map(s => [s.name, `R$ ${s.price.toFixed(2)}`]);
     autoTable(doc, {
@@ -532,7 +503,6 @@ export function generateSpacePDFA4(space: SpacePDFData): void {
     y = (doc as any).lastAutoTable.finalY + 10;
   }
 
-  // Totals
   doc.text(`Subtotal: R$ ${space.subtotal.toFixed(2)}`, pageWidth - 60, y);
   y += 6;
   if (space.discount > 0) {
@@ -545,18 +515,11 @@ export function generateSpacePDFA4(space: SpacePDFData): void {
   doc.setFontSize(14);
   doc.text(`TOTAL: R$ ${space.total.toFixed(2)}`, pageWidth - 60, y);
 
-  const dataUrl = doc.output('datauristring');
-  doc.save(`vaga-${space.id}-A4.pdf`);
-  savePDFRecord({
-    filename: `vaga-${space.id}-A4.pdf`,
-    type: 'Comprovante Vaga A4',
-    module: 'espaco',
-    details: `Vaga #${space.id} - ${space.client_name}`,
-    dataUrl,
-  });
+  const filename = `vaga-${space.id}-A4.pdf`;
+  saveAndUploadPDF(doc, filename, 'Comprovante Vaga A4', 'espaco', `Vaga #${space.id} - ${space.client_name}`, companyId);
 }
 
-export function generateSpacePDFReceipt(space: SpacePDFData, size: '80mm' | '58mm'): void {
+export function generateSpacePDFReceipt(space: SpacePDFData, size: '80mm' | '58mm', companyId?: number): void {
   const width = size === '80mm' ? 80 : 58;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, 200] });
   let y = 8;
@@ -641,13 +604,6 @@ export function generateSpacePDFReceipt(space: SpacePDFData, size: '80mm' | '58m
   doc.setFont('helvetica', 'normal');
   doc.text('Obrigado pela preferência!', width / 2, y, { align: 'center' });
 
-  const dataUrl = doc.output('datauristring');
-  doc.save(`vaga-${space.id}-${size}.pdf`);
-  savePDFRecord({
-    filename: `vaga-${space.id}-${size}.pdf`,
-    type: size === '80mm' ? 'Comprovante Vaga 80mm' : 'Comprovante Vaga 58mm',
-    module: 'espaco',
-    details: `Vaga #${space.id} - ${space.client_name}`,
-    dataUrl,
-  });
+  const filename = `vaga-${space.id}-${size}.pdf`;
+  saveAndUploadPDF(doc, filename, size === '80mm' ? 'Comprovante Vaga 80mm' : 'Comprovante Vaga 58mm', 'espaco', `Vaga #${space.id} - ${space.client_name}`, companyId);
 }
