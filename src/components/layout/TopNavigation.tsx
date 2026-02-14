@@ -150,7 +150,7 @@ export function TopNavigation() {
         </Link>
 
         {/* Horizontal Navigation - Always visible */}
-        <nav className="flex items-center gap-1 flex-1 overflow-x-auto sm:flex-wrap sm:overflow-x-visible">
+        <nav className="flex items-center gap-1 flex-1 overflow-x-auto nav-scrollbar">
           {filteredItems.map(item => (
             <NavLink key={item.path} item={item} />
           ))}
