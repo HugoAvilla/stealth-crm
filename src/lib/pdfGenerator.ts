@@ -147,7 +147,15 @@ export function generateSalePDFA4(sale: SalePDFData, options: Record<string, boo
     doc.text(`Forma de Pagamento: ${sale.payment_method}`, pageWidth - 60, y);
   }
 
+  const dataUrl = doc.output('datauristring');
   doc.save(`venda-${sale.id}-A4.pdf`);
+  savePDFRecord({
+    filename: `venda-${sale.id}-A4.pdf`,
+    type: 'Recibo A4',
+    module: 'vendas',
+    details: `Venda #${sale.id} - ${sale.client_name}`,
+    dataUrl,
+  });
 }
 
 export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm', options: Record<string, boolean> = {}): void {
@@ -271,7 +279,15 @@ export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm',
   doc.setFontSize(7);
   doc.text('Obrigado pela preferência!', width / 2, y, { align: 'center' });
 
+  const dataUrl = doc.output('datauristring');
   doc.save(`venda-${sale.id}-${size}.pdf`);
+  savePDFRecord({
+    filename: `venda-${sale.id}-${size}.pdf`,
+    type: size === '80mm' ? 'Notinha 80mm' : 'Notinha 58mm',
+    module: 'vendas',
+    details: `Venda #${sale.id} - ${sale.client_name}`,
+    dataUrl,
+  });
 }
 
 export function generateWarrantyPDF(warranty: WarrantyPDFData): void {
@@ -362,7 +378,15 @@ export function generateWarrantyPDF(warranty: WarrantyPDFData): void {
   doc.setFontSize(8);
   doc.text('Este certificado é intransferível e válido apenas para o veículo especificado.', pageWidth / 2, 280, { align: 'center' });
 
+  const dataUrl = doc.output('datauristring');
   doc.save(`garantia-${warranty.certificate_number}.pdf`);
+  savePDFRecord({
+    filename: `garantia-${warranty.certificate_number}.pdf`,
+    type: 'Garantia',
+    module: 'garantias',
+    details: `${warranty.client_name} - ${warranty.service_name}`,
+    dataUrl,
+  });
 }
 
 export function generateReportPDF(report: ReportPDFData): void {
@@ -411,12 +435,14 @@ export function generateReportPDF(report: ReportPDFData): void {
   }
 
   const filename = `${report.title.toLowerCase().replace(/\s+/g, '-')}.pdf`;
+  const dataUrl = doc.output('datauristring');
   doc.save(filename);
   savePDFRecord({
     filename,
     type: 'Relatório',
     module: 'relatorios',
     details: report.title + (report.period ? ` (${formatDate(report.period.start)} - ${formatDate(report.period.end)})` : ''),
+    dataUrl,
   });
 }
 
@@ -519,12 +545,14 @@ export function generateSpacePDFA4(space: SpacePDFData): void {
   doc.setFontSize(14);
   doc.text(`TOTAL: R$ ${space.total.toFixed(2)}`, pageWidth - 60, y);
 
+  const dataUrl = doc.output('datauristring');
   doc.save(`vaga-${space.id}-A4.pdf`);
   savePDFRecord({
     filename: `vaga-${space.id}-A4.pdf`,
     type: 'Comprovante Vaga A4',
     module: 'espaco',
     details: `Vaga #${space.id} - ${space.client_name}`,
+    dataUrl,
   });
 }
 
@@ -613,11 +641,13 @@ export function generateSpacePDFReceipt(space: SpacePDFData, size: '80mm' | '58m
   doc.setFont('helvetica', 'normal');
   doc.text('Obrigado pela preferência!', width / 2, y, { align: 'center' });
 
+  const dataUrl = doc.output('datauristring');
   doc.save(`vaga-${space.id}-${size}.pdf`);
   savePDFRecord({
     filename: `vaga-${space.id}-${size}.pdf`,
     type: size === '80mm' ? 'Comprovante Vaga 80mm' : 'Comprovante Vaga 58mm',
     module: 'espaco',
     details: `Vaga #${space.id} - ${space.client_name}`,
+    dataUrl,
   });
 }

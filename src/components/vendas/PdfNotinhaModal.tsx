@@ -15,7 +15,6 @@ import { SaleWithDetails } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { generateSalePDFReceipt, type SalePDFData } from "@/lib/pdfGenerator";
-import { savePDFRecord } from "@/lib/pdfStorage";
 
 interface PdfNotinhaModalProps {
   open: boolean;
@@ -72,12 +71,6 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
     };
 
     generateSalePDFReceipt(pdfData, size, options);
-    savePDFRecord({
-      filename: `venda-${sale.id}-${size}.pdf`,
-      type: size === '80mm' ? 'Notinha 80mm' : 'Notinha 58mm',
-      module: 'vendas',
-      details: `Venda #${sale.id} - ${client?.name || 'Cliente'}`,
-    });
     
     toast({
       title: "PDF gerado!",

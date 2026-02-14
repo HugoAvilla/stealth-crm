@@ -47,7 +47,7 @@ export function HelpOverlay({ tabId, title, description, imageUrl, steps }: Help
   if (!show) return null;
 
   return (
-    <Dialog open={show} onOpenChange={setShow}>
+    <Dialog open={show} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3">

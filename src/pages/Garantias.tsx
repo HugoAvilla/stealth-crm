@@ -17,7 +17,7 @@ import { NewWarrantyTemplateModal } from "@/components/garantias/NewWarrantyTemp
 import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
 import { toast } from "sonner";
 import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
-import { savePDFRecord } from "@/lib/pdfStorage";
+
 
 interface Warranty {
   id: number;
@@ -150,12 +150,6 @@ export default function Garantias() {
     };
 
     generateWarrantyPDF(pdfData);
-    savePDFRecord({
-      filename: `garantia-${certNumber}.pdf`,
-      type: 'Garantia',
-      module: 'garantias',
-      details: `${warranty.client?.name || 'Cliente'} - ${warranty.warranty_type}`,
-    });
     toast.success(`Certificado da garantia baixado!`);
   };
 
