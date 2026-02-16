@@ -124,7 +124,7 @@ export default function Garantias() {
 
     const phone = warranty.client.phone.replace(/\D/g, '');
     const phoneWithCountryCode = phone.startsWith("55") ? phone : `55${phone}`;
-    return `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
+    return `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
   };
 
   const handleDownload = (warranty: Warranty) => {
