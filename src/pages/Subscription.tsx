@@ -212,13 +212,7 @@ export default function Subscription() {
 
   const openWhatsApp = () => {
     const url = `https://wa.me/5500000000000?text=${encodeURIComponent('Preciso de ajuda com o pagamento do WFE Evolution CRM')}`;
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.location.href = url;
   };
 
   if (isLoading) {

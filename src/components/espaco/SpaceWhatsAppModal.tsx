@@ -91,13 +91,7 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
     }
     const encodedMessage = encodeURIComponent(messageToSend);
     const url = `https://wa.me/${phone}?text=${encodedMessage}`;
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.location.href = url;
     toast.success("WhatsApp aberto!");
     onOpenChange(false);
   };
