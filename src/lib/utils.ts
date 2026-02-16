@@ -8,7 +8,13 @@ export function cn(...inputs: ClassValue[]) {
 export const openWhatsApp = (phone: string, message?: string) => {
   const cleanPhone = phone.replace(/\D/g, '');
   const url = message 
-    ? `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`
-    : `https://web.whatsapp.com/send?phone=${cleanPhone}`;
-  window.open(url, '_blank');
+    ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+    : `https://wa.me/${cleanPhone}`;
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
