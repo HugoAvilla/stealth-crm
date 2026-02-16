@@ -71,7 +71,14 @@ export default function WaitingApproval() {
   };
 
   const openWhatsApp = () => {
-    window.open('https://web.whatsapp.com/send?phone=5500000000000&text=' + encodeURIComponent('Meu pagamento ainda não foi confirmado. Meu email é: ' + user?.email), '_blank');
+    const url = `https://wa.me/5500000000000?text=${encodeURIComponent('Meu pagamento ainda não foi confirmado. Meu email é: ' + user?.email)}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (

@@ -55,7 +55,14 @@ Obrigado pela preferência! Qualquer dúvida, é só me chamar. Tenha uma ótima
   const handleSend = () => {
     const phone = client?.phone.replace(/\D/g, "");
     const encodedMessage = encodeURIComponent(messageToSend);
-    window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`, "_blank");
+    const url = `https://wa.me/${phone}?text=${encodedMessage}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     toast({
       title: "WhatsApp aberto!",
       description: "A mensagem foi preparada para envio.",
