@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Send, Download, FileText, MessageCircle } from "lucide-react";
+import { Download, FileText, MessageCircle } from "lucide-react";
 import wfeLogo from "@/assets/wfe-logo.png";
 import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
 import { getPDFProxyUrl } from "@/lib/pdfStorage";
@@ -58,6 +58,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [warrantyTerms, setWarrantyTerms] = useState("");
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const [careInstructions, setCareInstructions] = useState(`• Lavar o veículo somente após 7 dias da aplicação
 • Utilizar apenas produtos neutros
 • Evitar exposição prolongada ao sol nos primeiros dias
@@ -145,7 +146,6 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
 
       if (error) throw error;
 
-      // Generate PDF and upload to storage
       const certNumber = `WFE-${(inserted?.id || 0).toString().padStart(4, '0')}`;
       
       const pdfData: WarrantyPDFData = {
@@ -164,10 +164,9 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
         company_name: 'WFE EVOLUTION',
       };
 
-      // Generate PDF (this also uploads to storage)
       generateWarrantyPDF(pdfData, companyId || undefined);
 
-      // Build WhatsApp message with PDF link via proxy
+      // Build WhatsApp URL and store in state (no window.open)
       if (selectedClient?.phone) {
         const storagePath = companyId ? `${companyId}/garantias/garantia-${certNumber}.pdf` : null;
         const pdfLink = storagePath ? getPDFProxyUrl(storagePath) : '';
@@ -184,18 +183,16 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
           `📅 Emissão: ${fmtDate(issueDate)}\n` +
           `📅 Validade: ${fmtDate(expiryDate)}\n\n` +
           (warrantyTerms ? `📄 Termos:\n${warrantyTerms}\n\n` : '') +
-          (pdfLink ? `👉 Acesse o PDF:\n${pdfLink}\n\n` : '') +
+          (pdfLink ? `👉 Baixe o PDF:\n${pdfLink}\n\n` : '') +
           `_WFE EVOLUTION - Garantia Intransferível_`;
 
         const phone = selectedClient.phone.replace(/\D/g, '');
         const phoneWithCountryCode = phone.startsWith("55") ? phone : `55${phone}`;
         const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank', 'noopener,noreferrer');
+        setWhatsappUrl(url);
       }
 
-      toast.success(`Garantia emitida e enviada via WhatsApp!`);
-      onOpenChange(false);
-      resetForm();
+      toast.success(`Garantia emitida com sucesso! Clique em "Abrir WhatsApp" para enviar.`);
     } catch (error) {
       console.error('Error issuing warranty:', error);
       toast.error("Erro ao emitir garantia");
@@ -209,6 +206,12 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
     setClientId("");
     setVehicleId("");
     setWarrantyTerms("");
+    setWhatsappUrl(null);
+  };
+
+  const handleClose = (value: boolean) => {
+    if (!value) resetForm();
+    onOpenChange(value);
   };
 
   const handleDownload = () => {
@@ -243,7 +246,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>Emitir Garantia</DialogTitle>
@@ -338,15 +341,26 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
               )}
 
               <div className="flex gap-2 pt-4">
-                <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+                <Button variant="outline" className="flex-1" onClick={() => handleClose(false)}>
                   Cancelar
                 </Button>
                 <Button variant="outline" onClick={handleDownload} disabled={!selectedTemplate || !selectedClient || !selectedVehicle}>
                   <Download className="h-4 w-4 mr-2" /> Baixar PDF
                 </Button>
-                <Button onClick={handleSend} disabled={!selectedTemplate || !selectedClient || !selectedVehicle || isSubmitting}>
-                  <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
-                </Button>
+                {whatsappUrl ? (
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium h-10 px-4 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors"
+                  >
+                    <MessageCircle className="h-4 w-4" /> Abrir WhatsApp
+                  </a>
+                ) : (
+                  <Button onClick={handleSend} disabled={!selectedTemplate || !selectedClient || !selectedVehicle || isSubmitting}>
+                    <MessageCircle className="h-4 w-4 mr-2" /> {isSubmitting ? 'Salvando...' : 'Enviar WhatsApp'}
+                  </Button>
+                )}
               </div>
             </div>
           </TabsContent>
