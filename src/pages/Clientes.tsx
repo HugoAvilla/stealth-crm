@@ -343,13 +343,15 @@ export default function Clientes() {
                     {client.name}
                   </TableCell>
                   <TableCell>
-                    <button
-                      onClick={() => openWhatsApp(client.phone)}
+                    <a
+                      href={openWhatsApp(client.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="text-primary hover:underline flex items-center gap-1"
                     >
                       <MessageCircle className="h-3 w-3" />
                       {client.phone}
-                    </button>
+                    </a>
                   </TableCell>
                   <TableCell className="text-center text-muted-foreground">
                     {client.vehicles.length} veículo(s)
