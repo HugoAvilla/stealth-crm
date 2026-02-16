@@ -188,8 +188,9 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
           `_WFE EVOLUTION - Garantia Intransferível_`;
 
         const phone = selectedClient.phone.replace(/\D/g, '');
-        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-        window.location.href = url;
+        const phoneWithCountryCode = phone.startsWith("55") ? phone : `55${phone}`;
+        const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
       }
 
       toast.success(`Garantia emitida e enviada via WhatsApp!`);
