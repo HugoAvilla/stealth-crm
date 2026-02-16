@@ -1,43 +1,68 @@
 
-# Plano: Trocar `<a target="_blank">` por `window.location.href` em todos os WhatsApp
+
+# Corrigir botao "Enviar WhatsApp" no modal Emitir Garantia
 
 ## Problema
-
-O `wa.me` redireciona para `api.whatsapp.com`, que bloqueia aberturas em nova aba (`target="_blank"`) com `ERR_BLOCKED_BY_RESPONSE` devido a headers Cross-Origin-Opener-Policy. O print confirma: `api.whatsapp.com esta bloqueado`.
+O botao "Enviar WhatsApp" no modal de emissao de garantias (`IssueWarrantyModal.tsx`) usa `window.location.href` (linha 192), que e bloqueado pelo navegador. Alem disso, o link do PDF proxy na mensagem pode nao funcionar corretamente.
 
 ## Solucao
 
-Trocar todos os lugares que usam a tecnica `document.createElement('a')` com `target="_blank"` por `window.location.href = url`. Isso navega na mesma aba, evitando o bloqueio COOP. Os arquivos `Garantias.tsx` e `IssueWarrantyModal.tsx` ja usam `window.location.href` e funcionam corretamente.
+### Arquivo: `src/components/garantias/IssueWarrantyModal.tsx`
 
-## Arquivos a alterar
+**1. Separar a logica em duas etapas:**
+- O botao "Enviar WhatsApp" primeiro salva a garantia no banco de dados, gera o PDF, e depois abre o WhatsApp via link nativo `<a>`.
+- Como a garantia precisa ser salva antes de gerar a URL do WhatsApp, o fluxo sera:
+  1. Clicar no botao "Enviar WhatsApp"
+  2. Salvar garantia no Supabase e gerar PDF
+  3. Montar a URL `https://wa.me/...` com a mensagem formatada incluindo o link do PDF
+  4. Abrir em nova aba usando `window.open` apos o processo assincrono (ou melhor: mudar o fluxo)
 
-| Arquivo | De | Para |
-|---------|-----|------|
-| `src/lib/utils.ts` | `createElement('a')` + `target="_blank"` + `click()` | `window.location.href = url` |
-| `src/pages/Subscription.tsx` | `createElement('a')` + `target="_blank"` + `click()` | `window.location.href = url` |
-| `src/pages/WaitingApproval.tsx` | `createElement('a')` + `target="_blank"` + `click()` | `window.location.href = url` |
-| `src/components/clientes/ClientProfileModal.tsx` | `createElement('a')` + `target="_blank"` + `click()` | `window.location.href = url` |
-| `src/components/vendas/WhatsAppPreviewModal.tsx` | `createElement('a')` + `target="_blank"` + `click()` | `window.location.href = url` |
-| `src/components/espaco/SpaceWhatsAppModal.tsx` | `createElement('a')` + `target="_blank"` + `click()` | `window.location.href = url` |
+**Problema tecnico:** Como a garantia precisa ser salva primeiro (operacao assincrona) para obter o ID e gerar o PDF, nao e possivel usar um `<a>` puro. A solucao sera:
+- Salvar a garantia no banco
+- Gerar o PDF
+- Montar a URL do WhatsApp com `https://wa.me/`
+- Usar `window.open()` imediatamente apos o await (dentro do mesmo clique do usuario, para evitar bloqueio de popup)
 
-## Alteracao padrao
+**2. Mudancas especificas:**
 
-Antes (6 linhas):
-```text
-const link = document.createElement('a');
-link.href = url;
-link.target = '_blank';
-link.rel = 'noopener noreferrer';
-document.body.appendChild(link);
-link.click();
-document.body.removeChild(link);
+- **Remover** `window.location.href = url` (linha 192)
+- **Substituir** por `window.open(url, '_blank', 'noopener,noreferrer')` logo apos o insert e geracao do PDF
+- Garantir que o `+55` seja adicionado ao numero
+- O link do PDF na mensagem usara a URL do proxy (`getPDFProxyUrl`)
+- Formato da URL: `https://wa.me/5517992573141?text=...`
+
+**3. Mensagem WhatsApp formatada:**
+
+```
+🛡️ *CERTIFICADO DE GARANTIA*
+
+📋 N WFE-0001
+🔧 Servico: PPF Completo
+🚗 Veiculo: Toyota Corolla - Placa: ABC1234
+📅 Emissao: 16/02/2026
+📅 Validade: 16/02/2027
+
+📄 Termos:
+[texto dos termos]
+
+👉 Baixe o PDF:
+[link do proxy]
+
+_WFE EVOLUTION - Garantia Intransferivel_
 ```
 
-Depois (1 linha):
-```text
-window.location.href = url;
-```
+**4. Correcao do botao na interface (linha 346-348):**
+- Manter como `<Button>` pois o processo e assincrono (precisa salvar no banco antes)
+- Mas usar `window.open` ao inves de `window.location.href` para abrir em nova aba
 
-## Nota
+## Detalhes Tecnicos
 
-Usar `window.location.href` navega a aba atual para o WhatsApp. O usuario pode voltar ao CRM com o botao "Voltar" do navegador. Este e o padrao que ja funciona em `Garantias.tsx` e `IssueWarrantyModal.tsx`.
+Arquivo modificado: `src/components/garantias/IssueWarrantyModal.tsx`
+
+Mudancas na funcao `handleSend` (linhas 123-204):
+- Linha 190-192: Trocar `window.location.href = url` por `window.open(url, '_blank', 'noopener,noreferrer')`
+- Linha 191: Adicionar logica de `+55` automatico: `const phoneWithCountryCode = phone.startsWith("55") ? phone : "55" + phone`
+- A URL final sera: `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`
+
+Nenhum outro arquivo precisa ser alterado - as correcoes dos outros 4 arquivos ja estao aplicadas.
+
