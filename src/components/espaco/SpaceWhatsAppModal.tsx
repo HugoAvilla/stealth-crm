@@ -90,9 +90,9 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
       return;
     }
     const encodedMessage = encodeURIComponent(messageToSend);
-    const url = `https://wa.me/${phone}?text=${encodedMessage}`;
-    window.location.href = url;
-    toast.success("WhatsApp aberto!");
+    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`;
+    window.open(url, '_blank');
+    toast.success("WhatsApp Web aberto em nova aba!");
     onOpenChange(false);
   };
 

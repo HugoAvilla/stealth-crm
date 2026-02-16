@@ -55,11 +55,11 @@ Obrigado pela preferência! Qualquer dúvida, é só me chamar. Tenha uma ótima
   const handleSend = () => {
     const phone = client?.phone.replace(/\D/g, "");
     const encodedMessage = encodeURIComponent(messageToSend);
-    const url = `https://wa.me/${phone}?text=${encodedMessage}`;
-    window.location.href = url;
+    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`;
+    window.open(url, '_blank');
     toast({
-      title: "WhatsApp aberto!",
-      description: "A mensagem foi preparada para envio.",
+      title: "WhatsApp Web aberto!",
+      description: "A mensagem foi preparada para envio em uma nova aba.",
     });
     onOpenChange(false);
   };
