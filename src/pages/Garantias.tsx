@@ -101,11 +101,8 @@ export default function Garantias() {
     );
   });
 
-  const handleSendWhatsApp = (warranty: Warranty) => {
-    if (!warranty.client?.phone) {
-      toast.error('Cliente não possui telefone cadastrado');
-      return;
-    }
+  const getWarrantyWhatsAppUrl = (warranty: Warranty) => {
+    if (!warranty.client?.phone) return "#";
 
     const certNumber = `WFE-${warranty.id.toString().padStart(4, '0')}`;
     const vehicleInfo = warranty.vehicle
@@ -127,9 +124,7 @@ export default function Garantias() {
 
     const phone = warranty.client.phone.replace(/\D/g, '');
     const phoneWithCountryCode = phone.startsWith("55") ? phone : `55${phone}`;
-    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
-    toast.success('Abrindo WhatsApp Web em nova aba!');
+    return `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
   };
 
   const handleDownload = (warranty: Warranty) => {
@@ -322,8 +317,22 @@ export default function Garantias() {
                                 <DropdownMenuItem onClick={() => handleDownload(warranty)}>
                                   <Download className="h-4 w-4 mr-2" /> Baixar PDF
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleSendWhatsApp(warranty)}>
-                                  <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
+                                <DropdownMenuItem asChild>
+                                  <a
+                                    href={getWarrantyWhatsAppUrl(warranty)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center"
+                                    onClick={() => {
+                                      if (!warranty.client?.phone) {
+                                        toast.error('Cliente não possui telefone cadastrado');
+                                      } else {
+                                        toast.success('Abrindo WhatsApp Web!');
+                                      }
+                                    }}
+                                  >
+                                    <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
+                                  </a>
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
