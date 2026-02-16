@@ -83,16 +83,21 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
 
   const messageToSend = isEditing && template ? resolveVariables(template) : defaultMessage;
 
-  const handleSend = () => {
-    const phone = space.client?.phone?.replace(/\D/g, "");
-    if (!phone) {
+  const getWhatsAppUrl = () => {
+    if (!space.client?.phone) return "#";
+    const phone = space.client.phone.replace(/\D/g, "");
+    const phoneWithCountryCode = phone.startsWith("55") ? phone : `55${phone}`;
+    const encodedMessage = encodeURIComponent(messageToSend);
+    return `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodedMessage}`;
+  };
+
+  const handleSend = (e: React.MouseEvent) => {
+    if (!space.client?.phone) {
+      e.preventDefault();
       toast.error("Cliente sem telefone cadastrado");
       return;
     }
-    const encodedMessage = encodeURIComponent(messageToSend);
-    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`;
-    window.open(url, '_blank');
-    toast.success("WhatsApp Web aberto em nova aba!");
+    toast.success("Abrindo WhatsApp Web em nova aba!");
     onOpenChange(false);
   };
 
@@ -167,10 +172,16 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
             <div className="flex gap-2">
               {!isEditing ? (
                 <>
-                  <Button onClick={handleSend} className="gap-2 bg-success hover:bg-success/90" size="sm">
+                  <a
+                    href={getWhatsAppUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={handleSend}
+                    className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-success text-white hover:bg-success/90 h-9 px-3"
+                  >
                     <Send className="h-4 w-4" />
                     Enviar WhatsApp
-                  </Button>
+                  </a>
                   <Button variant="outline" onClick={handleEdit} size="sm" className="gap-2">
                     <Edit className="h-4 w-4" />
                     Editar mensagem

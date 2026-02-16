@@ -126,9 +126,10 @@ export default function Garantias() {
       `_WFE EVOLUTION - Garantia Intransferível_`;
 
     const phone = warranty.client.phone.replace(/\D/g, '');
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    window.location.href = url;
-    toast.success('Abrindo WhatsApp...');
+    const phoneWithCountryCode = phone.startsWith("55") ? phone : `55${phone}`;
+    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    toast.success('Abrindo WhatsApp Web em nova aba!');
   };
 
   const handleDownload = (warranty: Warranty) => {

@@ -52,14 +52,27 @@ Obrigado pela preferência! Qualquer dúvida, é só me chamar. Tenha uma ótima
 
   const messageToSend = isEditing && customMessage ? customMessage : defaultMessage;
 
-  const handleSend = () => {
-    const phone = client?.phone.replace(/\D/g, "");
+  const getWhatsAppUrl = () => {
+    if (!client?.phone) return "#";
+    const phone = client.phone.replace(/\D/g, "");
+    const phoneWithCountryCode = phone.startsWith("55") ? phone : `55${phone}`;
     const encodedMessage = encodeURIComponent(messageToSend);
-    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`;
-    window.open(url, '_blank');
+    return `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodedMessage}`;
+  };
+
+  const handleSend = (e: React.MouseEvent) => {
+    if (!client?.phone) {
+      e.preventDefault();
+      toast({
+        title: "Erro!",
+        description: "Cliente sem telefone cadastrado.",
+        variant: "destructive",
+      });
+      return;
+    }
     toast({
-      title: "WhatsApp Web aberto!",
-      description: "A mensagem foi preparada para envio em uma nova aba.",
+      title: "Abrindo WhatsApp Web!",
+      description: "A mensagem será aberta em uma nova aba.",
     });
     onOpenChange(false);
   };
@@ -86,10 +99,16 @@ Obrigado pela preferência! Qualquer dúvida, é só me chamar. Tenha uma ótima
               <DialogTitle>Enviar WhatsApp</DialogTitle>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleSend} className="gap-2 bg-success hover:bg-success/90">
+              <a
+                href={getWhatsAppUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleSend}
+                className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-success text-white hover:bg-success/90 h-10 px-4 py-2"
+              >
                 <Send className="h-4 w-4" />
                 Enviar whatsapp
-              </Button>
+              </a>
               <Button variant="outline" onClick={handleEdit} className="gap-2">
                 <Edit className="h-4 w-4" />
                 {isEditing ? "Cancelar edição" : "Editar mensagem"}
