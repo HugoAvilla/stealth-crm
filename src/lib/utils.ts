@@ -10,11 +10,5 @@ export const openWhatsApp = (phone: string, message?: string) => {
   const url = message 
     ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
     : `https://wa.me/${cleanPhone}`;
-  const link = document.createElement('a');
-  link.href = url;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  window.location.href = url;
 };
