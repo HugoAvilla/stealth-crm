@@ -8,7 +8,8 @@ export function cn(...inputs: ClassValue[]) {
 export const openWhatsApp = (phone: string, message?: string) => {
   const cleanPhone = phone.replace(/\D/g, '');
   const phoneWithCountryCode = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
-  return message 
-    ? `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`
-    : `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}`;
+  if (message) {
+    return `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
+  }
+  return `https://wa.me/${phoneWithCountryCode}`;
 };

@@ -88,7 +88,7 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
     const phone = space.client.phone.replace(/\D/g, "");
     const phoneWithCountryCode = phone.startsWith("55") ? phone : `55${phone}`;
     const encodedMessage = encodeURIComponent(messageToSend);
-    return `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodedMessage}`;
+    return `https://wa.me/${phoneWithCountryCode}?text=${encodedMessage}`;
   };
 
   const handleSend = (e: React.MouseEvent) => {
