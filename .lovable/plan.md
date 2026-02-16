@@ -1,68 +1,56 @@
 
 
-# Corrigir botao "Enviar WhatsApp" no modal Emitir Garantia
+# Refazer o botao "Enviar WhatsApp" no modal Emitir Garantia
 
 ## Problema
-O botao "Enviar WhatsApp" no modal de emissao de garantias (`IssueWarrantyModal.tsx`) usa `window.location.href` (linha 192), que e bloqueado pelo navegador. Alem disso, o link do PDF proxy na mensagem pode nao funcionar corretamente.
+O `window.open()` apos uma operacao assincrona (salvar no banco + gerar PDF) e bloqueado pelo navegador como popup. O modelo correto ja funciona na aba Clientes: um link nativo `<a href={openWhatsApp(phone)}>` com `target="_blank"`.
 
-## Solucao
+## Solucao: Fluxo em 2 etapas
 
-### Arquivo: `src/components/garantias/IssueWarrantyModal.tsx`
+Como a garantia precisa ser salva no banco antes de montar a mensagem (para obter o numero do certificado e o link do PDF), o fluxo sera dividido:
 
-**1. Separar a logica em duas etapas:**
-- O botao "Enviar WhatsApp" primeiro salva a garantia no banco de dados, gera o PDF, e depois abre o WhatsApp via link nativo `<a>`.
-- Como a garantia precisa ser salva antes de gerar a URL do WhatsApp, o fluxo sera:
-  1. Clicar no botao "Enviar WhatsApp"
-  2. Salvar garantia no Supabase e gerar PDF
-  3. Montar a URL `https://wa.me/...` com a mensagem formatada incluindo o link do PDF
-  4. Abrir em nova aba usando `window.open` apos o processo assincrono (ou melhor: mudar o fluxo)
+1. **Etapa 1 - Botao "Enviar WhatsApp"**: Salva a garantia no Supabase, gera o PDF, e armazena a URL do WhatsApp em um state.
+2. **Etapa 2 - Link nativo aparece**: Apos salvar com sucesso, o botao muda para um `<a href="https://wa.me/...">` nativo (igual ao modelo da aba Clientes), que o usuario clica para abrir o WhatsApp sem bloqueio.
 
-**Problema tecnico:** Como a garantia precisa ser salva primeiro (operacao assincrona) para obter o ID e gerar o PDF, nao e possivel usar um `<a>` puro. A solucao sera:
-- Salvar a garantia no banco
-- Gerar o PDF
-- Montar a URL do WhatsApp com `https://wa.me/`
-- Usar `window.open()` imediatamente apos o await (dentro do mesmo clique do usuario, para evitar bloqueio de popup)
+## Mudancas no arquivo `src/components/garantias/IssueWarrantyModal.tsx`
 
-**2. Mudancas especificas:**
-
-- **Remover** `window.location.href = url` (linha 192)
-- **Substituir** por `window.open(url, '_blank', 'noopener,noreferrer')` logo apos o insert e geracao do PDF
-- Garantir que o `+55` seja adicionado ao numero
-- O link do PDF na mensagem usara a URL do proxy (`getPDFProxyUrl`)
-- Formato da URL: `https://wa.me/5517992573141?text=...`
-
-**3. Mensagem WhatsApp formatada:**
-
+### 1. Novo state para a URL do WhatsApp
+```typescript
+const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
 ```
-🛡️ *CERTIFICADO DE GARANTIA*
 
-📋 N WFE-0001
-🔧 Servico: PPF Completo
-🚗 Veiculo: Toyota Corolla - Placa: ABC1234
-📅 Emissao: 16/02/2026
-📅 Validade: 16/02/2027
+### 2. Funcao `handleSend` atualizada
+- Remove `window.open()`
+- Apos salvar a garantia e gerar o PDF, monta a URL e salva no state `whatsappUrl`
+- A mensagem inclui os dados do certificado e o link do PDF proxy
 
-📄 Termos:
+### 3. Botao na interface
+- Antes de salvar: `<Button onClick={handleSend}>Enviar WhatsApp</Button>` (salva a garantia)
+- Apos salvar: `<a href={whatsappUrl} target="_blank" rel="noopener noreferrer">` como botao verde "Abrir WhatsApp" (link nativo, sem bloqueio)
+- Usa `openWhatsApp()` de `src/lib/utils.ts` para formatar o telefone com +55
+
+### 4. Mensagem formatada no WhatsApp
+```
+CERTIFICADO DE GARANTIA
+
+N. WFE-0001
+Servico: PPF Completo
+Veiculo: Toyota Corolla - Placa: ABC1234
+Emissao: 16/02/2026
+Validade: 16/02/2027
+
+Termos:
 [texto dos termos]
 
-👉 Baixe o PDF:
+Baixe o PDF:
 [link do proxy]
 
-_WFE EVOLUTION - Garantia Intransferivel_
+WFE EVOLUTION - Garantia Intransferivel
 ```
 
-**4. Correcao do botao na interface (linha 346-348):**
-- Manter como `<Button>` pois o processo e assincrono (precisa salvar no banco antes)
-- Mas usar `window.open` ao inves de `window.location.href` para abrir em nova aba
+### 5. Reset
+- Ao fechar o modal ou cancelar, limpa o state `whatsappUrl` para voltar ao estado inicial
 
-## Detalhes Tecnicos
-
-Arquivo modificado: `src/components/garantias/IssueWarrantyModal.tsx`
-
-Mudancas na funcao `handleSend` (linhas 123-204):
-- Linha 190-192: Trocar `window.location.href = url` por `window.open(url, '_blank', 'noopener,noreferrer')`
-- Linha 191: Adicionar logica de `+55` automatico: `const phoneWithCountryCode = phone.startsWith("55") ? phone : "55" + phone`
-- A URL final sera: `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`
-
-Nenhum outro arquivo precisa ser alterado - as correcoes dos outros 4 arquivos ja estao aplicadas.
+## Resultado
+O fluxo fica identico ao da aba Clientes: link nativo `<a>` usando `https://wa.me/55...?text=...`, sem `window.open`, sem `window.location.href`, sem bloqueio de popup.
 
