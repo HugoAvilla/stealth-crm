@@ -167,7 +167,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
         client_id: parseInt(clientId),
         vehicle_id: parseInt(vehicleId),
         warranty_text: warrantyTerms,
-        status: 'Ativa',
+        status: 'Pendente',
       }).select('id').single();
 
       if (error) {
