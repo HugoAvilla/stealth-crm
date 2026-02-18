@@ -141,15 +141,27 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
       return;
     }
 
+    if (!companyId) {
+      toast.error("Empresa não encontrada. Faça login novamente.");
+      return;
+    }
+
+    if (!selectedTemplate || !selectedClient || !selectedVehicle) {
+      toast.error("Dados do modelo, cliente ou veículo não encontrados.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const issueDate = new Date();
       const expiryDate = new Date();
-      expiryDate.setMonth(expiryDate.getMonth() + (selectedTemplate?.validity_months || 12));
+      expiryDate.setMonth(expiryDate.getMonth() + (selectedTemplate.validity_months || 12));
+
+      console.log('[Garantia] Inserindo no banco...', { companyId, templateName: selectedTemplate.name });
 
       const { data: inserted, error } = await supabase.from('warranties').insert({
         company_id: companyId,
-        warranty_type: selectedTemplate?.name || '',
+        warranty_type: selectedTemplate.name || '',
         issue_date: issueDate.toISOString().split('T')[0],
         expiry_date: expiryDate.toISOString().split('T')[0],
         client_id: parseInt(clientId),
@@ -158,39 +170,52 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
         status: 'Ativa',
       }).select('id').single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Garantia] Erro no insert:', error);
+        throw error;
+      }
+
+      console.log('[Garantia] Insert OK, id:', inserted?.id);
 
       const certNumber = `WFE-${(inserted?.id || 0).toString().padStart(4, '0')}`;
       
-      const pdfData: WarrantyPDFData = {
-        certificate_number: certNumber,
-        client_name: selectedClient?.name || '',
-        client_phone: selectedClient?.phone || '',
-        client_email: selectedClient?.email || undefined,
-        vehicle_brand: selectedVehicle?.brand || '',
-        vehicle_model: selectedVehicle?.model || '',
-        vehicle_plate: selectedVehicle?.plate || '',
-        vehicle_year: selectedVehicle?.year || undefined,
-        service_name: selectedTemplate?.name || '',
-        issue_date: issueDate.toISOString().split('T')[0],
-        expiry_date: expiryDate.toISOString().split('T')[0],
-        warranty_text: warrantyTerms || undefined,
-        company_name: 'WFE EVOLUTION',
-      };
+      // Gerar PDF em try/catch separado - se falhar, a garantia já foi salva
+      try {
+        const pdfData: WarrantyPDFData = {
+          certificate_number: certNumber,
+          client_name: selectedClient.name,
+          client_phone: selectedClient.phone,
+          client_email: selectedClient.email || undefined,
+          vehicle_brand: selectedVehicle.brand,
+          vehicle_model: selectedVehicle.model,
+          vehicle_plate: selectedVehicle.plate || '',
+          vehicle_year: selectedVehicle.year || undefined,
+          service_name: selectedTemplate.name,
+          issue_date: issueDate.toISOString().split('T')[0],
+          expiry_date: expiryDate.toISOString().split('T')[0],
+          warranty_text: warrantyTerms || undefined,
+          company_name: 'WFE EVOLUTION',
+        };
 
-      generateWarrantyPDF(pdfData, companyId || undefined);
+        console.log('[Garantia] Gerando PDF...');
+        generateWarrantyPDF(pdfData, companyId);
+        console.log('[Garantia] PDF gerado com sucesso');
+      } catch (pdfError) {
+        console.error('[Garantia] Erro ao gerar PDF (garantia já salva):', pdfError);
+        toast.warning("Garantia salva, mas houve erro ao gerar o PDF.");
+      }
 
-      const storagePath = companyId ? `${companyId}/garantias/garantia-${certNumber}.pdf` : '';
-      const pdfLink = storagePath ? getPDFProxyUrl(storagePath) : '';
+      const storagePath = `${companyId}/garantias/garantia-${certNumber}.pdf`;
+      const pdfLink = getPDFProxyUrl(storagePath);
 
       setIssuedData({
         certNumber,
-        clientName: selectedClient?.name || '',
-        clientPhone: selectedClient?.phone || '',
-        vehicleBrand: selectedVehicle?.brand || '',
-        vehicleModel: selectedVehicle?.model || '',
-        vehiclePlate: selectedVehicle?.plate || null,
-        serviceName: selectedTemplate?.name || '',
+        clientName: selectedClient.name,
+        clientPhone: selectedClient.phone,
+        vehicleBrand: selectedVehicle.brand,
+        vehicleModel: selectedVehicle.model,
+        vehiclePlate: selectedVehicle.plate || null,
+        serviceName: selectedTemplate.name,
         issueDate: issueDate.toISOString().split('T')[0],
         expiryDate: expiryDate.toISOString().split('T')[0],
         warrantyTerms: warrantyTerms,
@@ -198,9 +223,10 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
       });
 
       toast.success("Garantia emitida com sucesso!");
-    } catch (error) {
-      console.error('Error issuing warranty:', error);
-      toast.error("Erro ao emitir garantia");
+    } catch (error: any) {
+      console.error('[Garantia] Erro ao emitir garantia:', error);
+      const msg = error?.message || error?.details || 'Erro desconhecido';
+      toast.error(`Erro ao emitir garantia: ${msg}`);
     } finally {
       setIsSubmitting(false);
     }
