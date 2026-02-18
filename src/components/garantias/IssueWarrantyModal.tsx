@@ -10,12 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Download, FileText, MessageCircle } from "lucide-react";
+import { Download, FileText, MessageCircle, Shield } from "lucide-react";
 import wfeLogo from "@/assets/wfe-logo.png";
 import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
 import { getPDFProxyUrl } from "@/lib/pdfStorage";
+import { WarrantyWhatsAppModal } from "./WarrantyWhatsAppModal";
 
 interface IssueWarrantyModalProps {
   open: boolean;
@@ -46,6 +45,20 @@ interface Vehicle {
   client_id: number | null;
 }
 
+interface IssuedWarrantyData {
+  certNumber: string;
+  clientName: string;
+  clientPhone: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  vehiclePlate: string | null;
+  serviceName: string;
+  issueDate: string;
+  expiryDate: string;
+  warrantyTerms: string;
+  pdfLink: string;
+}
+
 export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalProps) {
   const { user } = useAuth();
   const [templateId, setTemplateId] = useState("");
@@ -58,7 +71,8 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [warrantyTerms, setWarrantyTerms] = useState("");
-  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
+  const [issuedData, setIssuedData] = useState<IssuedWarrantyData | null>(null);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [careInstructions, setCareInstructions] = useState(`• Lavar o veículo somente após 7 dias da aplicação
 • Utilizar apenas produtos neutros
 • Evitar exposição prolongada ao sol nos primeiros dias
@@ -121,7 +135,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
     setVehicleId("");
   };
 
-  const handleSend = async () => {
+  const handleIssue = async () => {
     if (!templateId || !clientId || !vehicleId) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
@@ -166,33 +180,24 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
 
       generateWarrantyPDF(pdfData, companyId || undefined);
 
-      // Build WhatsApp URL and store in state (no window.open)
-      if (selectedClient?.phone) {
-        const storagePath = companyId ? `${companyId}/garantias/garantia-${certNumber}.pdf` : null;
-        const pdfLink = storagePath ? getPDFProxyUrl(storagePath) : '';
+      const storagePath = companyId ? `${companyId}/garantias/garantia-${certNumber}.pdf` : '';
+      const pdfLink = storagePath ? getPDFProxyUrl(storagePath) : '';
 
-        const vehicleInfo = selectedVehicle
-          ? `${selectedVehicle.brand} ${selectedVehicle.model} - Placa: ${selectedVehicle.plate || 'N/A'}`
-          : 'N/A';
-        const fmtDate = (d: Date) => d.toLocaleDateString('pt-BR');
+      setIssuedData({
+        certNumber,
+        clientName: selectedClient?.name || '',
+        clientPhone: selectedClient?.phone || '',
+        vehicleBrand: selectedVehicle?.brand || '',
+        vehicleModel: selectedVehicle?.model || '',
+        vehiclePlate: selectedVehicle?.plate || null,
+        serviceName: selectedTemplate?.name || '',
+        issueDate: issueDate.toISOString().split('T')[0],
+        expiryDate: expiryDate.toISOString().split('T')[0],
+        warrantyTerms: warrantyTerms,
+        pdfLink,
+      });
 
-        const message = `🛡️ *CERTIFICADO DE GARANTIA*\n\n` +
-          `📋 Nº ${certNumber}\n` +
-          `🔧 Serviço: ${selectedTemplate?.name}\n` +
-          `🚗 Veículo: ${vehicleInfo}\n` +
-          `📅 Emissão: ${fmtDate(issueDate)}\n` +
-          `📅 Validade: ${fmtDate(expiryDate)}\n\n` +
-          (warrantyTerms ? `📄 Termos:\n${warrantyTerms}\n\n` : '') +
-          (pdfLink ? `👉 Baixe o PDF:\n${pdfLink}\n\n` : '') +
-          `_WFE EVOLUTION - Garantia Intransferível_`;
-
-        const phone = selectedClient.phone.replace(/\D/g, '');
-        const phoneWithCountryCode = phone.startsWith("55") ? phone : `55${phone}`;
-        const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
-        setWhatsappUrl(url);
-      }
-
-      toast.success(`Garantia emitida com sucesso! Clique em "Abrir WhatsApp" para enviar.`);
+      toast.success("Garantia emitida com sucesso!");
     } catch (error) {
       console.error('Error issuing warranty:', error);
       toast.error("Erro ao emitir garantia");
@@ -206,7 +211,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
     setClientId("");
     setVehicleId("");
     setWarrantyTerms("");
-    setWhatsappUrl(null);
+    setIssuedData(null);
   };
 
   const handleClose = (value: boolean) => {
@@ -246,197 +251,224 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-6">
-          <DialogTitle>Emitir Garantia</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto p-0">
+          <DialogHeader className="px-6 pt-6">
+            <DialogTitle>Emitir Garantia</DialogTitle>
+          </DialogHeader>
 
-        <Tabs defaultValue="config" className="w-full">
-          <div className="px-6">
-            <TabsList className="w-full">
-              <TabsTrigger value="config" className="flex-1">Configurar</TabsTrigger>
-              <TabsTrigger value="preview" className="flex-1">Pré-visualizar</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="config" className="px-6 pb-6 mt-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Modelo de Garantia *</Label>
-                <Select value={templateId} onValueChange={handleTemplateChange} disabled={loading}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={loading ? "Carregando..." : "Selecione o modelo..."} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map(template => (
-                      <SelectItem key={template.id} value={template.id.toString()}>
-                        {template.name} ({template.validity_months} meses)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Cliente *</Label>
-                <Select value={clientId} onValueChange={handleClientChange} disabled={loading}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={loading ? "Carregando..." : "Selecione o cliente..."} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map(client => (
-                      <SelectItem key={client.id} value={client.id.toString()}>
-                        {client.name} - {client.phone}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Veículo *</Label>
-                <Select value={vehicleId} onValueChange={setVehicleId} disabled={loading || !clientId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={!clientId ? "Selecione o cliente primeiro" : "Selecione o veículo..."} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredVehicles.map(vehicle => (
-                      <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
-                        {vehicle.brand} {vehicle.model} - {vehicle.plate}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedClient && selectedVehicle && (
-                <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">
-                  <p><span className="text-muted-foreground">Cliente:</span> {selectedClient.name}</p>
-                  <p><span className="text-muted-foreground">Veículo:</span> {selectedVehicle.brand} {selectedVehicle.model} - {selectedVehicle.plate}</p>
-                  <p><span className="text-muted-foreground">Email:</span> {selectedClient.email || 'Não informado'}</p>
-                </div>
-              )}
-
-              {selectedTemplate && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Termos da Garantia (Editável)</Label>
-                    <Textarea
-                      value={warrantyTerms}
-                      onChange={e => setWarrantyTerms(e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Instruções de Cuidado (Editável)</Label>
-                    <Textarea
-                      value={careInstructions}
-                      onChange={e => setCareInstructions(e.target.value)}
-                      rows={5}
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" className="flex-1" onClick={() => handleClose(false)}>
-                  Cancelar
-                </Button>
-                <Button variant="outline" onClick={handleDownload} disabled={!selectedTemplate || !selectedClient || !selectedVehicle}>
-                  <Download className="h-4 w-4 mr-2" /> Baixar PDF
-                </Button>
-                {whatsappUrl ? (
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium h-10 px-4 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors"
-                  >
-                    <MessageCircle className="h-4 w-4" /> Abrir WhatsApp
-                  </a>
-                ) : (
-                  <Button onClick={handleSend} disabled={!selectedTemplate || !selectedClient || !selectedVehicle || isSubmitting}>
-                    <MessageCircle className="h-4 w-4 mr-2" /> {isSubmitting ? 'Salvando...' : 'Enviar WhatsApp'}
-                  </Button>
-                )}
-              </div>
+          <Tabs defaultValue="config" className="w-full">
+            <div className="px-6">
+              <TabsList className="w-full">
+                <TabsTrigger value="config" className="flex-1">Configurar</TabsTrigger>
+                <TabsTrigger value="preview" className="flex-1">Pré-visualizar</TabsTrigger>
+              </TabsList>
             </div>
-          </TabsContent>
 
-          <TabsContent value="preview" className="px-6 pb-6 mt-0">
-            <ScrollArea className="h-[60vh] border rounded-lg bg-white text-black">
-              <div className="p-8 space-y-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <img src={wfeLogo} alt="WFE" className="h-12 w-auto" />
-                    <div>
-                      <h2 className="font-bold text-lg">WFE EVOLUTION</h2>
-                      <p className="text-xs text-gray-600">Certificado de Garantia</p>
-                    </div>
-                  </div>
+            <TabsContent value="config" className="px-6 pb-6 mt-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Modelo de Garantia *</Label>
+                  <Select value={templateId} onValueChange={handleTemplateChange} disabled={loading || !!issuedData}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={loading ? "Carregando..." : "Selecione o modelo..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map(template => (
+                        <SelectItem key={template.id} value={template.id.toString()}>
+                          {template.name} ({template.validity_months} meses)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <Separator className="bg-gray-300" />
+                <div className="space-y-2">
+                  <Label>Cliente *</Label>
+                  <Select value={clientId} onValueChange={handleClientChange} disabled={loading || !!issuedData}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={loading ? "Carregando..." : "Selecione o cliente..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map(client => (
+                        <SelectItem key={client.id} value={client.id.toString()}>
+                          {client.name} - {client.phone}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                {selectedClient && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-semibold mb-2">Informações do Cliente</h3>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <p><span className="text-gray-600">Nome:</span> {selectedClient.name}</p>
-                      <p><span className="text-gray-600">WhatsApp:</span> {selectedClient.phone}</p>
-                      <p><span className="text-gray-600">Email:</span> {selectedClient.email || 'Não informado'}</p>
-                    </div>
+                <div className="space-y-2">
+                  <Label>Veículo *</Label>
+                  <Select value={vehicleId} onValueChange={setVehicleId} disabled={loading || !clientId || !!issuedData}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={!clientId ? "Selecione o cliente primeiro" : "Selecione o veículo..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredVehicles.map(vehicle => (
+                        <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
+                          {vehicle.brand} {vehicle.model} - {vehicle.plate}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedClient && selectedVehicle && (
+                  <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">
+                    <p><span className="text-muted-foreground">Cliente:</span> {selectedClient.name}</p>
+                    <p><span className="text-muted-foreground">Veículo:</span> {selectedVehicle.brand} {selectedVehicle.model} - {selectedVehicle.plate}</p>
+                    <p><span className="text-muted-foreground">Email:</span> {selectedClient.email || 'Não informado'}</p>
                   </div>
                 )}
 
-                {selectedVehicle && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-semibold mb-2">Veículo</h3>
-                    <div className="text-sm">
-                      <p><span className="text-gray-600">Veículo:</span> {selectedVehicle.brand} {selectedVehicle.model} {selectedVehicle.year ? `(${selectedVehicle.year})` : ''}</p>
-                      <p><span className="text-gray-600">Placa:</span> {selectedVehicle.plate}</p>
+                {selectedTemplate && !issuedData && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Termos da Garantia (Editável)</Label>
+                      <Textarea
+                        value={warrantyTerms}
+                        onChange={e => setWarrantyTerms(e.target.value)}
+                        rows={4}
+                      />
                     </div>
-                  </div>
+
+                    <div className="space-y-2">
+                      <Label>Instruções de Cuidado (Editável)</Label>
+                      <Textarea
+                        value={careInstructions}
+                        onChange={e => setCareInstructions(e.target.value)}
+                        rows={5}
+                      />
+                    </div>
+                  </>
                 )}
 
-                {selectedTemplate && (
-                  <div className="border-2 border-primary rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <FileText className="h-5 w-5 text-primary" />
-                      <h3 className="font-bold text-primary">{selectedTemplate.name}</h3>
+                {issuedData && (
+                  <div className="p-4 rounded-lg bg-success/10 border border-success/30 space-y-2">
+                    <div className="flex items-center gap-2 text-success">
+                      <Shield className="h-5 w-5" />
+                      <span className="font-semibold">Garantia emitida com sucesso!</span>
                     </div>
-                    <p className="text-sm mb-3">
-                      <span className="font-semibold">Validade:</span> {selectedTemplate.validity_months} meses
+                    <p className="text-sm text-muted-foreground">
+                      Certificado Nº {issuedData.certNumber} • {issuedData.serviceName}
                     </p>
-                    <div className="space-y-3 text-sm">
-                      <div>
-                        <p className="font-semibold mb-1">Cobertura da Garantia:</p>
-                        <p className="text-gray-700">{warrantyTerms}</p>
-                      </div>
-                      <div>
-                        <p className="font-semibold mb-1">Instruções de Cuidado:</p>
-                        <p className="text-gray-700 whitespace-pre-line">{careInstructions}</p>
-                      </div>
-                      <div className="bg-yellow-50 p-2 rounded text-xs text-yellow-800">
-                        <strong>Observação:</strong> Esta garantia é intransferível e válida somente para o veículo e cliente especificados neste documento.
-                      </div>
-                    </div>
                   </div>
                 )}
 
-                {!selectedTemplate && (
-                  <div className="text-center py-12 text-gray-500">
-                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>Selecione um modelo de garantia para visualizar o certificado</p>
-                  </div>
-                )}
+                <div className="flex gap-2 pt-4">
+                  <Button variant="outline" className="flex-1" onClick={() => handleClose(false)}>
+                    {issuedData ? 'Fechar' : 'Cancelar'}
+                  </Button>
+                  
+                  {!issuedData && (
+                    <>
+                      <Button variant="outline" onClick={handleDownload} disabled={!selectedTemplate || !selectedClient || !selectedVehicle}>
+                        <Download className="h-4 w-4 mr-2" /> Baixar PDF
+                      </Button>
+                      <Button 
+                        onClick={handleIssue} 
+                        disabled={!selectedTemplate || !selectedClient || !selectedVehicle || isSubmitting}
+                      >
+                        <Shield className="h-4 w-4 mr-2" /> 
+                        {isSubmitting ? 'Salvando...' : 'Emitir Garantia'}
+                      </Button>
+                    </>
+                  )}
+
+                  {issuedData && (
+                    <Button 
+                      onClick={() => setWhatsappModalOpen(true)}
+                      className="bg-success hover:bg-success/90 text-white"
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
+                    </Button>
+                  )}
+                </div>
               </div>
-            </ScrollArea>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+            </TabsContent>
+
+            <TabsContent value="preview" className="px-6 pb-6 mt-0">
+              <ScrollArea className="h-[60vh] border rounded-lg bg-white text-black">
+                <div className="p-8 space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <img src={wfeLogo} alt="WFE" className="h-12 w-auto" />
+                      <div>
+                        <h2 className="font-bold text-lg">WFE EVOLUTION</h2>
+                        <p className="text-xs text-gray-600">Certificado de Garantia</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator className="bg-gray-300" />
+
+                  {selectedClient && (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-semibold mb-2">Informações do Cliente</h3>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <p><span className="text-gray-600">Nome:</span> {selectedClient.name}</p>
+                        <p><span className="text-gray-600">WhatsApp:</span> {selectedClient.phone}</p>
+                        <p><span className="text-gray-600">Email:</span> {selectedClient.email || 'Não informado'}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedVehicle && (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-semibold mb-2">Veículo</h3>
+                      <div className="text-sm">
+                        <p><span className="text-gray-600">Veículo:</span> {selectedVehicle.brand} {selectedVehicle.model} {selectedVehicle.year ? `(${selectedVehicle.year})` : ''}</p>
+                        <p><span className="text-gray-600">Placa:</span> {selectedVehicle.plate}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedTemplate && (
+                    <div className="border-2 border-primary rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FileText className="h-5 w-5 text-primary" />
+                        <h3 className="font-bold text-primary">{selectedTemplate.name}</h3>
+                      </div>
+                      <p className="text-sm mb-3">
+                        <span className="font-semibold">Validade:</span> {selectedTemplate.validity_months} meses
+                      </p>
+                      <div className="space-y-3 text-sm">
+                        <div>
+                          <p className="font-semibold mb-1">Cobertura da Garantia:</p>
+                          <p className="text-gray-700">{warrantyTerms}</p>
+                        </div>
+                        <div>
+                          <p className="font-semibold mb-1">Instruções de Cuidado:</p>
+                          <p className="text-gray-700 whitespace-pre-line">{careInstructions}</p>
+                        </div>
+                        <div className="bg-yellow-50 p-2 rounded text-xs text-yellow-800">
+                          <strong>Observação:</strong> Esta garantia é intransferível e válida somente para o veículo e cliente especificados neste documento.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!selectedTemplate && (
+                    <div className="text-center py-12 text-gray-500">
+                      <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>Selecione um modelo de garantia para visualizar o certificado</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      <WarrantyWhatsAppModal
+        open={whatsappModalOpen}
+        onOpenChange={setWhatsappModalOpen}
+        data={issuedData}
+      />
+    </>
   );
 }
