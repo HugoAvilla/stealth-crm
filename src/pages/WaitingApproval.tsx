@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, RefreshCw, MessageCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Clock, RefreshCw, MessageCircle, CheckCircle, ArrowLeft, Send } from 'lucide-react';
 
 export default function WaitingApproval() {
   const { user, refreshUser, signOut } = useAuth();
@@ -13,7 +13,6 @@ export default function WaitingApproval() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Check subscription status on mount
     if (user?.subscriptionStatus === 'active') {
       if (user.companyId) {
         navigate('/');
@@ -33,7 +32,6 @@ export default function WaitingApproval() {
       return;
     }
 
-    // Polling every 30 seconds
     intervalRef.current = setInterval(async () => {
       setIsRefreshing(true);
       await refreshUser();
@@ -41,7 +39,6 @@ export default function WaitingApproval() {
       setCountdown(30);
     }, 30000);
 
-    // Countdown timer
     const countdownInterval = setInterval(() => {
       setCountdown(prev => (prev > 0 ? prev - 1 : 30));
     }, 1000);
@@ -53,7 +50,6 @@ export default function WaitingApproval() {
   }, [user, refreshUser, navigate]);
 
   useEffect(() => {
-    // React to subscription status changes
     if (user?.subscriptionStatus === 'active') {
       if (user.companyId) {
         navigate('/');
@@ -70,10 +66,13 @@ export default function WaitingApproval() {
     setCountdown(30);
   };
 
-  const openWhatsApp = () => {
-    const url = `https://wa.me/5500000000000?text=${encodeURIComponent('Meu pagamento ainda não foi confirmado. Meu email é: ' + user?.email)}`;
-    window.location.href = url;
-  };
+  const userName = user?.profile?.name || user?.email?.split('@')[0] || '';
+  const userEmail = user?.email || '';
+
+  const whatsappMessage = encodeURIComponent(
+    `Olá, fiz o pagamento da plataforma CRM WFE, segue o comprovante do pagamento e aguardo a liberação para uso da plataforma.\nNome: ${userName}\nEmail: ${userEmail}`
+  );
+  const whatsappUrl = `https://wa.me/5517992573141?text=${whatsappMessage}`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
@@ -101,9 +100,9 @@ export default function WaitingApproval() {
               </div>
             )}
           </div>
-          <CardTitle className="text-2xl">Verificando seu pagamento...</CardTitle>
+          <CardTitle className="text-2xl">Aguardando liberação</CardTitle>
           <CardDescription>
-            Isso pode levar até 5 minutos. Você será redirecionado automaticamente.
+            A liberação da plataforma é feita manualmente pelo nosso suporte. Envie seu comprovante de pagamento para agilizar o processo.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -127,7 +126,7 @@ export default function WaitingApproval() {
               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
                 <Clock className="h-4 w-4 text-primary animate-pulse" />
               </div>
-              <span className="text-sm text-muted-foreground">Aguardando confirmação</span>
+              <span className="text-sm text-muted-foreground">Aguardando liberação pelo suporte</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
@@ -139,6 +138,16 @@ export default function WaitingApproval() {
 
           {/* Actions */}
           <div className="space-y-3 pt-4">
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full h-10 rounded-md bg-green-600 text-white font-medium hover:bg-green-700 transition-colors"
+            >
+              <Send className="h-4 w-4" />
+              Enviar Comprovante via WhatsApp
+            </a>
+
             <Button 
               variant="outline" 
               className="w-full"
@@ -157,20 +166,11 @@ export default function WaitingApproval() {
                 </>
               )}
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              className="w-full"
-              onClick={openWhatsApp}
-            >
-              <MessageCircle className="mr-2 h-4 w-4" />
-              Meu pagamento não foi confirmado
-            </Button>
           </div>
 
           {/* Info */}
           <p className="text-xs text-center text-muted-foreground">
-            Se após 10 minutos seu pagamento não for confirmado, entre em contato conosco via WhatsApp.
+            Após enviar o comprovante, aguarde a liberação pelo nosso suporte via WhatsApp.
           </p>
         </CardContent>
       </Card>

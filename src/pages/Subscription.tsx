@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Copy, Check, CreditCard, Users, Database, Headphones, RefreshCw, MessageCircle, QrCode, Tag, X } from 'lucide-react';
+import { Loader2, Copy, Check, CreditCard, Users, Database, Headphones, RefreshCw, MessageCircle, Tag, X, BarChart3, Shield, Package, Building2, DollarSign, Wrench } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -51,7 +51,6 @@ export default function Subscription() {
   }, []);
 
   useEffect(() => {
-    // Redirect if already active or submitted
     if (user?.subscriptionStatus === 'active') {
       if (user.companyId) {
         navigate('/');
@@ -75,15 +74,14 @@ export default function Subscription() {
       setConfig(data as SystemConfig);
     } catch (error) {
       console.error('Error fetching config:', error);
-      // Use defaults
       setConfig({
-        pix_key: 'pix@wfeevolution.com.br',
+        pix_key: 'Hg.lavila@gmail.com',
         pix_qr_code_url: null,
-        beneficiary_name: 'WFE Evolution LTDA',
-        beneficiary_cnpj: '00.000.000/0000-00',
-        bank_name: 'Banco do Brasil',
-        agency: '0000',
-        account: '00000-0',
+        beneficiary_name: 'Hugo Luz de Avila',
+        beneficiary_cnpj: '',
+        bank_name: 'PicPay',
+        agency: '',
+        account: '',
         monthly_price: 297.00
       });
     } finally {
@@ -125,7 +123,6 @@ export default function Subscription() {
         return;
       }
 
-      // Calculate discount
       const basePrice = config?.monthly_price || 297;
       let discountAmount = 0;
       if (result.discount_type === 'percentage') {
@@ -165,7 +162,6 @@ export default function Subscription() {
     try {
       const finalPrice = getFinalPrice();
       
-      // Update subscription with coupon info
       const { error } = await supabase
         .from('subscriptions')
         .update({ 
@@ -178,7 +174,6 @@ export default function Subscription() {
 
       if (error) throw error;
 
-      // If coupon was applied, record usage
       if (couponApplied) {
         const { data: subData } = await supabase
           .from('subscriptions')
@@ -210,11 +205,6 @@ export default function Subscription() {
     }
   };
 
-  const openWhatsApp = () => {
-    const url = `https://wa.me/5500000000000?text=${encodeURIComponent('Preciso de ajuda com o pagamento do WFE Evolution CRM')}`;
-    window.location.href = url;
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -222,6 +212,19 @@ export default function Subscription() {
       </div>
     );
   }
+
+  const crmFeatures = [
+    { icon: DollarSign, text: 'Gestão completa de vendas' },
+    { icon: Users, text: 'Cadastro e gestão de clientes' },
+    { icon: CreditCard, text: 'Controle financeiro (DFC, DRE, Extrato)' },
+    { icon: Building2, text: 'Gestão de espaço e vagas' },
+    { icon: Shield, text: 'Emissão de garantias com envio via WhatsApp' },
+    { icon: BarChart3, text: 'Relatórios completos em PDF' },
+    { icon: Package, text: 'Gestão de estoque e materiais' },
+    { icon: Wrench, text: 'Pipeline de produção' },
+    { icon: Users, text: 'Equipe com múltiplos usuários e permissões' },
+    { icon: Headphones, text: 'Suporte via WhatsApp' },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 py-8 px-4">
@@ -304,22 +307,20 @@ export default function Subscription() {
                 )}
               </div>
 
-              <ul className="space-y-3">
-                {[
-                  { icon: Users, text: 'Usuários ilimitados' },
-                  { icon: Database, text: 'Clientes ilimitados' },
-                  { icon: Database, text: 'Armazenamento ilimitado' },
-                  { icon: Headphones, text: 'Suporte prioritário' },
-                  { icon: RefreshCw, text: 'Atualizações automáticas' },
-                ].map((item, index) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                      <Check className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <span>{item.text}</span>
-                  </li>
-                ))}
-              </ul>
+              {/* CRM Features */}
+              <div className="space-y-1">
+                <p className="text-sm font-medium mb-2">O que você recebe:</p>
+                <ul className="space-y-2">
+                  {crmFeatures.map((item, index) => (
+                    <li key={index} className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <Check className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <span className="text-sm">{item.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </CardContent>
           </Card>
 
@@ -327,36 +328,18 @@ export default function Subscription() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <QrCode className="h-5 w-5 text-primary" />
+                <CreditCard className="h-5 w-5 text-primary" />
                 Pagamento via PIX
               </CardTitle>
-              <CardDescription>Escaneie o QR Code ou copie a chave</CardDescription>
+              <CardDescription>Copie a chave PIX abaixo e faça a transferência</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* QR Code */}
-              <div className="flex justify-center">
-                {config?.pix_qr_code_url ? (
-                  <img 
-                    src={config.pix_qr_code_url} 
-                    alt="QR Code PIX" 
-                    className="w-48 h-48 rounded-lg border"
-                  />
-                ) : (
-                  <div className="w-48 h-48 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/50">
-                    <div className="text-center text-muted-foreground">
-                      <QrCode className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">QR Code</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {/* PIX Key */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Chave PIX</label>
+                <label className="text-sm font-medium">Chave PIX (Email)</label>
                 <div className="flex gap-2">
                   <div className="flex-1 p-3 bg-muted rounded-lg font-mono text-sm break-all">
-                    {config?.pix_key}
+                    {config?.pix_key || 'Hg.lavila@gmail.com'}
                   </div>
                   <Button variant="outline" size="icon" onClick={copyPixKey}>
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -365,12 +348,17 @@ export default function Subscription() {
               </div>
 
               {/* Bank Details */}
-              <div className="space-y-2 text-sm">
-                <p><span className="text-muted-foreground">Beneficiário:</span> {config?.beneficiary_name}</p>
-                <p><span className="text-muted-foreground">CNPJ:</span> {config?.beneficiary_cnpj}</p>
-                <p><span className="text-muted-foreground">Banco:</span> {config?.bank_name}</p>
-                <p><span className="text-muted-foreground">Agência:</span> {config?.agency}</p>
-                <p><span className="text-muted-foreground">Conta:</span> {config?.account}</p>
+              <div className="space-y-2 text-sm p-4 bg-muted/30 rounded-lg">
+                <p><span className="text-muted-foreground">Beneficiário:</span> Hugo Luz de Avila</p>
+                <p><span className="text-muted-foreground">Banco:</span> PicPay</p>
+              </div>
+
+              {/* Value to pay */}
+              <div className="text-center py-3 bg-primary/10 rounded-lg">
+                <p className="text-sm text-muted-foreground">Valor a pagar</p>
+                <p className="text-2xl font-bold text-primary">
+                  R$ {getFinalPrice().toFixed(2).replace('.', ',')}
+                </p>
               </div>
 
               {/* Action Buttons */}
@@ -382,14 +370,15 @@ export default function Subscription() {
                 >
                   Já fiz o pagamento
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  className="w-full"
-                  onClick={openWhatsApp}
+                <a
+                  href="https://wa.me/5517992573141?text=Preciso%20de%20ajuda%20com%20o%20pagamento%20do%20WFE%20Evolution%20CRM"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full h-10 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
-                  <MessageCircle className="mr-2 h-4 w-4" />
+                  <MessageCircle className="h-4 w-4" />
                   Preciso de ajuda
-                </Button>
+                </a>
               </div>
             </CardContent>
           </Card>
@@ -403,19 +392,19 @@ export default function Subscription() {
                 <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                   <span className="text-primary font-bold">1</span>
                 </div>
-                <p>Escaneie o QR Code com o app do seu banco ou copie a chave PIX</p>
+                <p>Copie a chave PIX acima e faça a transferência pelo app do seu banco</p>
               </div>
               <div className="flex-1 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                   <span className="text-primary font-bold">2</span>
                 </div>
-                <p>Realize o pagamento de R$ {config?.monthly_price?.toFixed(2).replace('.', ',')}</p>
+                <p>Realize o pagamento de R$ {getFinalPrice().toFixed(2).replace('.', ',')}</p>
               </div>
               <div className="flex-1 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                   <span className="text-primary font-bold">3</span>
                 </div>
-                <p>Clique em "Já fiz o pagamento" e aguarde a liberação (até 5 minutos)</p>
+                <p>Clique em "Já fiz o pagamento" e envie o comprovante via WhatsApp</p>
               </div>
             </div>
           </CardContent>
@@ -428,13 +417,13 @@ export default function Subscription() {
           <DialogHeader>
             <DialogTitle>Confirmar Pagamento</DialogTitle>
             <DialogDescription>
-              Você realmente efetuou o pagamento de R$ {config?.monthly_price?.toFixed(2).replace('.', ',')} via PIX?
+              Você realmente efetuou o pagamento de R$ {getFinalPrice().toFixed(2).replace('.', ',')} via PIX?
             </DialogDescription>
           </DialogHeader>
           
           <div className="py-4">
             <p className="text-sm text-muted-foreground mb-4">
-              Nosso sistema irá verificar automaticamente. Pagamentos falsos resultarão em bloqueio permanente.
+              Após confirmar, envie o comprovante via WhatsApp para agilizar a liberação.
             </p>
             
             <div className="flex items-start space-x-3">
