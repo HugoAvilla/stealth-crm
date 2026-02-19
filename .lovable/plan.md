@@ -1,67 +1,59 @@
 
-# Plano de Correcoes - 6 Problemas
+# Corrigir Atualizacao Automatica do PWA
 
-## 1. PDF nao abre ("PDF nao disponivel para visualizacao")
+## Problema
+Ao publicar uma nova versao, o Service Worker antigo continua servindo arquivos em cache. O usuario precisa remover o app da tela inicial e reinstalar para ver as mudancas.
 
-**Problema:** A funcao `generateReportPDF` chama `saveAndUploadPDF` que e async (faz upload ao Supabase Storage), porem `generateReportPDF` nao e async e nao usa `await`. O upload nunca completa antes do `savePDFRecord` registrar o metadata, entao o `storagePath` pode ficar `undefined`.
+## Solucao
+Forcar o novo Service Worker a assumir imediatamente (`skipWaiting`) e recarregar a pagina automaticamente quando uma atualizacao for detectada. O usuario vera as novidades sem precisar desinstalar/reinstalar o app.
 
-**Solucao:**
-- Arquivo: `src/lib/pdfGenerator.ts`
-- Tornar `generateReportPDF` async e usar `await saveAndUploadPDF(...)`
-- Fazer o mesmo para todas as funcoes de geracao de PDF que chamam `saveAndUploadPDF` sem await
-- Arquivo: `src/components/relatorios/ReportConfigModal.tsx`
-- Adicionar `await` na chamada de `generateReportPDF`
+## Alteracoes
 
-## 2. Erro ao alterar preco global
+### 1. Adicionar `skipWaiting` no Workbox (`vite.config.ts`)
 
-**Problema:** A funcao SQL `master_change_global_price` faz o UPDATE no `system_config` ANTES de ler o `monthly_price` antigo para o log. O INSERT no `master_actions` le o valor ja atualizado. Alem disso, pode haver problema de tipagem no RPC.
+Adicionar `skipWaiting: true` e `clientsClaim: true` na configuracao do workbox. Isso faz com que o novo Service Worker assuma imediatamente sem esperar o usuario fechar todas as abas.
 
-**Solucao:**
-- Migracao SQL: Recriar a funcao `master_change_global_price` lendo o `old_value` ANTES de fazer o UPDATE
+```typescript
+workbox: {
+  skipWaiting: true,
+  clientsClaim: true,
+  navigateFallbackDenylist: [/^\/~oauth/],
+  // ... resto da config existente
+}
+```
 
-## 3. Erro ao excluir usuario (FK constraint master_actions)
+### 2. Criar hook de deteccao de atualizacao (`src/hooks/use-pwa-update.ts`)
 
-**Problema:** A funcao `master_delete_user` exclui `subscriptions` antes de limpar `master_actions` que referenciam essas subscriptions via `target_subscription_id`. O erro e: `"master_actions_target_subscription_id_fkey" violates foreign key constraint`.
+Um hook que escuta o evento `controllerchange` do Service Worker. Quando o novo SW assumir, recarrega a pagina **uma unica vez** (usando flag `sessionStorage` para nao ficar em loop).
 
-**Solucao:**
-- Migracao SQL: Atualizar a funcao `master_delete_user` para setar `target_subscription_id = NULL` nos registros de `master_actions` que referenciam as subscriptions do usuario ANTES de deletar as subscriptions
+```
+- Escuta navigator.serviceWorker.controllerchange
+- Ao detectar mudanca, seta flag "pwa-reloading" no sessionStorage
+- Recarrega a pagina com window.location.reload()
+- Na proxima carga, limpa o flag
+```
 
-## 4. WhatsApp link bloqueado (api.whatsapp.com)
+### 3. Usar o hook no App (`src/App.tsx`)
 
-**Problema:** O link esta usando `api.whatsapp.com/send/?phone=...` em vez de `https://wa.me/5517992573141?text=...`. O dominio `api.whatsapp.com` e bloqueado por alguns navegadores/extensoes.
+Chamar o `usePWAUpdate()` no componente App para que a deteccao funcione globalmente.
 
-**Solucao:**
-- Arquivo: `src/pages/WaitingApproval.tsx`
-- O codigo ja usa `https://wa.me/...` (linha 75), entao o link deve estar correto. Porem a screenshot mostra `api.whatsapp.com` na barra de endereco, o que sugere que o `wa.me` esta redirecionando para `api.whatsapp.com`. Isso e um comportamento do WhatsApp que nao controlamos. O link `https://wa.me/` ja e o formato correto e funcionara quando o usuario tiver o WhatsApp instalado ou usar pelo celular.
-
-## 5. Remover contagem regressiva e botao "Verificar agora"
-
-**Problema:** O usuario pediu para remover a contagem regressiva de verificacao e o botao preto de "Verificar agora", mantendo apenas o botao verde.
-
-**Solucao:**
-- Arquivo: `src/pages/WaitingApproval.tsx`
-- Remover o bloco de countdown (linhas 110-115)
-- Remover o botao "Verificar agora" (linhas 151-168)
-- Manter a verificacao automatica silenciosa em background (sem mostrar ao usuario)
-
-## 6. Status Global (bonus - solicitado pelo usuario)
-
-**Problema:** O usuario quer uma funcao de "Status Global" similar ao "Preco Global", que defina o periodo de expiracao para TODOS os usuarios ativos de uma vez.
-
-**Solucao:**
-- Migracao SQL: Criar RPC `master_change_global_expiration` que:
-  - Recebe periodo em meses e motivo
-  - Atualiza `expires_at` de todas as subscriptions com status `active` para `now() + periodo`
-  - Registra acao em `master_actions`
-- Arquivo: `src/components/master/SubscriptionsManager.tsx`
-  - Adicionar botao "Expiracao Global" ao lado do "Preco Global"
-  - Adicionar modal com seletor de periodo (Mensal, Bimestral, Semestral, Anual) e campo motivo
+## Resultado Final
+- Quando voce publicar uma atualizacao, o usuario ao abrir o app vera um reload rapido automatico
+- Nao precisa mais desinstalar e reinstalar
+- Funciona tanto no celular quanto no computador
+- Transparente para o usuario (acontece em menos de 1 segundo)
 
 ## Detalhes Tecnicos
 
 ### Arquivos a modificar:
-1. `src/lib/pdfGenerator.ts` - tornar funcoes async
-2. `src/components/relatorios/ReportConfigModal.tsx` - await na geracao
-3. `src/pages/WaitingApproval.tsx` - remover countdown e botao verificar
-4. `src/components/master/SubscriptionsManager.tsx` - botao + modal Expiracao Global
-5. Migracao SQL - corrigir `master_change_global_price`, `master_delete_user`, criar `master_change_global_expiration`
+1. `vite.config.ts` - adicionar `skipWaiting` e `clientsClaim`
+2. `src/hooks/use-pwa-update.ts` - novo hook de deteccao
+3. `src/App.tsx` - integrar o hook
+
+### Como funciona tecnicamente:
+1. Ao publicar, um novo Service Worker e gerado com hash diferente
+2. O navegador detecta o novo SW e o instala em background
+3. `skipWaiting: true` faz o novo SW ativar imediatamente (sem esperar fechar abas)
+4. `clientsClaim: true` faz o novo SW assumir o controle da pagina atual
+5. O hook detecta a troca de controller e faz reload uma unica vez
+6. A pagina recarrega com os novos arquivos ja servidos pelo novo SW
