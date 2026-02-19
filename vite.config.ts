@@ -21,6 +21,9 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.ico", "favicon.png", "pwa-icon.png"],
       manifest: false,
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB limit
         runtimeCaching: [
