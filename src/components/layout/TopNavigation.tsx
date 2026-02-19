@@ -131,7 +131,7 @@ export function TopNavigation() {
         )}
       >
         <Icon className="w-4 h-4" />
-        <span className="hidden sm:inline">{item.label}</span>
+        <span className="text-[10px] sm:text-sm whitespace-nowrap">{item.label}</span>
         {item.badge && item.badge > 0 && (
           <Badge variant="destructive" className="h-4 min-w-4 sm:h-5 sm:min-w-5 flex items-center justify-center text-[10px] sm:text-xs">
             {item.badge}

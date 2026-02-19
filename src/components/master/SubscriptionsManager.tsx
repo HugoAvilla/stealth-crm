@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,7 @@ import {
   Users,
   Trash2,
   Tag,
+  Globe,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -94,6 +95,7 @@ const SubscriptionsManager = () => {
   const [showMemberLimitModal, setShowMemberLimitModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCouponModal, setShowCouponModal] = useState(false);
+  const [showGlobalPriceModal, setShowGlobalPriceModal] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithRelations | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -104,12 +106,15 @@ const SubscriptionsManager = () => {
   const [expiryReason, setExpiryReason] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [statusReason, setStatusReason] = useState("");
+  const [expirationPeriod, setExpirationPeriod] = useState("1");
   const [newMemberLimit, setNewMemberLimit] = useState("");
   const [memberLimitReason, setMemberLimitReason] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
   const [couponDiscountType, setCouponDiscountType] = useState("percentage");
   const [couponDiscountValue, setCouponDiscountValue] = useState("");
   const [couponDescription, setCouponDescription] = useState("");
+  const [globalPrice, setGlobalPrice] = useState("");
+  const [globalPriceReason, setGlobalPriceReason] = useState("");
 
   useEffect(() => {
     fetchSubscriptions();
@@ -117,7 +122,6 @@ const SubscriptionsManager = () => {
 
   const fetchSubscriptions = async () => {
     try {
-      // Fetch subscriptions with related profile and company
       const { data: subs, error } = await supabase
         .from("subscriptions")
         .select("*")
@@ -125,7 +129,6 @@ const SubscriptionsManager = () => {
 
       if (error) throw error;
 
-      // Fetch profiles, companies and roles separately
       const userIds = subs?.map((s) => s.user_id) || [];
       const companyIds = subs?.map((s) => s.company_id).filter(Boolean) || [];
 
@@ -144,7 +147,6 @@ const SubscriptionsManager = () => {
         .select("user_id, role")
         .in("user_id", userIds);
 
-      // Combine data
       const enrichedSubs: SubscriptionWithRelations[] = (subs || []).map((sub) => ({
         ...sub,
         profile: profiles?.find((p) => p.user_id === sub.user_id) || null,
@@ -155,10 +157,7 @@ const SubscriptionsManager = () => {
       setSubscriptions(enrichedSubs);
     } catch (error) {
       console.error("Error fetching subscriptions:", error);
-      toast({
-        title: "Erro ao carregar assinaturas",
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao carregar assinaturas", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -175,9 +174,7 @@ const SubscriptionsManager = () => {
         new_price_input: parseFloat(newPrice),
         reason_input: priceReason,
       });
-
       if (error) throw error;
-
       toast({ title: "Preço alterado com sucesso!" });
       setShowPriceModal(false);
       resetForms();
@@ -185,6 +182,30 @@ const SubscriptionsManager = () => {
     } catch (error) {
       console.error("Error changing price:", error);
       toast({ title: "Erro ao alterar preço", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGlobalPriceChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!globalPrice || !globalPriceReason) return;
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.rpc("master_change_global_price", {
+        new_price_input: parseFloat(globalPrice),
+        reason_input: globalPriceReason,
+      });
+      if (error) throw error;
+      toast({ title: "Preço global alterado com sucesso para todas as assinaturas!" });
+      setShowGlobalPriceModal(false);
+      setGlobalPrice("");
+      setGlobalPriceReason("");
+      fetchSubscriptions();
+    } catch (error) {
+      console.error("Error changing global price:", error);
+      toast({ title: "Erro ao alterar preço global", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -201,9 +222,7 @@ const SubscriptionsManager = () => {
         new_expiry_input: new Date(newExpiry).toISOString(),
         reason_input: expiryReason,
       });
-
       if (error) throw error;
-
       toast({ title: "Data de expiração alterada com sucesso!" });
       setShowExpiryModal(false);
       resetForms();
@@ -222,13 +241,26 @@ const SubscriptionsManager = () => {
 
     setIsSubmitting(true);
     try {
+      // Change status
       const { error } = await supabase.rpc("master_toggle_subscription_status", {
         subscription_id_input: selectedSub.id,
         new_status_input: newStatus,
         reason_input: statusReason,
       });
-
       if (error) throw error;
+
+      // If activating, auto-set expiration based on period
+      if (newStatus === 'active') {
+        const months = parseInt(expirationPeriod);
+        const expiresAt = addMonths(new Date(), months);
+        
+        const { error: expiryError } = await supabase.rpc("master_change_expiry_date", {
+          subscription_id_input: selectedSub.id,
+          new_expiry_input: expiresAt.toISOString(),
+          reason_input: `Ativação automática - período de ${months} mês(es)`,
+        });
+        if (expiryError) console.error("Error setting expiry:", expiryError);
+      }
 
       toast({ title: "Status alterado com sucesso!" });
       setShowStatusModal(false);
@@ -253,9 +285,7 @@ const SubscriptionsManager = () => {
         new_limit_input: parseInt(newMemberLimit),
         reason_input: memberLimitReason,
       });
-
       if (error) throw error;
-
       toast({ title: "Limite de membros alterado com sucesso!" });
       setShowMemberLimitModal(false);
       resetForms();
@@ -277,20 +307,14 @@ const SubscriptionsManager = () => {
         user_id_input: selectedSub.user_id,
         reason_input: deleteReason,
       });
-
       if (error) throw error;
-
       toast({ title: "Usuário excluído com sucesso!" });
       setShowDeleteModal(false);
       resetForms();
       fetchSubscriptions();
     } catch (error: any) {
       console.error("Error deleting user:", error);
-      toast({ 
-        title: "Erro ao excluir usuário", 
-        description: error.message || "Tente novamente",
-        variant: "destructive" 
-      });
+      toast({ title: "Erro ao excluir usuário", description: error.message || "Tente novamente", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -308,22 +332,13 @@ const SubscriptionsManager = () => {
         p_discount_value: parseFloat(couponDiscountValue),
         p_description: couponDescription || null,
       });
-
       if (error) throw error;
-
-      toast({ 
-        title: "Cupom criado com sucesso!", 
-        description: `Código: ${data}`,
-      });
+      toast({ title: "Cupom criado com sucesso!", description: `Código: ${data}` });
       setShowCouponModal(false);
       resetForms();
     } catch (error: any) {
       console.error("Error creating coupon:", error);
-      toast({ 
-        title: "Erro ao criar cupom", 
-        description: error.message || "Tente novamente",
-        variant: "destructive" 
-      });
+      toast({ title: "Erro ao criar cupom", description: error.message || "Tente novamente", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -337,6 +352,7 @@ const SubscriptionsManager = () => {
     setExpiryReason("");
     setNewStatus("");
     setStatusReason("");
+    setExpirationPeriod("1");
     setNewMemberLimit("");
     setMemberLimitReason("");
     setDeleteReason("");
@@ -403,7 +419,7 @@ const SubscriptionsManager = () => {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
@@ -413,14 +429,25 @@ const SubscriptionsManager = () => {
                 Altere preços, datas de expiração e status das assinaturas
               </CardDescription>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por email, nome..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowGlobalPriceModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Globe className="h-4 w-4" />
+                Preço Global
+              </Button>
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por email, nome..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -445,15 +472,11 @@ const SubscriptionsManager = () => {
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="font-medium">{sub.profile?.name || "—"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {sub.profile?.email || "—"}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{sub.profile?.email || "—"}</p>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {getRoleBadge(sub.userRole)}
-                  </TableCell>
+                  <TableCell>{getRoleBadge(sub.userRole)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Building className="h-4 w-4 text-muted-foreground" />
@@ -461,83 +484,30 @@ const SubscriptionsManager = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="font-mono">
-                      R$ {(sub.final_price || sub.plan_price || 0).toFixed(2)}
-                    </span>
+                    <span className="font-mono">R$ {(sub.final_price || sub.plan_price || 0).toFixed(2)}</span>
                   </TableCell>
                   <TableCell>{formatDate(sub.expires_at)}</TableCell>
                   <TableCell>{getStatusBadge(sub.status)}</TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setSelectedSub(sub);
-                          setNewPrice((sub.plan_price || 0).toString());
-                          setShowPriceModal(true);
-                        }}
-                        title="Alterar preço"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setNewPrice((sub.plan_price || 0).toString()); setShowPriceModal(true); }} title="Alterar preço">
                         <DollarSign className="h-4 w-4 text-blue-500" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setSelectedSub(sub);
-                          setShowExpiryModal(true);
-                        }}
-                        title="Alterar expiração"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setShowExpiryModal(true); }} title="Alterar expiração">
                         <Calendar className="h-4 w-4 text-purple-500" />
                       </Button>
                       {sub.company && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSelectedSub(sub);
-                            setNewMemberLimit((sub.company?.max_members || 5).toString());
-                            setShowMemberLimitModal(true);
-                          }}
-                          title="Limite de membros"
-                        >
+                        <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setNewMemberLimit((sub.company?.max_members || 5).toString()); setShowMemberLimitModal(true); }} title="Limite de membros">
                           <Users className="h-4 w-4 text-green-500" />
                         </Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setSelectedSub(sub);
-                          setNewStatus(sub.status);
-                          setShowStatusModal(true);
-                        }}
-                        title="Alterar status"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setNewStatus(sub.status); setShowStatusModal(true); }} title="Alterar status">
                         <Power className="h-4 w-4 text-orange-500" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setSelectedSub(sub);
-                          setShowCouponModal(true);
-                        }}
-                        title="Criar cupom individual"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setShowCouponModal(true); }} title="Criar cupom individual">
                         <Tag className="h-4 w-4 text-cyan-500" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setSelectedSub(sub);
-                          setShowDeleteModal(true);
-                        }}
-                        title="Excluir usuário"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setShowDeleteModal(true); }} title="Excluir usuário">
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -549,55 +519,57 @@ const SubscriptionsManager = () => {
         </CardContent>
       </Card>
 
+      {/* Modal Preço Global */}
+      <Dialog open={showGlobalPriceModal} onOpenChange={setShowGlobalPriceModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Alterar Preço Global
+            </DialogTitle>
+            <DialogDescription>
+              O novo preço será aplicado a TODAS as assinaturas e ao valor padrão do sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleGlobalPriceChange} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="globalPrice">Novo Preço (R$) *</Label>
+              <Input id="globalPrice" type="number" step="0.01" min="0" value={globalPrice} onChange={(e) => setGlobalPrice(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="globalPriceReason">Motivo *</Label>
+              <Textarea id="globalPriceReason" value={globalPriceReason} onChange={(e) => setGlobalPriceReason(e.target.value)} placeholder="Ex: Reajuste anual, promoção geral..." required rows={3} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setShowGlobalPriceModal(false); setGlobalPrice(""); setGlobalPriceReason(""); }}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Aplicar para Todos
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal Alterar Preço */}
       <Dialog open={showPriceModal} onOpenChange={setShowPriceModal}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Alterar Preço da Assinatura</DialogTitle>
-            <DialogDescription>
-              {selectedSub?.profile?.email} - Preço atual: R${" "}
-              {(selectedSub?.plan_price || 0).toFixed(2)}
-            </DialogDescription>
+            <DialogDescription>{selectedSub?.profile?.email} - Preço atual: R$ {(selectedSub?.plan_price || 0).toFixed(2)}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleChangePrice} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="newPrice">Novo Preço (R$) *</Label>
-              <Input
-                id="newPrice"
-                type="number"
-                step="0.01"
-                min="0"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                required
-              />
+              <Input id="newPrice" type="number" step="0.01" min="0" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="priceReason">Motivo da Alteração *</Label>
-              <Textarea
-                id="priceReason"
-                value={priceReason}
-                onChange={(e) => setPriceReason(e.target.value)}
-                placeholder="Ex: Desconto promocional, ajuste comercial..."
-                required
-                rows={3}
-              />
+              <Textarea id="priceReason" value={priceReason} onChange={(e) => setPriceReason(e.target.value)} placeholder="Ex: Desconto promocional, ajuste comercial..." required rows={3} />
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowPriceModal(false);
-                  resetForms();
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Confirmar
-              </Button>
+              <Button type="button" variant="outline" onClick={() => { setShowPriceModal(false); resetForms(); }}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Confirmar</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -608,48 +580,20 @@ const SubscriptionsManager = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Alterar Data de Expiração</DialogTitle>
-            <DialogDescription>
-              {selectedSub?.profile?.email} - Expira em:{" "}
-              {formatDate(selectedSub?.expires_at || null)}
-            </DialogDescription>
+            <DialogDescription>{selectedSub?.profile?.email} - Expira em: {formatDate(selectedSub?.expires_at || null)}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleChangeExpiry} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="newExpiry">Nova Data de Expiração *</Label>
-              <Input
-                id="newExpiry"
-                type="datetime-local"
-                value={newExpiry}
-                onChange={(e) => setNewExpiry(e.target.value)}
-                required
-              />
+              <Input id="newExpiry" type="datetime-local" value={newExpiry} onChange={(e) => setNewExpiry(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="expiryReason">Motivo *</Label>
-              <Textarea
-                id="expiryReason"
-                value={expiryReason}
-                onChange={(e) => setExpiryReason(e.target.value)}
-                placeholder="Ex: Prorrogação por atraso, extensão promocional..."
-                required
-                rows={3}
-              />
+              <Textarea id="expiryReason" value={expiryReason} onChange={(e) => setExpiryReason(e.target.value)} placeholder="Ex: Prorrogação por atraso, extensão promocional..." required rows={3} />
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowExpiryModal(false);
-                  resetForms();
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Confirmar
-              </Button>
+              <Button type="button" variant="outline" onClick={() => { setShowExpiryModal(false); resetForms(); }}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Confirmar</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -660,17 +604,13 @@ const SubscriptionsManager = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Alterar Status da Assinatura</DialogTitle>
-            <DialogDescription>
-              {selectedSub?.profile?.email} - Status atual: {selectedSub?.status}
-            </DialogDescription>
+            <DialogDescription>{selectedSub?.profile?.email} - Status atual: {selectedSub?.status}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleChangeStatus} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="newStatus">Novo Status *</Label>
               <Select value={newStatus} onValueChange={setNewStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o status" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Ativo</SelectItem>
                   <SelectItem value="pending_payment">Aguardando Pagamento</SelectItem>
@@ -680,32 +620,33 @@ const SubscriptionsManager = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Período de expiração - só aparece quando ativando */}
+            {newStatus === 'active' && (
+              <div className="space-y-2 p-3 bg-muted/50 rounded-lg border">
+                <Label htmlFor="expirationPeriod">Período de Expiração *</Label>
+                <Select value={expirationPeriod} onValueChange={setExpirationPeriod}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o período" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Mensal (1 mês)</SelectItem>
+                    <SelectItem value="2">Bimestral (2 meses)</SelectItem>
+                    <SelectItem value="6">Semestral (6 meses)</SelectItem>
+                    <SelectItem value="12">Anual (12 meses)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  A expiração será calculada automaticamente a partir de agora: {format(addMonths(new Date(), parseInt(expirationPeriod)), "dd/MM/yyyy", { locale: ptBR })}
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="statusReason">Motivo *</Label>
-              <Textarea
-                id="statusReason"
-                value={statusReason}
-                onChange={(e) => setStatusReason(e.target.value)}
-                placeholder="Ex: Liberação manual, bloqueio por inadimplência..."
-                required
-                rows={3}
-              />
+              <Textarea id="statusReason" value={statusReason} onChange={(e) => setStatusReason(e.target.value)} placeholder="Ex: Liberação manual, bloqueio por inadimplência..." required rows={3} />
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowStatusModal(false);
-                  resetForms();
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Confirmar
-              </Button>
+              <Button type="button" variant="outline" onClick={() => { setShowStatusModal(false); resetForms(); }}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Confirmar</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -716,51 +657,21 @@ const SubscriptionsManager = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Alterar Limite de Membros</DialogTitle>
-            <DialogDescription>
-              {selectedSub?.company?.company_name} - Limite atual:{" "}
-              {selectedSub?.company?.max_members || 5} membros
-            </DialogDescription>
+            <DialogDescription>{selectedSub?.company?.company_name} - Limite atual: {selectedSub?.company?.max_members || 5} membros</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleChangeMemberLimit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="newMemberLimit">Novo Limite de Membros *</Label>
-              <Input
-                id="newMemberLimit"
-                type="number"
-                min="1"
-                max="50"
-                value={newMemberLimit}
-                onChange={(e) => setNewMemberLimit(e.target.value)}
-                required
-              />
+              <Input id="newMemberLimit" type="number" min="1" max="50" value={newMemberLimit} onChange={(e) => setNewMemberLimit(e.target.value)} required />
               <p className="text-xs text-muted-foreground">Mínimo 1, máximo 50 membros</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="memberLimitReason">Motivo *</Label>
-              <Textarea
-                id="memberLimitReason"
-                value={memberLimitReason}
-                onChange={(e) => setMemberLimitReason(e.target.value)}
-                placeholder="Ex: Solicitação do cliente, upgrade de plano..."
-                required
-                rows={3}
-              />
+              <Textarea id="memberLimitReason" value={memberLimitReason} onChange={(e) => setMemberLimitReason(e.target.value)} placeholder="Ex: Solicitação do cliente, upgrade de plano..." required rows={3} />
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowMemberLimitModal(false);
-                  resetForms();
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting || !selectedSub?.company?.id}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Confirmar
-              </Button>
+              <Button type="button" variant="outline" onClick={() => { setShowMemberLimitModal(false); resetForms(); }}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting || !selectedSub?.company?.id}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Confirmar</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -771,17 +682,13 @@ const SubscriptionsManager = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Criar Cupom Individual</DialogTitle>
-            <DialogDescription>
-              Criar cupom exclusivo para {selectedSub?.profile?.name} ({selectedSub?.profile?.email})
-            </DialogDescription>
+            <DialogDescription>Criar cupom exclusivo para {selectedSub?.profile?.name} ({selectedSub?.profile?.email})</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateCoupon} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="couponDiscountType">Tipo de Desconto *</Label>
               <Select value={couponDiscountType} onValueChange={setCouponDiscountType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="percentage">Porcentagem (%)</SelectItem>
                   <SelectItem value="fixed">Valor Fixo (R$)</SelectItem>
@@ -789,46 +696,16 @@ const SubscriptionsManager = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="couponDiscountValue">
-                Valor do Desconto *{" "}
-                {couponDiscountType === "percentage" ? "(%)" : "(R$)"}
-              </Label>
-              <Input
-                id="couponDiscountValue"
-                type="number"
-                step={couponDiscountType === "percentage" ? "1" : "0.01"}
-                min="0"
-                max={couponDiscountType === "percentage" ? "100" : undefined}
-                value={couponDiscountValue}
-                onChange={(e) => setCouponDiscountValue(e.target.value)}
-                required
-              />
+              <Label htmlFor="couponDiscountValue">Valor do Desconto * {couponDiscountType === "percentage" ? "(%)" : "(R$)"}</Label>
+              <Input id="couponDiscountValue" type="number" step={couponDiscountType === "percentage" ? "1" : "0.01"} min="0" max={couponDiscountType === "percentage" ? "100" : undefined} value={couponDiscountValue} onChange={(e) => setCouponDiscountValue(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="couponDescription">Descrição (opcional)</Label>
-              <Textarea
-                id="couponDescription"
-                value={couponDescription}
-                onChange={(e) => setCouponDescription(e.target.value)}
-                placeholder="Ex: Cupom de fidelidade, desconto especial..."
-                rows={2}
-              />
+              <Textarea id="couponDescription" value={couponDescription} onChange={(e) => setCouponDescription(e.target.value)} placeholder="Ex: Cupom de fidelidade, desconto especial..." rows={2} />
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowCouponModal(false);
-                  resetForms();
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Criar Cupom
-              </Button>
+              <Button type="button" variant="outline" onClick={() => { setShowCouponModal(false); resetForms(); }}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Criar Cupom</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -838,17 +715,10 @@ const SubscriptionsManager = () => {
       <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
-              Excluir Usuário Permanentemente
-            </AlertDialogTitle>
+            <AlertDialogTitle className="text-destructive">Excluir Usuário Permanentemente</AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
-              <p>
-                Você está prestes a excluir o usuário{" "}
-                <strong>{selectedSub?.profile?.name}</strong> ({selectedSub?.profile?.email}).
-              </p>
-              <p className="font-semibold text-destructive">
-                Esta ação é IRREVERSÍVEL e excluirá:
-              </p>
+              <p>Você está prestes a excluir o usuário <strong>{selectedSub?.profile?.name}</strong> ({selectedSub?.profile?.email}).</p>
+              <p className="font-semibold text-destructive">Esta ação é IRREVERSÍVEL e excluirá:</p>
               <ul className="list-disc list-inside text-sm">
                 <li>Perfil do usuário</li>
                 <li>Assinatura e histórico de pagamentos</li>
@@ -859,27 +729,11 @@ const SubscriptionsManager = () => {
           </AlertDialogHeader>
           <div className="space-y-2 py-4">
             <Label htmlFor="deleteReason">Motivo da exclusão *</Label>
-            <Textarea
-              id="deleteReason"
-              value={deleteReason}
-              onChange={(e) => setDeleteReason(e.target.value)}
-              placeholder="Ex: Solicitação do usuário, conta duplicada..."
-              required
-              rows={3}
-            />
+            <Textarea id="deleteReason" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="Ex: Solicitação do usuário, conta duplicada..." required rows={3} />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setShowDeleteModal(false);
-              resetForms();
-            }}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteUser}
-              disabled={isSubmitting || !deleteReason}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogCancel onClick={() => { setShowDeleteModal(false); resetForms(); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} disabled={isSubmitting || !deleteReason} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Excluir Permanentemente
             </AlertDialogAction>
