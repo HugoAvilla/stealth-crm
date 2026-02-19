@@ -96,6 +96,7 @@ const SubscriptionsManager = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [showGlobalPriceModal, setShowGlobalPriceModal] = useState(false);
+  const [showGlobalExpirationModal, setShowGlobalExpirationModal] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithRelations | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -115,6 +116,8 @@ const SubscriptionsManager = () => {
   const [couponDescription, setCouponDescription] = useState("");
   const [globalPrice, setGlobalPrice] = useState("");
   const [globalPriceReason, setGlobalPriceReason] = useState("");
+  const [globalExpirationPeriod, setGlobalExpirationPeriod] = useState("1");
+  const [globalExpirationReason, setGlobalExpirationReason] = useState("");
 
   useEffect(() => {
     fetchSubscriptions();
@@ -206,6 +209,30 @@ const SubscriptionsManager = () => {
     } catch (error) {
       console.error("Error changing global price:", error);
       toast({ title: "Erro ao alterar preço global", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGlobalExpirationChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!globalExpirationReason) return;
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.rpc("master_change_global_expiration", {
+        months_input: parseInt(globalExpirationPeriod),
+        reason_input: globalExpirationReason,
+      });
+      if (error) throw error;
+      toast({ title: "Expiração global alterada com sucesso para todos os usuários ativos!" });
+      setShowGlobalExpirationModal(false);
+      setGlobalExpirationPeriod("1");
+      setGlobalExpirationReason("");
+      fetchSubscriptions();
+    } catch (error) {
+      console.error("Error changing global expiration:", error);
+      toast({ title: "Erro ao alterar expiração global", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -439,6 +466,15 @@ const SubscriptionsManager = () => {
                 <Globe className="h-4 w-4" />
                 Preço Global
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowGlobalExpirationModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                Expiração Global
+              </Button>
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -545,6 +581,49 @@ const SubscriptionsManager = () => {
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Aplicar para Todos
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Expiração Global */}
+      <Dialog open={showGlobalExpirationModal} onOpenChange={setShowGlobalExpirationModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Expiração Global
+            </DialogTitle>
+            <DialogDescription>
+              Define o período de expiração para TODOS os usuários com status ativo.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleGlobalExpirationChange} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="globalExpirationPeriod">Período *</Label>
+              <Select value={globalExpirationPeriod} onValueChange={setGlobalExpirationPeriod}>
+                <SelectTrigger><SelectValue placeholder="Selecione o período" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Mensal (1 mês)</SelectItem>
+                  <SelectItem value="2">Bimestral (2 meses)</SelectItem>
+                  <SelectItem value="6">Semestral (6 meses)</SelectItem>
+                  <SelectItem value="12">Anual (12 meses)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Nova expiração: {format(addMonths(new Date(), parseInt(globalExpirationPeriod)), "dd/MM/yyyy", { locale: ptBR })}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="globalExpirationReason">Motivo *</Label>
+              <Textarea id="globalExpirationReason" value={globalExpirationReason} onChange={(e) => setGlobalExpirationReason(e.target.value)} placeholder="Ex: Renovação geral, extensão promocional..." required rows={3} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setShowGlobalExpirationModal(false); setGlobalExpirationPeriod("1"); setGlobalExpirationReason(""); }}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Aplicar para Todos Ativos
               </Button>
             </DialogFooter>
           </form>

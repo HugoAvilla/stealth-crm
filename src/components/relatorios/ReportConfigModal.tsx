@@ -472,7 +472,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
           return;
       }
 
-      generateReportPDF(pdfData, companyId || undefined);
+      await generateReportPDF(pdfData, companyId || undefined);
       toast.success(`Relatório ${report.name} gerado em PDF!`);
       onOpenChange(false);
     } catch (error) {
