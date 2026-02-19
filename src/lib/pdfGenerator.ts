@@ -75,7 +75,7 @@ async function saveAndUploadPDF(
   });
 }
 
-export function generateSalePDFA4(sale: SalePDFData, options: Record<string, boolean> = {}, companyId?: number): void {
+export async function generateSalePDFA4(sale: SalePDFData, options: Record<string, boolean> = {}, companyId?: number): Promise<void> {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 15;
@@ -175,10 +175,10 @@ export function generateSalePDFA4(sale: SalePDFData, options: Record<string, boo
   }
 
   const filename = `venda-${sale.id}-A4.pdf`;
-  saveAndUploadPDF(doc, filename, 'Recibo A4', 'vendas', `Venda #${sale.id} - ${sale.client_name}`, companyId);
+  await saveAndUploadPDF(doc, filename, 'Recibo A4', 'vendas', `Venda #${sale.id} - ${sale.client_name}`, companyId);
 }
 
-export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm', options: Record<string, boolean> = {}, companyId?: number): void {
+export async function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm', options: Record<string, boolean> = {}, companyId?: number): Promise<void> {
   const width = size === '80mm' ? 80 : 58;
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -290,10 +290,10 @@ export function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '58mm',
   doc.text('Obrigado pela preferência!', width / 2, y, { align: 'center' });
 
   const filename = `venda-${sale.id}-${size}.pdf`;
-  saveAndUploadPDF(doc, filename, size === '80mm' ? 'Notinha 80mm' : 'Notinha 58mm', 'vendas', `Venda #${sale.id} - ${sale.client_name}`, companyId);
+  await saveAndUploadPDF(doc, filename, size === '80mm' ? 'Notinha 80mm' : 'Notinha 58mm', 'vendas', `Venda #${sale.id} - ${sale.client_name}`, companyId);
 }
 
-export function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?: number): void {
+export async function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?: number): Promise<void> {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
@@ -373,10 +373,10 @@ export function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?: numbe
   doc.text('Este certificado é intransferível e válido apenas para o veículo especificado.', pageWidth / 2, 280, { align: 'center' });
 
   const filename = `garantia-${warranty.certificate_number}.pdf`;
-  saveAndUploadPDF(doc, filename, 'Garantia', 'garantias', `${warranty.client_name} - ${warranty.service_name}`, companyId);
+  await saveAndUploadPDF(doc, filename, 'Garantia', 'garantias', `${warranty.client_name} - ${warranty.service_name}`, companyId);
 }
 
-export function generateReportPDF(report: ReportPDFData, companyId?: number): void {
+export async function generateReportPDF(report: ReportPDFData, companyId?: number): Promise<void> {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
@@ -418,7 +418,7 @@ export function generateReportPDF(report: ReportPDFData, companyId?: number): vo
   }
 
   const filename = `${report.title.toLowerCase().replace(/\s+/g, '-')}.pdf`;
-  saveAndUploadPDF(doc, filename, 'Relatório', 'relatorios', report.title + (report.period ? ` (${formatDate(report.period.start)} - ${formatDate(report.period.end)})` : ''), companyId);
+  await saveAndUploadPDF(doc, filename, 'Relatório', 'relatorios', report.title + (report.period ? ` (${formatDate(report.period.start)} - ${formatDate(report.period.end)})` : ''), companyId);
 }
 
 function formatDate(dateStr: string): string {
@@ -449,7 +449,7 @@ export interface SpacePDFData {
   total: number;
 }
 
-export function generateSpacePDFA4(space: SpacePDFData, companyId?: number): void {
+export async function generateSpacePDFA4(space: SpacePDFData, companyId?: number): Promise<void> {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 15;
@@ -516,10 +516,10 @@ export function generateSpacePDFA4(space: SpacePDFData, companyId?: number): voi
   doc.text(`TOTAL: R$ ${space.total.toFixed(2)}`, pageWidth - 60, y);
 
   const filename = `vaga-${space.id}-A4.pdf`;
-  saveAndUploadPDF(doc, filename, 'Comprovante Vaga A4', 'espaco', `Vaga #${space.id} - ${space.client_name}`, companyId);
+  await saveAndUploadPDF(doc, filename, 'Comprovante Vaga A4', 'espaco', `Vaga #${space.id} - ${space.client_name}`, companyId);
 }
 
-export function generateSpacePDFReceipt(space: SpacePDFData, size: '80mm' | '58mm', companyId?: number): void {
+export async function generateSpacePDFReceipt(space: SpacePDFData, size: '80mm' | '58mm', companyId?: number): Promise<void> {
   const width = size === '80mm' ? 80 : 58;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, 200] });
   let y = 8;
@@ -605,5 +605,5 @@ export function generateSpacePDFReceipt(space: SpacePDFData, size: '80mm' | '58m
   doc.text('Obrigado pela preferência!', width / 2, y, { align: 'center' });
 
   const filename = `vaga-${space.id}-${size}.pdf`;
-  saveAndUploadPDF(doc, filename, size === '80mm' ? 'Comprovante Vaga 80mm' : 'Comprovante Vaga 58mm', 'espaco', `Vaga #${space.id} - ${space.client_name}`, companyId);
+  await saveAndUploadPDF(doc, filename, size === '80mm' ? 'Comprovante Vaga 80mm' : 'Comprovante Vaga 58mm', 'espaco', `Vaga #${space.id} - ${space.client_name}`, companyId);
 }

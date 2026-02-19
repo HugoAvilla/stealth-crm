@@ -2311,6 +2311,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      master_change_global_expiration: {
+        Args: { months_input: number; reason_input: string }
+        Returns: undefined
+      }
       master_change_global_price: {
         Args: { new_price_input: number; reason_input: string }
         Returns: undefined

@@ -1,15 +1,13 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, RefreshCw, MessageCircle, CheckCircle, ArrowLeft, Send } from 'lucide-react';
+import { Clock, CheckCircle, ArrowLeft, Send } from 'lucide-react';
 
 export default function WaitingApproval() {
   const { user, refreshUser, signOut } = useAuth();
   const navigate = useNavigate();
-  const [countdown, setCountdown] = useState(30);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -33,19 +31,11 @@ export default function WaitingApproval() {
     }
 
     intervalRef.current = setInterval(async () => {
-      setIsRefreshing(true);
       await refreshUser();
-      setIsRefreshing(false);
-      setCountdown(30);
     }, 30000);
-
-    const countdownInterval = setInterval(() => {
-      setCountdown(prev => (prev > 0 ? prev - 1 : 30));
-    }, 1000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      clearInterval(countdownInterval);
     };
   }, [user, refreshUser, navigate]);
 
@@ -59,12 +49,6 @@ export default function WaitingApproval() {
     }
   }, [user?.subscriptionStatus, user?.companyId, navigate]);
 
-  const handleManualRefresh = async () => {
-    setIsRefreshing(true);
-    await refreshUser();
-    setIsRefreshing(false);
-    setCountdown(30);
-  };
 
   const userName = user?.profile?.name || user?.email?.split('@')[0] || '';
   const userEmail = user?.email || '';
@@ -90,15 +74,10 @@ export default function WaitingApproval() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para login
           </Button>
-          <div className="mx-auto mb-4 relative">
+          <div className="mx-auto mb-4">
             <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center">
               <Clock className="h-10 w-10 text-primary animate-pulse" />
             </div>
-            {isRefreshing && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-20 h-20 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-              </div>
-            )}
           </div>
           <CardTitle className="text-2xl">Aguardando liberação</CardTitle>
           <CardDescription>
@@ -106,13 +85,6 @@ export default function WaitingApproval() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Status */}
-          <div className="text-center py-4 bg-muted/50 rounded-lg">
-            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span>Próxima verificação em {countdown}s</span>
-            </div>
-          </div>
 
           {/* Progress Steps */}
           <div className="space-y-3">
@@ -147,25 +119,6 @@ export default function WaitingApproval() {
               <Send className="h-4 w-4" />
               Enviar Comprovante via WhatsApp
             </a>
-
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={handleManualRefresh}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  Verificando...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Verificar agora
-                </>
-              )}
-            </Button>
           </div>
 
           {/* Info */}
