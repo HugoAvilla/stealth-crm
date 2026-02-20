@@ -1,25 +1,31 @@
 import { useEffect } from "react";
+import { useRegisterSW } from "virtual:pwa-register/react";
 
 export function usePWAUpdate() {
+  const {
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(registration) {
+      if (!registration) return;
+
+      // Verifica atualizações imediatamente ao registrar
+      registration.update();
+
+      // Verifica atualizações a cada 60 segundos
+      setInterval(() => {
+        registration.update();
+      }, 60 * 1000);
+    },
+    onRegisterError(error) {
+      console.error("[PWA] Erro ao registrar service worker:", error);
+    },
+  });
+
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-
-    // If we just reloaded, clear the flag
-    if (sessionStorage.getItem("pwa-reloading")) {
-      sessionStorage.removeItem("pwa-reloading");
-      return;
+    if (needRefresh) {
+      // Nova versão disponível — atualiza e recarrega automaticamente
+      updateServiceWorker(true);
     }
-
-    const handleControllerChange = () => {
-      if (sessionStorage.getItem("pwa-reloading")) return;
-      sessionStorage.setItem("pwa-reloading", "true");
-      window.location.reload();
-    };
-
-    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
-
-    return () => {
-      navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
-    };
-  }, []);
+  }, [needRefresh, updateServiceWorker]);
 }

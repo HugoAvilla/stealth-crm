@@ -6,8 +6,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { HelpCircle } from 'lucide-react';
 
 interface HelpStep {
@@ -25,22 +23,18 @@ interface HelpOverlayProps {
 
 export function HelpOverlay({ tabId, title, description, imageUrl, steps }: HelpOverlayProps) {
   const [show, setShow] = useState(false);
-  const [dontShowAgain, setDontShowAgain] = useState(false);
 
   useEffect(() => {
-    // Check if user dismissed this tab's help permanently
     const dismissed = localStorage.getItem(`help-dismissed-${tabId}`);
     if (!dismissed) {
-      // Small delay to not block initial render
       const timer = setTimeout(() => setShow(true), 500);
       return () => clearTimeout(timer);
     }
   }, [tabId]);
 
   const handleClose = () => {
-    if (dontShowAgain) {
-      localStorage.setItem(`help-dismissed-${tabId}`, 'true');
-    }
+    // Sempre salva no localStorage, independente de como o modal foi fechado
+    localStorage.setItem(`help-dismissed-${tabId}`, 'true');
     setShow(false);
   };
 
@@ -80,18 +74,8 @@ export function HelpOverlay({ tabId, title, description, imageUrl, steps }: Help
             </ol>
           )}
 
-          <div className="flex items-center justify-between pt-4 border-t border-border">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id={`dismiss-${tabId}`}
-                checked={dontShowAgain}
-                onCheckedChange={(checked) => setDontShowAgain(!!checked)}
-              />
-              <Label htmlFor={`dismiss-${tabId}`} className="text-sm text-muted-foreground cursor-pointer">
-                Não mostrar novamente
-              </Label>
-            </div>
-            <Button onClick={handleClose}>Entendi</Button>
+          <div className="flex justify-end pt-4 border-t border-border">
+            <Button onClick={handleClose}>Entendi, não mostrar novamente</Button>
           </div>
         </div>
       </DialogContent>
