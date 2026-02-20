@@ -1,59 +1,43 @@
 
-# Corrigir Atualizacao Automatica do PWA
+# Correção: PWA Install Prompt + PDF da Garantia
 
-## Problema
-Ao publicar uma nova versao, o Service Worker antigo continua servindo arquivos em cache. O usuario precisa remover o app da tela inicial e reinstalar para ver as mudancas.
+## Problema 1 - Banner PWA sobrepõe a barra de navegação no mobile
 
-## Solucao
-Forcar o novo Service Worker a assumir imediatamente (`skipWaiting`) e recarregar a pagina automaticamente quando uma atualizacao for detectada. O usuario vera as novidades sem precisar desinstalar/reinstalar o app.
+O componente `PWAInstallPrompt` usa `fixed top-0 z-50`, mesma posição do `TopNavigation` (que também é `fixed top-0 z-50`). No mobile, o banner aparece **por cima** da barra de ícones, empurrando o conteúdo da tela para baixo e ficando sobreposto visualmente.
 
-## Alteracoes
+**Solução:** Mover o banner para **baixo da tela** (`fixed bottom-0`) ao invés de `top-0`. Isso é o padrão adotado por apps como YouTube, Twitter e Instagram no mobile — o prompt de instalação aparece na parte inferior, sem interferir com a navegação.
 
-### 1. Adicionar `skipWaiting` no Workbox (`vite.config.ts`)
+**Arquivo:** `src/components/pwa/PWAInstallPrompt.tsx`
+- Trocar `fixed top-0` por `fixed bottom-0`
+- Trocar `border-b` por `border-t`
+- Trocar `slide-in-from-top` por `slide-in-from-bottom`
 
-Adicionar `skipWaiting: true` e `clientsClaim: true` na configuracao do workbox. Isso faz com que o novo Service Worker assuma imediatamente sem esperar o usuario fechar todas as abas.
+---
 
-```typescript
-workbox: {
-  skipWaiting: true,
-  clientsClaim: true,
-  navigateFallbackDenylist: [/^\/~oauth/],
-  // ... resto da config existente
-}
-```
+## Problema 2 - PDF da Garantia retorna "PDF not found" no WhatsApp
 
-### 2. Criar hook de deteccao de atualizacao (`src/hooks/use-pwa-update.ts`)
+**Diagnóstico passo a passo:**
 
-Um hook que escuta o evento `controllerchange` do Service Worker. Quando o novo SW assumir, recarrega a pagina **uma unica vez** (usando flag `sessionStorage` para nao ficar em loop).
+1. O usuário clica em "Emitir Garantia"
+2. O código salva a garantia no banco (`supabase.from('warranties').insert(...)`) ✅
+3. Chama `generateWarrantyPDF(pdfData, companyId)` **sem `await`** — o upload começa em background mas o código não espera
+4. Imediatamente constrói o `storagePath` e o `pdfLink` com o link do proxy
+5. Mostra o botão "Enviar WhatsApp" com o link já montado
+6. Usuário clica em WhatsApp → o link vai para o cliente
+7. O cliente abre o link → a Edge Function `serve-pdf` tenta encontrar o arquivo no Storage
+8. O arquivo ainda **não terminou de fazer upload** (ou nunca fez, pois o `await` foi omitido) → `"Object not found"` ❌
 
-```
-- Escuta navigator.serviceWorker.controllerchange
-- Ao detectar mudanca, seta flag "pwa-reloading" no sessionStorage
-- Recarrega a pagina com window.location.reload()
-- Na proxima carga, limpa o flag
-```
+**O log da Edge Function confirma:** `Error creating signed URL: StorageApiError: Object not found`
 
-### 3. Usar o hook no App (`src/App.tsx`)
+**Solução:** Adicionar `await` na chamada de `generateWarrantyPDF` dentro do `handleIssue` em `IssueWarrantyModal.tsx`. O botão "Enviar WhatsApp" só deve aparecer **após** o upload estar 100% concluído.
 
-Chamar o `usePWAUpdate()` no componente App para que a deteccao funcione globalmente.
+**Arquivo:** `src/components/garantias/IssueWarrantyModal.tsx`
+- Linha 201: trocar `generateWarrantyPDF(pdfData, companyId)` por `await generateWarrantyPDF(pdfData, companyId)`
+- Adicionar feedback visual enquanto o PDF está sendo gerado/enviado ao storage (o `isSubmitting` já existe, então o botão ficará como "Salvando..." durante todo o processo)
 
-## Resultado Final
-- Quando voce publicar uma atualizacao, o usuario ao abrir o app vera um reload rapido automatico
-- Nao precisa mais desinstalar e reinstalar
-- Funciona tanto no celular quanto no computador
-- Transparente para o usuario (acontece em menos de 1 segundo)
+---
 
-## Detalhes Tecnicos
+## Arquivos que serão modificados
 
-### Arquivos a modificar:
-1. `vite.config.ts` - adicionar `skipWaiting` e `clientsClaim`
-2. `src/hooks/use-pwa-update.ts` - novo hook de deteccao
-3. `src/App.tsx` - integrar o hook
-
-### Como funciona tecnicamente:
-1. Ao publicar, um novo Service Worker e gerado com hash diferente
-2. O navegador detecta o novo SW e o instala em background
-3. `skipWaiting: true` faz o novo SW ativar imediatamente (sem esperar fechar abas)
-4. `clientsClaim: true` faz o novo SW assumir o controle da pagina atual
-5. O hook detecta a troca de controller e faz reload uma unica vez
-6. A pagina recarrega com os novos arquivos ja servidos pelo novo SW
+1. `src/components/pwa/PWAInstallPrompt.tsx` — mover banner para baixo da tela
+2. `src/components/garantias/IssueWarrantyModal.tsx` — adicionar `await` no upload do PDF
