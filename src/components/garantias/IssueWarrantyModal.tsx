@@ -197,9 +197,9 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
           company_name: 'WFE EVOLUTION',
         };
 
-        console.log('[Garantia] Gerando PDF...');
-        generateWarrantyPDF(pdfData, companyId);
-        console.log('[Garantia] PDF gerado com sucesso');
+        console.log('[Garantia] Gerando e fazendo upload do PDF...');
+        await generateWarrantyPDF(pdfData, companyId);
+        console.log('[Garantia] PDF gerado e uploadado com sucesso');
       } catch (pdfError) {
         console.error('[Garantia] Erro ao gerar PDF (garantia já salva):', pdfError);
         toast.warning("Garantia salva, mas houve erro ao gerar o PDF.");
