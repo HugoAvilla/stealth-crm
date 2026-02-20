@@ -1,82 +1,126 @@
 
-# Correção: Janela de Ajuda + Atualização Automática do PWA
+# Correção: Ajuda Individual por Página + Botão "?" para Reabrir
 
----
+## Diagnóstico do Bug de Persistência
 
-## Problema 1 — Janela de ajuda continua aparecendo após "Não mostrar novamente"
-
-### Diagnóstico
-
-O código atual tem uma lógica frágil: ele só salva no localStorage **se** o checkbox estiver marcado no momento do fechamento. Existem dois caminhos para fechar o modal:
-
-1. Botão "Entendi" → chama `handleClose()` diretamente
-2. Clicar fora do modal ou no X → o Radix Dialog chama `onOpenChange(false)` → que também chama `handleClose()`
-
-O bug é que o **estado do checkbox (`dontShowAgain`) é resgatado via React state**, que pode ser `false` em algumas situações de remontagem de componente (ex: atualização do PWA faz reload → React remonta tudo → o checkbox volta para `false`). Se o usuário marcou o checkbox mas o componente foi remontado antes de confirmar, o estado é perdido.
-
-Além disso, a **experiência atual não é intuitiva**: o usuário deve lembrar de marcar um checkbox antes de clicar no botão. Na prática, muitos clicam direto em "Entendi" sem marcar.
-
-### Solução
-
-Mudança de comportamento: **clicar em "Entendi" SEMPRE salva no localStorage**, eliminando o checkbox completamente. A janela de ajuda só reaparece se o usuário nunca interagiu com ela.
-
-Para páginas que o usuário **quer ver novamente**, ele pode clicar no ícone de ajuda (?) na interface.
-
-Isso elimina o bug e simplifica a UX.
-
-**Arquivo: `src/components/help/HelpOverlay.tsx`**
-- Remover o estado `dontShowAgain` e o `Checkbox`
-- Modificar `handleClose()` para **sempre** salvar `help-dismissed-${tabId}` no localStorage
-- Renomear o botão de "Entendi" para deixar claro que é permanente
-- O `onOpenChange` (fechar pelo X ou clicar fora) também salva permanentemente
-
----
-
-## Problema 2 — PWA não atualiza automaticamente
-
-### Diagnóstico
-
-O `vite.config.ts` tem `skipWaiting: true` e `clientsClaim: true` configurados corretamente. O hook `usePWAUpdate` escuta o evento `controllerchange`. 
-
-**O problema:** O `controllerchange` só dispara quando o Service Worker **muda de controller** — o que só ocorre quando um novo SW é instalado E ativado. Com `skipWaiting`, isso acontece imediatamente. Porém há um gap:
-
-- Se o app já estiver aberto no celular (em background), o SW novo instala em background
-- O evento `controllerchange` dispara
-- O hook faz reload ✅
-
-**Mas o que falha:** Se o app não estava aberto quando a atualização foi publicada, ao abrir o app o novo SW já está ativo (sem `controllerchange` disparar), mas o cache ainda serve arquivos antigos porque o Workbox faz cache de todos os arquivos estáticos com hash. Quando o hash muda, o Workbox deveria buscar os novos arquivos — mas se o cache anterior ainda está válido para as URLs antigas, o app carrega versão antiga.
-
-A solução correta é usar o **`useRegisterSW`** do `vite-plugin-pwa/react`, que é a API oficial do plugin. Ela fornece:
-- `needRefresh`: indica que há update disponível
-- `updateServiceWorker()`: força a atualização e reload
-
-### Solução
-
-**Arquivo: `src/hooks/use-pwa-update.ts`**
-
-Reescrever o hook usando `useRegisterSW` do `virtual:pwa-register/react`, que é a forma correta e suportada pelo `vite-plugin-pwa`. Quando `needRefresh` for `true`, chamar `updateServiceWorker(true)` imediatamente para forçar o reload com a nova versão.
+O `HelpOverlay` usa `help-dismissed-${tabId}` como chave no localStorage — o que é correto e individual por página. Porém o componente atual tem um fluxo com falha:
 
 ```
-1. useRegisterSW detecta novo SW disponível → needRefresh = true
-2. Hook chama updateServiceWorker(true) automaticamente
-3. O novo SW ativa (skipWaiting já configurado)
-4. Página recarrega com nova versão
+useEffect roda → lê localStorage → SE não dispensado → abre modal
 ```
 
-**Arquivo: `vite.config.ts`**
+O problema é que o componente renderiza `null` quando `show = false` e só muda para `true` no `useEffect`. Se a página é aberta pela primeira vez, o modal aparece. Mas ao navegar entre abas e voltar, o React pode **não remontar** o componente (mantém em memória), então o `useEffect` não roda novamente e o modal nunca mais aparece — mesmo que o usuário **não tenha dispensado aquela página**.
 
-Adicionar `devOptions` para testar PWA em desenvolvimento, e garantir que o `registerType` está como `"autoUpdate"` (já está).
+Além disso, o usuário relatou que ao dispensar em uma página a outra não apareceu. Isso pode ocorrer se o componente foi montado antes da navegação completar, ou se o React reutilizou a mesma instância do componente com `tabId` diferente mas o `useEffect` não re-executou corretamente com a lógica atual.
 
----
+## Solução
 
-## Arquivos a modificar
+### Refatorar `HelpOverlay` para separar em 2 responsabilidades:
 
-1. `src/components/help/HelpOverlay.tsx` — sempre salvar ao fechar, remover checkbox
-2. `src/hooks/use-pwa-update.ts` — usar `useRegisterSW` do vite-plugin-pwa
+1. **Modal de ajuda** — o conteúdo exibido (sempre igual)
+2. **Botão flutuante "?"** — visível o tempo todo no canto superior direito da página
 
----
+O componente `HelpOverlay` passará a:
+- Ao montar, verificar o localStorage com a chave `help-dismissed-${tabId}`
+- Se não dispensado ainda → abrir o modal automaticamente (comportamento atual)
+- Se já dispensado → NÃO abrir automaticamente, mas mostrar o botão `?`
+- **Sempre** mostrar o botão `?` no canto superior direito da área de conteúdo
+- O botão `?` permite reabrir o modal a qualquer momento
 
-## Resultado Final
+### Layout do Botão `?`
 
-- **Janela de ajuda:** Após clicar "Entendi" uma vez, nunca mais reaparece — independente de reload, atualização do PWA ou fechar/abrir o app
-- **Atualização automática:** Quando uma nova versão for publicada, o app detecta e recarrega automaticamente em até 60 segundos (tempo do check padrão do SW), sem precisar desinstalar
+O botão será `fixed` posicionado no canto superior direito, abaixo da `TopNavigation` (que ocupa `h-16`):
+
+```
+position: fixed
+top: 72px (abaixo do header de 64px)
+right: 16px
+z-index: 40 (abaixo do header z-50)
+```
+
+Será um botão circular pequeno e discreto (32x32px), com ícone `HelpCircle`, usando `variant="outline"` com fundo semi-transparente para não obstruir o conteúdo.
+
+### Correção do `useEffect` para garantir individualidade
+
+O `useEffect` será corrigido para ter dependência no `tabId` e sempre re-checar o localStorage quando o `tabId` mudar — garantindo que cada página seja avaliada de forma independente:
+
+```typescript
+const [show, setShow] = useState(false);
+const [dismissed, setDismissed] = useState(false);
+
+useEffect(() => {
+  // Reseta estado ao trocar de página
+  const isDismissed = !!localStorage.getItem(`help-dismissed-${tabId}`);
+  setDismissed(isDismissed);
+  if (!isDismissed) {
+    const timer = setTimeout(() => setShow(true), 500);
+    return () => clearTimeout(timer);
+  }
+}, [tabId]); // re-executa quando tabId muda
+```
+
+### Comportamento Final
+
+| Situação | Comportamento |
+|---|---|
+| Primeira visita na página | Modal abre automaticamente |
+| Clicou "Entendi" nessa página | Modal não abre mais nessa página |
+| Outra página não dispensada | Modal abre normalmente nessa página |
+| Qualquer página | Botão `?` visível para reabrir |
+| Clica no `?` | Modal abre (mesmo que já dispensado) |
+| Fecha pelo `?` | Salva no localStorage (não abre mais automaticamente) |
+
+## Arquivo a Modificar
+
+**`src/components/help/HelpOverlay.tsx`** — único arquivo a alterar:
+
+- Adicionar estado `dismissed` separado de `show`
+- Corrigir o `useEffect` para resetar estado ao trocar de `tabId`
+- Adicionar botão fixo `?` no canto superior direito (sempre visível)
+- O botão `?` ao ser clicado define `setShow(true)` para reabrir o modal
+- Ao fechar o modal (por qualquer meio): salva no localStorage + atualiza `dismissed`
+
+Nenhuma das páginas (`Vendas.tsx`, `Clientes.tsx`, etc.) precisa ser alterada — o botão `?` será renderizado automaticamente dentro do `HelpOverlay` que já está em cada página.
+
+## Código da Solução
+
+```typescript
+export function HelpOverlay({ tabId, title, description, imageUrl, steps }) {
+  const [show, setShow] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    // Re-executa toda vez que a página muda (tabId diferente)
+    const isDismissed = !!localStorage.getItem(`help-dismissed-${tabId}`);
+    setDismissed(isDismissed);
+    setShow(false); // reseta antes de checar
+    if (!isDismissed) {
+      const timer = setTimeout(() => setShow(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [tabId]);
+
+  const handleClose = () => {
+    localStorage.setItem(`help-dismissed-${tabId}`, 'true');
+    setDismissed(true);
+    setShow(false);
+  };
+
+  return (
+    <>
+      {/* Botão fixo ? sempre visível */}
+      <button
+        onClick={() => setShow(true)}
+        className="fixed top-[72px] right-4 z-40 w-8 h-8 rounded-full ..."
+      >
+        ?
+      </button>
+
+      {/* Modal de ajuda */}
+      <Dialog open={show} onOpenChange={(open) => { if (!open) handleClose(); }}>
+        ...
+      </Dialog>
+    </>
+  );
+}
+```
