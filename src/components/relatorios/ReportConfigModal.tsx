@@ -389,6 +389,94 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
     };
   };
 
+  const generateClientesMarketingReport = async (): Promise<ReportPDFData> => {
+    const { data } = await supabase
+      .from('clients')
+      .select('name, phone, email')
+      .eq('company_id', companyId)
+      .order('name');
+
+    const rows = data?.map((c, i) => [
+      (i + 1).toString(),
+      c.name,
+      c.phone || '-',
+      c.email || '-'
+    ]) || [];
+
+    return {
+      title: 'Lista de Marketing',
+      columns: ['#', 'Nome', 'Telefone', 'Email'],
+      rows,
+      summary: [
+        { label: 'Total de Clientes', value: rows.length.toString() },
+      ],
+    };
+  };
+
+  const generateClientesCompletoReport = async (): Promise<ReportPDFData> => {
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id, name, phone, email, cpf_cnpj')
+      .eq('company_id', companyId)
+      .order('name');
+
+    const { data: vehicles } = await supabase
+      .from('vehicles')
+      .select('client_id, brand, model, plate')
+      .eq('company_id', companyId);
+
+    const { data: sales } = await supabase
+      .from('sales')
+      .select('client_id, sale_date, total, sale_items(services(name))')
+      .eq('company_id', companyId);
+
+    const vehiclesByClient: Record<number, string[]> = {};
+    vehicles?.forEach(v => {
+      if (!v.client_id) return;
+      if (!vehiclesByClient[v.client_id]) vehiclesByClient[v.client_id] = [];
+      vehiclesByClient[v.client_id].push(`${v.brand} ${v.model}${v.plate ? ` (${v.plate})` : ''}`);
+    });
+
+    const salesByClient: Record<number, { total: number; lastDate: string }> = {};
+    sales?.forEach(s => {
+      if (!s.client_id) return;
+      if (!salesByClient[s.client_id]) salesByClient[s.client_id] = { total: 0, lastDate: '' };
+      salesByClient[s.client_id].total += s.total;
+      if (s.sale_date > salesByClient[s.client_id].lastDate) salesByClient[s.client_id].lastDate = s.sale_date;
+    });
+
+    let totalGeral = 0;
+    let totalVeiculos = 0;
+
+    const rows = clients?.map((c, i) => {
+      const veics = vehiclesByClient[c.id] || [];
+      const saleData = salesByClient[c.id];
+      totalGeral += saleData?.total || 0;
+      totalVeiculos += veics.length;
+      return [
+        (i + 1).toString(),
+        c.name,
+        c.phone || '-',
+        c.email || '-',
+        c.cpf_cnpj || '-',
+        veics.length > 0 ? veics.join(', ') : '-',
+        saleData ? `R$ ${saleData.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00',
+        saleData?.lastDate ? format(new Date(saleData.lastDate), 'dd/MM/yyyy') : '-'
+      ];
+    }) || [];
+
+    return {
+      title: 'Lista Completa de Clientes (Backup)',
+      columns: ['#', 'Nome', 'Telefone', 'Email', 'CPF/CNPJ', 'Veículos', 'Total Gasto', 'Última Compra'],
+      rows,
+      summary: [
+        { label: 'Total de Clientes', value: rows.length.toString() },
+        { label: 'Total de Veículos', value: totalVeiculos.toString() },
+        { label: 'Valor Total', value: `R$ ${totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      ],
+    };
+  };
+
   const generateExtratoContaReport = async (): Promise<ReportPDFData> => {
     const account = accounts.find(a => a.id === parseInt(accountId));
     
@@ -454,6 +542,12 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
         case 'clientes_inativos':
           pdfData = await generateClientesInativosReport();
           break;
+        case 'clientes_marketing':
+          pdfData = await generateClientesMarketingReport();
+          break;
+        case 'clientes_completo':
+          pdfData = await generateClientesCompletoReport();
+          break;
         case 'ocupacao_vagas':
           pdfData = await generateOcupacaoVagasReport();
           break;
@@ -486,7 +580,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
   if (!report) return null;
 
   const needsAccount = report.id === 'extrato_conta';
-  const needsDateRange = !['clientes_ativos', 'clientes_inativos'].includes(report.id);
+  const needsDateRange = !['clientes_ativos', 'clientes_inativos', 'clientes_marketing', 'clientes_completo'].includes(report.id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
