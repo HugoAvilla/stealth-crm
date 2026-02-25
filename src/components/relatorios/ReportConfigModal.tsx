@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileText, Loader2 } from "lucide-react";
+import { Download, FileText, Loader2, FileSpreadsheet } from "lucide-react";
 import { type ReportType } from "@/lib/mockData";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +32,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [generating, setGenerating] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'xlsx'>('pdf');
 
   useEffect(() => {
     if (open) {
@@ -513,61 +514,100 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
     };
   };
 
+  const generateExcel = (data: ReportPDFData) => {
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    html += '<head><meta charset="utf-8"><style>td,th{border:1px solid #ccc;padding:6px 10px;font-family:Arial;font-size:12px}th{background:#f0f0f0;font-weight:bold}h2{font-family:Arial}</style></head><body>';
+    html += `<h2>${data.title}</h2>`;
+    if (data.period) {
+      html += `<p>Período: ${format(new Date(data.period.start), 'dd/MM/yyyy')} a ${format(new Date(data.period.end), 'dd/MM/yyyy')}</p>`;
+    }
+    html += '<table border="1" cellspacing="0">';
+    html += '<tr>' + data.columns.map(c => `<th>${c}</th>`).join('') + '</tr>';
+    data.rows.forEach(row => {
+      html += '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>';
+    });
+    html += '</table>';
+    if (data.summary && data.summary.length > 0) {
+      html += '<br/><table border="1" cellspacing="0">';
+      html += '<tr><th colspan="2">Resumo</th></tr>';
+      data.summary.forEach(s => {
+        html += `<tr><td><b>${s.label}</b></td><td>${s.value}</td></tr>`;
+      });
+      html += '</table>';
+    }
+    html += '</body></html>';
+
+    const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${data.title}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleGenerate = async () => {
     if (!report || !companyId) return;
 
     setGenerating(true);
     try {
-      let pdfData: ReportPDFData;
+      let reportData: ReportPDFData;
 
       switch (report.id) {
         case 'dfc':
-          pdfData = await generateDFCReport();
+          reportData = await generateDFCReport();
           break;
         case 'dre':
-          pdfData = await generateDREReport();
+          reportData = await generateDREReport();
           break;
         case 'vendas_periodo':
-          pdfData = await generateVendasPeriodoReport();
+          reportData = await generateVendasPeriodoReport();
           break;
         case 'vendas_servico':
-          pdfData = await generateVendasServicoReport();
+          reportData = await generateVendasServicoReport();
           break;
         case 'vendas_vendedor':
-          pdfData = await generateVendasVendedorReport();
+          reportData = await generateVendasVendedorReport();
           break;
         case 'clientes_ativos':
-          pdfData = await generateClientesAtivosReport();
+          reportData = await generateClientesAtivosReport();
           break;
         case 'clientes_inativos':
-          pdfData = await generateClientesInativosReport();
+          reportData = await generateClientesInativosReport();
           break;
         case 'clientes_marketing':
-          pdfData = await generateClientesMarketingReport();
+          reportData = await generateClientesMarketingReport();
           break;
         case 'clientes_completo':
-          pdfData = await generateClientesCompletoReport();
+          reportData = await generateClientesCompletoReport();
           break;
         case 'ocupacao_vagas':
-          pdfData = await generateOcupacaoVagasReport();
+          reportData = await generateOcupacaoVagasReport();
           break;
         case 'estoque_movimento':
-          pdfData = await generateEstoqueMovimentoReport();
+          reportData = await generateEstoqueMovimentoReport();
           break;
         case 'extrato_conta':
           if (!accountId) {
             toast.error("Selecione uma conta");
             return;
           }
-          pdfData = await generateExtratoContaReport();
+          reportData = await generateExtratoContaReport();
           break;
         default:
           toast.error("Relatório não implementado");
           return;
       }
 
-      await generateReportPDF(pdfData, companyId || undefined);
-      toast.success(`Relatório ${report.name} gerado em PDF!`);
+      if (exportFormat === 'xlsx') {
+        generateExcel(reportData);
+        toast.success(`Relatório ${report.name} gerado em Excel!`);
+      } else {
+        await generateReportPDF(reportData, companyId || undefined);
+        toast.success(`Relatório ${report.name} gerado em PDF!`);
+      }
       onOpenChange(false);
     } catch (error) {
       console.error('Error generating report:', error);
@@ -634,6 +674,31 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
             </div>
           )}
 
+          {/* Format selector */}
+          <div className="space-y-2">
+            <Label>Formato de exportação</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={exportFormat === 'pdf' ? 'default' : 'outline'}
+                className="flex-1"
+                onClick={() => setExportFormat('pdf')}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
+              <Button
+                type="button"
+                variant={exportFormat === 'xlsx' ? 'default' : 'outline'}
+                className="flex-1"
+                onClick={() => setExportFormat('xlsx')}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Excel
+              </Button>
+            </div>
+          </div>
+
           <div className="flex gap-2 pt-4">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancelar
@@ -645,7 +710,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
                 </>
               ) : (
                 <>
-                  <Download className="h-4 w-4 mr-2" /> Gerar PDF
+                  <Download className="h-4 w-4 mr-2" /> {exportFormat === 'pdf' ? 'Gerar PDF' : 'Gerar Excel'}
                 </>
               )}
             </Button>
