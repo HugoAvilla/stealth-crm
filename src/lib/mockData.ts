@@ -174,7 +174,9 @@ export const reportTypes: ReportType[] = [
   { id: "clientes_inativos", name: "Clientes Inativos", description: "Clientes sem compras há mais de 90 dias", group: "clientes", formats: ["pdf"] },
   { id: "ocupacao_vagas", name: "Ocupação de Vagas", description: "Histórico de ocupação do espaço", group: "operacional", formats: ["pdf"] },
   { id: "estoque_movimento", name: "Movimentação de Estoque", description: "Entradas e saídas de materiais", group: "operacional", formats: ["pdf"] },
-  { id: "extrato_conta", name: "Extrato de Conta", description: "Movimentações de uma conta específica", group: "financeiro", formats: ["pdf"] }
+  { id: "extrato_conta", name: "Extrato de Conta", description: "Movimentações de uma conta específica", group: "financeiro", formats: ["pdf"] },
+  { id: "clientes_marketing", name: "Lista de Marketing", description: "Nome, telefone e email para campanhas", group: "clientes", formats: ["pdf"] },
+  { id: "clientes_completo", name: "Lista Completa (Backup)", description: "Todos os dados de clientes, veículos e serviços", group: "clientes", formats: ["pdf"] }
 ];
 
 // Company Settings Types
