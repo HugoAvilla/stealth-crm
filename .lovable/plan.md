@@ -1,41 +1,85 @@
 
 
-# Novos Relatórios de Clientes: Lista de Marketing + Lista Completa (Backup)
+# Adicionar Exportação em Excel (XLS) nos Relatórios
 
-O usuário do sistema pediu dois novos formatos de exportação na seção de Clientes dos Relatórios:
+## Situação Atual
 
-1. **Lista de Marketing** — Nome, telefone e email dos clientes (para campanhas)
-2. **Lista Completa (Backup)** — Todos os dados dos clientes + veículos + histórico de serviços
+Todos os relatórios só exportam em PDF. O tipo `ReportType` define `formats: ('pdf')[]` e o modal só tem um botão "Gerar PDF".
 
-## O que será feito
+## Solução
 
-### 1. Adicionar 2 novos relatórios no `mockData.ts`
+Adicionar opção de download em Excel (.xlsx) para todos os relatórios, mantendo o PDF. Como todos os relatórios já geram dados estruturados (`ReportPDFData` com `columns` e `rows`), basta reutilizar esses mesmos dados para gerar o arquivo Excel.
 
-No array `reportTypes`, adicionar ao grupo `clientes`:
+### Abordagem: Gerar Excel sem dependência externa
 
-- `clientes_marketing` — "Lista de Marketing" — "Nome, telefone e email para campanhas"
-- `clientes_completo` — "Lista Completa (Backup)" — "Todos os dados de clientes, veículos e serviços"
+Em vez de instalar uma biblioteca pesada como SheetJS (~500KB), vou gerar um arquivo `.xls` usando HTML table format — que o Excel, Google Sheets e LibreOffice abrem nativamente. Isso é uma técnica consolidada e não requer nenhuma dependência nova.
 
-### 2. Implementar os geradores no `ReportConfigModal.tsx`
+### Arquivos a modificar
 
-**Lista de Marketing (`generateClientesMarketingReport`):**
-- Query: `clients` → select `name, phone, email` onde `company_id` = companyId
-- Colunas: `#`, `Nome`, `Telefone`, `Email`
-- Summary: total de clientes exportados
+**1. `src/lib/mockData.ts`**
+- Alterar o tipo `formats` para `('pdf' | 'xlsx')[]`
+- Adicionar `'xlsx'` ao array de formatos de todos os relatórios
 
-**Lista Completa/Backup (`generateClientesCompletoReport`):**
-- Query: `clients` com join em `vehicles` e `sales(sale_date, total, sale_items(services(name)))`
-- Colunas: `#`, `Nome`, `Telefone`, `Email`, `CPF/CNPJ`, `Veículos`, `Total Gasto`, `Última Compra`
-- Summary: total de clientes, total de veículos, valor total
+**2. `src/components/relatorios/ReportConfigModal.tsx`**
+- Adicionar estado `exportFormat` (`'pdf' | 'xlsx'`)
+- Adicionar seletor de formato no modal (dois botões ou radio: PDF / Excel)
+- Criar função `generateExcel(data: ReportPDFData)` que:
+  - Monta uma tabela HTML com os headers (`columns`) e dados (`rows`)
+  - Inclui o `summary` no final
+  - Converte para Blob com tipo `application/vnd.ms-excel`
+  - Faz download como `.xls`
+- Modificar `handleGenerate` para chamar `generateExcel` ou `generateReportPDF` conforme o formato selecionado
 
-### 3. Adicionar os cases no `switch` do `handleGenerate`
+**3. `src/lib/pdfGenerator.ts`** (opcional, apenas exportar tipo)
+- Garantir que `ReportPDFData` está exportado (já está)
 
-Dois novos cases: `clientes_marketing` e `clientes_completo`.
+### UI do seletor de formato no modal
 
-## Arquivos a modificar
+Dois botões lado a lado antes do botão de gerar:
 
-1. **`src/lib/mockData.ts`** — 2 novas entradas no array `reportTypes`
-2. **`src/components/relatorios/ReportConfigModal.tsx`** — 2 novas funções geradoras + 2 cases no switch
+```
+[📄 PDF]  [📊 Excel]     ← toggle buttons, um ativo por vez
+```
 
-Nenhum componente visual precisa mudar — os novos relatórios aparecerão automaticamente no bloco "Clientes" da página de Relatórios.
+O botão principal muda o texto conforme o formato:
+- "Gerar PDF" ou "Gerar Excel"
+
+### Função de geração Excel
+
+```typescript
+const generateExcel = (data: ReportPDFData) => {
+  let html = '<html><head><meta charset="utf-8"></head><body>';
+  html += `<h2>${data.title}</h2>`;
+  if (data.period) html += `<p>Período: ${format(...)} a ${format(...)}</p>`;
+  html += '<table border="1">';
+  html += '<tr>' + data.columns.map(c => `<th>${c}</th>`).join('') + '</tr>';
+  data.rows.forEach(row => {
+    html += '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>';
+  });
+  html += '</table>';
+  if (data.summary) {
+    html += '<br/><table border="1">';
+    data.summary.forEach(s => {
+      html += `<tr><td><b>${s.label}</b></td><td>${s.value}</td></tr>`;
+    });
+    html += '</table>';
+  }
+  html += '</body></html>';
+
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${data.title}.xls`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+```
+
+### Resultado
+
+- Todos os relatórios terão badges "PDF" e "XLS" na listagem
+- O modal permite escolher o formato antes de gerar
+- Nenhuma dependência nova é adicionada ao projeto
+- Os mesmos dados são reutilizados para ambos os formatos
 
