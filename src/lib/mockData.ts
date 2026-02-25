@@ -160,23 +160,23 @@ export interface ReportType {
   name: string;
   description: string;
   group: 'financeiro' | 'vendas' | 'operacional' | 'clientes';
-  formats: ('pdf')[];
+  formats: ('pdf' | 'xlsx')[];
 }
 
 // Report types - Only PDF format
 export const reportTypes: ReportType[] = [
-  { id: "dfc", name: "DFC - Demonstração de Fluxo de Caixa", description: "Relatório completo de entradas e saídas", group: "financeiro", formats: ["pdf"] },
-  { id: "dre", name: "DRE - Demonstração de Resultado", description: "Resultado do exercício por período", group: "financeiro", formats: ["pdf"] },
-  { id: "vendas_periodo", name: "Vendas por Período", description: "Todas as vendas em um intervalo de datas", group: "vendas", formats: ["pdf"] },
-  { id: "vendas_servico", name: "Vendas por Serviço", description: "Performance de cada serviço", group: "vendas", formats: ["pdf"] },
-  { id: "vendas_vendedor", name: "Vendas por Vendedor", description: "Comissões e performance por vendedor", group: "vendas", formats: ["pdf"] },
-  { id: "clientes_ativos", name: "Clientes Ativos", description: "Lista de clientes com vendas recentes", group: "clientes", formats: ["pdf"] },
-  { id: "clientes_inativos", name: "Clientes Inativos", description: "Clientes sem compras há mais de 90 dias", group: "clientes", formats: ["pdf"] },
-  { id: "ocupacao_vagas", name: "Ocupação de Vagas", description: "Histórico de ocupação do espaço", group: "operacional", formats: ["pdf"] },
-  { id: "estoque_movimento", name: "Movimentação de Estoque", description: "Entradas e saídas de materiais", group: "operacional", formats: ["pdf"] },
-  { id: "extrato_conta", name: "Extrato de Conta", description: "Movimentações de uma conta específica", group: "financeiro", formats: ["pdf"] },
-  { id: "clientes_marketing", name: "Lista de Marketing", description: "Nome, telefone e email para campanhas", group: "clientes", formats: ["pdf"] },
-  { id: "clientes_completo", name: "Lista Completa (Backup)", description: "Todos os dados de clientes, veículos e serviços", group: "clientes", formats: ["pdf"] }
+  { id: "dfc", name: "DFC - Demonstração de Fluxo de Caixa", description: "Relatório completo de entradas e saídas", group: "financeiro", formats: ["pdf", "xlsx"] },
+  { id: "dre", name: "DRE - Demonstração de Resultado", description: "Resultado do exercício por período", group: "financeiro", formats: ["pdf", "xlsx"] },
+  { id: "vendas_periodo", name: "Vendas por Período", description: "Todas as vendas em um intervalo de datas", group: "vendas", formats: ["pdf", "xlsx"] },
+  { id: "vendas_servico", name: "Vendas por Serviço", description: "Performance de cada serviço", group: "vendas", formats: ["pdf", "xlsx"] },
+  { id: "vendas_vendedor", name: "Vendas por Vendedor", description: "Comissões e performance por vendedor", group: "vendas", formats: ["pdf", "xlsx"] },
+  { id: "clientes_ativos", name: "Clientes Ativos", description: "Lista de clientes com vendas recentes", group: "clientes", formats: ["pdf", "xlsx"] },
+  { id: "clientes_inativos", name: "Clientes Inativos", description: "Clientes sem compras há mais de 90 dias", group: "clientes", formats: ["pdf", "xlsx"] },
+  { id: "ocupacao_vagas", name: "Ocupação de Vagas", description: "Histórico de ocupação do espaço", group: "operacional", formats: ["pdf", "xlsx"] },
+  { id: "estoque_movimento", name: "Movimentação de Estoque", description: "Entradas e saídas de materiais", group: "operacional", formats: ["pdf", "xlsx"] },
+  { id: "extrato_conta", name: "Extrato de Conta", description: "Movimentações de uma conta específica", group: "financeiro", formats: ["pdf", "xlsx"] },
+  { id: "clientes_marketing", name: "Lista de Marketing", description: "Nome, telefone e email para campanhas", group: "clientes", formats: ["pdf", "xlsx"] },
+  { id: "clientes_completo", name: "Lista Completa (Backup)", description: "Todos os dados de clientes, veículos e serviços", group: "clientes", formats: ["pdf", "xlsx"] }
 ];
 
 // Company Settings Types
