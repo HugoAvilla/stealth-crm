@@ -48,7 +48,7 @@ export default function Relatorios() {
 
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-2xl font-bold">web</h1>
+        <h1 className="text-2xl font-bold">welcome</h1>
       </div>
 
       {/* Tabs */}
