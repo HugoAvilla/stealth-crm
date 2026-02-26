@@ -47,7 +47,7 @@ export default function Relatorios() {
       />
 
       {/* Header */}
-      <div>
+      <div className="text-center">
         <h1 className="text-2xl font-bold">Ola</h1>
         <p className="text-muted-foreground">Gere relatórios detalhados do seu negócio</p>
       </div>
