@@ -34,7 +34,7 @@ export default function Relatorios() {
   }, {} as Record<string, ReportType[]>);
 
   return (
-    <div className="space-y-6 p-[10px] border border-border rounded-lg bg-background">
+    <div className="space-y-6 p-[10px] border border-border rounded-lg bg-muted">
       <HelpOverlay
         tabId="relatorios"
         title="Relatórios"
