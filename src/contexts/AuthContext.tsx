@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('requester_user_id', userId)
           .eq('status', 'pending')
           .maybeSingle();
-        
+
         hasPendingJoinRequest = !!pendingRequest;
       }
 
@@ -93,14 +93,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .select('owner_id')
           .eq('id', profile.company_id)
           .single();
-        
+
         isCompanyOwner = companyData?.owner_id === userId;
       }
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      
-      // Check if user is master account
-      const isMaster = authUser?.email === 'hg.lavila@gmail.com';
+
+      const masterEmail = import.meta.env.VITE_MASTER_EMAIL;
+      const isMaster = !!masterEmail && authUser?.email === masterEmail;
 
       return {
         id: userId,
@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         setSession(currentSession);
-        
+
         if (currentSession?.user) {
           // Defer Supabase calls with setTimeout to avoid deadlock
           setTimeout(async () => {
@@ -142,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
       setSession(existingSession);
-      
+
       if (existingSession?.user) {
         fetchUserData(existingSession.user.id).then((userData) => {
           setUser(userData);
@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Check if password has been exposed in data breaches
       const pwnedResult = await checkPwnedPassword(password);
       if (pwnedResult.isPwned) {
-        return { 
+        return {
           error: new Error(`Esta senha foi encontrada em ${pwnedResult.count.toLocaleString('pt-BR')} vazamentos de dados. Por favor, escolha uma senha diferente e mais segura.`),
           isPwnedPassword: true
         };
@@ -218,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const redirectUrl = `${window.location.origin}/assinatura`;
-      
+
       const { error } = await supabase.auth.signUp({
         email: trimmedEmail,
         password,

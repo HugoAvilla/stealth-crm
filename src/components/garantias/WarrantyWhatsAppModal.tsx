@@ -122,8 +122,16 @@ export function WarrantyWhatsAppModal({ open, onOpenChange, data, companyName = 
     setTemplate(newText);
   };
 
-  const formatWhatsAppPreview = (text: string) => {
+  const escapeHtml = (text: string) => {
     return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  };
+
+  const formatWhatsAppPreview = (text: string) => {
+    return escapeHtml(text)
       .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
       .replace(/_(.*?)_/g, '<em>$1</em>')
       .replace(/\n/g, '<br/>');

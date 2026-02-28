@@ -32,14 +32,14 @@ export default function Subscription() {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [config, setConfig] = useState<SystemConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
@@ -74,15 +74,10 @@ export default function Subscription() {
       setConfig(data as SystemConfig);
     } catch (error) {
       console.error('Error fetching config:', error);
-      setConfig({
-        pix_key: 'Hg.lavila@gmail.com',
-        pix_qr_code_url: null,
-        beneficiary_name: 'Hugo Luz de Avila',
-        beneficiary_cnpj: '',
-        bank_name: 'PicPay',
-        agency: '',
-        account: '',
-        monthly_price: 297.00
+      toast({
+        title: 'Erro ao carregar configurações de pagamento',
+        description: 'Tente novamente em alguns instantes.',
+        variant: 'destructive'
       });
     } finally {
       setIsLoading(false);
@@ -156,15 +151,15 @@ export default function Subscription() {
 
   const handleConfirmPayment = async () => {
     if (!confirmed || !user) return;
-    
+
     setIsSubmitting(true);
-    
+
     try {
       const finalPrice = getFinalPrice();
-      
+
       const { error } = await supabase
         .from('subscriptions')
-        .update({ 
+        .update({
           status: 'payment_submitted',
           coupon_code: couponApplied ? couponCode.toUpperCase() : null,
           discount_amount: discount,
@@ -281,8 +276,8 @@ export default function Subscription() {
                       className="flex-1 uppercase font-mono"
                       disabled={validatingCoupon}
                     />
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={validateCoupon}
                       disabled={validatingCoupon || !couponCode.trim()}
                     >
@@ -339,7 +334,7 @@ export default function Subscription() {
                 <label className="text-sm font-medium">Chave PIX (Email)</label>
                 <div className="flex gap-2">
                   <div className="flex-1 p-3 bg-muted rounded-lg font-mono text-sm break-all">
-                    {config?.pix_key || 'Hg.lavila@gmail.com'}
+                    {config?.pix_key || 'Carregando...'}
                   </div>
                   <Button variant="outline" size="icon" onClick={copyPixKey}>
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -349,8 +344,8 @@ export default function Subscription() {
 
               {/* Bank Details */}
               <div className="space-y-2 text-sm p-4 bg-muted/30 rounded-lg">
-                <p><span className="text-muted-foreground">Beneficiário:</span> Hugo Luz de Avila</p>
-                <p><span className="text-muted-foreground">Banco:</span> PicPay</p>
+                <p><span className="text-muted-foreground">Beneficiário:</span> {config?.beneficiary_name || ''}</p>
+                <p><span className="text-muted-foreground">Banco:</span> {config?.bank_name || ''}</p>
               </div>
 
               {/* Value to pay */}
@@ -363,8 +358,8 @@ export default function Subscription() {
 
               {/* Action Buttons */}
               <div className="space-y-3 pt-4">
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   size="lg"
                   onClick={() => setShowConfirmModal(true)}
                 >
@@ -420,20 +415,20 @@ export default function Subscription() {
               Você realmente efetuou o pagamento de R$ {getFinalPrice().toFixed(2).replace('.', ',')} via PIX?
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
             <p className="text-sm text-muted-foreground mb-4">
               Após confirmar, envie o comprovante via WhatsApp para agilizar a liberação.
             </p>
-            
+
             <div className="flex items-start space-x-3">
-              <Checkbox 
-                id="confirm" 
+              <Checkbox
+                id="confirm"
                 checked={confirmed}
                 onCheckedChange={(checked) => setConfirmed(checked === true)}
               />
-              <label 
-                htmlFor="confirm" 
+              <label
+                htmlFor="confirm"
                 className="text-sm font-medium leading-none cursor-pointer"
               >
                 Confirmo que realizei o pagamento
@@ -445,8 +440,8 @@ export default function Subscription() {
             <Button variant="outline" onClick={() => setShowConfirmModal(false)}>
               Cancelar
             </Button>
-            <Button 
-              onClick={handleConfirmPayment} 
+            <Button
+              onClick={handleConfirmPayment}
               disabled={!confirmed || isSubmitting}
             >
               {isSubmitting ? (
