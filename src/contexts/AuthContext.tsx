@@ -97,14 +97,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isCompanyOwner = companyData?.owner_id === userId;
       }
 
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-
-      const masterEmail = import.meta.env.VITE_MASTER_EMAIL;
-      const isMaster = !!masterEmail && authUser?.email === masterEmail;
+      // Check if user is master account via database function (secure, no email exposed in frontend)
+      const { data: isMasterResult } = await supabase.rpc('check_is_master');
+      const isMaster = isMasterResult === true;
 
       return {
         id: userId,
-        email: authUser?.email || profile?.email || '',
+        email: profile?.email || '',
         profile: profile as Profile | null,
         role: (roleData?.role as AppRole) || 'NENHUM',
         subscriptionStatus: isMaster ? 'active' : ((subscriptionData?.status as SubscriptionStatus) || 'pending_payment'),
