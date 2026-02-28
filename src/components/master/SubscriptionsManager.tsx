@@ -182,9 +182,9 @@ const SubscriptionsManager = () => {
       setShowPriceModal(false);
       resetForms();
       fetchSubscriptions();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error changing price:", error);
-      toast({ title: "Erro ao alterar preço", variant: "destructive" });
+      toast({ title: "Erro ao alterar preço", description: error?.message || error?.details || JSON.stringify(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -206,9 +206,9 @@ const SubscriptionsManager = () => {
       setGlobalPrice("");
       setGlobalPriceReason("");
       fetchSubscriptions();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error changing global price:", error);
-      toast({ title: "Erro ao alterar preço global", variant: "destructive" });
+      toast({ title: "Erro ao alterar preço global", description: `[${error?.code || 'UNKNOWN'}] ${error?.message || error?.details || error?.hint || JSON.stringify(error)}`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -230,9 +230,9 @@ const SubscriptionsManager = () => {
       setGlobalExpirationPeriod("1");
       setGlobalExpirationReason("");
       fetchSubscriptions();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error changing global expiration:", error);
-      toast({ title: "Erro ao alterar expiração global", variant: "destructive" });
+      toast({ title: "Erro ao alterar expiração global", description: error?.message || error?.details || JSON.stringify(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -254,9 +254,9 @@ const SubscriptionsManager = () => {
       setShowExpiryModal(false);
       resetForms();
       fetchSubscriptions();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error changing expiry:", error);
-      toast({ title: "Erro ao alterar data de expiração", variant: "destructive" });
+      toast({ title: "Erro ao alterar data de expiração", description: error?.message || error?.details || JSON.stringify(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -280,7 +280,7 @@ const SubscriptionsManager = () => {
       if (newStatus === 'active') {
         const months = parseInt(expirationPeriod);
         const expiresAt = addMonths(new Date(), months);
-        
+
         const { error: expiryError } = await supabase.rpc("master_change_expiry_date", {
           subscription_id_input: selectedSub.id,
           new_expiry_input: expiresAt.toISOString(),
@@ -293,9 +293,9 @@ const SubscriptionsManager = () => {
       setShowStatusModal(false);
       resetForms();
       fetchSubscriptions();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error changing status:", error);
-      toast({ title: "Erro ao alterar status", variant: "destructive" });
+      toast({ title: "Erro ao alterar status", description: error?.message || error?.details || JSON.stringify(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -317,9 +317,9 @@ const SubscriptionsManager = () => {
       setShowMemberLimitModal(false);
       resetForms();
       fetchSubscriptions();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error changing member limit:", error);
-      toast({ title: "Erro ao alterar limite de membros", variant: "destructive" });
+      toast({ title: "Erro ao alterar limite de membros", description: error?.message || error?.details || JSON.stringify(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
