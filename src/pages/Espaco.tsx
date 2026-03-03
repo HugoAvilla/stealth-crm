@@ -155,12 +155,28 @@ export default function Espaco() {
     <div className="space-y-6 p-6">
       <HelpOverlay
         tabId="espaco"
-        title="Gestão de Vagas"
-        description="Gerencie a ocupação das vagas do seu estabelecimento e acompanhe os veículos."
-        steps={[
-          { title: "Preencher Vaga", description: "Registre a entrada de um veículo com cliente e serviços" },
-          { title: "Vagas Ativas", description: "Veja os veículos atualmente ocupando vagas" },
-          { title: "Veículos Pagos", description: "Consulte o histórico de veículos que já saíram e pagaram" },
+        title="Guia de Vagas"
+        sections={[
+          {
+            title: "Preencher Vaga",
+            description: "Clique em 'Preencher Vaga' para registrar a entrada de um veículo. Selecione o cliente, veículo, serviços a serem realizados e a data/hora de entrada. O veículo aparecerá como vaga ocupada.",
+            screenshotUrl: "/help/help-espaco-preencher.png"
+          },
+          {
+            title: "Vagas Ativas",
+            description: "Na aba 'Vagas Ativas' você vê os cards de resumo (Total, Disponíveis, Ocupadas) e os cards de cada veículo em serviço. Clique em um card para ver detalhes, registrar saída ou alterar informações.",
+            screenshotUrl: "/help/help-espaco-ativas.png"
+          },
+          {
+            title: "Veículos Pagos e Não Pagos",
+            description: "Use as abas 'Veículos Pagos (Saída)' e 'Não Pagos (Saída)' para acompanhar veículos que já saíram. O badge vermelho na aba indica quantos veículos saíram sem pagar.",
+            screenshotUrl: "/help/help-espaco-pagos.png"
+          },
+          {
+            title: "Calendário de Ocupação",
+            description: "O calendário mostra a ocupação diária. Dias com badges amarelos indicam veículos em andamento, verdes indicam finalizados. Clique em um dia para ver detalhes.",
+            screenshotUrl: "/help/help-espaco-calendario.png"
+          },
         ]}
       />
 
@@ -191,8 +207,8 @@ export default function Espaco() {
             <AlertTriangle className="h-4 w-4" />
             Não Pagos (Saída)
             {unpaidCount !== undefined && unpaidCount > 0 && (
-              <Badge 
-                variant="destructive" 
+              <Badge
+                variant="destructive"
                 className="ml-1 px-1.5 py-0.5 text-xs bg-destructive text-destructive-foreground animate-pulse flex items-center gap-0.5"
               >
                 <AlertTriangle className="h-3 w-3" />
@@ -276,8 +292,8 @@ export default function Espaco() {
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <Car className="h-12 w-12 mb-4 opacity-50" />
                   <p>Nenhuma vaga ocupada no momento</p>
-                  <Button 
-                    variant="link" 
+                  <Button
+                    variant="link"
                     className="mt-2"
                     onClick={() => setShowFillSlotModal(true)}
                   >

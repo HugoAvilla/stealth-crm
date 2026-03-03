@@ -78,12 +78,23 @@ export default function Perfil() {
     <div className="space-y-6 p-6 max-w-3xl mx-auto">
       <HelpOverlay
         tabId="perfil"
-        title="Meu Perfil"
-        description="Gerencie suas informações pessoais e preferências de acesso."
-        steps={[
-          { title: "Editar", description: "Atualize seu nome e foto de perfil" },
-          { title: "Senha", description: "Altere sua senha de acesso" },
-          { title: "Assinatura", description: "Veja os dias restantes do seu plano" },
+        title="Guia do Perfil"
+        sections={[
+          {
+            title: "Editar Informações",
+            description: "Clique em 'Editar' no card principal para alterar seu nome e foto de perfil. Sua foto é exibida no topo do painel e nos documentos gerados pelo sistema.",
+            screenshotUrl: "/help/help-perfil-editar.png"
+          },
+          {
+            title: "Alterar Senha",
+            description: "No card 'Senha', clique para alterar sua senha de acesso. Para sua segurança, é recomendado usar uma senha forte com letras, números e caracteres especiais.",
+            screenshotUrl: "/help/help-perfil-senha.png"
+          },
+          {
+            title: "Assinatura e Plano",
+            description: "Na seção 'Assinatura' você vê seu plano atual, a data de expiração e quantos dias restam. Quando o plano estiver perto de expirar, o sistema emitirá um alerta.",
+            screenshotUrl: "/help/help-perfil-assinatura.png"
+          },
         ]}
       />
 

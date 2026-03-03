@@ -15,11 +15,23 @@ export default function Servicos() {
     <div className="space-y-6 p-6">
       <HelpOverlay
         tabId="servicos"
-        title="Gestão de Serviços"
-        description="Aqui você gerencia os serviços oferecidos pela empresa e as regras de consumo de material por serviço."
-        steps={[
-          { title: "Serviços", description: "Cadastre as regiões/áreas do veículo onde os serviços são aplicados (ex: Para-brisa, Capô)" },
-          { title: "Regras de Consumo", description: "Defina quantos metros de material são consumidos por serviço e tamanho de veículo" },
+        title="Guia de Serviços"
+        sections={[
+          {
+            title: "Cadastrar Regiões/Serviços",
+            description: "Na aba 'Serviços', cadastre as regiões do veículo onde os serviços são aplicados (ex: Para-brisa Dianteiro, Laterais, Capô). Essas regiões são usadas ao registrar vendas para identificar onde cada película foi instalada.",
+            screenshotUrl: "/help/help-servicos-regioes.png"
+          },
+          {
+            title: "Regras de Consumo",
+            description: "Na aba 'Regras de Consumo', defina quantos metros de material são consumidos por serviço e tamanho de veículo. Ex: Para um 'Para-brisa' de um veículo 'Grande', são necessários 1.5m de película.",
+            screenshotUrl: "/help/help-servicos-regras.png"
+          },
+          {
+            title: "Como Funciona na Prática",
+            description: "Quando você registrar uma venda, o sistema vai usar as regras de consumo para calcular automaticamente quanto de material será descontado do estoque. Isso evita erros de cálculo manual.",
+            screenshotUrl: "/help/help-servicos-pratica.png"
+          },
         ]}
       />
 

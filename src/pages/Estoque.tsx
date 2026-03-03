@@ -92,7 +92,7 @@ export default function Estoque() {
     const currentStock = material.current_stock || 0;
     const minStock = material.minimum_stock || 1;
     const ratio = currentStock / minStock;
-    
+
     if (ratio <= 0.5) return { status: "critico", label: "Crítico", color: "text-red-500", bg: "bg-red-500/10" };
     if (ratio <= 1) return { status: "baixo", label: "Baixo", color: "text-yellow-500", bg: "bg-yellow-500/10" };
     return { status: "ok", label: "OK", color: "text-green-500", bg: "bg-green-500/10" };
@@ -125,21 +125,21 @@ export default function Estoque() {
 
   const handleDelete = async (material: Material) => {
     if (!confirm(`Tem certeza que deseja excluir "${material.name}"?`)) return;
-    
+
     try {
       // Verifica se existem movimentações
       const { count } = await supabase
         .from("stock_movements")
         .select("*", { count: "exact", head: true })
         .eq("material_id", material.id);
-      
+
       if (count && count > 0) {
         // Soft delete - apenas desativa
         const { error } = await supabase
           .from("materials")
           .update({ is_active: false })
           .eq("id", material.id);
-        
+
         if (error) throw error;
       } else {
         // Hard delete - remove completamente
@@ -147,10 +147,10 @@ export default function Estoque() {
           .from("materials")
           .delete()
           .eq("id", material.id);
-        
+
         if (error) throw error;
       }
-      
+
       toast.success("Material excluído com sucesso");
       fetchMaterials();
     } catch (error) {
@@ -190,11 +190,23 @@ export default function Estoque() {
     <div className="space-y-6 p-6">
       <HelpOverlay
         tabId="estoque"
-        title="Gestão de Estoque"
-        description="Aqui você gerencia os materiais e produtos utilizados nos serviços."
-        steps={[
-          { title: "Tipos de Produtos", description: "Cadastre os tipos de películas e produtos (marca, modelo, transmissão de luz)" },
-          { title: "Materiais", description: "Controle a quantidade em estoque, entradas e saídas de cada material" },
+        title="Guia de Estoque"
+        sections={[
+          {
+            title: "Tipos de Produtos",
+            description: "Na aba 'Tipos de Produtos', cadastre os tipos de películas e materiais com detalhes como marca, modelo e transmissão de luz. Esses tipos são usados para identificar qual película foi aplicada em cada serviço.",
+            screenshotUrl: "/help/help-estoque-tipos.png"
+          },
+          {
+            title: "Cadastrar Materiais",
+            description: "Na aba 'Materiais', clique em 'Novo Material' para cadastrar um item. Defina o nome, tipo, marca, unidade de medida, estoque mínimo e custo médio. O sistema alertará quando o estoque ficar baixo ou crítico.",
+            screenshotUrl: "/help/help-estoque-materiais.png"
+          },
+          {
+            title: "Entradas e Saídas",
+            description: "Use as setas ↓ (entrada) e ↑ (saída) na tabela para registrar movimentações de estoque. O saldo é atualizado automaticamente. Cards no topo mostram o valor total em estoque e alertas de itens baixos/críticos.",
+            screenshotUrl: "/help/help-estoque-movimentacoes.png"
+          },
         ]}
       />
 
@@ -367,10 +379,10 @@ export default function Estoque() {
                               <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
                                 <ArrowUp className="h-4 w-4 text-red-500" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleDelete(material)} 
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(material)}
                                 title="Excluir"
                                 className="text-muted-foreground hover:text-destructive"
                               >

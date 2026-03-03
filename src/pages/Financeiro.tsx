@@ -70,7 +70,7 @@ export default function Financeiro() {
       // Fetch transactions for current month
       const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
       const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
-      
+
       const { data: transactionsData } = await supabase
         .from("transactions")
         .select("*")
@@ -94,7 +94,7 @@ export default function Financeiro() {
   }, [user?.id]);
 
   const totalBalance = accounts.reduce((sum, acc) => sum + (acc.current_balance || 0), 0);
-  
+
   const totalEntradas = transactions
     .filter(t => t.type === 'Entrada')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -107,11 +107,11 @@ export default function Financeiro() {
   const chartData = Array.from({ length: 7 }, (_, i) => {
     const date = subDays(new Date(), 6 - i);
     const dateStr = format(date, 'yyyy-MM-dd');
-    
+
     const dayTransactions = transactions.filter(t => t.transaction_date === dateStr);
     const entradas = dayTransactions.filter(t => t.type === 'Entrada').reduce((s, t) => s + t.amount, 0);
     const saidas = dayTransactions.filter(t => t.type === 'Saida').reduce((s, t) => s + t.amount, 0);
-    
+
     return {
       date: format(date, 'dd/MM'),
       entradas,
@@ -156,12 +156,28 @@ export default function Financeiro() {
     <div className="space-y-6 p-6">
       <HelpOverlay
         tabId="financeiro"
-        title="Visão Financeira"
-        description="Acompanhe o fluxo de caixa da empresa com entradas, saídas e evolução do saldo."
-        steps={[
-          { title: "Adicionar", description: "Registre entradas, saídas, transferências e novas contas" },
-          { title: "Gráficos", description: "Visualize a evolução do saldo nos últimos 7 dias" },
-          { title: "Minhas Contas", description: "Veja o saldo de cada conta cadastrada" },
+        title="Guia Financeiro"
+        sections={[
+          {
+            title: "Registrar Movimentações",
+            description: "Clique em 'Adicionar' para registrar: Nova Entrada (receita), Nova Saída (despesa), Transferência (entre contas) ou Nova Conta. Cada movimentação é associada a uma conta e categoria.",
+            screenshotUrl: "/help/help-financeiro-adicionar.png"
+          },
+          {
+            title: "Cards de Resumo",
+            description: "Os 3 cards no topo mostram: Saldo Total (soma de todas as contas), Entradas do mês (total de receitas) e Saídas do mês (total de despesas). Use o ícone 👁 para ocultar/mostrar valores.",
+            screenshotUrl: "/help/help-financeiro-resumo.png"
+          },
+          {
+            title: "Gráfico de Evolução",
+            description: "O gráfico de linhas mostra a evolução de entradas (verde) e saídas (vermelho) nos últimos 7 dias. Passe o mouse para ver valores detalhados de cada dia.",
+            screenshotUrl: "/help/help-financeiro-grafico.png"
+          },
+          {
+            title: "Gerenciar Contas e Categorias",
+            description: "Na seção 'Minhas Contas' você vê o saldo de cada conta (corrente, poupança, carteira). Use 'Gerenciar Categorias' no menu para criar categorias como 'Aluguel', 'Material', etc.",
+            screenshotUrl: "/help/help-financeiro-contas.png"
+          },
         ]}
       />
 

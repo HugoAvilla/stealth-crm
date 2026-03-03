@@ -233,12 +233,23 @@ export default function TeamRequests() {
     <div className="space-y-6">
       <HelpOverlay
         tabId="solicitacoes"
-        title="Solicitações de Acesso"
-        description="Gerencie as solicitações de pessoas que querem entrar na sua equipe."
-        steps={[
-          { title: "Aprovar", description: "Aceite colaboradores para acessar o sistema" },
-          { title: "Rejeitar", description: "Recuse solicitações informando o motivo" },
-          { title: "Desvincular", description: "Remova membros que já não fazem parte da equipe" },
+        title="Guia de Solicitações"
+        sections={[
+          {
+            title: "Aprovar Solicitações",
+            description: "Quando um colaborador usa o código da empresa para solicitar acesso, a solicitação aparece na seção 'Pendentes'. Clique em 'Aprovar' para dar acesso ao sistema. Verifique o nome e cargo solicitado antes de aprovar.",
+            screenshotUrl: "/help/help-solicitacoes-aprovar.png"
+          },
+          {
+            title: "Rejeitar Solicitações",
+            description: "Se a pessoa não deveria ter acesso, clique em 'Rejeitar'. Você pode informar um motivo para a rejeição. A pessoa será notificada que seu acesso foi negado.",
+            screenshotUrl: "/help/help-solicitacoes-rejeitar.png"
+          },
+          {
+            title: "Desvincular Membros",
+            description: "No histórico de solicitações aprovadas, use o botão 'Desvincular' para remover um membro que não faz mais parte da equipe. O membro perderá acesso ao sistema imediatamente.",
+            screenshotUrl: "/help/help-solicitacoes-desvincular.png"
+          },
         ]}
       />
 
@@ -275,7 +286,7 @@ export default function TeamRequests() {
             <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5 shrink-0" />
               <p className="text-sm">
-                Limite de membros atingido ({limits.current_members}/{limits.max_members}). 
+                Limite de membros atingido ({limits.current_members}/{limits.max_members}).
                 Aumente o limite em <span className="font-medium">Empresa &gt; Configurar</span> para aprovar novas solicitações.
               </p>
             </div>

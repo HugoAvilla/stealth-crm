@@ -123,12 +123,28 @@ const Vendas = () => {
     <div className="p-6 space-y-6">
       <HelpOverlay
         tabId="vendas"
-        title="Gestão de Vendas"
-        description="Aqui você acompanha todas as vendas realizadas pela empresa em formato de calendário ou lista."
-        steps={[
-          { title: "Nova Venda", description: "Clique no botão para registrar uma nova venda com cliente, veículo e serviços" },
-          { title: "Calendário", description: "Visualize as vendas por dia no calendário mensal" },
-          { title: "Ver Gráficos", description: "Analise o desempenho de vendas com gráficos detalhados" },
+        title="Guia de Vendas"
+        sections={[
+          {
+            title: "Registrar Nova Venda",
+            description: "Clique no botão 'Nova venda' no topo da página. Selecione o cliente, o veículo, adicione os serviços realizados e escolha a forma de pagamento. A venda será registrada no calendário na data selecionada.",
+            screenshotUrl: "/help/help-vendas-nova.png"
+          },
+          {
+            title: "Alternar entre Calendário e Lista",
+            description: "Use os botões 'Calendário' e 'Lista' no topo para alternar a visualização. No modo calendário, cada dia mostra a quantidade de vendas e o valor total. No modo lista, você vê todas as vendas em ordem cronológica.",
+            screenshotUrl: "/help/help-vendas-visualizacao.png"
+          },
+          {
+            title: "Detalhes do Dia",
+            description: "Clique em um dia no calendário que possua vendas para abrir o drawer lateral com todos os detalhes: cliente, veículo, serviços realizados e valor total de cada venda do dia.",
+            screenshotUrl: "/help/help-vendas-dia.png"
+          },
+          {
+            title: "Gráficos e Indicadores (KPIs)",
+            description: "A barra de KPIs mostra o resumo rápido (total de vendas, ticket médio, etc). Clique em 'Ver gráficos' para análises detalhadas com gráficos de barras e evolução temporal.",
+            screenshotUrl: "/help/help-vendas-graficos.png"
+          },
         ]}
       />
 

@@ -165,12 +165,28 @@ export default function Garantias() {
     <div className="space-y-6 p-6">
       <HelpOverlay
         tabId="garantias"
-        title="Gestão de Garantias"
-        description="Gerencie certificados de garantia emitidos para seus clientes."
-        steps={[
-          { title: "Emitir Garantia", description: "Crie um novo certificado de garantia para um serviço" },
-          { title: "Criar Modelo", description: "Configure modelos de garantia com validade e termos" },
-          { title: "Enviar", description: "Envie o certificado por WhatsApp ou baixe o PDF" },
+        title="Guia de Garantias"
+        sections={[
+          {
+            title: "Emitir Garantia",
+            description: "Clique em 'Emitir Garantia' para criar um certificado. Selecione o cliente, o veículo, o tipo de serviço e a validade. O certificado é gerado automaticamente com número único.",
+            screenshotUrl: "/help/help-garantias-emitir.png"
+          },
+          {
+            title: "Criar Modelo de Garantia",
+            description: "Use 'Criar Garantia Produto' para criar modelos reutilizáveis. Defina nome, validade em meses, cobertura e termos. Esses modelos agilizam a emissão de garantias futuras.",
+            screenshotUrl: "/help/help-garantias-modelo.png"
+          },
+          {
+            title: "Gerenciar Garantias Emitidas",
+            description: "A tabela mostra todas as garantias com status (Ativa, Vencendo, Expirada). Use a busca para encontrar por tipo, cliente ou placa. Cards no topo mostram totais e modelos disponíveis.",
+            screenshotUrl: "/help/help-garantias-tabela.png"
+          },
+          {
+            title: "Enviar por WhatsApp ou PDF",
+            description: "No menu '⋯' de cada garantia, escolha 'Enviar WhatsApp' para mandar o certificado diretamente ao cliente ou 'Baixar PDF' para gerar um documento profissional.",
+            screenshotUrl: "/help/help-garantias-enviar.png"
+          },
         ]}
       />
 
@@ -353,19 +369,19 @@ export default function Garantias() {
       </Tabs>
 
       {/* Modals */}
-      <IssueWarrantyModal 
-        open={showIssueModal} 
+      <IssueWarrantyModal
+        open={showIssueModal}
         onOpenChange={(open) => {
           setShowIssueModal(open);
           if (!open) fetchData();
-        }} 
+        }}
       />
-      <NewWarrantyTemplateModal 
-        open={showTemplateModal} 
+      <NewWarrantyTemplateModal
+        open={showTemplateModal}
         onOpenChange={(open) => {
           setShowTemplateModal(open);
           if (!open) fetchData();
-        }} 
+        }}
       />
     </div>
   );

@@ -40,7 +40,7 @@ export default function Empresa() {
     if (!user?.companyId) return;
 
     setIsLoading(true);
-    
+
     // Fetch company data
     const { data: companyData, error: companyError } = await supabase
       .from("companies")
@@ -136,12 +136,23 @@ export default function Empresa() {
     <div className="space-y-6 p-6 max-w-4xl mx-auto">
       <HelpOverlay
         tabId="empresa"
-        title="Dados da Empresa"
-        description="Configure as informações da sua empresa que aparecem em documentos e garantias."
-        steps={[
-          { title: "Logo", description: "Clique na área da logo para fazer upload da imagem" },
-          { title: "Editar Dados", description: "Atualize nome, CNPJ, telefone e endereço" },
-          { title: "Código da Equipe", description: "Compartilhe o código para colaboradores entrarem" },
+        title="Guia da Empresa"
+        sections={[
+          {
+            title: "Atualizar Logo e Dados",
+            description: "Clique na área da logo para fazer upload de uma imagem (PNG ou JPG). Use o botão 'Editar Dados' para alterar nome, CNPJ, telefone, e-mail e endereço. Essas informações aparecem em documentos e garantias.",
+            screenshotUrl: "/help/help-empresa-dados.png"
+          },
+          {
+            title: "Código da Equipe",
+            description: "O código de equipe é usado por colaboradores para solicitar acesso ao sistema. Compartilhe esse código com novos membros — eles usam na tela de cadastro para associar-se à sua empresa.",
+            screenshotUrl: "/help/help-empresa-codigo.png"
+          },
+          {
+            title: "Gerenciar Membros",
+            description: "A barra de progresso mostra quantos membros estão cadastrados em relação ao limite do plano. Para aprovar novos membros, vá até 'Solicitações de Acesso' no menu lateral.",
+            screenshotUrl: "/help/help-empresa-membros.png"
+          },
         ]}
       />
 
@@ -167,7 +178,7 @@ export default function Empresa() {
               accept="image/*"
               className="hidden"
             />
-            <div 
+            <div
               onClick={() => !isUploading && fileInputRef.current?.click()}
               className="w-24 h-24 rounded-xl border-2 border-dashed border-primary/30 flex items-center justify-center bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors overflow-hidden"
             >
@@ -193,20 +204,20 @@ export default function Empresa() {
       {/* Team Stats & Company Code - Only for Admin */}
       {user?.role === 'ADMIN' && (
         <Card className="bg-card/50 border-border/50">
-           <CardHeader className="pb-3">
-             <CardTitle className="flex items-center gap-2 text-lg">
-               <Users className="h-5 w-5 text-primary" />
-               Equipe
-             </CardTitle>
-           </CardHeader>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Users className="h-5 w-5 text-primary" />
+              Equipe
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Membros</span>
                 <span className="font-medium">{memberCount} de {company?.max_members || 5}</span>
               </div>
-              <Progress 
-                value={(memberCount / (company?.max_members || 5)) * 100} 
+              <Progress
+                value={(memberCount / (company?.max_members || 5)) * 100}
                 className="h-2"
               />
             </div>
@@ -271,7 +282,7 @@ export default function Empresa() {
       </button>
 
       {/* Modals */}
-       <EditCompanyModal open={showEditModal} onOpenChange={setShowEditModal} onSaved={fetchCompanyData} />
+      <EditCompanyModal open={showEditModal} onOpenChange={setShowEditModal} onSaved={fetchCompanyData} />
     </div>
   );
 }

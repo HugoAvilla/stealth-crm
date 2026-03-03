@@ -16,10 +16,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Plus, 
-  Search, 
-  ArrowUpDown, 
+import {
+  Plus,
+  Search,
+  ArrowUpDown,
   MoreVertical,
   Eye,
   Pencil,
@@ -152,10 +152,10 @@ export default function Clientes() {
     // Filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      result = result.filter(client => 
+      result = result.filter(client =>
         client.name.toLowerCase().includes(term) ||
         client.phone.includes(term) ||
-        client.vehicles.some(v => 
+        client.vehicles.some(v =>
           v.model.toLowerCase().includes(term) ||
           (v.plate?.toLowerCase() || "").includes(term)
         )
@@ -246,12 +246,28 @@ export default function Clientes() {
     <div className="space-y-6">
       <HelpOverlay
         tabId="clientes"
-        title="Gestão de Clientes"
-        description="Cadastre e gerencie seus clientes com informações de contato e veículos."
-        steps={[
-          { title: "Novo Cliente", description: "Clique para cadastrar um novo cliente" },
-          { title: "Pesquisar", description: "Busque por nome, telefone, veículo ou placa" },
-          { title: "Ver Perfil", description: "Clique no menu para ver detalhes completos do cliente" },
+        title="Guia de Clientes"
+        sections={[
+          {
+            title: "Cadastrar Novo Cliente",
+            description: "Clique em 'Novo cliente' para abrir o formulário. Preencha nome, WhatsApp, e-mail e CPF/CNPJ. O cliente ficará disponível para associar a vendas e veículos.",
+            screenshotUrl: "/help/help-clientes-novo.png"
+          },
+          {
+            title: "Buscar e Filtrar",
+            description: "Use a barra de pesquisa para buscar clientes por nome, número de WhatsApp, modelo do veículo ou placa. Use o botão de ordenação para classificar por nome (A-Z / Z-A), mais recentes ou maior gasto.",
+            screenshotUrl: "/help/help-clientes-busca.png"
+          },
+          {
+            title: "Ações do Cliente",
+            description: "Clique no menu '⋮' de cada cliente para: Ver Perfil (histórico completo), Editar (alterar dados), Excluir (remover cliente sem vendas), ou enviar mensagem via WhatsApp.",
+            screenshotUrl: "/help/help-clientes-acoes.png"
+          },
+          {
+            title: "Perfil Completo",
+            description: "No perfil do cliente você encontra todos os veículos cadastrados, histórico de vendas, total gasto e dados de contato. Use essa visão para entender o relacionamento com cada cliente.",
+            screenshotUrl: "/help/help-clientes-perfil.png"
+          },
         ]}
       />
 
@@ -264,7 +280,7 @@ export default function Clientes() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
+          <Button
             onClick={() => setShowNewClientModal(true)}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
@@ -375,7 +391,7 @@ export default function Clientes() {
                           <Pencil className="h-4 w-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleDeleteClient(client)}
                           className="text-destructive focus:text-destructive"
                         >
@@ -448,13 +464,13 @@ export default function Clientes() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o cliente "{clientToDelete?.name}"? 
+              Tem certeza que deseja excluir o cliente "{clientToDelete?.name}"?
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

@@ -122,12 +122,28 @@ const Dashboard = () => {
     <div className="p-6 lg:p-8 space-y-8">
       <HelpOverlay
         tabId="dashboard"
-        title="Bem-vindo ao Painel"
-        description="Este é o seu painel de controle. Aqui você acompanha o desempenho do negócio e acessa as principais funções."
-        steps={[
-          { title: "Preencher Vaga", description: "Registre um veículo que entrou na loja para um serviço" },
-          { title: "Novo Cliente", description: "Cadastre novos clientes rapidamente" },
-          { title: "Estatísticas", description: "Acompanhe faturamento, ticket médio e clientes" },
+        title="Guia do Painel de Controle"
+        sections={[
+          {
+            title: "Indicadores Principais",
+            description: "No topo você encontra 4 cards com os principais indicadores do mês: Faturamento Total, Ticket Médio, Novos Clientes e Pós-Venda Pendente. Eles são atualizados automaticamente conforme você registra vendas.",
+            screenshotUrl: "/help/help-dashboard-stats.png"
+          },
+          {
+            title: "Ações Rápidas",
+            description: "Use os botões de ação rápida para 'Preencher Vaga' (registrar a entrada de um veículo para serviço) ou 'Novo Cliente' (cadastrar um cliente rapidamente sem sair do painel).",
+            screenshotUrl: "/help/help-dashboard-actions.png"
+          },
+          {
+            title: "Gráfico de Vendas e Resumo Financeiro",
+            description: "O gráfico mostra a tendência de vendas nos últimos dias. Ao lado, o Resumo Financeiro apresenta entradas, saídas e saldo. Use esses dados para identificar padrões de faturamento.",
+            screenshotUrl: "/help/help-dashboard-charts.png"
+          },
+          {
+            title: "Meta do Mês e Ranking de Clientes",
+            description: "Acompanhe o progresso em relação à sua meta mensal pela barra de progresso. O Ranking mostra os clientes que mais gastaram, ajudando a identificar seus melhores clientes.",
+            screenshotUrl: "/help/help-dashboard-goal.png"
+          },
         ]}
       />
       {/* Header */}
@@ -217,7 +233,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.5s' }}>
         <CapacityWidget />
         <ConversionFunnel />
-        
+
         {/* Goal Progress */}
         <div className="rounded-xl border border-border bg-card p-5">
           <h3 className="text-sm font-medium text-muted-foreground mb-4">

@@ -213,12 +213,23 @@ export default function Contas() {
     <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
       <HelpOverlay
         tabId="contas"
-        title="Detalhes das Contas"
-        description="Visualize o extrato detalhado de cada conta bancária ou carteira."
-        steps={[
-          { title: "Selecionar Conta", description: "Clique em uma conta na barra lateral para ver detalhes" },
-          { title: "Gráficos", description: "Analise formas de pagamento e categorias de gastos" },
-          { title: "Extrato", description: "Veja todas as transações da conta selecionada" },
+        title="Guia de Contas"
+        sections={[
+          {
+            title: "Selecionar Conta",
+            description: "Na barra lateral esquerda estão listadas todas as suas contas (corrente, poupança, carteira). Clique em uma conta para ver seus detalhes. Use o botão '+' para criar uma nova conta e '👁' para ocultar os valores.",
+            screenshotUrl: "/help/help-contas-selecionar.png"
+          },
+          {
+            title: "Gráficos de Análise",
+            description: "O gráfico de pizza mostra a distribuição das formas de pagamento (Pix, Dinheiro, Crédito, etc). O gráfico de barras mostra as saídas organizadas por categoria (Aluguel, Material, etc).",
+            screenshotUrl: "/help/help-contas-graficos.png"
+          },
+          {
+            title: "Extrato Detalhado",
+            description: "O extrato mostra todas as transações da conta selecionada, agrupadas por data. Entradas aparecem em verde (+) e saídas em vermelho (-). Cada transação mostra se está confirmada ou pendente.",
+            screenshotUrl: "/help/help-contas-extrato.png"
+          },
         ]}
       />
 
@@ -265,7 +276,7 @@ export default function Contas() {
                 >
                   <Settings className="h-3 w-3 text-muted-foreground" />
                 </button>
-                
+
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-medium text-sm">{account.name}</span>
                   {account.is_main && (
@@ -460,8 +471,8 @@ export default function Contas() {
       </div>
 
       {/* Modals */}
-      <AddAccountModal 
-        open={showAddModal} 
+      <AddAccountModal
+        open={showAddModal}
         onOpenChange={setShowAddModal}
         onSuccess={handleAccountCreated}
       />

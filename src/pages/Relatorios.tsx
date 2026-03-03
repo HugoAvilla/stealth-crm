@@ -22,7 +22,7 @@ export default function Relatorios() {
   const [selectedReport, setSelectedReport] = useState<ReportType | null>(null);
   const [activeTab, setActiveTab] = useState("relatorios");
 
-  const filteredReports = reportTypes.filter(r => 
+  const filteredReports = reportTypes.filter(r =>
     r.name.toLowerCase().includes(search.toLowerCase()) ||
     r.description.toLowerCase().includes(search.toLowerCase())
   );
@@ -37,12 +37,23 @@ export default function Relatorios() {
     <div className="space-y-6 p-[10px] border border-border rounded-lg bg-muted">
       <HelpOverlay
         tabId="relatorios"
-        title="Relatórios"
-        description="Gere relatórios detalhados do seu negócio para análise e tomada de decisão."
-        steps={[
-          { title: "Escolher Relatório", description: "Selecione o tipo de relatório que deseja gerar" },
-          { title: "Configurar", description: "Defina o período e filtros desejados" },
-          { title: "Exportar", description: "Baixe o relatório em PDF ou Excel" },
+        title="Guia de Relatórios"
+        sections={[
+          {
+            title: "Escolher Relatório",
+            description: "Os relatórios estão organizados por categoria: Financeiro (faturamento, DRE), Vendas (por período, por serviço), Clientes (ranking, novos) e Operacional (ocupação, produtividade). Clique em qualquer relatório para configurá-lo.",
+            screenshotUrl: "/help/help-relatorios-tipos.png"
+          },
+          {
+            title: "Configurar e Gerar",
+            description: "Ao selecionar um relatório, defina o período (data inicial e final) e quaisquer filtros adicionais. Em seguida clique em 'Gerar Relatório' para visualizar os dados.",
+            screenshotUrl: "/help/help-relatorios-config.png"
+          },
+          {
+            title: "Exportar em PDF",
+            description: "Após gerar o relatório, use o botão de download para exportar em PDF. Os PDFs ficam salvos na aba 'PDFs Baixados' para consulta futura.",
+            screenshotUrl: "/help/help-relatorios-pdf.png"
+          },
         ]}
       />
 
