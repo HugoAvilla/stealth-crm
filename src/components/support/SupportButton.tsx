@@ -23,7 +23,7 @@ export function SupportButton() {
         <>
             <button
                 onClick={() => setOpen(true)}
-                className="fixed bottom-4 left-4 z-50 w-12 h-12 rounded-full bg-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center border border-gray-200"
+                className="fixed bottom-4 right-4 z-50 w-12 h-12 rounded-full bg-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center border border-gray-200"
                 title="Suporte da Plataforma"
             >
                 <Headphones className="w-6 h-6 text-black" />
