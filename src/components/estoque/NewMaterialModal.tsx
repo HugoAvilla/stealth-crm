@@ -93,13 +93,14 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
         return;
       }
 
-      // Check if material already exists for this product type
+      // Check if material already exists for this product type (only active ones)
       const { data: existingMaterial } = await supabase
         .from("materials")
         .select("id")
         .eq("product_type_id", selectedProduct.id)
         .eq("company_id", companyId)
-        .single();
+        .eq("is_active", true)
+        .maybeSingle();
 
       if (existingMaterial) {
         toast.error("Já existe um material vinculado a este tipo de produto");
