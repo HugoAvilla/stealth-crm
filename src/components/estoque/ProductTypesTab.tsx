@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Tag } from "lucide-react";
+import { Plus, Pencil, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -162,6 +162,40 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      // Remove material vinculado primeiro
+      const { error: materialError } = await supabase
+        .from("materials")
+        .delete()
+        .eq("product_type_id", id);
+
+      if (materialError) console.error("Erro ao remover material vinculado:", materialError);
+
+      // Remove o tipo de produto
+      const { error } = await supabase
+        .from("product_types")
+        .delete()
+        .eq("id", id)
+        .eq("company_id", companyId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tipo de produto excluído com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["product-types"] });
+      queryClient.invalidateQueries({ queryKey: ["materials"] });
+    },
+    onError: (error: Error) => {
+      toast.error("Erro ao excluir produto: " + error.message);
+    },
+  });
+
+  const handleDelete = (product: ProductType) => {
+    if (!confirm(`Tem certeza que deseja excluir "${product.brand} ${product.name}"? O material vinculado também será removido.`)) return;
+    deleteMutation.mutate(product.id);
+  };
+
   const handleOpenModal = (product?: ProductType) => {
     if (product) {
       setEditingProduct(product);
@@ -315,6 +349,15 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                           onClick={() => handleOpenModal(product)}
                         >
                           <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(product)}
+                          className="text-muted-foreground hover:text-destructive"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                         <Switch
                           checked={product.is_active}
