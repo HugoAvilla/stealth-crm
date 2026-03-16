@@ -9,22 +9,19 @@ export function usePWAUpdate() {
     onRegistered(registration) {
       if (!registration) return;
 
-      // Verifica atualizações imediatamente ao registrar
-      registration.update();
-
-      // Verifica atualizações a cada 60 segundos
-      setInterval(() => {
-        registration.update();
-      }, 60 * 1000);
+      // Verifica atualização apenas ao abrir/recarregar a plataforma
+      registration.update().catch(() => {
+        // Silently ignore (pode estar offline)
+      });
     },
     onRegisterError(error) {
       console.error("[PWA] Erro ao registrar service worker:", error);
     },
   });
 
+  // Quando detecta nova versão, atualiza automaticamente
   useEffect(() => {
     if (needRefresh) {
-      // Nova versão disponível — atualiza e recarrega automaticamente
       updateServiceWorker(true);
     }
   }, [needRefresh, updateServiceWorker]);
