@@ -237,16 +237,40 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await supabase
-        .from("vehicle_regions")
-        .delete()
-        .eq("id", id)
-        .eq("company_id", companyId);
+      // Verifica se existem itens de serviço vinculados
+      const { count } = await supabase
+        .from("service_items_detailed")
+        .select("*", { count: "exact", head: true })
+        .eq("region_id", id);
 
-      if (error) throw error;
+      if (count && count > 0) {
+        // Soft delete - desativa o serviço
+        const { error } = await supabase
+          .from("vehicle_regions")
+          .update({ is_active: false })
+          .eq("id", id)
+          .eq("company_id", companyId);
+
+        if (error) throw error;
+        return "soft";
+      } else {
+        // Hard delete
+        const { error } = await supabase
+          .from("vehicle_regions")
+          .delete()
+          .eq("id", id)
+          .eq("company_id", companyId);
+
+        if (error) throw error;
+        return "hard";
+      }
     },
-    onSuccess: () => {
-      toast.success("Serviço excluído!");
+    onSuccess: (type) => {
+      if (type === "soft") {
+        toast.success("Serviço desativado (possui vendas vinculadas)");
+      } else {
+        toast.success("Serviço excluído!");
+      }
       queryClient.invalidateQueries({ queryKey: ["vehicle-regions"] });
       setIsDeleteAlertOpen(false);
       setDeletingRegion(null);
