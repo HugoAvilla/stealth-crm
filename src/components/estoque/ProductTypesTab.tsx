@@ -164,25 +164,53 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      // Remove material vinculado primeiro
-      const { error: materialError } = await supabase
-        .from("materials")
-        .delete()
+      // Verifica se existem serviços vinculados
+      const { count } = await supabase
+        .from("service_items_detailed")
+        .select("*", { count: "exact", head: true })
         .eq("product_type_id", id);
 
-      if (materialError) console.error("Erro ao remover material vinculado:", materialError);
+      if (count && count > 0) {
+        // Soft delete - desativa o produto e o material vinculado
+        const { error } = await supabase
+          .from("product_types")
+          .update({ is_active: false })
+          .eq("id", id)
+          .eq("company_id", companyId);
 
-      // Remove o tipo de produto
-      const { error } = await supabase
-        .from("product_types")
-        .delete()
-        .eq("id", id)
-        .eq("company_id", companyId);
+        if (error) throw error;
 
-      if (error) throw error;
+        // Desativa material vinculado também
+        await supabase
+          .from("materials")
+          .update({ is_active: false })
+          .eq("product_type_id", id);
+
+        return "soft";
+      } else {
+        // Hard delete - remove material vinculado primeiro
+        await supabase
+          .from("materials")
+          .delete()
+          .eq("product_type_id", id);
+
+        // Remove o tipo de produto
+        const { error } = await supabase
+          .from("product_types")
+          .delete()
+          .eq("id", id)
+          .eq("company_id", companyId);
+
+        if (error) throw error;
+        return "hard";
+      }
     },
-    onSuccess: () => {
-      toast.success("Tipo de produto excluído com sucesso!");
+    onSuccess: (type) => {
+      if (type === "soft") {
+        toast.success("Produto desativado (possui serviços vinculados)");
+      } else {
+        toast.success("Tipo de produto excluído com sucesso!");
+      }
       queryClient.invalidateQueries({ queryKey: ["product-types"] });
       queryClient.invalidateQueries({ queryKey: ["materials"] });
     },
@@ -192,7 +220,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
   });
 
   const handleDelete = (product: ProductType) => {
-    if (!confirm(`Tem certeza que deseja excluir "${product.brand} ${product.name}"? O material vinculado também será removido.`)) return;
+    if (!confirm(`Tem certeza que deseja excluir "${product.brand} ${product.name}"?`)) return;
     deleteMutation.mutate(product.id);
   };
 
