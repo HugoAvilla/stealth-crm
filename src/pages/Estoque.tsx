@@ -193,6 +193,11 @@ export default function Estoque() {
         title="Guia de Estoque"
         sections={[
           {
+            title: "Vídeo Aula — Estoque",
+            description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de estoque.",
+            videoUrl: "/help/video-aula-estoque.mp4"
+          },
+          {
             title: "Tipos de Produtos",
             description: "Na aba 'Tipos de Produtos', cadastre os tipos de películas e materiais com detalhes como marca, modelo e transmissão de luz. Esses tipos são usados para identificar qual película foi aplicada em cada serviço.",
             screenshotUrl: "/help/help-estoque-tipos.png"

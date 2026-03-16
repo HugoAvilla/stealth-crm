@@ -12,6 +12,7 @@ interface HelpSection {
   title: string;
   description: string;
   screenshotUrl?: string;
+  videoUrl?: string;
 }
 
 interface HelpStep {
@@ -129,8 +130,23 @@ export function HelpOverlay({ tabId, title, description, imageUrl, steps, sectio
                           </h3>
                         </div>
 
+                        {/* Video */}
+                        {section.videoUrl && (
+                          <div className="rounded-lg border border-border overflow-hidden bg-muted/30">
+                            <video
+                              src={section.videoUrl}
+                              controls
+                              preload="metadata"
+                              className="w-full h-auto"
+                              style={{ maxHeight: '360px' }}
+                            >
+                              Seu navegador não suporta o elemento de vídeo.
+                            </video>
+                          </div>
+                        )}
+
                         {/* Screenshot */}
-                        {section.screenshotUrl && (
+                        {section.screenshotUrl && !section.videoUrl && (
                           <div className="rounded-lg border border-border overflow-hidden bg-muted/30">
                             <img
                               src={section.screenshotUrl}
