@@ -18,6 +18,11 @@ export default function Servicos() {
         title="Guia de Serviços"
         sections={[
           {
+            title: "Vídeo Aula — Serviços",
+            description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de serviços.",
+            videoUrl: "/help/video-aula-servico.mov"
+          },
+          {
             title: "Cadastrar Regiões/Serviços",
             description: "Na aba 'Serviços', cadastre as regiões do veículo onde os serviços são aplicados (ex: Para-brisa Dianteiro, Laterais, Capô). Essas regiões são usadas ao registrar vendas para identificar onde cada película foi instalada.",
             screenshotUrl: "/help/help-servicos-regioes.png"
