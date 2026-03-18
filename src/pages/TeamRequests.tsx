@@ -182,21 +182,11 @@ export default function TeamRequests() {
 
     setUnlinkLoading(true);
     try {
-      // Remove company_id from profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ company_id: null })
-        .eq('user_id', memberToUnlink.requester_user_id);
+      const { error } = await supabase.rpc('unlink_company_member', {
+        target_user_id: memberToUnlink.requester_user_id,
+      });
 
-      if (profileError) throw profileError;
-
-      // Set role to NENHUM
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .update({ role: 'NENHUM' })
-        .eq('user_id', memberToUnlink.requester_user_id);
-
-      if (roleError) throw roleError;
+      if (error) throw error;
 
       toast({
         title: 'Membro desvinculado',
