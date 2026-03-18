@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Copy, Check, CreditCard, Users, Database, Headphones, RefreshCw, MessageCircle, Tag, X, BarChart3, Shield, Package, Building2, DollarSign, Wrench } from 'lucide-react';
+import { LogOut, Loader2, Copy, Check, CreditCard, Users, Database, Headphones, RefreshCw, MessageCircle, Tag, X, BarChart3, Shield, Package, Building2, DollarSign, Wrench } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,7 @@ interface SystemConfig {
 }
 
 export default function Subscription() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -45,6 +45,15 @@ export default function Subscription() {
   const [couponApplied, setCouponApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      toast({ title: 'Erro ao sair', variant: 'destructive' });
+    }
+  };
 
   useEffect(() => {
     fetchConfig();
@@ -224,6 +233,17 @@ export default function Subscription() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 py-8 px-4">
       <div className="max-w-4xl mx-auto">
+        <div className="mb-2">
+          <Button 
+            variant="ghost" 
+            className="text-muted-foreground hover:text-foreground -ml-4"
+            onClick={handleSignOut}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Voltar para Login
+          </Button>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Ative sua assinatura</h1>
