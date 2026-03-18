@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Phone, Mail, MapPin, Upload, MessageCircle, Edit, Loader2, Users } from "lucide-react";
+import { Phone, Mail, MapPin, Upload, Edit, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
@@ -69,9 +69,7 @@ export default function Empresa() {
     fetchCompanyData();
   }, [user?.companyId]);
 
-  const handleSupportClick = () => {
-    toast.success("Chat de suporte iniciado!");
-  };
+
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,8 +79,8 @@ export default function Empresa() {
 
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.companyId}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+      const filePath = `${user.companyId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('company-logos')
@@ -273,13 +271,7 @@ export default function Empresa() {
         </CardContent>
       </Card>
 
-      {/* FAB Support Button */}
-      <button
-        onClick={handleSupportClick}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
-      >
-        <MessageCircle className="h-6 w-6" />
-      </button>
+
 
       {/* Modals */}
       <EditCompanyModal open={showEditModal} onOpenChange={setShowEditModal} onSaved={fetchCompanyData} />
