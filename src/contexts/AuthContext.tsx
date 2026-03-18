@@ -61,11 +61,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error fetching role:', roleError);
       }
 
-      // Fetch subscription
+      // Check if user is company owner mapping and get company owner id if exists
+      let isCompanyOwner = false;
+      let companyOwnerId = userId; // Default to self
+      
+      if (profile?.company_id) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('owner_id')
+          .eq('id', profile.company_id)
+          .single();
+
+        if (companyData) {
+          isCompanyOwner = companyData.owner_id === userId;
+          companyOwnerId = companyData.owner_id;
+        }
+      }
+
+      // Fetch subscription (check owner's subscription if user is in a company)
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('subscriptions')
         .select('status, company_id')
-        .eq('user_id', userId)
+        .eq('user_id', companyOwnerId)
         .maybeSingle();
 
       if (subscriptionError) {
@@ -83,18 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
 
         hasPendingJoinRequest = !!pendingRequest;
-      }
-
-      // Check if user is company owner
-      let isCompanyOwner = false;
-      if (profile?.company_id) {
-        const { data: companyData } = await supabase
-          .from('companies')
-          .select('owner_id')
-          .eq('id', profile.company_id)
-          .single();
-
-        isCompanyOwner = companyData?.owner_id === userId;
       }
 
       // Check if user is master account via database function (secure, no email exposed in frontend)
