@@ -50,16 +50,23 @@ export function ProtectedRoute({
 
   // Check subscription status
   if (requireActiveSubscription) {
-    if (user.subscriptionStatus === 'pending_payment') {
-      return <Navigate to="/assinatura" replace />;
-    }
+    // Determine if user is subject to subscription checks
+    // Employees (users who aren't the company owner) bypass subscription checks
+    // Their access is controlled by the owner's subscription, which should be handled at API level
+    const isSubjectToSubscription = !user.companyId || user.isCompanyOwner;
     
-    if (user.subscriptionStatus === 'payment_submitted') {
-      return <Navigate to="/aguardando-liberacao" replace />;
-    }
-    
-    if (user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'blocked') {
-      return <Navigate to="/assinatura" replace />;
+    if (isSubjectToSubscription) {
+      if (user.subscriptionStatus === 'pending_payment') {
+        return <Navigate to="/assinatura" replace />;
+      }
+      
+      if (user.subscriptionStatus === 'payment_submitted') {
+        return <Navigate to="/aguardando-liberacao" replace />;
+      }
+      
+      if (user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'blocked') {
+        return <Navigate to="/assinatura" replace />;
+      }
     }
   }
 
