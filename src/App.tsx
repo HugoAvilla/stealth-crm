@@ -111,8 +111,6 @@ function AppRoutes() {
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
-          ) : user?.subscriptionStatus !== 'active' ? (
-            <Navigate to="/assinatura" replace />
           ) : user?.companyId ? (
             <Navigate to="/" replace />
           ) : (
