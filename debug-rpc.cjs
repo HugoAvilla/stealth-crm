@@ -5,24 +5,18 @@ const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const options = {
   hostname: supabaseUrl,
-  path: '/rest/v1/?apikey=' + supabaseKey,
+  path: '/rest/v1/company_join_requests?select=status',
   method: 'GET',
   headers: {
-    'Accept': 'application/openapi+json'
+    'apikey': supabaseKey,
+    'Authorization': 'Bearer ' + supabaseKey
   }
 };
 
 const req = https.request(options, (res) => {
   let resData = '';
   res.on('data', (chunk) => resData += chunk);
-  res.on('end', () => {
-    try {
-        const schema = JSON.parse(resData);
-        console.log(JSON.stringify(schema.definitions.company_join_requests, null, 2));
-    } catch (e) {
-        console.error(e);
-    }
-  });
+  res.on('end', () => console.log('Data:', resData));
 });
 
 req.on('error', (e) => console.error(e));
