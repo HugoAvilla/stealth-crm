@@ -249,12 +249,6 @@ export default function CompanySetup() {
             <CardDescription>
               Preencha os dados da sua empresa para começar a usar o sistema
             </CardDescription>
-            <p className="text-sm text-muted-foreground mt-2">
-              Já recebeu um código de empresa?{' '}
-              <Link to="/empresa/entrar" className="text-primary hover:underline">
-                Clique aqui para entrar
-              </Link>
-            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">

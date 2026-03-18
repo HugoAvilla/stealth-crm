@@ -225,8 +225,8 @@ const Dashboard = () => {
           <SalesChart />
         </div>
 
-        {/* Financial Summary */}
-        <FinancialSummary />
+        {/* Financial Summary - Only for ADMIN */}
+        {user?.role === 'ADMIN' && <FinancialSummary />}
       </div>
 
       {/* Secondary Widgets */}

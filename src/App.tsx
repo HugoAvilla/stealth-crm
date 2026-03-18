@@ -147,19 +147,19 @@ function AppRoutes() {
       } />
       
       <Route path="/financeiro" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+        <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Financeiro /></MainLayout>
         </ProtectedRoute>
       } />
       
       <Route path="/contas" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+        <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Contas /></MainLayout>
         </ProtectedRoute>
       } />
       
       <Route path="/relatorios" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+        <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Relatorios /></MainLayout>
         </ProtectedRoute>
       } />

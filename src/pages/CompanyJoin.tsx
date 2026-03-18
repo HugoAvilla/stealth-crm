@@ -323,7 +323,7 @@ export default function CompanyJoin() {
                         Vendedor
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Acesso a vendas, clientes, financeiro e dashboard
+                        Acesso a vendas, espaço, clientes e garantias
                       </p>
                     </div>
                   </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -247,8 +247,14 @@ export default function Subscription() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Ative sua assinatura</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-4">
             Faça o pagamento via PIX para liberar seu acesso completo
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Já recebeu um código de empresa?{' '}
+            <Link to="/empresa/entrar" className="text-primary hover:underline">
+              Clique aqui para entrar
+            </Link>
           </p>
         </div>
 
