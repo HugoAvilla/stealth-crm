@@ -51,6 +51,10 @@ export default function TeamRequests() {
   const [unlinkModalOpen, setUnlinkModalOpen] = useState(false);
   const [memberToUnlink, setMemberToUnlink] = useState<JoinRequest | null>(null);
   const [unlinkLoading, setUnlinkLoading] = useState(false);
+  
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<JoinRequest | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -177,6 +181,11 @@ export default function TeamRequests() {
     setUnlinkModalOpen(true);
   };
 
+  const openDeleteModal = (request: JoinRequest) => {
+    setRequestToDelete(request);
+    setDeleteModalOpen(true);
+  };
+
   const handleUnlinkMember = async () => {
     if (!memberToUnlink) return;
 
@@ -205,6 +214,38 @@ export default function TeamRequests() {
       });
     } finally {
       setUnlinkLoading(false);
+    }
+  };
+
+  const handleDeleteRequest = async () => {
+    if (!requestToDelete) return;
+
+    setDeleteLoading(true);
+    try {
+      const { error } = await supabase
+        .from('company_join_requests')
+        .delete()
+        .eq('id', requestToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Registro apagado',
+        description: 'A solicitação foi removida do histórico.',
+      });
+
+      setDeleteModalOpen(false);
+      setRequestToDelete(null);
+      fetchData();
+    } catch (error: any) {
+      console.error('Error deleting request:', error);
+      toast({
+        title: 'Erro ao apagar',
+        description: error.message || 'Tente novamente',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -387,18 +428,31 @@ export default function TeamRequests() {
                       }
                     </p>
                   </div>
-                  {/* Unlink button for approved members */}
-                  {request.status === 'approved' && (
+                  <div className="flex items-center gap-2">
+                    {/* Unlink button for approved members */}
+                    {request.status === 'approved' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => openUnlinkModal(request)}
+                      >
+                        <UserMinus className="h-4 w-4 mr-1" />
+                        Desvincular
+                      </Button>
+                    )}
+                    
+                    {/* Delete button (ex: to clean up rejected history) */}
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => openUnlinkModal(request)}
+                      variant="ghost"
+                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => openDeleteModal(request)}
+                      title="Apagar do histórico"
                     >
-                      <UserMinus className="h-4 w-4 mr-1" />
-                      Desvincular
+                      <X className="h-4 w-4" />
                     </Button>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -444,6 +498,38 @@ export default function TeamRequests() {
                 </>
               ) : (
                 'Desvincular'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar registro</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja apagar a solicitação de <strong>{requestToDelete?.requester_name}</strong> do histórico?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border" disabled={deleteLoading}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRequest}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Apagando...
+                </>
+              ) : (
+                'Apagar'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

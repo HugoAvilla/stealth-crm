@@ -126,12 +126,17 @@ export default function CompanyJoin() {
 
     try {
       // Check if request already exists
-      const { data: existingRequest } = await supabase
+      const { data: existingRequests, error: existingError } = await supabase
         .from('company_join_requests')
         .select('id, status')
         .eq('requester_user_id', user.id)
         .eq('company_id', foundCompany.id)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existingError) throw existingError;
+
+      const existingRequest = existingRequests?.[0];
 
       if (existingRequest) {
         if (existingRequest.status === 'pending') {
@@ -143,30 +148,35 @@ export default function CompanyJoin() {
           setIsLoading(false);
           return;
         }
-        if (existingRequest.status === 'rejected') {
-          toast({
-            title: 'Solicitação rejeitada anteriormente',
-            description: 'Sua solicitação anterior foi rejeitada. Entre em contato com o administrador.',
-            variant: 'destructive',
+        
+        // If it was rejected or approved (but they were unlinked), they can try again.
+        // We will just update the existing request back to pending.
+        const { error: updateError } = await supabase
+          .from('company_join_requests')
+          .update({
+             status: 'pending',
+             requested_role: selectedRole,
+             rejected_reason: null,
+             updated_at: new Date().toISOString()
+          })
+          .eq('id', existingRequest.id);
+          
+        if (updateError) throw updateError;
+      } else {
+        // Create join request
+        const { error } = await supabase
+          .from('company_join_requests')
+          .insert({
+            company_id: foundCompany.id,
+            requester_user_id: user.id,
+            requester_name: user.profile?.name || user.email,
+            requester_email: user.email,
+            requested_role: selectedRole,
+            status: 'pending',
           });
-          setIsLoading(false);
-          return;
-        }
+
+        if (error) throw error;
       }
-
-      // Create join request
-      const { error } = await supabase
-        .from('company_join_requests')
-        .insert({
-          company_id: foundCompany.id,
-          requester_user_id: user.id,
-          requester_name: user.profile?.name || user.email,
-          requester_email: user.email,
-          requested_role: selectedRole,
-          status: 'pending',
-        });
-
-      if (error) throw error;
 
       setRequestSent(true);
       toast({
