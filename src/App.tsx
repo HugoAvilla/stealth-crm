@@ -43,14 +43,7 @@ function AppRoutes() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center bg-[#0F0F0F]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8E600]/20 border-t-[#D8E600]"></div>
-          <p className="text-sm font-medium text-white/60 animate-pulse">Carregando WFE...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
