@@ -153,7 +153,7 @@ export default function Financeiro() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6 max-w-[100vw] overflow-x-hidden">
       <HelpOverlay
         tabId="financeiro"
         title="Guia Financeiro"
@@ -182,18 +182,18 @@ export default function Financeiro() {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Financeiro</h1>
           <p className="text-muted-foreground">Acompanhe o fluxo de caixa da empresa</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="ghost" size="icon" onClick={() => setShowValues(!showValues)}>
             {showValues ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button>
+              <Button className="flex-1 sm:flex-none">
                 <Plus className="h-4 w-4 mr-2" /> Adicionar
               </Button>
             </DropdownMenuTrigger>

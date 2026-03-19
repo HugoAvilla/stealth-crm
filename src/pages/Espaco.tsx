@@ -152,7 +152,7 @@ export default function Espaco() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6 max-w-[100vw] overflow-x-hidden">
       <HelpOverlay
         tabId="espaco"
         title="Guia de Vagas"
@@ -181,12 +181,12 @@ export default function Espaco() {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Espaço (Vagas)</h1>
           <p className="text-muted-foreground">Gerencie a ocupação das vagas do seu estabelecimento</p>
         </div>
-        <Button onClick={() => setShowFillSlotModal(true)}>
+        <Button onClick={() => setShowFillSlotModal(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Preencher Vaga
         </Button>
@@ -194,7 +194,7 @@ export default function Espaco() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="h-auto flex-wrap justify-start gap-2 pb-1">
           <TabsTrigger value="vagas" className="gap-2">
             <Car className="h-4 w-4" />
             Vagas Ativas
@@ -307,13 +307,13 @@ export default function Espaco() {
           {/* Calendar */}
           <Card className="bg-card/50 border-border/50">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <CardTitle className="text-lg">Calendário de Ocupação</CardTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                   <Button variant="ghost" size="icon" onClick={prevMonth}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <span className="font-medium min-w-[140px] text-center">
+                  <span className="font-medium min-w-[120px] sm:min-w-[140px] text-center capitalize">
                     {format(currentDate, "MMMM yyyy", { locale: ptBR })}
                   </span>
                   <Button variant="ghost" size="icon" onClick={nextMonth}>
@@ -325,10 +325,10 @@ export default function Espaco() {
             <CardContent>
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                  <div key={day} className="text-center text-sm text-muted-foreground py-2">{day}</div>
+                  <div key={day} className="text-center text-xs sm:text-sm text-muted-foreground py-1 sm:py-2 truncate">{day}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2">
                 {Array.from({ length: monthStart.getDay() }).map((_, i) => (
                   <div key={`empty-${i}`} className="aspect-square" />
                 ))}
@@ -342,26 +342,26 @@ export default function Espaco() {
                       key={format(day, 'yyyy-MM-dd')}
                       onClick={() => setSelectedDay(day)}
                       className={cn(
-                        "aspect-square p-1 rounded-lg border transition-colors flex flex-col items-center justify-center gap-1 hover:bg-accent cursor-pointer",
+                        "aspect-square min-h-[50px] sm:min-h-[80px] p-0.5 sm:p-1 md:p-2 rounded-lg border transition-colors flex flex-col items-center justify-center gap-0.5 hover:bg-accent cursor-pointer overflow-hidden",
                         isToday(day) && "border-primary",
                         !isSameMonth(day, currentDate) && "opacity-50"
                       )}
                     >
                       <span className={cn(
-                        "text-sm",
+                        "text-xs sm:text-sm",
                         isToday(day) && "font-bold text-primary"
                       )}>
                         {format(day, 'd')}
                       </span>
                       {(inProgress > 0 || completed > 0) && (
-                        <div className="flex gap-0.5">
+                        <div className="flex flex-col sm:flex-row gap-0.5 items-center w-full">
                           {inProgress > 0 && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                            <Badge variant="outline" className="text-[9px] sm:text-xs px-0.5 sm:px-1 py-0 bg-yellow-500/20 text-yellow-400 border-yellow-500/30 truncate flex justify-center w-full sm:w-auto">
                               {inProgress}
                             </Badge>
                           )}
                           {completed > 0 && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 bg-green-500/20 text-green-400 border-green-500/30">
+                            <Badge variant="outline" className="text-[9px] sm:text-xs px-0.5 sm:px-1 py-0 bg-green-500/20 text-green-400 border-green-500/30 truncate flex justify-center w-full sm:w-auto">
                               {completed}
                             </Badge>
                           )}

@@ -119,7 +119,7 @@ const Dashboard = () => {
   }, [user?.id]);
 
   return (
-    <div className="p-6 lg:p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-[100vw] overflow-x-hidden">
       <HelpOverlay
         tabId="dashboard"
         title="Guia do Painel de Controle"
