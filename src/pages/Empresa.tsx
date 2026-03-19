@@ -137,6 +137,11 @@ export default function Empresa() {
         title="Guia da Empresa"
         sections={[
           {
+            title: "Vídeo Aula — Empresa",
+            description: "Assista ao vídeo tutorial completo para aprender a configurar e gerenciar os dados da sua empresa e equipe.",
+            videoUrl: "/help/video-aula-empresa.mp4"
+          },
+          {
             title: "Atualizar Logo e Dados",
             description: "Clique na área da logo para fazer upload de uma imagem (PNG ou JPG). Use o botão 'Editar Dados' para alterar nome, CNPJ, telefone, e-mail e endereço. Essas informações aparecem em documentos e garantias.",
             screenshotUrl: "/help/help-empresa-dados.png"
