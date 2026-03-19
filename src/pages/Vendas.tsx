@@ -120,7 +120,7 @@ const Vendas = () => {
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6 max-w-[100vw] overflow-x-hidden">
       <HelpOverlay
         tabId="vendas"
         title="Guia de Vendas"
@@ -163,63 +163,68 @@ const Vendas = () => {
 
         <TabsContent value="vendas" className="space-y-6 mt-4">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex bg-card rounded-lg p-1">
-                <Button
-                  variant={viewMode === "calendar" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("calendar")}
-                  className="gap-2"
-                >
-                  <Calendar className="h-4 w-4" />
-                  Calendário
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  className="gap-2"
-                >
-                  <List className="h-4 w-4" />
-                  Lista
-                </Button>
-              </div>
-              <Button onClick={() => setIsNewSaleModalOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Nova venda
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-lg font-medium min-w-[180px] text-center">
-                  {format(currentDate, "MMMM yyyy", { locale: ptBR })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-                >
-                  <ChevronRight className="h-4 w-4" />
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                <div className="flex bg-card rounded-lg p-1 w-full sm:w-auto">
+                  <Button
+                    variant={viewMode === "calendar" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("calendar")}
+                    className="gap-2 flex-1 sm:flex-none"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Calendário
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className="gap-2 flex-1 sm:flex-none"
+                  >
+                    <List className="h-4 w-4" />
+                    Lista
+                  </Button>
+                </div>
+                <Button onClick={() => setIsNewSaleModalOpen(true)} className="gap-2 w-full sm:w-auto">
+                  <Plus className="h-4 w-4" />
+                  Nova venda
                 </Button>
               </div>
 
-              <Badge variant="outline" className="text-sm py-1.5 px-3">
-                {monthSales.length} vendas | R$ {totalMonthValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-              </Badge>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-base sm:text-lg font-medium min-w-[140px] sm:min-w-[180px] text-center capitalize">
+                    {format(currentDate, "MMMM yyyy", { locale: ptBR })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setCurrentDate(addMonths(currentDate, 1))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
 
-              <Button variant="outline" onClick={() => setIsChartsModalOpen(true)} className="gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Ver gráficos
-              </Button>
+                <div className="flex items-center w-full justify-between sm:w-auto gap-2 sm:gap-4">
+                  <Badge variant="outline" className="text-sm py-1.5 px-3 whitespace-nowrap flex-1 justify-center sm:flex-none">
+                    {monthSales.length} vendas | R$ {totalMonthValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </Badge>
+
+                  <Button variant="outline" onClick={() => setIsChartsModalOpen(true)} className="gap-2 flex-1 sm:flex-none">
+                    <BarChart3 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Ver gráficos</span>
+                    <span className="sm:hidden">Gráficos</span>
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -243,14 +248,14 @@ const Vendas = () => {
                   {/* Week days header */}
                   <div className="grid grid-cols-7 mb-2">
                     {weekDays.map((day) => (
-                      <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+                      <div key={day} className="text-center text-xs sm:text-sm font-medium text-muted-foreground py-1 sm:py-2 truncate">
                         {day}
                       </div>
                     ))}
                   </div>
 
                   {/* Calendar grid */}
-                  <div className="grid grid-cols-7 gap-1">
+                  <div className="grid grid-cols-7 gap-1 sm:gap-2">
                     {calendarDays.map((day) => {
                       const daySales = getSalesForDay(day);
                       const dayTotal = daySales.reduce((sum, sale) => sum + sale.total, 0);
@@ -262,26 +267,26 @@ const Vendas = () => {
                           key={day.toISOString()}
                           onClick={() => daySales.length > 0 && setSelectedDay(day)}
                           className={cn(
-                            "min-h-[100px] p-2 border border-border rounded-lg transition-colors",
+                            "min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border border-border rounded-lg transition-colors overflow-hidden",
                             isCurrentMonth ? "bg-card" : "bg-background opacity-50",
                             isToday && "ring-2 ring-primary",
                             daySales.length > 0 && "cursor-pointer hover:bg-muted/50"
                           )}
                         >
                           <div className={cn(
-                            "text-sm font-medium mb-2",
+                            "text-xs sm:text-sm font-medium mb-1 sm:mb-2",
                             isToday && "text-primary"
                           )}>
                             {format(day, "d")}
                           </div>
 
                           {daySales.length > 0 && (
-                            <div className="space-y-1">
-                              <Badge className="w-full justify-center text-xs bg-success/20 text-success border-success/30 hover:bg-success/30">
-                                {daySales.length} venda{daySales.length > 1 ? "s" : ""}
+                            <div className="space-y-1 flex flex-col items-center">
+                              <Badge className="w-full justify-center text-[10px] sm:text-xs bg-success/20 text-success border-success/30 hover:bg-success/30 px-0 sm:px-2 py-0 sm:py-0.5 max-w-full">
+                                <span className="truncate">{daySales.length} <span className="hidden sm:inline">venda{daySales.length > 1 ? "s" : ""}</span></span>
                               </Badge>
-                              <Badge variant="outline" className="w-full justify-center text-xs">
-                                R$ {dayTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              <Badge variant="outline" className="w-full justify-center text-[10px] sm:text-xs px-0 sm:px-2 py-0 sm:py-0.5 max-w-full">
+                                <span className="truncate">R$ {dayTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}</span>
                               </Badge>
                             </div>
                           )}

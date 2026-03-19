@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { TopNavigation } from './TopNavigation';
 import { Loader2 } from 'lucide-react';
 import { SupportButton } from '@/components/support/SupportButton';
+import { PullToRefresh } from '@/components/shared/PullToRefresh';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -39,9 +40,15 @@ export function MainLayout({ children }: MainLayoutProps) {
     <div className="min-h-screen bg-background">
       <TopNavigation />
       <main className="pt-16">
-        <div className="min-h-screen">
-          {children}
-        </div>
+        <PullToRefresh onRefresh={async () => {
+          // Pequeno delay para a animação de refresh aparecer
+          await new Promise(resolve => setTimeout(resolve, 500));
+          window.location.reload();
+        }}>
+          <div className="min-h-[calc(100vh-64px)]">
+            {children}
+          </div>
+        </PullToRefresh>
       </main>
       <SupportButton />
     </div>
