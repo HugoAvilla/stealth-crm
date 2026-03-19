@@ -36,7 +36,47 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <style>
+        body { margin: 0; background: #0F0F0F; }
+        .initial-loader {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          background-color: #0F0F0F;
+          z-index: 9999;
+          font-family: system-ui, -apple-system, sans-serif;
+        }
+        .initial-spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid rgba(216, 230, 0, 0.2);
+          border-radius: 50%;
+          border-top-color: #D8E600;
+          animation: spin 1s ease-in-out infinite;
+          margin-bottom: 16px;
+        }
+        .initial-text {
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 14px;
+          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: .5; }
+        }
+      </style>
+      <div class="initial-loader">
+        <div class="initial-spinner"></div>
+        <div class="initial-text">Carregando WFE...</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -8,32 +8,35 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { usePWAUpdate } from "@/hooks/use-pwa-update";
 
-// Pages
-import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Subscription from "./pages/Subscription";
-import WaitingApproval from "./pages/WaitingApproval";
-import CompanySetup from "./pages/CompanySetup";
-import CompanyJoin from "./pages/CompanyJoin";
-import Dashboard from "./pages/Dashboard";
-import Vendas from "./pages/Vendas";
-import Clientes from "./pages/Clientes";
-import Espaco from "./pages/Espaco";
-import Financeiro from "./pages/Financeiro";
-import Contas from "./pages/Contas";
-import Relatorios from "./pages/Relatorios";
+import { Suspense, lazy } from "react";
 
-import Garantias from "./pages/Garantias";
-import Estoque from "./pages/Estoque";
-import Servicos from "./pages/Servicos";
+// Pages (Lazy Loaded)
+const Login = lazy(() => import("./pages/Login"));
+const SignUp = lazy(() => import("./pages/SignUp"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Subscription = lazy(() => import("./pages/Subscription"));
+const WaitingApproval = lazy(() => import("./pages/WaitingApproval"));
+const CompanySetup = lazy(() => import("./pages/CompanySetup"));
+const CompanyJoin = lazy(() => import("./pages/CompanyJoin"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Vendas = lazy(() => import("./pages/Vendas"));
+const Clientes = lazy(() => import("./pages/Clientes"));
+const Espaco = lazy(() => import("./pages/Espaco"));
+const Financeiro = lazy(() => import("./pages/Financeiro"));
+const Contas = lazy(() => import("./pages/Contas"));
+const Relatorios = lazy(() => import("./pages/Relatorios"));
 
-import Perfil from "./pages/Perfil";
-import Empresa from "./pages/Empresa";
-import Master from "./pages/Master";
-import TeamRequests from "./pages/TeamRequests";
-import NotFound from "./pages/NotFound";
+const Garantias = lazy(() => import("./pages/Garantias"));
+const Estoque = lazy(() => import("./pages/Estoque"));
+const Servicos = lazy(() => import("./pages/Servicos"));
+
+const Perfil = lazy(() => import("./pages/Perfil"));
+const Empresa = lazy(() => import("./pages/Empresa"));
+const Master = lazy(() => import("./pages/Master"));
+const TeamRequests = lazy(() => import("./pages/TeamRequests"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
 import { MainLayout } from "./components/layout/MainLayout";
 
 const queryClient = new QueryClient();
@@ -226,7 +229,16 @@ function App() {
         <BrowserRouter>
           <AuthProvider>
             <PWAInstallPrompt />
-            <AppRoutes />
+            <Suspense fallback={
+              <div className="flex h-screen w-screen flex-col items-center justify-center bg-[#0F0F0F]">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#D8E600]/20 border-t-[#D8E600]"></div>
+                  <p className="text-sm font-medium text-white/60 animate-pulse">Carregando...</p>
+                </div>
+              </div>
+            }>
+              <AppRoutes />
+            </Suspense>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
