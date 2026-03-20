@@ -267,6 +267,11 @@ export default function TeamRequests() {
         title="Guia de Solicitações"
         sections={[
           {
+            title: "Vídeo Aula — Solicitações",
+            description: "Assista ao vídeo tutorial completo para aprender a gerenciar as solicitações de acesso da sua equipe.",
+            videoUrl: "/help/video-aula-solicitacoes.mov"
+          },
+          {
             title: "Aprovar Solicitações",
             description: "Quando um colaborador usa o código da empresa para solicitar acesso, a solicitação aparece na seção 'Pendentes'. Clique em 'Aprovar' para dar acesso ao sistema. Verifique o nome e cargo solicitado antes de aprovar.",
             screenshotUrl: "/help/help-solicitacoes-aprovar.png"

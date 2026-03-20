@@ -81,6 +81,11 @@ export default function Perfil() {
         title="Guia do Perfil"
         sections={[
           {
+            title: "Vídeo Aula — Perfil",
+            description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades do seu perfil.",
+            videoUrl: "/help/video-aula-perfil.mov"
+          },
+          {
             title: "Editar Informações",
             description: "Clique em 'Editar' no card principal para alterar seu nome e foto de perfil. Sua foto é exibida no topo do painel e nos documentos gerados pelo sistema.",
             screenshotUrl: "/help/help-perfil-editar.png"
