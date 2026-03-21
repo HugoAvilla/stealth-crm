@@ -83,24 +83,24 @@ export function WarrantyWhatsAppModal({ open, onOpenChange, data }: WarrantyWhat
   if (data.pdfLink) builder.push(`*Baixe o PDF:*\n{pdfLink}\n`);
   builder.push(`_Garantia Intransferível_`);
 
-  const defaultMessage = builder.join('\\n');
+  const defaultMessage = builder.join('\n');
 
   const resolveVariables = (text: string) => {
     return text
-      .replace(/\\{cliente\\}/g, data.clientName)
-      .replace(/\\{veiculo\\}/g, vehicleStr)
-      .replace(/\\{servico\\}/g, data.serviceName)
-      .replace(/\\{emissao\\}/g, issueDateStr)
-      .replace(/\\{validade\\}/g, expiryDateStr)
-      .replace(/\\{cobertura\\}/g, coverageText || '')
-      .replace(/\\{termos\\}/g, termsText || '')
-      .replace(/\\{restricoes\\}/g, restrictionsText || '')
-      .replace(/\\{cuidados\\}/g, careText || '')
-      .replace(/\\{certificado\\}/g, data.certNumber)
-      .replace(/\\{pdfLink\\}/g, data.pdfLink || '');
+      .replace(/\{cliente\}/g, data.clientName)
+      .replace(/\{veiculo\}/g, vehicleStr)
+      .replace(/\{servico\}/g, data.serviceName)
+      .replace(/\{emissao\}/g, issueDateStr)
+      .replace(/\{validade\}/g, expiryDateStr)
+      .replace(/\{cobertura\}/g, coverageText || '')
+      .replace(/\{termos\}/g, termsText || '')
+      .replace(/\{restricoes\}/g, restrictionsText || '')
+      .replace(/\{cuidados\}/g, careText || '')
+      .replace(/\{certificado\}/g, data.certNumber)
+      .replace(/\{pdfLink\}/g, data.pdfLink || '');
   };
 
-  const messageToSend = isEditing && template ? resolveVariables(template) : defaultMessage;
+  const messageToSend = resolveVariables(isEditing && template ? template : defaultMessage);
 
   const getWhatsAppUrl = () => {
     if (!data.clientPhone) return "#";
