@@ -57,10 +57,7 @@ export default function Relatorios() {
         ]}
       />
 
-      {/* Header */}
-      <div className="text-center">
-        <h1 className="text-[20px] font-bold">hey</h1>
-      </div>
+
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
