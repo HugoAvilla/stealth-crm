@@ -12,16 +12,31 @@ interface NewWarrantyTemplateModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTemplateCreated?: () => void;
+  templateToEdit?: any;
 }
 
-export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated }: NewWarrantyTemplateModalProps) {
-   const { user } = useAuth();
+export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated, templateToEdit }: NewWarrantyTemplateModalProps) {
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [validityMonths, setValidityMonths] = useState("");
   const [terms, setTerms] = useState("");
   const [coverage, setCoverage] = useState("");
   const [restrictions, setRestrictions] = useState("");
-   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      if (templateToEdit) {
+        setName(templateToEdit.name || "");
+        setValidityMonths(templateToEdit.validity_months?.toString() || "");
+        setTerms(templateToEdit.terms || "");
+        setCoverage(templateToEdit.coverage || "");
+        setRestrictions(templateToEdit.restrictions || "");
+      } else {
+        resetForm();
+      }
+    }
+  }, [open, templateToEdit]);
 
   const resetForm = () => {
     setName("");
@@ -31,55 +46,71 @@ export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated
     setRestrictions("");
   };
 
-   const handleSubmit = async () => {
-     if (!name || !validityMonths) {
+  const handleSubmit = async () => {
+    if (!name || !validityMonths) {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
 
-     setIsSubmitting(true);
-     try {
-       const { data: profile } = await supabase
-         .from('profiles')
-         .select('company_id')
-         .eq('user_id', user?.id)
-         .single();
- 
-       if (!profile?.company_id) {
-         toast.error("Empresa não encontrada");
-         return;
-       }
- 
-       const { error } = await supabase
-         .from('warranty_templates')
-         .insert({
-           company_id: profile.company_id,
-           name,
-           validity_months: parseInt(validityMonths),
-           terms: terms || null,
-           coverage: coverage || null,
-           restrictions: restrictions || null,
-         });
- 
-       if (error) throw error;
- 
-       toast.success("Modelo de garantia criado com sucesso!");
-       onOpenChange(false);
-       resetForm();
-       onTemplateCreated?.();
-     } catch (error) {
-       console.error('Error creating warranty template:', error);
-       toast.error("Erro ao criar modelo de garantia");
-     } finally {
-       setIsSubmitting(false);
-     }
+    setIsSubmitting(true);
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('user_id', user?.id)
+        .single();
+  
+      if (!profile?.company_id) {
+        toast.error("Empresa não encontrada");
+        return;
+      }
+  
+      if (templateToEdit?.id) {
+        const { error } = await supabase
+          .from('warranty_templates')
+          .update({
+            name,
+            validity_months: parseInt(validityMonths),
+            terms: terms || null,
+            coverage: coverage || null,
+            restrictions: restrictions || null,
+          })
+          .eq('id', templateToEdit.id);
+  
+        if (error) throw error;
+        toast.success("Modelo de garantia atualizado com sucesso!");
+      } else {
+        const { error } = await supabase
+          .from('warranty_templates')
+          .insert({
+            company_id: profile.company_id,
+            name,
+            validity_months: parseInt(validityMonths),
+            terms: terms || null,
+            coverage: coverage || null,
+            restrictions: restrictions || null,
+          });
+  
+        if (error) throw error;
+        toast.success("Modelo de garantia criado com sucesso!");
+      }
+      
+      onOpenChange(false);
+      resetForm();
+      onTemplateCreated?.();
+    } catch (error) {
+      console.error('Error saving warranty template:', error);
+      toast.error("Erro ao salvar modelo de garantia");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-           <DialogTitle>Criar Modelo de Garantia</DialogTitle>
+           <DialogTitle>{templateToEdit ? "Editar Modelo de Garantia" : "Criar Modelo de Garantia"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">

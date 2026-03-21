@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, FileCheck, Download, MoreHorizontal, FilePlus, MessageCircle } from "lucide-react";
+import { Plus, Search, FileCheck, Download, MoreHorizontal, FilePlus, MessageCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { IssueWarrantyModal } from "@/components/garantias/IssueWarrantyModal";
 import { NewWarrantyTemplateModal } from "@/components/garantias/NewWarrantyTemplateModal";
+import { WarrantyTemplatesListModal } from "@/components/garantias/WarrantyTemplatesListModal";
 import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
 import { toast } from "sonner";
 import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
@@ -43,10 +44,12 @@ export default function Garantias() {
   const [search, setSearch] = useState("");
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showTemplatesListModal, setShowTemplatesListModal] = useState(false);
   const [warranties, setWarranties] = useState<Warranty[]>([]);
   const [templates, setTemplates] = useState<WarrantyTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("garantias");
+  const [companyId, setCompanyId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -67,6 +70,8 @@ export default function Garantias() {
         setLoading(false);
         return;
       }
+      
+      setCompanyId(profile.company_id);
 
       const { data: warrantiesData } = await supabase
         .from('warranties')
@@ -145,8 +150,27 @@ export default function Garantias() {
       company_name: 'WFE EVOLUTION',
     };
 
-    generateWarrantyPDF(pdfData);
+    generateWarrantyPDF(pdfData, companyId || undefined);
     toast.success(`Certificado da garantia baixado!`);
+  };
+
+  const handleDelete = async (warrantyId: number) => {
+    if (!window.confirm("Tem certeza que deseja excluir esta garantia?")) return;
+    
+    try {
+      const { error } = await supabase
+        .from('warranties')
+        .delete()
+        .eq('id', warrantyId);
+
+      if (error) throw error;
+      
+      toast.success("Garantia excluída com sucesso");
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting warranty:', error);
+      toast.error("Erro ao excluir garantia");
+    }
   };
 
   const getStatus = (expiresAt: string) => {
@@ -252,7 +276,10 @@ export default function Garantias() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/50 border-border/50">
+            <Card 
+              className="bg-card/50 border-border/50 cursor-pointer hover:bg-card/80 transition-colors"
+              onClick={() => setShowTemplatesListModal(true)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-blue-500/10">
@@ -350,6 +377,12 @@ export default function Garantias() {
                                     <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
                                   </a>
                                 </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleDelete(warranty.id)}
+                                  className="text-red-500 focus:text-red-500"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -382,6 +415,11 @@ export default function Garantias() {
           setShowTemplateModal(open);
           if (!open) fetchData();
         }}
+      />
+      <WarrantyTemplatesListModal
+        open={showTemplatesListModal}
+        onOpenChange={(open) => setShowTemplatesListModal(open)}
+        onTemplatesChange={fetchData}
       />
     </div>
   );
