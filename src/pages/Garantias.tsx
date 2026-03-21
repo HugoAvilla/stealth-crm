@@ -109,7 +109,7 @@ export default function Garantias() {
   const getWarrantyWhatsAppUrl = (warranty: Warranty) => {
     if (!warranty.client?.phone) return "#";
 
-    const certNumber = `WFE-${warranty.id.toString().padStart(4, '0')}`;
+    const certNumber = `${warranty.id.toString().padStart(4, '0')}`;
     const vehicleInfo = warranty.vehicle
       ? `${warranty.vehicle.brand} ${warranty.vehicle.model} - Placa: ${warranty.vehicle.plate || 'N/A'}`
       : 'N/A';
@@ -118,14 +118,14 @@ export default function Garantias() {
       try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; }
     };
 
-    const message = `🛡️ *CERTIFICADO DE GARANTIA*\n\n` +
-      `📋 Nº ${certNumber}\n` +
-      `🔧 Serviço: ${warranty.warranty_type}\n` +
-      `🚗 Veículo: ${vehicleInfo}\n` +
-      `📅 Emissão: ${formatDate(warranty.issue_date)}\n` +
-      `📅 Validade: ${formatDate(warranty.expiry_date)}\n\n` +
-      (warranty.warranty_text ? `📄 Termos:\n${warranty.warranty_text}\n\n` : '') +
-      `_WFE EVOLUTION - Garantia Intransferível_`;
+    const message = `*CERTIFICADO DE GARANTIA*\n\n` +
+      `Nº ${certNumber}\n` +
+      `Serviço: ${warranty.warranty_type}\n` +
+      `Veículo: ${vehicleInfo}\n` +
+      `Emissão: ${formatDate(warranty.issue_date)}\n` +
+      `Validade: ${formatDate(warranty.expiry_date)}\n\n` +
+      (warranty.warranty_text ? `*Termos:*\n${warranty.warranty_text}\n\n` : '') +
+      `_Garantia Intransferível_`;
 
     const phone = warranty.client.phone.replace(/\D/g, '');
     const phoneWithCountryCode = phone.startsWith("55") ? phone : `55${phone}`;
@@ -133,7 +133,7 @@ export default function Garantias() {
   };
 
   const handleDownload = (warranty: Warranty) => {
-    const certNumber = `WFE-${warranty.id.toString().padStart(4, '0')}`;
+    const certNumber = `${warranty.id.toString().padStart(4, '0')}`;
     const pdfData: WarrantyPDFData = {
       certificate_number: certNumber,
       client_name: warranty.client?.name || 'Cliente',
@@ -147,7 +147,6 @@ export default function Garantias() {
       issue_date: warranty.issue_date,
       expiry_date: warranty.expiry_date,
       warranty_text: warranty.warranty_text || undefined,
-      company_name: 'WFE EVOLUTION',
     };
 
     generateWarrantyPDF(pdfData, companyId || undefined);

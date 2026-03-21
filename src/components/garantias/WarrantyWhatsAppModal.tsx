@@ -34,7 +34,7 @@ interface WarrantyWhatsAppModalProps {
   companyName?: string;
 }
 
-export function WarrantyWhatsAppModal({ open, onOpenChange, data, companyName = "WFE EVOLUTION" }: WarrantyWhatsAppModalProps) {
+export function WarrantyWhatsAppModal({ open, onOpenChange, data }: WarrantyWhatsAppModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [template, setTemplate] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -53,19 +53,51 @@ export function WarrantyWhatsAppModal({ open, onOpenChange, data, companyName = 
     } catch { return data.expiryDate; }
   })();
 
-  const defaultMessage = `🛡️ *CERTIFICADO DE GARANTIA*\n\nOlá ${data.clientName}!\n\n📋 Nº ${data.certNumber}\n🔧 Serviço: ${data.serviceName}\n🚗 Veículo: ${vehicleStr}\n📅 Emissão: ${issueDateStr}\n📅 Validade: ${expiryDateStr}\n\n${data.warrantyTerms ? `📄 *Termos:*\n${data.warrantyTerms}\n\n` : ''}${data.pdfLink ? `👉 *Baixe o PDF:*\n${data.pdfLink}\n\n` : ''}_${companyName} - Garantia Intransferível_`;
+  const extractSection = (text: string, title: string) => {
+    const regex = new RegExp(`\\[ ${title} \\]\\n([\\s\\S]*?)(?=\\n\\[ |$)`, 'i');
+    const match = text.match(regex);
+    return match ? match[1].trim() : '';
+  };
+
+  const coverageText = extractSection(data.warrantyTerms || '', 'COBERTURA DA GARANTIA');
+  let termsText = extractSection(data.warrantyTerms || '', 'TERMOS');
+  const restrictionsText = extractSection(data.warrantyTerms || '', 'RESTRIÇÕES');
+  const careText = extractSection(data.warrantyTerms || '', 'INSTRUÇÕES DE CUIDADO');
+
+  if (!coverageText && !termsText && !restrictionsText && !careText) {
+    termsText = data.warrantyTerms;
+  }
+
+  const builder = [];
+  builder.push(`*CERTIFICADO DE GARANTIA*\n`);
+  builder.push(`Olá {cliente}!\n`);
+  builder.push(`Nº {certificado}`);
+  builder.push(`Serviço: {servico}`);
+  builder.push(`Veículo: {veiculo}`);
+  builder.push(`Emissão: {emissao}`);
+  builder.push(`Validade: {validade}\n`);
+  if (coverageText) builder.push(`*Cobertura:*\n{cobertura}\n`);
+  if (termsText) builder.push(`*Termos:*\n{termos}\n`);
+  if (restrictionsText) builder.push(`*Restrições:*\n{restricoes}\n`);
+  if (careText) builder.push(`*Cuidados:*\n{cuidados}\n`);
+  if (data.pdfLink) builder.push(`*Baixe o PDF:*\n{pdfLink}\n`);
+  builder.push(`_Garantia Intransferível_`);
+
+  const defaultMessage = builder.join('\\n');
 
   const resolveVariables = (text: string) => {
     return text
-      .replace(/\{cliente\}/g, data.clientName)
-      .replace(/\{veiculo\}/g, vehicleStr)
-      .replace(/\{servico\}/g, data.serviceName)
-      .replace(/\{emissao\}/g, issueDateStr)
-      .replace(/\{validade\}/g, expiryDateStr)
-      .replace(/\{termos\}/g, data.warrantyTerms || '')
-      .replace(/\{nomeEmpresa\}/g, companyName)
-      .replace(/\{certificado\}/g, data.certNumber)
-      .replace(/\{pdfLink\}/g, data.pdfLink || '');
+      .replace(/\\{cliente\\}/g, data.clientName)
+      .replace(/\\{veiculo\\}/g, vehicleStr)
+      .replace(/\\{servico\\}/g, data.serviceName)
+      .replace(/\\{emissao\\}/g, issueDateStr)
+      .replace(/\\{validade\\}/g, expiryDateStr)
+      .replace(/\\{cobertura\\}/g, coverageText || '')
+      .replace(/\\{termos\\}/g, termsText || '')
+      .replace(/\\{restricoes\\}/g, restrictionsText || '')
+      .replace(/\\{cuidados\\}/g, careText || '')
+      .replace(/\\{certificado\\}/g, data.certNumber)
+      .replace(/\\{pdfLink\\}/g, data.pdfLink || '');
   };
 
   const messageToSend = isEditing && template ? resolveVariables(template) : defaultMessage;
@@ -112,6 +144,14 @@ export function WarrantyWhatsAppModal({ open, onOpenChange, data, companyName = 
     }, 0);
   };
 
+  const toggleVariable = (variable: string) => {
+    if (template.includes(variable)) {
+      setTemplate(template.replace(variable, ""));
+    } else {
+      insertVariable(variable);
+    }
+  };
+
   const insertFormatting = (wrapper: string) => {
     if (!textareaRef.current) return;
     const ta = textareaRef.current;
@@ -138,15 +178,17 @@ export function WarrantyWhatsAppModal({ open, onOpenChange, data, companyName = 
   };
 
   const variables = [
-    { label: "+ Certificado", value: "{certificado}" },
-    { label: "+ Cliente", value: "{cliente}" },
-    { label: "+ Veículo", value: "{veiculo}" },
-    { label: "+ Serviço", value: "{servico}" },
-    { label: "+ Emissão", value: "{emissao}" },
-    { label: "+ Validade", value: "{validade}" },
-    { label: "+ Termos", value: "{termos}" },
-    { label: "+ Empresa", value: "{nomeEmpresa}" },
-    { label: "+ Link PDF", value: "{pdfLink}" },
+    { label: "Certificado", value: "{certificado}" },
+    { label: "Cliente", value: "{cliente}" },
+    { label: "Veículo", value: "{veiculo}" },
+    { label: "Serviço", value: "{servico}" },
+    { label: "Emissão", value: "{emissao}" },
+    { label: "Validade", value: "{validade}" },
+    { label: "Cobertura", value: "{cobertura}" },
+    { label: "Termos", value: "{termos}" },
+    { label: "Restrições", value: "{restricoes}" },
+    { label: "Cuidados", value: "{cuidados}" },
+    { label: "Link PDF", value: "{pdfLink}" },
   ];
 
   return (
@@ -184,9 +226,6 @@ export function WarrantyWhatsAppModal({ open, onOpenChange, data, companyName = 
                   Salvar
                 </Button>
               )}
-              <Button variant="destructive" size="sm" onClick={() => { setIsEditing(false); onOpenChange(false); }}>
-                <X className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </DialogHeader>
@@ -220,17 +259,20 @@ export function WarrantyWhatsAppModal({ open, onOpenChange, data, companyName = 
                     <Italic className="h-4 w-4" />
                   </Button>
                   <div className="w-px h-6 bg-border self-center" />
-                  {variables.map((v) => (
-                    <Button
-                      key={v.value}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => insertVariable(v.value)}
-                    >
-                      {v.label}
-                    </Button>
-                  ))}
+                  {variables.map((v) => {
+                    const isVariablePresent = template.includes(v.value);
+                    return (
+                      <Button
+                        key={v.value}
+                        variant={isVariablePresent ? "secondary" : "outline"}
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => toggleVariable(v.value)}
+                      >
+                        {isVariablePresent ? '-' : '+'} {v.label}
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
             </>

@@ -27,6 +27,7 @@ interface WarrantyTemplate {
   validity_months: number;
   terms: string | null;
   coverage: string | null;
+  restrictions?: string | null;
 }
 
 interface Client {
@@ -126,7 +127,11 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
     setTemplateId(value);
     const template = templates.find(t => t.id === parseInt(value));
     if (template) {
-      setWarrantyTerms(template.terms || '');
+      let combinedText = "";
+      if (template.coverage) combinedText += `[ COBERTURA DA GARANTIA ]\n${template.coverage}\n\n`;
+      if (template.terms) combinedText += `[ TERMOS ]\n${template.terms}\n\n`;
+      if (template.restrictions) combinedText += `[ RESTRIÇÕES ]\n${template.restrictions}\n\n`;
+      setWarrantyTerms(combinedText.trim());
     }
   };
 
@@ -159,6 +164,8 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
 
       console.log('[Garantia] Inserindo no banco...', { companyId, templateName: selectedTemplate.name });
 
+      const finalWarrantyText = `${warrantyTerms}\n\n[ INSTRUÇÕES DE CUIDADO ]\n${careInstructions}`;
+
       const { data: inserted, error } = await supabase.from('warranties').insert({
         company_id: companyId,
         warranty_type: selectedTemplate.name || '',
@@ -166,7 +173,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
         expiry_date: expiryDate.toISOString().split('T')[0],
         client_id: parseInt(clientId),
         vehicle_id: parseInt(vehicleId),
-        warranty_text: warrantyTerms,
+        warranty_text: finalWarrantyText,
         status: 'Pendente',
       }).select('id').single();
 
@@ -177,7 +184,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
 
       console.log('[Garantia] Insert OK, id:', inserted?.id);
 
-      const certNumber = `WFE-${(inserted?.id || 0).toString().padStart(4, '0')}`;
+      const certNumber = `${(inserted?.id || 0).toString().padStart(4, '0')}`;
       
       // Gerar PDF em try/catch separado - se falhar, a garantia já foi salva
       try {
@@ -193,7 +200,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
           service_name: selectedTemplate.name,
           issue_date: issueDate.toISOString().split('T')[0],
           expiry_date: expiryDate.toISOString().split('T')[0],
-          warranty_text: warrantyTerms || undefined,
+          warranty_text: finalWarrantyText,
           company_name: 'WFE EVOLUTION',
         };
 
@@ -218,7 +225,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
         serviceName: selectedTemplate.name,
         issueDate: issueDate.toISOString().split('T')[0],
         expiryDate: expiryDate.toISOString().split('T')[0],
-        warrantyTerms: warrantyTerms,
+        warrantyTerms: finalWarrantyText,
         pdfLink,
       });
 
@@ -254,7 +261,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
     const issueDate = new Date();
     const expiryDate = new Date();
     expiryDate.setMonth(expiryDate.getMonth() + (selectedTemplate.validity_months || 12));
-    const certNumber = `WFE-PREV-${Date.now()}`;
+    const certNumber = `PREV-${Date.now()}`;
 
     const pdfData: WarrantyPDFData = {
       certificate_number: certNumber,
@@ -268,7 +275,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
       service_name: selectedTemplate.name,
       issue_date: issueDate.toISOString().split('T')[0],
       expiry_date: expiryDate.toISOString().split('T')[0],
-      warranty_text: warrantyTerms || undefined,
+      warranty_text: `${warrantyTerms}\n\n[ INSTRUÇÕES DE CUIDADO ]\n${careInstructions}`,
       company_name: 'WFE EVOLUTION',
     };
 
@@ -463,8 +470,8 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
                       </p>
                       <div className="space-y-3 text-sm">
                         <div>
-                          <p className="font-semibold mb-1">Cobertura da Garantia:</p>
-                          <p className="text-gray-700">{warrantyTerms}</p>
+                          <p className="font-semibold mb-1">Detalhes e Termos:</p>
+                          <p className="text-gray-700 whitespace-pre-wrap">{warrantyTerms}</p>
                         </div>
                         <div>
                           <p className="font-semibold mb-1">Instruções de Cuidado:</p>
