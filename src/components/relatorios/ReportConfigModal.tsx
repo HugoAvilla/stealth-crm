@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { generateReportPDF, type ReportPDFData } from "@/lib/pdfGenerator";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { uploadExcelToStorage, saveExcelRecord } from "@/lib/excelStorage";
 
 interface Account {
   id: number;
@@ -514,7 +515,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
     };
   };
 
-  const generateExcel = (data: ReportPDFData) => {
+  const generateExcel = async (data: ReportPDFData, companyId?: number) => {
     let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
     html += '<head><meta charset="utf-8"><style>td,th{border:1px solid #ccc;padding:6px 10px;font-family:Arial;font-size:12px}th{background:#f0f0f0;font-weight:bold}h2{font-family:Arial}</style></head><body>';
     html += `<h2>${data.title}</h2>`;
@@ -541,11 +542,31 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${data.title}.xls`;
+    const filename = `${data.title.toLowerCase().replace(/\s+/g, '-')}.xls`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    // Upload to Supabase Storage
+    let storagePath: string | undefined;
+    if (companyId) {
+      const path = `${companyId}/relatorios/excel/${filename}`;
+      const uploaded = await uploadExcelToStorage(blob, path);
+      if (uploaded) {
+        storagePath = uploaded;
+      }
+    }
+
+    // Save metadata record
+    saveExcelRecord({
+      filename,
+      type: 'Relatório Excel',
+      module: 'relatorios',
+      details: data.title + (data.period ? ` (${format(new Date(data.period.start), 'dd/MM/yyyy')} - ${format(new Date(data.period.end), 'dd/MM/yyyy')})` : ''),
+      storagePath,
+    });
   };
 
   const handleGenerate = async () => {
@@ -602,7 +623,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
       }
 
       if (exportFormat === 'xlsx') {
-        generateExcel(reportData);
+        await generateExcel(reportData, companyId || undefined);
         toast.success(`Relatório ${report.name} gerado em Excel!`);
       } else {
         await generateReportPDF(reportData, companyId || undefined);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, FileText, Download, ChevronRight } from "lucide-react";
+import { Search, FileText, Download, ChevronRight, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { ReportConfigModal } from "@/components/relatorios/ReportConfigModal";
 import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
+import { DownloadedExcelsTab } from "@/components/shared/DownloadedExcelsTab";
 
 const GROUP_LABELS = {
   financeiro: { label: 'Financeiro', color: 'bg-green-500' },
@@ -50,8 +51,8 @@ export default function Relatorios() {
             screenshotUrl: "/help/help-relatorios-config.png"
           },
           {
-            title: "Exportar em PDF",
-            description: "Após gerar o relatório, use o botão de download para exportar em PDF. Os PDFs ficam salvos na aba 'PDFs Baixados' para consulta futura.",
+            title: "Exportar Relatórios",
+            description: "Após gerar o relatório, use o botão de download para exportar em PDF ou Excel. Os arquivos ficam salvos nas abas 'PDFs Baixados' ou 'Excel Baixados' para consulta futura.",
             screenshotUrl: "/help/help-relatorios-pdf.png"
           },
         ]}
@@ -69,6 +70,10 @@ export default function Relatorios() {
           <TabsTrigger value="pdfs" className="gap-2">
             <Download className="h-4 w-4" />
             PDFs Baixados
+          </TabsTrigger>
+          <TabsTrigger value="excel" className="gap-2">
+            <FileSpreadsheet className="h-4 w-4" />
+            Excel Baixados
           </TabsTrigger>
         </TabsList>
 
@@ -132,6 +137,10 @@ export default function Relatorios() {
 
         <TabsContent value="pdfs" className="mt-4">
           <DownloadedPDFsTab module="relatorios" />
+        </TabsContent>
+
+        <TabsContent value="excel" className="mt-4">
+          <DownloadedExcelsTab module="relatorios" />
         </TabsContent>
       </Tabs>
 
