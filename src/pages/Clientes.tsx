@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import NewClientModal from "@/components/vendas/NewClientModal";
+import NewSaleModal from "@/components/vendas/NewSaleModal";
 import { ClientProfileModal } from "@/components/clientes/ClientProfileModal";
 import { EditClientModal } from "@/components/clientes/EditClientModal";
 import { openWhatsApp } from "@/lib/utils";
@@ -72,6 +74,7 @@ type SortOption = 'name-asc' | 'name-desc' | 'recent' | 'spent';
 
 export default function Clientes() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -81,6 +84,7 @@ export default function Clientes() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [showNewSaleModal, setShowNewSaleModal] = useState(false);
 
   const fetchClients = async () => {
     if (!user?.id) return;
@@ -438,6 +442,14 @@ export default function Clientes() {
               setShowProfileModal(false);
               setShowEditModal(true);
             }}
+            onCreateSale={() => {
+              setShowProfileModal(false);
+              setShowNewSaleModal(true);
+            }}
+            onAddToSpace={() => {
+              setShowProfileModal(false);
+              navigate('/espaco');
+            }}
           />
 
           <EditClientModal
@@ -452,6 +464,16 @@ export default function Clientes() {
           />
         </>
       )}
+
+      {/* New Sale Modal */}
+      <NewSaleModal
+        open={showNewSaleModal}
+        onOpenChange={(open) => {
+          setShowNewSaleModal(open);
+          if (!open) fetchClients();
+        }}
+        defaultClientId={selectedClient?.id}
+      />
 
 
       {/* Delete Confirmation */}

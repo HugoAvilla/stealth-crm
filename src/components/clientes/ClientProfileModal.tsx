@@ -32,6 +32,8 @@ interface ClientProfileModalProps {
   onOpenChange: (open: boolean) => void;
   client: Client;
   onEdit: () => void;
+  onCreateSale?: () => void;
+  onAddToSpace?: () => void;
 }
 
 export function ClientProfileModal({
@@ -39,6 +41,8 @@ export function ClientProfileModal({
   onOpenChange,
   client,
   onEdit,
+  onCreateSale,
+  onAddToSpace,
 }: ClientProfileModalProps) {
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -103,11 +107,19 @@ export function ClientProfileModal({
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Chamar no Whatsapp
               </Button>
-              <Button variant="outline" className="border-blue-500 text-blue-500 hover:bg-blue-500/10">
+              <Button 
+                variant="outline" 
+                className="border-blue-500 text-blue-500 hover:bg-blue-500/10"
+                onClick={onCreateSale}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Criar venda com cliente
               </Button>
-              <Button variant="outline" className="border-blue-500 text-blue-500 hover:bg-blue-500/10">
+              <Button 
+                variant="outline" 
+                className="border-blue-500 text-blue-500 hover:bg-blue-500/10"
+                onClick={onAddToSpace}
+              >
                 <ShoppingBag className="h-4 w-4 mr-2" />
                 Adicionar na vaga do espaço
               </Button>

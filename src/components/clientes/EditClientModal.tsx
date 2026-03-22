@@ -111,7 +111,7 @@ export function EditClientModal({
             </div>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 pr-4 max-h-[60vh]">
+          <div className="flex-1 overflow-y-auto pr-4">
             <div className="space-y-4">
               {/* Name */}
               <div className="space-y-2">
@@ -269,7 +269,7 @@ export function EditClientModal({
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Footer */}
           <div className="pt-4 border-t border-border flex-shrink-0">

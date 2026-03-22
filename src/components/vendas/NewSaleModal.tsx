@@ -94,9 +94,10 @@ interface ConsumptionRule {
 interface NewSaleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultClientId?: number;
 }
 
-const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
+const NewSaleModal = ({ open, onOpenChange, defaultClientId }: NewSaleModalProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -124,6 +125,9 @@ const NewSaleModal = ({ open, onOpenChange }: NewSaleModalProps) => {
   useEffect(() => {
     if (open) {
       fetchData();
+      if (defaultClientId) {
+        setSelectedClientId(defaultClientId.toString());
+      }
     }
   }, [open, user?.id]);
 
