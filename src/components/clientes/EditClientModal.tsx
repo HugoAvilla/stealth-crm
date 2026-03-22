@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { Client, Vehicle } from "@/lib/mockData";
 import NewVehicleModal from "@/components/vendas/NewVehicleModal";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface EditClientModalProps {
   open: boolean;
@@ -87,9 +89,70 @@ export function EditClientModal({
     setVehicles(vehicles.filter(v => v.id !== vehicleId));
   };
 
-  const handleSave = () => {
-    // Here you would save to backend/state
-    onSave();
+  const handleSave = async () => {
+    try {
+      const updateData = {
+        name,
+        phone,
+        email: email || null,
+        cpf_cnpj: cpf || null,
+        origem,
+      };
+
+      const { error: clientError } = await supabase
+        .from('clients')
+        .update(updateData)
+        .eq('id', client.id);
+
+      if (clientError) throw clientError;
+
+      const existingVehicleIds = client.vehicles.map(v => v.id);
+      const currentVehicleIds = vehicles.map(v => v.id);
+      
+      const removedIds = existingVehicleIds.filter(id => !currentVehicleIds.includes(id));
+      
+      if (removedIds.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('vehicles')
+          .delete()
+          .in('id', removedIds);
+        if (deleteError) throw deleteError;
+      }
+
+      for (const vehicle of vehicles) {
+        if (existingVehicleIds.includes(vehicle.id)) {
+          const { error: updateError } = await supabase
+            .from('vehicles')
+            .update({
+              plate: vehicle.plate,
+              brand: vehicle.brand,
+              model: vehicle.model,
+              year: vehicle.year,
+              size: vehicle.size,
+            })
+            .eq('id', vehicle.id);
+          if (updateError) throw updateError;
+        } else {
+          const { error: insertError } = await supabase
+            .from('vehicles')
+            .insert({
+              client_id: client.id,
+              company_id: (client as any).company_id,
+              plate: vehicle.plate,
+              brand: vehicle.brand,
+              model: vehicle.model,
+              year: vehicle.year,
+              size: vehicle.size,
+            });
+          if (insertError) throw insertError;
+        }
+      }
+
+      onSave();
+    } catch (error) {
+      console.error("Error saving client:", error);
+      toast.error("Erro ao salvar alterações");
+    }
   };
 
   return (
