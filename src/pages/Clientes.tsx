@@ -24,7 +24,6 @@ import {
   Eye,
   Pencil,
   Trash2,
-  HelpCircle,
   MessageCircle,
   Users
 } from "lucide-react";
@@ -286,9 +285,6 @@ export default function Clientes() {
           >
             <Plus className="h-4 w-4 mr-2" />
             Novo cliente
-          </Button>
-          <Button variant="ghost" size="icon">
-            <HelpCircle className="h-5 w-5 text-muted-foreground" />
           </Button>
         </div>
       </div>

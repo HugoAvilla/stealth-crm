@@ -89,7 +89,7 @@ export function HelpOverlay({ tabId, title, description, imageUrl, steps, sectio
       <button
         onClick={() => setShow(true)}
         title="Ajuda"
-        className="fixed top-[72px] right-4 z-40 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        className="fixed top-[130px] right-4 z-40 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
       >
         <HelpCircle className="h-4 w-4" />
       </button>
