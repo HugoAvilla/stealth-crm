@@ -53,6 +53,7 @@ const brands = [
 const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: NewVehicleModalProps) => {
   const [plate, setPlate] = useState(editVehicle?.plate || "");
   const [brand, setBrand] = useState(editVehicle?.brand || "");
+  const [customBrand, setCustomBrand] = useState("");
   const [model, setModel] = useState(editVehicle?.model || "");
   const [year, setYear] = useState(editVehicle?.year?.toString() || "");
   const [size, setSize] = useState<"P" | "M" | "G" | "">(editVehicle?.size || "");
@@ -84,10 +85,14 @@ const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: 
   };
 
   const handleSubmit = () => {
-    if (!plate.trim() || !brand || !model.trim() || !year || !size) {
+    const finalBrand = brand === "Outro" ? customBrand.trim() : brand;
+
+    if (!plate.trim() || !finalBrand || !model.trim() || !year || !size) {
       toast({
         title: "Campos obrigatórios",
-        description: "Preencha todos os campos do veículo.",
+        description: brand === "Outro" && !customBrand.trim()
+          ? "Preencha o nome da marca."
+          : "Preencha todos os campos do veículo.",
         variant: "destructive",
       });
       return;
@@ -96,7 +101,7 @@ const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: 
     const vehicle: Vehicle = {
       id: 0, // Will be set by parent
       plate: plate.toUpperCase(),
-      brand,
+      brand: finalBrand,
       model,
       year: parseInt(year),
       size,
@@ -107,6 +112,7 @@ const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: 
     // Reset form
     setPlate("");
     setBrand("");
+    setCustomBrand("");
     setModel("");
     setYear("");
     setSize("");
@@ -156,6 +162,15 @@ const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: 
                 ))}
               </SelectContent>
             </Select>
+            {brand === "Outro" && (
+              <Input
+                placeholder="Digite a marca do veículo"
+                value={customBrand}
+                onChange={(e) => setCustomBrand(e.target.value)}
+                className="mt-2"
+                autoFocus
+              />
+            )}
           </div>
 
           {/* Model */}
