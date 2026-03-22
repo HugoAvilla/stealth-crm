@@ -33,6 +33,7 @@ interface ClientProfileModalProps {
   onEdit: () => void;
   onCreateSale?: () => void;
   onAddToSpace?: () => void;
+  onDelete?: (client: Client) => void;
 }
 
 export function ClientProfileModal({
@@ -42,6 +43,7 @@ export function ClientProfileModal({
   onEdit,
   onCreateSale,
   onAddToSpace,
+  onDelete,
 }: ClientProfileModalProps) {
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -304,6 +306,7 @@ export function ClientProfileModal({
           <Button 
             variant="destructive"
             className="flex-1"
+            onClick={() => onDelete?.(client)}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Excluir

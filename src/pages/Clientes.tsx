@@ -209,6 +209,14 @@ export default function Clientes() {
     }
 
     try {
+      // First delete associated vehicles
+      const { error: vehiclesError } = await supabase
+        .from("vehicles")
+        .delete()
+        .eq("client_id", clientToDelete.id);
+
+      if (vehiclesError) throw vehiclesError;
+
       const { error } = await supabase
         .from("clients")
         .delete()
@@ -449,6 +457,10 @@ export default function Clientes() {
             onAddToSpace={() => {
               setShowProfileModal(false);
               navigate('/espaco');
+            }}
+            onDelete={(client) => {
+              setShowProfileModal(false);
+              handleDeleteClient(client as any);
             }}
           />
 
