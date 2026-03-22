@@ -209,7 +209,12 @@ export default function Clientes() {
     }
 
     try {
-      // First delete associated vehicles
+      // Delete associated operational data before deleting the client to prevent FK errors
+      await supabase.from("pipeline_stages").delete().eq("client_id", clientToDelete.id);
+      await supabase.from("spaces").delete().eq("client_id", clientToDelete.id);
+      await supabase.from("warranties").delete().eq("client_id", clientToDelete.id);
+
+      // Delete associated vehicles
       const { error: vehiclesError } = await supabase
         .from("vehicles")
         .delete()
@@ -226,9 +231,9 @@ export default function Clientes() {
 
       toast.success(`Cliente "${clientToDelete.name}" excluído com sucesso`);
       fetchClients();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting client:", error);
-      toast.error("Erro ao excluir cliente");
+      toast.error(`Erro ao excluir cliente: ${error?.message || "Erro desconhecido"}`);
     } finally {
       setClientToDelete(null);
     }
