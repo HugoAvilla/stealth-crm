@@ -7,7 +7,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
   MessageCircle,
@@ -96,7 +95,7 @@ export function ClientProfileModal({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto pr-4">
           <div className="space-y-6">
             {/* Quick Actions */}
             <div className="flex flex-wrap gap-2">
@@ -291,7 +290,7 @@ export function ClientProfileModal({
               </div>
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Footer Actions */}
         <div className="flex gap-2 pt-4 border-t border-border flex-shrink-0">
