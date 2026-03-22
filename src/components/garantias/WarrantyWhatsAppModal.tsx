@@ -37,6 +37,7 @@ interface WarrantyWhatsAppModalProps {
 export function WarrantyWhatsAppModal({ open, onOpenChange, data }: WarrantyWhatsAppModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [template, setTemplate] = useState("");
+  const [savedTemplate, setSavedTemplate] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   if (!data) return null;
@@ -100,7 +101,9 @@ export function WarrantyWhatsAppModal({ open, onOpenChange, data }: WarrantyWhat
       .replace(/\{pdfLink\}/g, data.pdfLink || '');
   };
 
-  const messageToSend = resolveVariables(isEditing && template ? template : defaultMessage);
+  const messageToSend = resolveVariables(
+    isEditing && template ? template : (savedTemplate ?? defaultMessage)
+  );
 
   const getWhatsAppUrl = () => {
     if (!data.clientPhone) return "#";
@@ -121,12 +124,13 @@ export function WarrantyWhatsAppModal({ open, onOpenChange, data }: WarrantyWhat
 
   const handleEdit = () => {
     if (!isEditing) {
-      setTemplate(defaultMessage);
+      setTemplate(savedTemplate ?? defaultMessage);
     }
     setIsEditing(true);
   };
 
   const handleSave = () => {
+    setSavedTemplate(template);
     setIsEditing(false);
     toast.success("Mensagem salva!");
   };
@@ -192,7 +196,14 @@ export function WarrantyWhatsAppModal({ open, onOpenChange, data }: WarrantyWhat
   ];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => {
+        if (!v) {
+          setIsEditing(false);
+          setTemplate("");
+          setSavedTemplate(null);
+        }
+        onOpenChange(v);
+      }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between">
