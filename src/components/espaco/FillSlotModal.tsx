@@ -192,9 +192,16 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
 
   // Reset vehicle and services when client changes
   useEffect(() => {
-    setSelectedVehicleId("");
     setDetailedItems([]);
+    setSelectedVehicleId("");
   }, [selectedClientId]);
+
+  // Auto-select vehicle if there is exactly 1
+  useEffect(() => {
+    if (clientVehicles && clientVehicles.length === 1 && !selectedVehicleId) {
+      setSelectedVehicleId(clientVehicles[0].id.toString());
+    }
+  }, [clientVehicles]);
 
   // Handle adding a new detailed service item
   const handleAddDetailedItem = () => {

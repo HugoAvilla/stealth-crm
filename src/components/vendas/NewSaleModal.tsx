@@ -182,7 +182,12 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId }: NewSaleModalProps
         .eq('company_id', companyId);
 
       setVehicles(data || []);
-      setSelectedVehicleId("");
+      
+      if (data && data.length === 1) {
+        setSelectedVehicleId(data[0].id.toString());
+      } else {
+        setSelectedVehicleId("");
+      }
     };
 
     fetchVehicles();
