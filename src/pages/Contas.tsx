@@ -1,19 +1,35 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, Settings, ArrowUpRight, ArrowDownRight, RefreshCw, Plus } from "lucide-react";
+import { 
+  Eye, EyeOff, Settings, ArrowUpRight, ArrowDownRight, RefreshCw, Plus,
+  Search, Calendar as CalendarIcon, Filter, ArrowUpDown, Landmark, FolderPlus, FolderTree, ArrowRightLeft, X
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { format, subDays, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { cn } from "@/lib/utils";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { AddAccountModal } from "@/components/financeiro/AddAccountModal";
 import { EditAccountModal } from "@/components/contas/EditAccountModal";
-import { supabase } from "@/integrations/supabase/client";
+import { AddTransactionModal } from "@/components/financeiro/AddTransactionModal";
+import { AddTransferModal } from "@/components/financeiro/AddTransferModal";
+import { NewCategoryModal } from "@/components/financeiro/NewCategoryModal";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Account {
   id: number;
@@ -54,6 +70,18 @@ export default function Contas() {
   const [showValues, setShowValues] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+
+  // New states for filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  // New states for FAB modals
+  const [fabOpen, setFabOpen] = useState(false);
+  const [transactionModalOpen, setTransactionModalOpen] = useState(false);
+  const [transactionType, setTransactionType] = useState<'entrada' | 'saida'>('entrada');
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -168,7 +196,50 @@ export default function Contas() {
     return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
   };
 
-  const groupedTransactions = accountTransactions.reduce((groups, t) => {
+  // Computed variables for filters and summaries
+  let filteredTransactions = accountTransactions;
+
+  if (startDate) {
+    filteredTransactions = filteredTransactions.filter(t => t.transaction_date >= startDate);
+  }
+  if (endDate) {
+    filteredTransactions = filteredTransactions.filter(t => t.transaction_date <= endDate);
+  }
+  if (searchTerm) {
+    const term = searchTerm.toLowerCase();
+    filteredTransactions = filteredTransactions.filter(t => 
+      t.name.toLowerCase().includes(term) || 
+      (t.description?.toLowerCase() || "").includes(term) ||
+      (getCategoryById(t.category_id || 0)?.name.toLowerCase() || "").includes(term)
+    );
+  }
+
+  const summaryEntries = filteredTransactions.filter(t => t.type === 'Entrada' && t.is_paid).reduce((sum, t) => sum + t.amount, 0);
+  const summaryExits = filteredTransactions.filter(t => t.type === 'Saida' && t.is_paid).reduce((sum, t) => sum + t.amount, 0);
+  const geracaoCaixa = summaryEntries - summaryExits;
+  const saldoFinal = selectedAccount?.current_balance || 0;
+  const saldoInicial = saldoFinal - geracaoCaixa;
+
+  // Expected balance (Saldo Atual + Pendentes)
+  const pendingEntries = accountTransactions.filter(t => t.type === 'Entrada' && !t.is_paid).reduce((sum, t) => sum + t.amount, 0);
+  const pendingExits = accountTransactions.filter(t => t.type === 'Saida' && !t.is_paid).reduce((sum, t) => sum + t.amount, 0);
+  const saldoPrevisto = saldoFinal + pendingEntries - pendingExits;
+
+  // Last 7 days chart data
+  const last7Days = Array.from({ length: 7 }).map((_, i) => {
+    const date = subDays(new Date(), 6 - i);
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const dayTxs = accountTransactions.filter(t => t.transaction_date === dateStr && t.is_paid);
+    const entradas = dayTxs.filter(t => t.type === 'Entrada').reduce((acc, t) => acc + t.amount, 0);
+    const saidas = dayTxs.filter(t => t.type === 'Saida').reduce((acc, t) => acc + t.amount, 0);
+    return {
+      date: format(date, 'dd/MM'),
+      entradas,
+      saidas
+    };
+  });
+
+  const groupedTransactions = filteredTransactions.reduce((groups, t) => {
     const date = t.transaction_date;
     if (!groups[date]) groups[date] = [];
     groups[date].push(t);
@@ -309,10 +380,72 @@ export default function Contas() {
             </div>
 
             {/* Balance Card */}
-            <Card className="bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30">
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">Saldo Atual</p>
-                <p className="text-4xl font-bold">{formatCurrency(selectedAccount.current_balance || 0)}</p>
+            <Card className="bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30 relative overflow-hidden">
+              <div className="absolute right-4 top-4 opacity-10">
+                <Landmark size={80} />
+              </div>
+              <CardContent className="p-6 relative z-10">
+                <p className="text-sm font-medium text-muted-foreground">Saldo Atual</p>
+                <p className="text-4xl font-bold mt-1">{formatCurrency(selectedAccount.current_balance || 0)}</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Previsto: <span className="font-semibold">{formatCurrency(saldoPrevisto)}</span>
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Resumo do Período */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+              <Card className="bg-card/50 border-border/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Entradas recebidas</p>
+                  <p className="text-lg font-bold text-green-500">+{formatCurrency(summaryEntries)}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-card/50 border-border/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Saídas pagas</p>
+                  <p className="text-lg font-bold text-red-500">-{formatCurrency(summaryExits)}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-card/50 border-border/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Geração de caixa</p>
+                  <p className={`text-lg font-bold ${geracaoCaixa >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {geracaoCaixa >= 0 ? '+' : ''}{formatCurrency(geracaoCaixa)}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-card/50 border-border/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Saldo inicial</p>
+                  <p className="text-lg font-bold">{formatCurrency(saldoInicial)}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-card/50 border-border/50">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Saldo final</p>
+                  <p className="text-lg font-bold">{formatCurrency(saldoFinal)}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Evolução Últimos 7 dias */}
+            <Card className="bg-card/50 border-border/50">
+              <CardHeader>
+                <CardTitle className="text-sm">Entradas e saídas (Últimos 7 dias)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={last7Days}>
+                      <XAxis dataKey="date" fontSize={12} tickMargin={10} axisLine={false} tickLine={false} />
+                      <YAxis hide />
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} cursor={{fill: 'transparent'}} />
+                      <Bar dataKey="entradas" name="Entradas" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={30} />
+                      <Bar dataKey="saidas" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
 
@@ -392,68 +525,106 @@ export default function Contas() {
               </Card>
             </div>
 
-            {/* Transactions */}
+            {/* Transactions Table */}
             <Card className="bg-card/50 border-border/50">
-              <CardHeader>
+              <CardHeader className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
                 <CardTitle className="text-sm">Extrato</CardTitle>
+                <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto">
+                  <div className="relative w-full sm:w-[250px]">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por transação..."
+                      className="pl-8 bg-background"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Input 
+                      type="date" 
+                      className="w-full sm:w-[140px] bg-background text-sm"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                    <Input 
+                      type="date" 
+                      className="w-full sm:w-[140px] bg-background text-sm"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {Object.keys(groupedTransactions).length === 0 ? (
+              <CardContent>
+                {filteredTransactions.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm">Nenhuma transação registrada</p>
+                    <p className="text-sm">Nenhuma transação encontrada</p>
                   </div>
                 ) : (
-                  Object.entries(groupedTransactions)
-                    .sort(([a], [b]) => b.localeCompare(a))
-                    .map(([date, txs]) => (
-                      <div key={date}>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {format(new Date(date), "dd 'de' MMMM", { locale: ptBR })}
-                        </p>
-                        <div className="space-y-2">
-                          {txs.map(tx => {
-                            const category = tx.category_id ? getCategoryById(tx.category_id) : null;
-                            const isEntry = tx.type === 'Entrada';
+                  <div className="rounded-md border border-border/50 overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[200px]">Transação</TableHead>
+                          <TableHead>Conta</TableHead>
+                          <TableHead className="text-center">Categoria</TableHead>
+                          <TableHead className="text-right whitespace-nowrap">Valor</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredTransactions.map(tx => {
+                          const category = tx.category_id ? getCategoryById(tx.category_id) : null;
+                          const isEntry = tx.type === 'Entrada';
 
-                            return (
-                              <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                          return (
+                            <TableRow key={tx.id}>
+                              <TableCell>
                                 <div className="flex items-center gap-3">
                                   <div className={cn(
-                                    "p-2 rounded-full",
-                                    isEntry ? "bg-green-500/10" : "bg-red-500/10"
+                                    "p-1.5 rounded-full flex-shrink-0",
+                                    isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
                                   )}>
-                                    {isEntry ? (
-                                      <ArrowUpRight className="h-4 w-4 text-green-500" />
-                                    ) : (
-                                      <ArrowDownRight className="h-4 w-4 text-red-500" />
-                                    )}
+                                    {isEntry ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                                   </div>
                                   <div>
-                                    <p className="text-sm font-medium">{tx.name}</p>
-                                    {category && (
-                                      <Badge variant="outline" className="text-[10px] mt-1" style={{ borderColor: category.color || undefined, color: category.color || undefined }}>
-                                        {category.name}
-                                      </Badge>
-                                    )}
+                                    <p className="text-sm font-medium leading-none mb-1">{tx.name}</p>
+                                    <span className="text-[10px] text-muted-foreground">{format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <p className={cn(
-                                    "font-medium",
-                                    isEntry ? "text-green-500" : "text-red-500"
-                                  )}>
-                                    {isEntry ? '+' : '-'}{formatCurrency(tx.amount)}
-                                  </p>
-                                  <Badge variant={tx.is_paid ? 'default' : 'secondary'} className="text-[10px]">
-                                    {tx.is_paid ? 'Confirmado' : 'Pendente'}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm">{selectedAccount?.name}</TableCell>
+                              <TableCell className="text-center">
+                                {category ? (
+                                  <Badge variant="outline" className="text-[10px] whitespace-nowrap" style={{ borderColor: category.color || undefined, color: category.color || undefined }}>
+                                    {category.name}
                                   </Badge>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <span className={cn(
+                                  "font-medium whitespace-nowrap",
+                                  isEntry ? "text-green-500" : "text-red-500"
+                                )}>
+                                  {isEntry ? '+' : '-'}{formatCurrency(tx.amount)}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn(
+                                  "text-[10px]",
+                                  tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : ""
+                                )}>
+                                  {tx.is_paid ? 'Recebido' : 'Pendente'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -470,6 +641,44 @@ export default function Contas() {
         )}
       </div>
 
+      {/* Floating Action Button & Menu */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Dialog open={fabOpen} onOpenChange={setFabOpen}>
+          <DialogTrigger asChild>
+            <Button size="icon" className="h-14 w-14 rounded-full shadow-lg hover:scale-105 transition-transform bg-blue-600 hover:bg-blue-700 text-white">
+              <Plus className="h-6 w-6" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-3xl bg-background border-border/50">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold mb-4">Escolha o que deseja fazer</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              <button onClick={() => { setFabOpen(false); setTransactionType('entrada'); setTransactionModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                <ArrowUpRight className="h-8 w-8 text-green-500" />
+                <span className="font-medium text-sm text-center">Nova entrada na conta</span>
+              </button>
+              <button onClick={() => { setFabOpen(false); setTransactionType('saida'); setTransactionModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                <ArrowDownRight className="h-8 w-8 text-red-500" />
+                <span className="font-medium text-sm text-center">Nova saída na conta</span>
+              </button>
+              <button onClick={() => { setFabOpen(false); setTransferModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                <ArrowRightLeft className="h-8 w-8 text-blue-500" />
+                <span className="font-medium text-sm text-center">Nova transferência</span>
+              </button>
+              <button onClick={() => { setFabOpen(false); setCategoryModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                <FolderPlus className="h-8 w-8 text-primary" />
+                <span className="font-medium text-sm text-center">Nova categoria</span>
+              </button>
+              <button onClick={() => { setFabOpen(false); setShowAddModal(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                <Landmark className="h-8 w-8 text-primary" />
+                <span className="font-medium text-sm text-center">Nova conta</span>
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
       {/* Modals */}
       <AddAccountModal
         open={showAddModal}
@@ -483,6 +692,22 @@ export default function Contas() {
         onAccountUpdated={handleAccountUpdated}
         onAccountDeleted={handleAccountDeleted}
         canDelete={accounts.length > 1}
+      />
+      <AddTransactionModal
+        open={transactionModalOpen}
+        onOpenChange={setTransactionModalOpen}
+        type={transactionType}
+        onSuccess={fetchData}
+      />
+      <AddTransferModal
+        open={transferModalOpen}
+        onOpenChange={setTransferModalOpen}
+        onSuccess={fetchData}
+      />
+      <NewCategoryModal
+        open={categoryModalOpen}
+        onOpenChange={setCategoryModalOpen}
+        onSuccess={fetchData}
       />
     </div>
   );
