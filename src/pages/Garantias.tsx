@@ -191,6 +191,11 @@ export default function Garantias() {
         title="Guia de Garantias"
         sections={[
           {
+            title: "Vídeo Aula — Garantias",
+            description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de garantias.",
+            videoUrl: "/help/video-aula-garantia.mov"
+          },
+          {
             title: "Emitir Garantia",
             description: "Clique em 'Emitir Garantia' para criar um certificado. Selecione o cliente, o veículo, o tipo de serviço e a validade. O certificado é gerado automaticamente com número único.",
             screenshotUrl: "/help/help-garantias-emitir.png"
