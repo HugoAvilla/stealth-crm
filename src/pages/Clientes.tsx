@@ -265,6 +265,11 @@ export default function Clientes() {
         title="Guia de Clientes"
         sections={[
           {
+            title: "Vídeo Aula — Clientes",
+            description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de clientes.",
+            videoUrl: "/help/video-aula-clientes.mov"
+          },
+          {
             title: "Cadastrar Novo Cliente",
             description: "Clique em 'Novo cliente' para abrir o formulário. Preencha nome, WhatsApp, e-mail e CPF/CNPJ. O cliente ficará disponível para associar a vendas e veículos.",
             screenshotUrl: "/help/help-clientes-novo.png"
