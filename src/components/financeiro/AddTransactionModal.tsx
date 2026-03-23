@@ -47,7 +47,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
     if (open) {
       fetchData();
     }
-  }, [open, user?.id]);
+  }, [open, user?.id, type]);
 
   const fetchData = async () => {
     if (!user?.id) return;
