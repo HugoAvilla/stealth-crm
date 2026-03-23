@@ -71,7 +71,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
         .eq("is_active", true);
 
       // Fetch categories
-      const typeFilter = type === 'entrada' ? 'entrada' : 'saida';
+      const typeFilter = type === 'entrada' ? 'Entrada' : 'Saida';
       const { data: categoriesData } = await supabase
         .from("categories")
         .select("id, name, type")
