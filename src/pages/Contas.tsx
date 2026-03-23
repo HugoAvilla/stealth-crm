@@ -367,13 +367,48 @@ export default function Contas() {
         {selectedAccount ? (
           <>
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div>
                 <h1 className="text-2xl font-bold">{selectedAccount.name}</h1>
                 <p className="text-muted-foreground">{selectedAccount.account_type}</p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="icon" onClick={() => setEditingAccount(selectedAccount)}>
+              <div className="flex flex-wrap items-center gap-2">
+                <Dialog open={fabOpen} onOpenChange={setFabOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-full px-6">
+                      Adicionar <Plus className="h-4 w-4 ml-2" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-3xl bg-background border-border/50">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl font-semibold mb-4">Escolha o que deseja fazer</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                      <button onClick={() => { setFabOpen(false); setTransactionType('entrada'); setTransactionModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                        <ArrowUpRight className="h-8 w-8 text-green-500" />
+                        <span className="font-medium text-sm text-center">Nova entrada na conta</span>
+                      </button>
+                      <button onClick={() => { setFabOpen(false); setTransactionType('saida'); setTransactionModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                        <ArrowDownRight className="h-8 w-8 text-red-500" />
+                        <span className="font-medium text-sm text-center">Nova saída na conta</span>
+                      </button>
+                      <button onClick={() => { setFabOpen(false); setTransferModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                        <ArrowRightLeft className="h-8 w-8 text-blue-500" />
+                        <span className="font-medium text-sm text-center">Nova transferência</span>
+                      </button>
+                      <button onClick={() => { setFabOpen(false); setCategoryModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                        <FolderPlus className="h-8 w-8 text-primary" />
+                        <span className="font-medium text-sm text-center">Nova categoria</span>
+                      </button>
+                      <button onClick={() => { setFabOpen(false); setShowAddModal(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                        <Landmark className="h-8 w-8 text-primary" />
+                        <span className="font-medium text-sm text-center">Nova conta</span>
+                      </button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <Button variant="outline" size="icon" className="rounded-full" onClick={() => setEditingAccount(selectedAccount)}>
                   <Settings className="h-4 w-4" />
                 </Button>
               </div>
@@ -641,43 +676,6 @@ export default function Contas() {
         )}
       </div>
 
-      {/* Floating Action Button & Menu */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <Dialog open={fabOpen} onOpenChange={setFabOpen}>
-          <DialogTrigger asChild>
-            <Button size="icon" className="h-14 w-14 rounded-full shadow-lg hover:scale-105 transition-transform bg-blue-600 hover:bg-blue-700 text-white">
-              <Plus className="h-6 w-6" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-3xl bg-background border-border/50">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-semibold mb-4">Escolha o que deseja fazer</DialogTitle>
-            </DialogHeader>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              <button onClick={() => { setFabOpen(false); setTransactionType('entrada'); setTransactionModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                <ArrowUpRight className="h-8 w-8 text-green-500" />
-                <span className="font-medium text-sm text-center">Nova entrada na conta</span>
-              </button>
-              <button onClick={() => { setFabOpen(false); setTransactionType('saida'); setTransactionModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                <ArrowDownRight className="h-8 w-8 text-red-500" />
-                <span className="font-medium text-sm text-center">Nova saída na conta</span>
-              </button>
-              <button onClick={() => { setFabOpen(false); setTransferModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                <ArrowRightLeft className="h-8 w-8 text-blue-500" />
-                <span className="font-medium text-sm text-center">Nova transferência</span>
-              </button>
-              <button onClick={() => { setFabOpen(false); setCategoryModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                <FolderPlus className="h-8 w-8 text-primary" />
-                <span className="font-medium text-sm text-center">Nova categoria</span>
-              </button>
-              <button onClick={() => { setFabOpen(false); setShowAddModal(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                <Landmark className="h-8 w-8 text-primary" />
-                <span className="font-medium text-sm text-center">Nova conta</span>
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
 
       {/* Modals */}
       <AddAccountModal
