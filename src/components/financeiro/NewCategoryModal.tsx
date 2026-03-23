@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,12 @@ export function NewCategoryModal({ open, onOpenChange, defaultType = 'entrada', 
   const [type, setType] = useState<'entrada' | 'saida'>(defaultType);
   const [color, setColor] = useState(COLORS[0].value);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setType(defaultType);
+    }
+  }, [open, defaultType]);
 
   const handleSubmit = async () => {
     if (!name.trim()) {
