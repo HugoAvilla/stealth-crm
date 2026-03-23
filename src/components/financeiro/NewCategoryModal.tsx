@@ -57,7 +57,7 @@ export function NewCategoryModal({ open, onOpenChange, defaultType = 'entrada', 
         .from("categories")
         .insert({
           name: name.trim(),
-          type,
+          type: type === 'entrada' ? 'Entrada' : 'Saida',
           color,
           company_id: profile.company_id,
         })
