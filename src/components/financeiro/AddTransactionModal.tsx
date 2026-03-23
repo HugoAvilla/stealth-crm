@@ -176,18 +176,20 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
             <div className="space-y-2">
               <Label>Categoria *</Label>
               <div className="flex gap-2">
-                <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id.toString()}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex-1">
+                  <Select value={categoryId} onValueChange={setCategoryId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id.toString()}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button 
                   type="button" 
                   size="icon" 
