@@ -6,9 +6,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { AddTransactionModal } from "@/components/financeiro/AddTransactionModal";
@@ -67,16 +67,16 @@ export default function Financeiro() {
         .eq("is_active", true)
         .order("is_main", { ascending: false });
 
-      // Fetch transactions for current month
+      // Fetch transactions up to 7 days in the future for forecasts
       const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
-      const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
+      const futureEnd = format(addDays(new Date(), 7), "yyyy-MM-dd");
 
       const { data: transactionsData } = await supabase
         .from("transactions")
         .select("*")
         .eq("company_id", profile.company_id)
         .gte("transaction_date", monthStart)
-        .lte("transaction_date", monthEnd)
+        .lte("transaction_date", futureEnd)
         .order("transaction_date", { ascending: false });
 
       setAccounts(accountsData || []);
@@ -93,32 +93,55 @@ export default function Financeiro() {
     fetchData();
   }, [user?.id]);
 
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const monthStartStr = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  const monthEndStr = format(endOfMonth(new Date()), "yyyy-MM-dd");
+  const futureEndStr = format(addDays(new Date(), 7), "yyyy-MM-dd");
+
   const totalBalance = accounts.reduce((sum, acc) => sum + (acc.current_balance || 0), 0);
 
-  const totalEntradas = transactions
+  const monthTransactions = transactions.filter(t => t.transaction_date >= monthStartStr && t.transaction_date <= monthEndStr);
+  const futureTransactions = transactions.filter(t => t.transaction_date > todayStr && t.transaction_date <= futureEndStr);
+
+  const totalEntradas = monthTransactions
     .filter(t => t.type === 'Entrada')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalSaidas = transactions
+  const totalSaidas = monthTransactions
     .filter(t => t.type === 'Saida')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Generate chart data for last 7 days
-  const chartData = Array.from({ length: 7 }, (_, i) => {
-    const date = subDays(new Date(), 6 - i);
-    const dateStr = format(date, 'yyyy-MM-dd');
+  const futureEntradas = futureTransactions
+    .filter(t => t.type === 'Entrada')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const futureSaidas = futureTransactions
+    .filter(t => t.type === 'Saida')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // Generate chart data for last 7 days working backwards from today's balance
+  let currentBal = totalBalance;
+  const reversedChartData = [];
+
+  for (let i = 0; i < 7; i++) {
+    const dateObj = subDays(new Date(), i);
+    const dateStr = format(dateObj, 'yyyy-MM-dd');
+    
+    reversedChartData.push({
+      date: format(dateObj, 'dd/MM'),
+      saldo: currentBal,
+    });
 
     const dayTransactions = transactions.filter(t => t.transaction_date === dateStr);
-    const entradas = dayTransactions.filter(t => t.type === 'Entrada').reduce((s, t) => s + t.amount, 0);
-    const saidas = dayTransactions.filter(t => t.type === 'Saida').reduce((s, t) => s + t.amount, 0);
+    const dayEntradas = dayTransactions.filter(t => t.type === 'Entrada').reduce((s, t) => s + t.amount, 0);
+    const daySaidas = dayTransactions.filter(t => t.type === 'Saida').reduce((s, t) => s + t.amount, 0);
+    const netFlow = dayEntradas - daySaidas;
+    
+    // Balance before this day's transactions happened:
+    currentBal -= netFlow;
+  }
 
-    return {
-      date: format(date, 'dd/MM'),
-      entradas,
-      saidas,
-      saldo: entradas - saidas
-    };
-  });
+  const chartData = reversedChartData.reverse();
 
   const getAccountIcon = (type: string | null) => {
     switch (type) {
@@ -165,12 +188,12 @@ export default function Financeiro() {
           },
           {
             title: "Cards de Resumo",
-            description: "Os 3 cards no topo mostram: Saldo Total (soma de todas as contas), Entradas do mês (total de receitas) e Saídas do mês (total de despesas). Use o ícone 👁 para ocultar/mostrar valores.",
+            description: "Os 3 cards no topo mostram: Saldo Total (soma de todas as contas), Entradas do mês (total de receitas) com previsão de próximos 7 dias, e Saídas do mês (total de despesas) com previsão. Use o ícone 👁 para ocultar/mostrar valores.",
             screenshotUrl: "/help/help-financeiro-resumo.png"
           },
           {
             title: "Gráfico de Evolução",
-            description: "O gráfico de linhas mostra a evolução de entradas (verde) e saídas (vermelho) nos últimos 7 dias. Passe o mouse para ver valores detalhados de cada dia.",
+            description: "O gráfico de área mostra a evolução cumulativa do seu saldo através dos dias. Representa efetivamente o dinheiro real disponível em caixa ao longo do tempo.",
             screenshotUrl: "/help/help-financeiro-grafico.png"
           },
           {
@@ -219,79 +242,129 @@ export default function Financeiro() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Saldo Total</p>
-                <p className="text-3xl font-bold">{formatCurrency(totalBalance)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{accounts.length} contas</p>
-              </div>
-              <div className="p-3 rounded-full bg-primary/10">
-                <Wallet className="h-6 w-6 text-primary" />
+      {/* Visão Geral (Overview) - Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
+        
+        {/* Saldo Geral - Takes full width on mobile, 4 columns on desktop */}
+        <Card className="md:col-span-12 lg:col-span-4 bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30 relative overflow-hidden flex flex-col justify-between">
+          <div className="absolute right-4 top-4 opacity-10">
+            <Landmark size={100} />
+          </div>
+          <CardContent className="p-6 relative z-10 flex flex-col justify-between h-full min-h-[160px]">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground/90 uppercase tracking-wider">Saldo Geral Atual</p>
+              <p className="text-4xl font-bold mt-2">{formatCurrency(totalBalance)}</p>
+            </div>
+            <div className="mt-4">
+              <div className="inline-flex items-center bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium text-foreground border border-border/50 shadow-sm">
+                <Wallet className="h-3 w-3 mr-2 text-primary" />
+                {accounts.length} {accounts.length === 1 ? 'conta conectada' : 'contas conectadas'}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Entradas (Mês)</p>
-                <p className="text-3xl font-bold text-green-500">{formatCurrency(totalEntradas)}</p>
-              </div>
-              <div className="p-3 rounded-full bg-green-500/10">
-                <ArrowUpRight className="h-6 w-6 text-green-500" />
+        {/* Entradas Card */}
+        <Card className="md:col-span-6 lg:col-span-4 bg-card/50 border-border/50 relative overflow-hidden flex flex-col">
+          <div className="p-6 pb-4 flex-1">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
+                 <ArrowUpRight className="h-4 w-4" />
+                 <span className="text-xs font-semibold uppercase tracking-wider">Entradas</span>
               </div>
             </div>
-          </CardContent>
+            
+            <div className="space-y-1">
+               <p className="text-sm text-muted-foreground">Realizado no Mês</p>
+               <p className="text-3xl font-bold text-foreground">{formatCurrency(totalEntradas)}</p>
+            </div>
+          </div>
+          <div className="bg-green-500/5 px-6 py-3 border-t border-green-500/10 flex justify-between items-center">
+             <span className="text-xs text-muted-foreground">Previsão (Próx. 7 dias)</span>
+             <span className="text-sm font-semibold text-green-500">+{formatCurrency(futureEntradas)}</span>
+          </div>
         </Card>
 
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Saídas (Mês)</p>
-                <p className="text-3xl font-bold text-red-500">{formatCurrency(totalSaidas)}</p>
-              </div>
-              <div className="p-3 rounded-full bg-red-500/10">
-                <ArrowDownRight className="h-6 w-6 text-red-500" />
+        {/* Saídas Card */}
+        <Card className="md:col-span-6 lg:col-span-4 bg-card/50 border-border/50 relative overflow-hidden flex flex-col">
+          <div className="p-6 pb-4 flex-1">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-red-500 bg-red-500/10 px-3 py-1 rounded-full">
+                 <ArrowDownRight className="h-4 w-4" />
+                 <span className="text-xs font-semibold uppercase tracking-wider">Saídas</span>
               </div>
             </div>
-          </CardContent>
+            
+            <div className="space-y-1">
+               <p className="text-sm text-muted-foreground">Pago no Mês</p>
+               <p className="text-3xl font-bold text-foreground">{formatCurrency(totalSaidas)}</p>
+            </div>
+          </div>
+          <div className="bg-red-500/5 px-6 py-3 border-t border-red-500/10 flex justify-between items-center">
+             <span className="text-xs text-muted-foreground">Previsão (Próx. 7 dias)</span>
+             <span className="text-sm font-semibold text-red-500">-{formatCurrency(futureSaidas)}</span>
+          </div>
         </Card>
+
       </div>
+
+      {/* Divisor do Dashboard */}
+      <h2 className="text-lg font-semibold mt-8 mb-4 tracking-tight">Análise de Performance</h2>
 
       {/* Chart */}
       <Card className="bg-card/50 border-border/50">
-        <CardHeader>
-          <CardTitle className="text-lg">Evolução do Saldo (Últimos 7 dias)</CardTitle>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-lg">Evolução do Saldo</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Acompanhe seu patrimônio diário nos últimos 7 dias</p>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
+          <div className="h-[300px] mt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickFormatter={(value) => `R$${value.toLocaleString('pt-BR', { notation: "compact" })}`} 
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                   }}
-                  formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
+                  itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
+                  formatter={(value: number) => [formatCurrency(value), 'Saldo em Conta']}
+                  labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
                 />
-                <Line type="monotone" dataKey="entradas" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} name="Entradas" />
-                <Line type="monotone" dataKey="saidas" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} name="Saídas" />
-              </LineChart>
+                <Area 
+                  type="monotone" 
+                  dataKey="saldo" 
+                  stroke="hsl(var(--primary))" 
+                  fillOpacity={1} 
+                  fill="url(#colorSaldo)" 
+                  strokeWidth={3}
+                  activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "hsl(var(--background))", strokeWidth: 2 }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>
+
+      <h2 className="text-lg font-semibold mt-8 mb-4 tracking-tight">Detalhes Bancários</h2>
 
       {/* Accounts */}
       <Card className="bg-card/50 border-border/50">
@@ -301,9 +374,9 @@ export default function Financeiro() {
         <CardContent>
           {accounts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <Wallet className="h-8 w-8 mx-auto mb-2" />
+              <Wallet className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>Nenhuma conta cadastrada</p>
-              <Button onClick={() => setAccountModalOpen(true)} className="mt-4">
+              <Button onClick={() => setAccountModalOpen(true)} className="mt-4" variant="outline">
                 <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeira Conta
               </Button>
             </div>
@@ -311,21 +384,31 @@ export default function Financeiro() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {accounts.map(account => (
                 <Card key={account.id} className={cn(
-                  "bg-gradient-to-br border",
-                  account.is_main ? "from-primary/20 to-primary/5 border-primary/30" : "from-muted/50 to-muted/20 border-border/50"
+                  "hover:shadow-md transition-shadow cursor-default",
+                  account.is_main ? "bg-gradient-to-br from-primary/10 to-transparent border-primary/30" : "bg-card border-border/50"
                 )}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        {getAccountIcon(account.account_type)}
-                        <span className="font-medium">{account.name}</span>
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "p-2 rounded-lg",
+                          account.is_main ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                        )}>
+                           {getAccountIcon(account.account_type)}
+                        </div>
+                        <div>
+                          <span className="font-semibold block leading-tight">{account.name}</span>
+                          <span className="text-xs text-muted-foreground">{account.account_type}</span>
+                        </div>
                       </div>
                       {account.is_main && (
-                        <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">Principal</span>
+                        <span className="text-[10px] bg-primary text-primary-foreground px-2 py-1 rounded-full uppercase font-bold tracking-wider">Principal</span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mb-1">{account.account_type}</p>
-                    <p className="text-2xl font-bold">{formatCurrency(account.current_balance || 0)}</p>
+                    <div className="mt-2 text-right">
+                       <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Balanço</p>
+                       <p className="text-2xl font-bold font-mono tracking-tight">{formatCurrency(account.current_balance || 0)}</p>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
