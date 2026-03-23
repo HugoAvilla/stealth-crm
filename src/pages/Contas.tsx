@@ -26,6 +26,7 @@ import { EditAccountModal } from "@/components/contas/EditAccountModal";
 import { AddTransactionModal } from "@/components/financeiro/AddTransactionModal";
 import { AddTransferModal } from "@/components/financeiro/AddTransferModal";
 import { NewCategoryModal } from "@/components/financeiro/NewCategoryModal";
+import { ManageCategoriesModal } from "@/components/financeiro/ManageCategoriesModal";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -82,6 +83,7 @@ export default function Contas() {
   const [transactionType, setTransactionType] = useState<'entrada' | 'saida'>('entrada');
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -400,6 +402,10 @@ export default function Contas() {
                         <FolderPlus className="h-8 w-8 text-primary" />
                         <span className="font-medium text-sm text-center">Nova categoria</span>
                       </button>
+                      <button onClick={() => { setFabOpen(false); setManageCategoriesOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                        <FolderTree className="h-8 w-8 text-primary" />
+                        <span className="font-medium text-sm text-center">Gerenciar categorias</span>
+                      </button>
                       <button onClick={() => { setFabOpen(false); setShowAddModal(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
                         <Landmark className="h-8 w-8 text-primary" />
                         <span className="font-medium text-sm text-center">Nova conta</span>
@@ -706,6 +712,11 @@ export default function Contas() {
         open={categoryModalOpen}
         onOpenChange={setCategoryModalOpen}
         onSuccess={fetchData}
+      />
+      <ManageCategoriesModal
+        open={manageCategoriesOpen}
+        onOpenChange={setManageCategoriesOpen}
+        onCategoriesChange={fetchData}
       />
     </div>
   );

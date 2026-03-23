@@ -140,8 +140,8 @@ export function ManageCategoriesModal({ open, onOpenChange, onCategoriesChange }
     }
   };
 
-  const entradas = categories.filter(c => c.type === 'entrada');
-  const saidas = categories.filter(c => c.type === 'saida');
+  const entradas = categories.filter(c => c.type === 'Entrada');
+  const saidas = categories.filter(c => c.type === 'Saida');
 
   const renderCategoryItem = (category: Category) => {
     const isEditing = editingId === category.id;
