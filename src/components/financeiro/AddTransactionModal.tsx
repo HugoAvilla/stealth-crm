@@ -154,14 +154,14 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
         <DialogHeader>
           <DialogTitle className={type === 'entrada' ? 'text-green-500' : 'text-red-500'}>
             Nova {type === 'entrada' ? 'Entrada' : 'Saída'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto pr-2">
           <div className="space-y-2">
             <Label>Valor *</Label>
             <Input
