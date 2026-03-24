@@ -15,6 +15,7 @@ import { AddTransactionModal } from "@/components/financeiro/AddTransactionModal
 import { AddTransferModal } from "@/components/financeiro/AddTransferModal";
 import { AddAccountModal } from "@/components/financeiro/AddAccountModal";
 import { ManageCategoriesModal } from "@/components/financeiro/ManageCategoriesModal";
+import { AccountDetailsModal } from "@/components/financeiro/AccountDetailsModal";
 import { toast } from "sonner";
 
 interface Account {
@@ -43,6 +44,8 @@ export default function Financeiro() {
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -401,9 +404,23 @@ export default function Financeiro() {
                           <span className="text-xs text-muted-foreground">{account.account_type}</span>
                         </div>
                       </div>
-                      {account.is_main && (
-                        <span className="text-[10px] bg-primary text-primary-foreground px-2 py-1 rounded-full uppercase font-bold tracking-wider">Principal</span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {account.is_main && (
+                          <span className="text-[10px] bg-primary text-primary-foreground px-2 py-1 rounded-full uppercase font-bold tracking-wider">Principal</span>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAccount(account);
+                            setDetailsModalOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="mt-2 text-right">
                        <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Balanço</p>
@@ -437,6 +454,11 @@ export default function Financeiro() {
       <ManageCategoriesModal
         open={categoriesModalOpen}
         onOpenChange={setCategoriesModalOpen}
+      />
+      <AccountDetailsModal
+        account={selectedAccount}
+        open={detailsModalOpen}
+        onOpenChange={setDetailsModalOpen}
       />
     </div>
   );
