@@ -15,6 +15,7 @@ import {
   User,
   FileText,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -95,6 +96,31 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Tem certeza que deseja excluir este registro?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("spaces")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Registro excluído com sucesso!",
+      });
+      fetchPaidExitedVehicles();
+    } catch (error) {
+      console.error("Erro ao excluir registro:", error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir o registro.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -222,6 +248,15 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
                         R$ {space.sale.total.toFixed(2)}
                       </span>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 mt-auto"
+                      onClick={() => handleDelete(space.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir
+                    </Button>
                   </div>
                 </div>
               </CardContent>
