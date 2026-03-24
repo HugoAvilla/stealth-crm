@@ -417,6 +417,9 @@ export default function Espaco() {
         open={!!selectedDay}
         onOpenChange={(open) => !open && setSelectedDay(null)}
         date={selectedDay}
+        onAddSlot={() => {
+          setShowFillSlotModal(true);
+        }}
       />
     </div>
   );

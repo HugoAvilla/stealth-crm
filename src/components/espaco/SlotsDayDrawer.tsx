@@ -3,8 +3,9 @@ import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Car, User, Clock, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Car, User, Clock, CheckCircle, AlertCircle, Loader2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -12,6 +13,7 @@ interface SlotsDayDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   date: Date | null;
+  onAddSlot?: () => void;
 }
 
 interface DaySpace {
@@ -39,7 +41,7 @@ interface DaySpace {
   } | null;
 }
 
-export function SlotsDayDrawer({ open, onOpenChange, date }: SlotsDayDrawerProps) {
+export function SlotsDayDrawer({ open, onOpenChange, date, onAddSlot }: SlotsDayDrawerProps) {
   const { user } = useAuth();
   const companyId = user?.companyId;
 
@@ -77,9 +79,17 @@ export function SlotsDayDrawer({ open, onOpenChange, date }: SlotsDayDrawerProps
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>
-            {format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </SheetTitle>
+          <div className="flex items-center justify-between pr-8">
+            <SheetTitle>
+              {format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </SheetTitle>
+            {onAddSlot && (
+              <Button size="sm" onClick={onAddSlot}>
+                <Plus className="h-4 w-4 mr-2" />
+                Cadastrar Vaga
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
         <div className="mt-6 space-y-4">
@@ -176,7 +186,13 @@ export function SlotsDayDrawer({ open, onOpenChange, date }: SlotsDayDrawerProps
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Car className="h-12 w-12 mb-4 opacity-50" />
-              <p>Nenhuma vaga registrada neste dia.</p>
+              <p className="mb-4">Nenhuma vaga registrada neste dia.</p>
+              {onAddSlot && (
+                <Button onClick={onAddSlot} variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Cadastrar Vaga
+                </Button>
+              )}
             </div>
           )}
         </div>
