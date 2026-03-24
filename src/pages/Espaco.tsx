@@ -13,6 +13,7 @@ import { SlotCard } from "@/components/espaco/SlotCard";
 import { FillSlotModal } from "@/components/espaco/FillSlotModal";
 import { SlotDetailsDrawer } from "@/components/espaco/SlotDetailsDrawer";
 import { SlotsDayDrawer } from "@/components/espaco/SlotsDayDrawer";
+import { ConfigureSlotsModal } from "@/components/espaco/ConfigureSlotsModal";
 import PaidExitedVehicles from "@/components/espaco/PaidExitedVehicles";
 import UnpaidExitedVehicles from "@/components/espaco/UnpaidExitedVehicles";
 import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
@@ -73,6 +74,7 @@ export default function Espaco() {
   const [showFillSlotModal, setShowFillSlotModal] = useState(false);
   const [selectedSpace, setSelectedSpace] = useState<SpaceData | null>(null);
   const [showDetailsDrawer, setShowDetailsDrawer] = useState(false);
+  const [showConfigureSlotsModal, setShowConfigureSlotsModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState("vagas");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -130,9 +132,26 @@ export default function Espaco() {
     enabled: !!companyId,
   });
 
+  // Fetch company settings to get total slots
+  const { data: companySettings, refetch: refetchSettings } = useQuery({
+    queryKey: ['company-settings', companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('total_slots')
+        .eq('company_id', companyId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
   // Calculate counts
+  const totalSlots = companySettings?.total_slots || 10;
   const occupiedCount = spaces?.length || 0;
-  const availableCount = 10 - occupiedCount; // Assuming 10 slots total
+  const availableCount = totalSlots - occupiedCount;
 
   const handleSlotClick = (space: SpaceData) => {
     setSelectedSpace(space);
@@ -225,15 +244,21 @@ export default function Espaco() {
         <TabsContent value="vagas" className="space-y-6 mt-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="bg-card/50 border-border/50">
+            <Card 
+              className="bg-card/50 border-border/50 cursor-pointer hover:bg-card/80 transition-colors"
+              onClick={() => setShowConfigureSlotsModal(true)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-primary/10">
                     <Car className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total de Vagas</p>
-                    <p className="text-2xl font-bold">10</p>
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      Total de Vagas
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 hover:bg-transparent">Configurar</Badge>
+                    </p>
+                    <p className="text-2xl font-bold">{totalSlots}</p>
                   </div>
                 </div>
               </CardContent>
@@ -420,6 +445,13 @@ export default function Espaco() {
         onAddSlot={() => {
           setShowFillSlotModal(true);
         }}
+      />
+
+      <ConfigureSlotsModal
+        open={showConfigureSlotsModal}
+        onOpenChange={setShowConfigureSlotsModal}
+        currentTotal={totalSlots}
+        onSuccess={() => refetchSettings()}
       />
     </div>
   );
