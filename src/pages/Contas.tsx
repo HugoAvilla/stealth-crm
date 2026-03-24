@@ -289,6 +289,11 @@ export default function Contas() {
         title="Guia de Contas"
         sections={[
           {
+            title: "Vídeo Aula — Contas",
+            description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da guia de contas.",
+            videoUrl: "/help/video-aula-conta.mov"
+          },
+          {
             title: "Selecionar Conta",
             description: "Na barra lateral esquerda estão listadas todas as suas contas (corrente, poupança, carteira). Clique em uma conta para ver seus detalhes. Use o botão '+' para criar uma nova conta e '👁' para ocultar os valores.",
             screenshotUrl: "/help/help-contas-selecionar.png"
