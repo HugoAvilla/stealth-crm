@@ -21,6 +21,7 @@ interface ProductType {
   brand: string;
   name: string;
   model: string | null;
+  light_transmission: string | null;
   cost_per_meter: number | null;
 }
 
@@ -58,7 +59,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
       if (!companyId) return [];
       const { data, error } = await supabase
         .from('product_types')
-        .select('id, category, brand, name, model, cost_per_meter')
+        .select('id, category, brand, name, model, light_transmission, cost_per_meter')
         .eq('company_id', companyId)
         .eq('is_active', true)
         .order('category')
@@ -143,7 +144,10 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
   };
 
   const formatProductLabel = (product: ProductType) => {
-    return `${product.brand} ${product.name}${product.model ? ` - ${product.model}` : ''}`;
+    let label = product.brand ? `${product.brand} ${product.name}` : product.name;
+    if (product.light_transmission) label += ` (${product.light_transmission})`;
+    if (product.model) label += ` - ${product.model}`;
+    return label;
   };
 
   return (
