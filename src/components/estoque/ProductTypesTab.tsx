@@ -79,7 +79,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
       if (error) throw error;
 
       // Criar material vinculado automaticamente
-      const materialName = `${data.brand} ${data.name}${data.batch ? ` - ${data.batch}` : ''}`;
+      const materialName = `${data.brand ? data.brand + ' ' : ''}${data.name}${data.batch ? ` - ${data.batch}` : ''}`;
       const { error: materialError } = await supabase.from("materials").insert({
         name: materialName,
         type: data.category,
@@ -266,10 +266,6 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
   };
 
   const handleSubmit = () => {
-    if (!formData.brand.trim()) {
-      toast.error("Marca é obrigatória");
-      return;
-    }
     if (!formData.name.trim()) {
       toast.error("Nome é obrigatório");
       return;
@@ -435,7 +431,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Marca *</Label>
+                <Label>Marca</Label>
                 <Input
                   placeholder="Ex: 3M, XPEL"
                   value={formData.brand}
