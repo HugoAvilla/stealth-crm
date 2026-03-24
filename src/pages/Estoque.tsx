@@ -29,6 +29,8 @@ interface Material {
   average_cost: number | null;
   is_active: boolean | null;
   company_id: number | null;
+  product_type_id: number | null;
+  product_types: { light_transmission: string | null } | null;
 }
 
 export default function Estoque() {
@@ -63,7 +65,7 @@ export default function Estoque() {
 
       const { data, error } = await supabase
         .from("materials")
-        .select("*")
+        .select("*, product_types(light_transmission)")
         .eq("company_id", profile.company_id)
         .eq("is_active", true)
         .order("name");
@@ -337,6 +339,7 @@ export default function Estoque() {
                     <TableRow>
                       <TableHead>Material</TableHead>
                       <TableHead>Tipo</TableHead>
+                      <TableHead className="text-center">Transmissão</TableHead>
                       <TableHead className="text-center">Estoque Atual</TableHead>
                       <TableHead className="text-center">Mínimo</TableHead>
                       <TableHead className="text-center">Status</TableHead>
@@ -361,6 +364,9 @@ export default function Estoque() {
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">{material.type || "-"}</Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {material.product_types?.light_transmission || "-"}
                           </TableCell>
                           <TableCell className="text-center">
                             {material.current_stock || 0} {material.unit}

@@ -94,34 +94,47 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
         return;
       }
 
-      // Check if material already exists for this product type (only active ones)
+      // Check if material already exists for this product type (active or inactive)
       const { data: existingMaterial } = await supabase
         .from("materials")
-        .select("id")
+        .select("id, is_active")
         .eq("product_type_id", selectedProduct.id)
         .eq("company_id", companyId)
-        .eq("is_active", true)
         .maybeSingle();
 
+      const materialName = `${selectedProduct.brand ? selectedProduct.brand + ' ' : ''}${selectedProduct.name}${selectedProduct.model ? ` - ${selectedProduct.model}` : ''}`;
+
+      let error;
+
       if (existingMaterial) {
-        toast.error("Já existe um material vinculado a este tipo de produto");
-        return;
+        // Update the existing material (auto-created or previously inactive) with new values
+        const { error: updateError } = await supabase
+          .from("materials")
+          .update({
+            name: materialName,
+            unit,
+            minimum_stock: minStock ? parseFloat(minStock) : 0,
+            current_stock: currentStock ? parseFloat(currentStock) : 0,
+            is_active: true,
+          })
+          .eq("id", existingMaterial.id);
+        error = updateError;
+      } else {
+        // Create new material
+        const { error: insertError } = await supabase.from("materials").insert({
+          name: materialName,
+          type: selectedProduct.category,
+          brand: selectedProduct.brand,
+          unit,
+          minimum_stock: minStock ? parseFloat(minStock) : 0,
+          current_stock: currentStock ? parseFloat(currentStock) : 0,
+          average_cost: selectedProduct.cost_per_meter || 0,
+          company_id: companyId,
+          product_type_id: selectedProduct.id,
+          is_active: true,
+        });
+        error = insertError;
       }
-
-      const materialName = `${selectedProduct.brand} ${selectedProduct.name}${selectedProduct.model ? ` - ${selectedProduct.model}` : ''}`;
-
-      const { error } = await supabase.from("materials").insert({
-        name: materialName,
-        type: selectedProduct.category,
-        brand: selectedProduct.brand,
-        unit,
-        minimum_stock: minStock ? parseFloat(minStock) : 0,
-        current_stock: currentStock ? parseFloat(currentStock) : 0,
-        average_cost: selectedProduct.cost_per_meter || 0,
-        company_id: companyId,
-        product_type_id: selectedProduct.id,
-        is_active: true,
-      });
 
       if (error) throw error;
 
