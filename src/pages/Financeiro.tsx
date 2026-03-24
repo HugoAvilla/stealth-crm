@@ -6,9 +6,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, subDays, startOfMonth, endOfMonth, addDays } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, addDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { AddTransactionModal } from "@/components/financeiro/AddTransactionModal";
@@ -33,10 +33,19 @@ interface Transaction {
   transaction_date: string;
 }
 
+interface Transfer {
+  id: number;
+  amount: number;
+  transfer_date: string;
+  from_account_id: number;
+  to_account_id: number;
+}
+
 export default function Financeiro() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showValues, setShowValues] = useState(true);
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
@@ -82,8 +91,19 @@ export default function Financeiro() {
         .lte("transaction_date", futureEnd)
         .order("transaction_date", { ascending: false });
 
+      // Fetch transfers for the last 7 days and future 7 days
+      const pastStart = format(subDays(new Date(), 7), "yyyy-MM-dd");
+      const { data: transfersData } = await supabase
+        .from("transfers")
+        .select("*")
+        .eq("company_id", profile.company_id)
+        .gte("transfer_date", pastStart)
+        .lte("transfer_date", futureEnd)
+        .order("transfer_date", { ascending: false });
+
       setAccounts(accountsData || []);
       setTransactions(transactionsData || []);
+      setTransfers(transfersData || []);
     } catch (error) {
       console.error("Error fetching financial data:", error);
       toast.error("Erro ao carregar dados financeiros");
@@ -145,6 +165,21 @@ export default function Financeiro() {
   }
 
   const chartData = reversedChartData.reverse();
+
+  // Generate transfer chart data for the last 7 days
+  const transferChartData = [];
+  for (let i = 6; i >= 0; i--) {
+    const dateObj = subDays(new Date(), i);
+    const dateStr = format(dateObj, 'yyyy-MM-dd');
+    
+    const dayTransfers = transfers.filter(t => t.transfer_date === dateStr);
+    const dayTotalTransferred = dayTransfers.reduce((sum, t) => sum + t.amount, 0);
+
+    transferChartData.push({
+      date: format(dateObj, 'dd/MM'),
+      volume: dayTotalTransferred,
+    });
+  }
 
   const getAccountIcon = (type: string | null) => {
     switch (type) {
@@ -314,58 +349,104 @@ export default function Financeiro() {
       {/* Divisor do Dashboard */}
       <h2 className="text-lg font-semibold mt-8 mb-4 tracking-tight">Análise de Performance</h2>
 
-      {/* Chart */}
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2">
-          <div>
-            <CardTitle className="text-lg">Evolução do Saldo</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Acompanhe seu patrimônio diário nos últimos 7 dias</p>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px] mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tickFormatter={(value) => `R$${value.toLocaleString('pt-BR', { notation: "compact" })}`} 
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                  }}
-                  itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
-                  formatter={(value: number) => [formatCurrency(value), 'Saldo em Conta']}
-                  labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="saldo" 
-                  stroke="hsl(var(--primary))" 
-                  fillOpacity={1} 
-                  fill="url(#colorSaldo)" 
-                  strokeWidth={3}
-                  activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "hsl(var(--background))", strokeWidth: 2 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Chart Evolução do Saldo */}
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-lg">Evolução do Saldo</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Acompanhe seu patrimônio diário nos últimos 7 dias</p>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))" 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={(value) => `R$${value.toLocaleString('pt-BR', { notation: "compact" })}`} 
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }}
+                    itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
+                    formatter={(value: number) => [formatCurrency(value), 'Saldo em Conta']}
+                    labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="saldo" 
+                    stroke="hsl(var(--primary))" 
+                    fillOpacity={1} 
+                    fill="url(#colorSaldo)" 
+                    strokeWidth={3}
+                    activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "hsl(var(--background))", strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Chart Volume de Transferências */}
+        <Card className="bg-card/50 border-border/50">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-lg">Volume de Transferências</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Movimentações entre suas contas nos últimos 7 dias</p>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={transferChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))" 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={(value) => `R$${value.toLocaleString('pt-BR', { notation: "compact" })}`} 
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }}
+                    itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
+                    formatter={(value: number) => [formatCurrency(value), 'Volume Transferido']}
+                    labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
+                  />
+                  <Bar 
+                    dataKey="volume" 
+                    fill="hsl(var(--blue-500, 221 83% 53%))" 
+                    radius={[4, 4, 0, 0]} 
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <h2 className="text-lg font-semibold mt-8 mb-4 tracking-tight">Detalhes Bancários</h2>
 
