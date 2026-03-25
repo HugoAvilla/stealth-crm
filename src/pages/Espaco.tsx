@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -78,6 +78,16 @@ export default function Espaco() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState("vagas");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Keep selectedSpace in sync with latest query data
+  useEffect(() => {
+    if (selectedSpace && spaces) {
+      const updated = spaces.find(s => s.id === selectedSpace.id);
+      if (updated) {
+        setSelectedSpace(updated);
+      }
+    }
+  }, [spaces]);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
