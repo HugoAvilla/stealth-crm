@@ -38,26 +38,30 @@ export function ConfigureSlotsModal({
 
     setIsSubmitting(true);
     try {
-      // First, check if company_settings exists for this company
-      const { data: existingSettings } = await supabase
-        .from('company_settings')
-        .select('id')
-        .eq('company_id', user.companyId)
-        .maybeSingle();
-
       const newTotal = parseInt(totalSlots, 10);
 
-      if (existingSettings) {
-        const { error } = await supabase
-          .from("company_settings")
-          .update({ total_slots: newTotal })
-          .eq("id", existingSettings.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
+      // Try to update existing record first
+      const { data: updateData, error: updateError } = await supabase
+        .from("company_settings")
+        .update({ total_slots: newTotal })
+        .eq("company_id", user.companyId)
+        .select("id");
+
+      if (updateError) {
+        console.error("Update error:", updateError);
+        throw updateError;
+      }
+
+      // If no row was updated, insert a new one
+      if (!updateData || updateData.length === 0) {
+        const { error: insertError } = await supabase
           .from("company_settings")
           .insert({ company_id: user.companyId, total_slots: newTotal });
-        if (error) throw error;
+
+        if (insertError) {
+          console.error("Insert error:", insertError);
+          throw insertError;
+        }
       }
 
       toast({
@@ -66,11 +70,11 @@ export function ConfigureSlotsModal({
       });
       onSuccess();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating slots:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível atualizar a quantidade de vagas. Por favor, verifique se a coluna total_slots foi criada no banco de dados.",
+        description: error?.message || "Não foi possível atualizar a quantidade de vagas.",
         variant: "destructive",
       });
     } finally {
