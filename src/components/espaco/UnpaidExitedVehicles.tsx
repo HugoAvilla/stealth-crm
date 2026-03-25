@@ -82,9 +82,8 @@ const UnpaidExitedVehicles = ({ refreshTrigger }: UnpaidExitedVehiclesProps) => 
           sale:sales(id, total, is_open)
         `)
         .eq("company_id", companyId)
-        .eq("has_exited", true)
         .or("payment_status.neq.paid,payment_status.is.null")
-        .order("exit_date", { ascending: false });
+        .order("updated_at", { ascending: false });
 
       if (error) throw error;
 
@@ -158,7 +157,7 @@ const UnpaidExitedVehicles = ({ refreshTrigger }: UnpaidExitedVehiclesProps) => 
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-warning" />
-            Veículos Não Pagos (Saída)
+            Veículos Não Pagos
           </h3>
           <p className="text-sm text-muted-foreground">
             {filteredVehicles.length} registro(s)
@@ -183,7 +182,7 @@ const UnpaidExitedVehicles = ({ refreshTrigger }: UnpaidExitedVehiclesProps) => 
             <p className="text-muted-foreground">
               {searchTerm
                 ? "Nenhum veículo encontrado com esse termo"
-                : "Nenhum veículo com saída não paga"}
+                : "Nenhum veículo não pago"}
             </p>
           </CardContent>
         </Card>

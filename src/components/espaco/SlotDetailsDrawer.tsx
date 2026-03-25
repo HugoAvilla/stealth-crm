@@ -121,27 +121,21 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     },
   });
 
-  // Mark as paid mutation (also marks as exited so it goes to "Veículos Pagos" tab)
+  // Mark as paid mutation
   const paymentMutation = useMutation({
     mutationFn: async () => {
       if (!space) return;
       const { error } = await supabase
         .from('spaces')
-        .update({ 
-          payment_status: 'paid',
-          has_exited: true,
-          exit_date: space.exit_date || format(new Date(), 'yyyy-MM-dd'),
-          exit_time: space.exit_time || format(new Date(), 'HH:mm'),
-        })
+        .update({ payment_status: 'paid' })
         .eq('id', space.id);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Pagamento confirmado e vaga liberada!");
+      toast.success("Pagamento confirmado!");
       queryClient.invalidateQueries({ queryKey: ['spaces'] });
       queryClient.invalidateQueries({ queryKey: ['unpaid-exited-count'] });
-      onOpenChange(false);
       onUpdate?.();
     },
     onError: (error) => {

@@ -81,9 +81,8 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
           sale:sales(id, total)
         `)
         .eq("company_id", companyId)
-        .eq("has_exited", true)
         .eq("payment_status", "paid")
-        .order("exit_date", { ascending: false });
+        .order("updated_at", { ascending: false });
 
       if (error) throw error;
 
@@ -154,7 +153,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-success" />
-            Veículos Pagos (Saída)
+            Veículos Pagos
           </h3>
           <p className="text-sm text-muted-foreground">
             {filteredVehicles.length} registro(s)
@@ -179,7 +178,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
             <p className="text-muted-foreground">
               {searchTerm
                 ? "Nenhum veículo encontrado com esse termo"
-                : "Nenhum veículo com saída paga ainda"}
+                : "Nenhum veículo pago ainda"}
             </p>
           </CardContent>
         </Card>

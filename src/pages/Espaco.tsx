@@ -115,7 +115,7 @@ export default function Espaco() {
     enabled: !!companyId,
   });
 
-  // Fetch unpaid exited vehicles count
+  // Fetch unpaid vehicles count
   const { data: unpaidCount } = useQuery({
     queryKey: ['unpaid-exited-count', companyId],
     queryFn: async () => {
@@ -123,7 +123,6 @@ export default function Espaco() {
         .from('spaces')
         .select('*', { count: 'exact', head: true })
         .eq('company_id', companyId)
-        .eq('has_exited', true)
         .or('payment_status.neq.paid,payment_status.is.null');
 
       if (error) throw error;
@@ -188,7 +187,7 @@ export default function Espaco() {
           },
           {
             title: "Veículos Pagos e Não Pagos",
-            description: "Use as abas 'Veículos Pagos (Saída)' e 'Não Pagos (Saída)' para acompanhar veículos que já saíram. O badge vermelho na aba indica quantos veículos saíram sem pagar.",
+            description: "Use as abas 'Veículos Pagos' e 'Não Pagos' para acompanhar o status de pagamento dos veículos. O badge vermelho na aba indica quantos veículos não foram pagos.",
             screenshotUrl: "/help/help-espaco-pagos.png"
           },
           {
@@ -220,11 +219,11 @@ export default function Espaco() {
           </TabsTrigger>
           <TabsTrigger value="pagos-saida" className="gap-2">
             <CheckCircle className="h-4 w-4" />
-            Veículos Pagos (Saída)
+            Veículos Pagos
           </TabsTrigger>
           <TabsTrigger value="nao-pagos-saida" className="gap-2">
             <AlertTriangle className="h-4 w-4" />
-            Não Pagos (Saída)
+            Não Pagos
             {unpaidCount !== undefined && unpaidCount > 0 && (
               <Badge
                 variant="destructive"
