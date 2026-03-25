@@ -652,11 +652,17 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           {showTag && (
             <div className="space-y-2">
               <Label>Tag</Label>
-              <Input 
-                value={tag} 
-                onChange={(e) => setTag(e.target.value)}
-                placeholder="Ex: Urgente, VIP, etc."
-              />
+              <Select value={tag} onValueChange={setTag}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma tag" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Em andamento">Em andamento</SelectItem>
+                  <SelectItem value="Pausado">Pausado</SelectItem>
+                  <SelectItem value="Em espera">Em espera</SelectItem>
+                  <SelectItem value="Finalizado">Finalizado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
 
