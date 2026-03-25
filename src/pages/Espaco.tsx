@@ -72,7 +72,7 @@ export default function Espaco() {
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showFillSlotModal, setShowFillSlotModal] = useState(false);
-  const [selectedSpace, setSelectedSpace] = useState<SpaceData | null>(null);
+  const [selectedSpaceId, setSelectedSpaceId] = useState<number | null>(null);
   const [showDetailsDrawer, setShowDetailsDrawer] = useState(false);
   const [showConfigureSlotsModal, setShowConfigureSlotsModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -115,6 +115,9 @@ export default function Espaco() {
     enabled: !!companyId,
   });
 
+  // Derived state to always have the freshest space data
+  const selectedSpace = spaces?.find(s => s.id === selectedSpaceId) || null;
+
   // Fetch unpaid vehicles count
   const { data: unpaidCount } = useQuery({
     queryKey: ['unpaid-exited-count', companyId],
@@ -153,7 +156,7 @@ export default function Espaco() {
   const availableCount = totalSlots - occupiedCount;
 
   const handleSlotClick = (space: SpaceData) => {
-    setSelectedSpace(space);
+    setSelectedSpaceId(space.id);
     setShowDetailsDrawer(true);
   };
 

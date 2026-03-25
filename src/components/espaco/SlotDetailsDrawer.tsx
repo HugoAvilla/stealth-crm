@@ -110,6 +110,21 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
         if (saleError) throw saleError;
       }
     },
+    onMutate: async (completed: boolean) => {
+      await queryClient.cancelQueries({ queryKey: ['spaces'] });
+      const previousSpaces = queryClient.getQueryData(['spaces']);
+      
+      queryClient.setQueryData(['spaces', (space as any)?.company_id], (old: any) => {
+        if (!old) return old;
+        return old.map((s: any) => s.id === space?.id ? {
+          ...s,
+          has_exited: completed,
+          exit_date: completed ? format(new Date(), 'yyyy-MM-dd') : s.exit_date,
+          exit_time: completed ? format(new Date(), 'HH:mm') : s.exit_time,
+        } : s);
+      });
+      return { previousSpaces };
+    },
     onSuccess: () => {
       toast.success(isCompleting ? "Vaga liberada!" : "Vaga reaberta!");
       queryClient.invalidateQueries({ queryKey: ['spaces'] });
@@ -131,6 +146,16 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
         .eq('id', space.id);
 
       if (error) throw error;
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['spaces'] });
+      const previousSpaces = queryClient.getQueryData(['spaces']);
+      
+      queryClient.setQueryData(['spaces', (space as any)?.company_id], (old: any) => {
+        if (!old) return old;
+        return old.map((s: any) => s.id === space?.id ? { ...s, payment_status: 'paid' } : s);
+      });
+      return { previousSpaces };
     },
     onSuccess: () => {
       toast.success("Pagamento confirmado!");
@@ -234,6 +259,18 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
         if (saleError) throw saleError;
       }
 
+      // Optimistic upate
+      queryClient.setQueryData(['spaces', (space as any)?.company_id], (old: any) => {
+        if (!old) return old;
+        return old.map((s: any) => s.id === space?.id ? {
+          ...s,
+          has_exited: true,
+          payment_status: 'paid',
+          exit_date: format(new Date(), 'yyyy-MM-dd'),
+          exit_time: format(new Date(), 'HH:mm'),
+        } : s);
+      });
+
       toast.success("Pagamento confirmado e vaga liberada!");
       queryClient.invalidateQueries({ queryKey: ['spaces'] });
       setShowUnpaidAlert(false);
@@ -263,6 +300,18 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
         .eq('id', space.id);
 
       if (spaceError) throw spaceError;
+
+      // Optimistic update
+      queryClient.setQueryData(['spaces', (space as any)?.company_id], (old: any) => {
+        if (!old) return old;
+        return old.map((s: any) => s.id === space?.id ? {
+          ...s,
+          has_exited: true,
+          payment_status: 'pending',
+          exit_date: format(new Date(), 'yyyy-MM-dd'),
+          exit_time: format(new Date(), 'HH:mm'),
+        } : s);
+      });
 
       toast.warning("Vaga liberada sem pagamento. Veículo movido para aba 'Não Pagos'.");
       queryClient.invalidateQueries({ queryKey: ['spaces'] });
