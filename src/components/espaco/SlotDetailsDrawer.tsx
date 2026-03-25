@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { UnpaidExitAlertDialog } from "./UnpaidExitAlertDialog";
 import { SpaceWhatsAppModal } from "./SpaceWhatsAppModal";
 import { generateSpacePDFA4, generateSpacePDFReceipt } from "@/lib/pdfGenerator";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SpaceDetails {
   id: number;
@@ -73,6 +74,9 @@ interface SlotDetailsDrawerProps {
 }
 
 export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotDetailsDrawerProps) {
+  const { user } = useAuth();
+  const companyId = user?.companyId;
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isCompleting, setIsCompleting] = useState(false);
@@ -345,9 +349,9 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     };
 
     if (format === 'a4') {
-      generateSpacePDFA4(pdfData);
+      generateSpacePDFA4(pdfData, companyId);
     } else {
-      generateSpacePDFReceipt(pdfData, format);
+      generateSpacePDFReceipt(pdfData, format, companyId);
     }
     toast.success("PDF gerado com sucesso!");
   };
