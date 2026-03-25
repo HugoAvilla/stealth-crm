@@ -79,16 +79,6 @@ export default function Espaco() {
   const [activeTab, setActiveTab] = useState("vagas");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Keep selectedSpace in sync with latest query data
-  useEffect(() => {
-    if (selectedSpace && spaces) {
-      const updated = spaces.find(s => s.id === selectedSpace.id);
-      if (updated) {
-        setSelectedSpace(updated);
-      }
-    }
-  }, [spaces]);
-
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
