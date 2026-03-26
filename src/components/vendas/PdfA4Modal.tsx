@@ -96,7 +96,7 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
       company_name: companyData?.company_name || 'EMPRESA',
     };
 
-    generateSalePDFA4(pdfData, options);
+    generateSalePDFA4(pdfData, options, user?.companyId || undefined);
     
     toast({
       title: "PDF gerado!",

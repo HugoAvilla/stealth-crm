@@ -107,7 +107,7 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
       company_name: companyData?.company_name || 'EMPRESA',
     };
 
-    generateSalePDFReceipt(pdfData, size, options);
+    generateSalePDFReceipt(pdfData, size, options, user?.companyId || undefined);
     
     toast({
       title: "PDF gerado!",
