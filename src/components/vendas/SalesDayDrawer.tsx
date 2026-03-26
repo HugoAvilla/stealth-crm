@@ -21,6 +21,7 @@ import {
 import { SaleWithDetails } from "@/types/sales";
 import SalesKPIBar from "@/components/vendas/SalesKPIBar";
 import SaleDetailsModal from "@/components/vendas/SaleDetailsModal";
+import SalesChartsModal from "@/components/vendas/SalesChartsModal";
 
 interface SalesDayDrawerProps {
   open: boolean;
@@ -33,6 +34,7 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales }: SalesDay
   const [currentDate, setCurrentDate] = useState(selectedDate || new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSale, setSelectedSale] = useState<SaleWithDetails | null>(null);
+  const [isChartsModalOpen, setIsChartsModalOpen] = useState(false);
 
   // Update current date when selectedDate changes
   useEffect(() => {
@@ -92,7 +94,11 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales }: SalesDay
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button variant="outline" className="gap-2">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => setIsChartsModalOpen(true)}
+              >
                 <BarChart3 className="h-4 w-4" />
                 Ver gráficos
               </Button>
@@ -158,6 +164,12 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales }: SalesDay
         open={!!selectedSale}
         onOpenChange={(open) => !open && setSelectedSale(null)}
         sale={selectedSale}
+      />
+
+      <SalesChartsModal
+        open={isChartsModalOpen}
+        onOpenChange={setIsChartsModalOpen}
+        sales={daySales}
       />
     </>
   );
