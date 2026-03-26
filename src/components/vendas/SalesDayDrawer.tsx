@@ -17,6 +17,7 @@ import {
   Search,
   BarChart3,
   DollarSign,
+  Plus,
 } from "lucide-react";
 import { SaleWithDetails } from "@/types/sales";
 import SalesKPIBar from "@/components/vendas/SalesKPIBar";
@@ -28,9 +29,10 @@ interface SalesDayDrawerProps {
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
   allSales: SaleWithDetails[];
+  onNewSale?: (date: Date) => void;
 }
 
-const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales }: SalesDayDrawerProps) => {
+const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales, onNewSale }: SalesDayDrawerProps) => {
   const [currentDate, setCurrentDate] = useState(selectedDate || new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSale, setSelectedSale] = useState<SaleWithDetails | null>(null);
@@ -94,13 +96,24 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales }: SalesDay
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              {onNewSale && (
+                <Button 
+                  className="gap-2 shrink-0 px-3"
+                  onClick={() => onNewSale(currentDate)}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Nova venda</span>
+                  <span className="sm:hidden">Nova</span>
+                </Button>
+              )}
               <Button 
                 variant="outline" 
-                className="gap-2"
+                className="gap-2 shrink-0 px-3"
                 onClick={() => setIsChartsModalOpen(true)}
               >
                 <BarChart3 className="h-4 w-4" />
-                Ver gráficos
+                <span className="hidden sm:inline">Ver gráficos</span>
+                <span className="sm:hidden">Gráficos</span>
               </Button>
             </div>
           </SheetHeader>

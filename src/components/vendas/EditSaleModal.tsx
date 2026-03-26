@@ -48,6 +48,7 @@ import { consumeStockForDetailedSale, createTransactionFromSale } from "@/lib/st
 import NewClientModal from "@/components/vendas/NewClientModal";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import { toast } from "sonner";
+import { SaleWithDetails } from "@/types/sales";
 
 interface Client {
   id: number;
@@ -91,14 +92,13 @@ interface ConsumptionRule {
   meters_consumed: number;
 }
 
-interface NewSaleModalProps {
+interface EditSaleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultClientId?: number;
-  initialDate?: Date;
+  sale: SaleWithDetails;
 }
 
-const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate }: NewSaleModalProps) => {
+const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -124,18 +124,42 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate }: NewS
   const [companyId, setCompanyId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (open) {
-      if (initialDate) {
-        setSaleDate(initialDate);
-      } else {
-        setSaleDate(new Date());
+    if (open && sale) {
+      setSaleDate(new Date(sale.sale_date + 'T12:00:00'));
+      if (sale.client_id) setSelectedClientId(sale.client_id.toString());
+      if (sale.vehicle_id) setSelectedVehicleId(sale.vehicle_id.toString());
+      if (sale.discount) {
+         setDiscountValue(sale.discount.toString());
+         if (sale.subtotal) {
+            setDiscountPercent(((sale.discount / sale.subtotal) * 100).toFixed(1));
+         }
+      }
+      if (sale.payment_method) setPaymentMethod(sale.payment_method);
+      setIsOpen(sale.is_open || false);
+      if (sale.observations) {
+         setNotes(sale.observations);
+         setShowNotes(true);
       }
       fetchData();
-      if (defaultClientId) {
-        setSelectedClientId(defaultClientId.toString());
-      }
+      
+      const fetchItems = async () => {
+         const { data } = await supabase.from('service_items_detailed').select('*').eq('sale_id', sale.id);
+         if (data) {
+            setDetailedItems(data.map((item) => ({
+              id: crypto.randomUUID(),
+              category: item.category as ProductCategory,
+              regionId: item.region_id,
+              regionName: '', 
+              productTypeId: item.product_type_id,
+              productTypeName: '', 
+              metersUsed: item.meters_used,
+              totalPrice: item.total_price
+            })));
+         }
+      };
+      if (sale.id) fetchItems();
     }
-  }, [open, user?.id, initialDate]);
+  }, [open, user?.id, sale]);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -306,10 +330,10 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate }: NewS
     try {
       const selectedClient = clients.find(c => c.id === parseInt(selectedClientId));
 
-      // Create sale
-      const { data: sale, error: saleError } = await supabase
+      // Update sale
+      const { error: saleError } = await supabase
         .from('sales')
-        .insert({
+        .update({
           client_id: parseInt(selectedClientId),
           vehicle_id: parseInt(selectedVehicleId),
           sale_date: format(saleDate, 'yyyy-MM-dd'),
@@ -320,13 +344,32 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate }: NewS
           is_open: isOpen,
           status: isOpen ? 'Aberta' : 'Fechada',
           observations: notes || null,
-          company_id: companyId,
-          seller_id: user?.id,
         })
-        .select()
-        .single();
+        .eq('id', sale.id);
 
       if (saleError) throw saleError;
+      
+      // Find old stock movements to reverse
+      const { data: oldMovements } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .like('reason', `Consumo automático - Venda #${sale.id}%`)
+        .eq('movement_type', 'Saida');
+        
+      if (oldMovements && oldMovements.length > 0) {
+        const estornoData = oldMovements.map(m => ({
+          material_id: m.material_id,
+          movement_type: 'Entrada',
+          quantity: m.quantity,
+          reason: `Estorno de Edição - Venda #${sale.id}`,
+          user_id: user?.id,
+          company_id: companyId,
+        }));
+        await supabase.from('stock_movements').insert(estornoData);
+      }
+      
+      await supabase.from('service_items_detailed').delete().eq('sale_id', sale.id);
+      await supabase.from('transactions').delete().eq('sale_id', sale.id);
 
       // Create service_items_detailed
       const serviceItemsData = detailedItems.map(item => ({
@@ -371,7 +414,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate }: NewS
         );
       }
 
-      toast.success(`Venda de R$ ${total.toFixed(2)} cadastrada com sucesso!`);
+      toast.success(`Venda de R$ ${total.toFixed(2)} atualizada com sucesso!`);
 
       // Reset form
       setSelectedClientId("");
@@ -406,9 +449,9 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate }: NewS
                 <DollarSign className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <DialogTitle>Cadastrar venda</DialogTitle>
+                <DialogTitle>Editar venda</DialogTitle>
                 <DialogDescription>
-                  Preencha os dados para cadastrar a venda
+                  Preencha os dados para atualizar a venda
                 </DialogDescription>
               </div>
             </div>
@@ -739,7 +782,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate }: NewS
 
           {/* Footer */}
           <Button onClick={handleSubmit} className="w-full" disabled={saving || loading}>
-            {saving ? 'Salvando...' : 'Adicionar'}
+            {saving ? 'Salvando...' : 'Salvar'}
           </Button>
         </DialogContent>
       </Dialog>
@@ -753,4 +796,4 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate }: NewS
   );
 };
 
-export default NewSaleModal;
+export default EditSaleModal;

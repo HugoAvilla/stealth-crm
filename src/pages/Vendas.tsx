@@ -39,6 +39,7 @@ const Vendas = () => {
   const [sales, setSales] = useState<SaleWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("vendas");
+  const [initialSaleDate, setInitialSaleDate] = useState<Date | undefined>(undefined);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -111,7 +112,7 @@ const Vendas = () => {
   };
 
   const getSalesForDay = (day: Date): SaleWithDetails[] => {
-    return sales.filter((sale) => isSameDay(new Date(sale.sale_date), day));
+    return sales.filter((sale) => isSameDay(new Date(sale.sale_date + 'T12:00:00'), day));
   };
 
   const monthSales = sales;
@@ -265,12 +266,11 @@ const Vendas = () => {
                       return (
                         <div
                           key={day.toISOString()}
-                          onClick={() => daySales.length > 0 && setSelectedDay(day)}
+                          onClick={() => setSelectedDay(day)}
                           className={cn(
-                            "min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border border-border rounded-lg transition-colors overflow-hidden",
+                            "min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border border-border rounded-lg transition-colors overflow-hidden cursor-pointer hover:bg-muted/50",
                             isCurrentMonth ? "bg-card" : "bg-background opacity-50",
-                            isToday && "ring-2 ring-primary",
-                            daySales.length > 0 && "cursor-pointer hover:bg-muted/50"
+                            isToday && "ring-2 ring-primary"
                           )}
                         >
                           <div className={cn(
@@ -310,7 +310,7 @@ const Vendas = () => {
                         <div
                           key={sale.id}
                           className="flex items-center justify-between p-4 bg-muted/30 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => setSelectedDay(new Date(sale.sale_date))}
+                          onClick={() => setSelectedDay(new Date(sale.sale_date + 'T12:00:00'))}
                         >
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">
@@ -326,7 +326,7 @@ const Vendas = () => {
                               R$ {sale.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {format(new Date(sale.sale_date), "dd/MM/yyyy")}
+                              {format(new Date(sale.sale_date + 'T12:00:00'), "dd/MM/yyyy")}
                             </p>
                           </div>
                           <Badge variant={!sale.is_open ? "default" : "outline"}>
@@ -352,8 +352,12 @@ const Vendas = () => {
         open={isNewSaleModalOpen}
         onOpenChange={(open) => {
           setIsNewSaleModalOpen(open);
-          if (!open) fetchSales();
+          if (!open) {
+            setInitialSaleDate(undefined);
+            fetchSales();
+          }
         }}
+        initialDate={initialSaleDate}
       />
 
       <SalesDayDrawer
@@ -361,6 +365,11 @@ const Vendas = () => {
         onOpenChange={(open) => !open && setSelectedDay(null)}
         selectedDate={selectedDay}
         allSales={sales}
+        onNewSale={(date) => {
+          setSelectedDay(null);
+          setInitialSaleDate(date);
+          setIsNewSaleModalOpen(true);
+        }}
       />
 
       <SalesChartsModal

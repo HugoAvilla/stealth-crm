@@ -43,6 +43,9 @@ import PdfA4Modal from "@/components/vendas/PdfA4Modal";
 import PdfNotinhaModal from "@/components/vendas/PdfNotinhaModal";
 import WhatsAppPreviewModal from "@/components/vendas/WhatsAppPreviewModal";
 import TransferToSpaceModal from "@/components/vendas/TransferToSpaceModal";
+import { ClientProfileModal } from "@/components/clientes/ClientProfileModal";
+import EditSaleModal from "@/components/vendas/EditSaleModal";
+import { Loader2 } from "lucide-react";
 
 interface SaleDetailsModalProps {
   open: boolean;
@@ -56,6 +59,11 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
   const [pdfNotinhaSize, setPdfNotinhaSize] = useState<"80mm" | "58mm">("80mm");
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [isEditSaleOpen, setIsEditSaleOpen] = useState(false);
+
+  // Client Profile state
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileClient, setProfileClient] = useState<any>(null);
 
   // Fetch detailed service items
   const { data: detailedItems } = useQuery({
@@ -101,6 +109,48 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
   const totalMeters = hasDetailedItems
     ? detailedItems.reduce((sum, item) => sum + item.meters_used, 0)
     : 0;
+
+  const handleOpenClientProfile = async () => {
+    if (!client) return;
+    setProfileLoading(true);
+
+    try {
+      const { data: clientData, error: clientError } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", client.id)
+        .single();
+      
+      if (clientError) throw clientError;
+
+      const { data: vehiclesData } = await supabase
+        .from("vehicles")
+        .select("*")
+        .eq("client_id", client.id);
+
+      const { data: salesData } = await supabase
+        .from("sales")
+        .select("total")
+        .eq("client_id", client.id);
+
+      const totalSpent = (salesData || []).reduce((sum, s) => sum + (s.total || 0), 0);
+
+      const fullClient = {
+        ...clientData,
+        vehicles: vehiclesData || [],
+        total_spent: totalSpent,
+        sales_count: (salesData || []).length,
+        created_at: clientData?.created_at || new Date().toISOString()
+      };
+
+      setProfileClient(fullClient);
+    } catch (error) {
+       console.error(error);
+       toast({ title: "Erro", description: "Falha ao carregar perfil do cliente", variant: "destructive" });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   return (
     <>
@@ -341,9 +391,14 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                 <Button
                   variant="outline"
                   className="gap-2 border-violet-500 text-violet-500 hover:bg-violet-500/10"
-                  onClick={() => toast({ title: "Ver cliente", description: "Abrindo perfil do cliente..." })}
+                  onClick={handleOpenClientProfile}
+                  disabled={profileLoading}
                 >
-                  <Eye className="h-4 w-4" />
+                  {profileLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                   Ver cliente
                 </Button>
                 <Button
@@ -360,7 +415,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
 
           {/* Footer */}
           <div className="flex gap-2 pt-4 border-t">
-            <Button variant="default" className="flex-1 gap-2">
+            <Button variant="default" className="flex-1 gap-2" onClick={() => setIsEditSaleOpen(true)}>
               <Edit className="h-4 w-4" />
               Editar
             </Button>
@@ -394,6 +449,21 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       <TransferToSpaceModal
         open={isTransferOpen}
         onOpenChange={setIsTransferOpen}
+        sale={sale}
+      />
+
+      {profileClient && (
+        <ClientProfileModal
+          open={!!profileClient}
+          onOpenChange={(open) => !open && setProfileClient(null)}
+          client={profileClient}
+          onEdit={() => {}}
+        />
+      )}
+
+      <EditSaleModal
+        open={isEditSaleOpen}
+        onOpenChange={setIsEditSaleOpen}
         sale={sale}
       />
     </>
