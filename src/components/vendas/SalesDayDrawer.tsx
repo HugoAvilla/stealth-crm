@@ -101,7 +101,7 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales }: SalesDay
 
           <div className="mt-6 space-y-6">
             {/* KPIs */}
-            <SalesKPIBar sales={daySales} />
+            <SalesKPIBar sales={daySales} className="grid grid-cols-2 sm:grid-cols-3 gap-3" />
 
             {/* Sales List */}
             <div className="space-y-3">

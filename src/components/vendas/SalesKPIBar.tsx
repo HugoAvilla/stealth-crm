@@ -4,9 +4,10 @@ import { DollarSign, Clock, TrendingUp, Percent } from "lucide-react";
 
 interface SalesKPIBarProps {
   sales: SaleWithDetails[];
+  className?: string;
 }
 
-const SalesKPIBar = ({ sales }: SalesKPIBarProps) => {
+const SalesKPIBar = ({ sales, className }: SalesKPIBarProps) => {
   // Use is_open field: false = closed, true = open
   const closedSales = sales.filter((s) => s.is_open === false);
   const openSales = sales.filter((s) => s.is_open === true);
@@ -67,7 +68,7 @@ const SalesKPIBar = ({ sales }: SalesKPIBarProps) => {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className={className || "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"}>
       {kpis.map((kpi) => (
         <Card key={kpi.label} className="p-3">
           <div className="flex items-center gap-2 mb-1">
