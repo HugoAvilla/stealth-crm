@@ -16,6 +16,9 @@ import { FileText, Download, X } from "lucide-react";
 import { SaleWithDetails } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
 import { generateSalePDFA4, type SalePDFData } from "@/lib/pdfGenerator";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PdfA4ModalProps {
   open: boolean;
@@ -24,6 +27,26 @@ interface PdfA4ModalProps {
 }
 
 const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
+  const { user } = useAuth();
+  
+  const { data: companyData } = useQuery({
+    queryKey: ['company-details', user?.companyId],
+    queryFn: async () => {
+      if (!user?.companyId) return null;
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', user.companyId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching company:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!user?.companyId && open,
+  });
   const [options, setOptions] = useState({
     companyName: true,
     receiptText: true,
@@ -70,7 +93,7 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
       discount: sale.discount || 0,
       total: sale.total,
       payment_method: sale.payment_method || 'Não informado',
-      company_name: 'WFE EVOLUTION',
+      company_name: companyData?.company_name || 'EMPRESA',
     };
 
     generateSalePDFA4(pdfData, options);
@@ -245,7 +268,7 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
               {/* Header */}
               {options.companyName && (
                 <div className="text-center mb-4">
-                  <h1 className="text-xl font-bold">WFE EVOLUTION</h1>
+                  <h1 className="text-xl font-bold">{companyData?.company_name || 'NOME DA EMPRESA'}</h1>
                   {options.receiptText && (
                     <p className="text-sm text-gray-600">Comprovante de Serviço</p>
                   )}

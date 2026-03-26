@@ -15,6 +15,9 @@ import { SaleWithDetails } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { generateSalePDFReceipt, type SalePDFData } from "@/lib/pdfGenerator";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PdfNotinhaModalProps {
   open: boolean;
@@ -23,7 +26,41 @@ interface PdfNotinhaModalProps {
   size: "80mm" | "58mm";
 }
 
+const OPTIONS_LABELS: Record<string, string> = {
+  companyName: "Nome da Empresa",
+  saleNumber: "Número da Venda",
+  clientName: "Nome do Cliente",
+  clientWhatsApp: "WhatsApp do Cliente",
+  vehicle: "Veículo",
+  serviceName: "Nome do Serviço",
+  servicePrice: "Preço do Serviço",
+  total: "Total",
+  paymentMethod: "Forma de Pagamento",
+  subtotal: "Subtotal",
+  discount: "Desconto",
+};
+
 const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProps) => {
+  const { user } = useAuth();
+  
+  const { data: companyData } = useQuery({
+    queryKey: ['company-details', user?.companyId],
+    queryFn: async () => {
+      if (!user?.companyId) return null;
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', user.companyId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching company:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!user?.companyId && open,
+  });
   const [options, setOptions] = useState({
     companyName: true,
     saleNumber: true,
@@ -67,7 +104,7 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
       discount: sale.discount || 0,
       total: sale.total,
       payment_method: sale.payment_method || 'Não informado',
-      company_name: 'WFE EVOLUTION',
+      company_name: companyData?.company_name || 'EMPRESA',
     };
 
     generateSalePDFReceipt(pdfData, size, options);
@@ -115,8 +152,8 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
                     checked={value}
                     onCheckedChange={() => toggleOption(key as keyof typeof options)}
                   />
-                  <Label htmlFor={key} className="text-sm capitalize">
-                    {key.replace(/([A-Z])/g, " $1").trim()}
+                  <Label htmlFor={key} className="text-sm">
+                    {OPTIONS_LABELS[key] || key}
                   </Label>
                 </div>
               ))}
@@ -135,9 +172,11 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
               {options.companyName && (
                 <div className="text-center mb-3">
                   <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-2 flex items-center justify-center">
-                    <span className="text-lg font-bold">WFE</span>
+                    <span className="text-lg font-bold">
+                      {companyData?.company_name ? companyData.company_name.substring(0, 3).toUpperCase() : 'EMP'}
+                    </span>
                   </div>
-                  <p className="font-bold">WFE EVOLUTION</p>
+                  <p className="font-bold">{companyData?.company_name || 'NOME DA EMPRESA'}</p>
                 </div>
               )}
 
