@@ -127,6 +127,11 @@ const Vendas = () => {
         title="Guia de Vendas"
         sections={[
           {
+            title: "Vídeo Aula — Vendas",
+            description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de vendas.",
+            videoUrl: "/help/video-aula-vendas.mov"
+          },
+          {
             title: "Registrar Nova Venda",
             description: "Clique no botão 'Nova venda' no topo da página. Selecione o cliente, o veículo, adicione os serviços realizados e escolha a forma de pagamento. A venda será registrada no calendário na data selecionada.",
             screenshotUrl: "/help/help-vendas-nova.png"

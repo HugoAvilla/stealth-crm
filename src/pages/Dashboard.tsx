@@ -193,6 +193,11 @@ const Dashboard = () => {
         title="Guia do Painel de Controle"
         sections={[
           {
+            title: "Vídeo Aula — Painel",
+            description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades do painel de controle.",
+            videoUrl: "/help/video-aula-painel.mov"
+          },
+          {
             title: "Indicadores Principais",
             description: "No topo você encontra 4 cards com os principais indicadores do mês: Faturamento Total, Ticket Médio, Novos Clientes e Pós-Venda Pendente. Eles são atualizados automaticamente conforme você registra vendas.",
             screenshotUrl: "/help/help-dashboard-stats.png"

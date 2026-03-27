@@ -179,6 +179,11 @@ export default function Espaco() {
         title="Guia de Vagas"
         sections={[
           {
+            title: "Vídeo Aula — Espaço",
+            description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de vagas.",
+            videoUrl: "/help/video-aula-espaco.mov"
+          },
+          {
             title: "Preencher Vaga",
             description: "Clique em 'Preencher Vaga' para registrar a entrada de um veículo. Selecione o cliente, veículo, serviços a serem realizados e a data/hora de entrada. O veículo aparecerá como vaga ocupada.",
             screenshotUrl: "/help/help-espaco-preencher.png"
