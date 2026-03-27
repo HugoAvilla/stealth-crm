@@ -228,10 +228,9 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
         {loading ? (
           <>
-            <Skeleton className="h-32" />
             <Skeleton className="h-32" />
             <Skeleton className="h-32" />
             <Skeleton className="h-32" />
@@ -260,13 +259,7 @@ const Dashboard = () => {
               icon={<Users className="w-5 h-5" />}
               variant="warning"
             />
-            <StatsCard
-              title="Pós-Venda Pendente"
-              value={stats.pendingContacts}
-              subtitle="Contatos a realizar"
-              icon={<Phone className="w-5 h-5" />}
-              variant="destructive"
-            />
+
           </>
         )}
       </div>
