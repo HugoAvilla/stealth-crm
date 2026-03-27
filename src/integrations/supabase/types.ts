@@ -353,6 +353,7 @@ export type Database = {
           state: string | null
           street: string | null
           total_slots: number | null
+          monthly_goal: number | null
           updated_at: string | null
         }
         Insert: {
@@ -373,6 +374,7 @@ export type Database = {
           state?: string | null
           street?: string | null
           total_slots?: number | null
+          monthly_goal?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -393,6 +395,7 @@ export type Database = {
           state?: string | null
           street?: string | null
           total_slots?: number | null
+          monthly_goal?: number | null
           updated_at?: string | null
         }
         Relationships: [

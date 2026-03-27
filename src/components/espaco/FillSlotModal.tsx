@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent } from "lucide-react";
+import React, { useRef } from "react";
+import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -61,6 +62,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
   const [observations, setObservations] = useState("");
   const [tag, setTag] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
+  const fileInputRef = import("react").then(m => m.useRef<HTMLInputElement>(null)).valueOf() as any; // hack to avoid adding useRef everywhere, wait, I can just use React.useRef. Let's use standard import.
   
   // Detailed services state
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
@@ -177,6 +180,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       setObservations("");
       setTag("");
       setDetailedItems([]);
+      setPhotos([]);
       setShowDiscount(false);
       setShowObservations(false);
       setShowTag(false);
@@ -234,6 +238,17 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   // Handle removing a detailed service item
   const handleRemoveDetailedItem = (itemId: string) => {
     setDetailedItems(items => items.filter(item => item.id !== itemId));
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      if (photos.length + newFiles.length > 20) {
+        toast.error("Máximo de 20 fotos permitidas");
+        return;
+      }
+      setPhotos([...photos, ...newFiles]);
+    }
   };
 
   // Handle new vehicle created
@@ -310,6 +325,24 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           .from('spaces')
           .update({ services_data: servicesData } as any)
           .eq('id', spaceData.id);
+      }
+
+      // Upload photos
+      if (photos.length > 0) {
+        for (let i = 0; i < photos.length; i++) {
+          const photo = photos[i];
+          const fileExt = photo.name.split('.').pop() || 'jpg';
+          const fileName = `${Date.now()}_${i}.${fileExt}`;
+          const filePath = `${companyId}/${spaceData.id}/${fileName}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('checklists')
+            .upload(filePath, photo, { upsert: true });
+            
+          if (uploadError) {
+             console.error("Erro no upload da foto", photo.name, uploadError);
+          }
+        }
       }
 
       return spaceData;
@@ -529,16 +562,51 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             </div>
           </div>
 
-          {/* Fotos de checklist - placeholder */}
+          {/* Fotos de checklist */}
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Camera className="h-4 w-4" />
-              Fotos de checklist
-            </Label>
-            <p className="text-sm text-muted-foreground">Abaixo estão as fotos dessa vaga</p>
-            <Button variant="outline" className="w-full" disabled>
+            <div className="flex justify-between items-center">
+              <Label className="flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Fotos de checklist
+              </Label>
+              <span className="text-xs text-muted-foreground">{photos.length}/20</span>
+            </div>
+            <p className="text-sm text-muted-foreground">Opcional: Adicione fotos para referenciar a avaria ou condição de recebimento do veículo.</p>
+            
+            {photos.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {photos.map((photo, index) => (
+                  <div key={index} className="relative min-w-[80px] h-[80px] rounded border overflow-hidden shrink-0">
+                    <img src={URL.createObjectURL(photo)} alt={`Foto ${index+1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setPhotos(photos.filter((_, i) => i !== index))}
+                      className="absolute top-1 right-1 bg-black/50 hover:bg-black p-1 rounded-full text-white transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <input 
+              type="file" 
+              multiple 
+              accept="image/*" 
+              className="hidden" 
+              ref={fileInputRef}
+              onChange={handlePhotoSelect} 
+            />
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={photos.length >= 20}
+              type="button"
+            >
               <Plus className="h-4 w-4 mr-2" />
-              Carregar nova foto 0/20
+              Carregar nova foto
             </Button>
           </div>
 

@@ -10,8 +10,11 @@ import { CapacityWidget } from '@/components/dashboard/CapacityWidget';
 import { FinancialSummary } from '@/components/dashboard/FinancialSummary';
 import { ConversionFunnel } from '@/components/dashboard/ConversionFunnel';
 import { HelpOverlay } from '@/components/help/HelpOverlay';
-import { Search, DollarSign, TrendingUp, Users, Phone } from 'lucide-react';
+import { Search, DollarSign, TrendingUp, Users, Phone, Settings, Save, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 import NewClientModal from '@/components/vendas/NewClientModal';
 import { FillSlotModal } from '@/components/espaco/FillSlotModal';
 import { startOfMonth, endOfMonth } from 'date-fns';
@@ -32,6 +35,12 @@ const Dashboard = () => {
   const [showFillSlotModal, setShowFillSlotModal] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // States para Meta
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [editingGoalValue, setEditingGoalValue] = useState<number>(0);
+  const [isSavingGoal, setIsSavingGoal] = useState(false);
+
   const [stats, setStats] = useState<DashboardStats>({
     totalSales: 0,
     salesCount: 0,
@@ -99,13 +108,22 @@ const Dashboard = () => {
         const salesCount = sales.length;
         const avgTicket = salesCount > 0 ? totalRevenue / salesCount : 0;
 
+        // Fetch monthly goal
+        const { data: settingsData } = await supabase
+          .from('company_settings')
+          .select('monthly_goal')
+          .eq('company_id', profile.company_id)
+          .maybeSingle();
+          
+        const monthlyGoalSetting = settingsData?.monthly_goal || 50000;
+
         setStats({
           totalSales: totalRevenue,
           salesCount,
           averageTicket: avgTicket,
           newClients: newClientsCount || 0,
           pendingContacts: pendingCount || 0,
-          monthlyGoal: 50000,
+          monthlyGoal: monthlyGoalSetting,
           monthlyProgress: totalRevenue,
         });
       } catch (error) {
@@ -117,6 +135,41 @@ const Dashboard = () => {
 
     fetchDashboardStats();
   }, [user?.id]);
+
+  const handleSaveGoal = async () => {
+    if (!user?.id) return;
+    try {
+      setIsSavingGoal(true);
+      if (editingGoalValue <= 0) {
+        toast.error("Valor inválido");
+        return;
+      }
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (!profile?.company_id) return;
+
+      const { error } = await supabase
+        .from('company_settings')
+        .update({ monthly_goal: editingGoalValue })
+        .eq('company_id', profile.company_id);
+        
+      if (error) throw error;
+      
+      setStats(prev => ({ ...prev, monthlyGoal: editingGoalValue }));
+      setIsEditingGoal(false);
+      toast.success("Meta atualizada com sucesso!");
+    } catch (err) {
+      console.error("Erro ao salvar meta:", err);
+      toast.error("Erro ao atualizar a meta do mês");
+    } finally {
+      setIsSavingGoal(false);
+    }
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-[100vw] overflow-x-hidden">
@@ -236,11 +289,59 @@ const Dashboard = () => {
 
         {/* Goal Progress */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h3 className="text-sm font-medium text-muted-foreground mb-4">
-            Meta do Mês
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Meta do Mês
+            </h3>
+            {!isEditingGoal && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 w-8 p-0" 
+                onClick={() => {
+                  setEditingGoalValue(stats.monthlyGoal);
+                  setIsEditingGoal(true);
+                }}
+              >
+                <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+              </Button>
+            )}
+          </div>
+          
           {loading ? (
             <Skeleton className="h-24" />
+          ) : isEditingGoal ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">Novo valor da meta (R$)</label>
+                <Input 
+                  type="number" 
+                  value={editingGoalValue || ''} 
+                  onChange={(e) => setEditingGoalValue(Number(e.target.value))}
+                  placeholder="Ex: 50000"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  className="flex-1" 
+                  onClick={handleSaveGoal}
+                  disabled={isSavingGoal}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-10 p-0" 
+                  onClick={() => setIsEditingGoal(false)}
+                  disabled={isSavingGoal}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           ) : (
             <>
               <div className="flex items-baseline gap-2 mb-4">

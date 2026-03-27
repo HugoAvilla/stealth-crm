@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { 
   Car, Phone, User, Calendar, Clock, DollarSign, Link2, 
   FileText, MessageSquare, Trash2, Edit, 
-  CheckCircle, Package, AlertCircle, Loader2
+  CheckCircle, Package, AlertCircle, Loader2, Camera
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -84,6 +84,44 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   const [isReleasing, setIsReleasing] = useState(false);
   const [whatsAppType, setWhatsAppType] = useState<'entrada' | 'saida'>('entrada');
   const [showWhatsApp, setShowWhatsApp] = useState(false);
+  const [checklistPhotos, setChecklistPhotos] = useState<{name: string, url: string}[]>([]);
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
+
+  // Fetch photos
+  useEffect(() => {
+    async function fetchPhotos() {
+      if (!open || !space || !companyId) return;
+      setIsLoadingPhotos(true);
+      try {
+        const { data, error } = await supabase.storage
+          .from('checklists')
+          .list(`${companyId}/${space.id}`);
+          
+        if (data && !error) {
+          const files = data.filter(f => f.name !== '.emptyFolderPlaceholder');
+          const urls = files.map(file => {
+            const { data: { publicUrl } } = supabase.storage
+              .from('checklists')
+              .getPublicUrl(`${companyId}/${space.id}/${file.name}`);
+            return { name: file.name, url: publicUrl };
+          });
+          setChecklistPhotos(urls);
+        } else {
+          setChecklistPhotos([]);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar fotos", err);
+      } finally {
+        setIsLoadingPhotos(false);
+      }
+    }
+    
+    if (open) {
+      fetchPhotos();
+    } else {
+      setChecklistPhotos([]);
+    }
+  }, [open, space?.id, companyId]);
 
   // Complete slot mutation (for paid vehicles or reopening)
   const completeMutation = useMutation({
@@ -587,6 +625,35 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
               </Button>
             </div>
           </div>
+
+          {/* Fotos do Checklist */}
+          {(checklistPhotos.length > 0 || isLoadingPhotos) && (
+            <div className="space-y-2">
+              <h4 className="flex items-center gap-2 text-sm font-medium">
+                <Camera className="h-4 w-4" />
+                Fotos da Vaga (Checklist)
+              </h4>
+              {isLoadingPhotos ? (
+                <div className="flex items-center justify-center p-4 border rounded-lg bg-muted/30">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {checklistPhotos.map((photo, index) => (
+                    <a 
+                      key={index} 
+                      href={photo.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="relative min-w-[100px] h-[100px] rounded border overflow-hidden shrink-0 block hover:opacity-80 transition-opacity"
+                    >
+                      <img src={photo.url} alt={`Foto ${index+1}`} className="w-full h-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Observações */}
           {space.observations && (

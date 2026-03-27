@@ -26,17 +26,24 @@ export function CapacityWidget() {
           return;
         }
 
-        // Count spaces by status
-        const { data: spacesData } = await supabase
-          .from('spaces')
-          .select('status')
-          .eq('company_id', profile.company_id);
+        // Obter total_slots configurado e as vagas ativas
+        const [settingsRes, spacesRes] = await Promise.all([
+          supabase
+            .from('company_settings')
+            .select('total_slots')
+            .eq('company_id', profile.company_id)
+            .maybeSingle(),
+          supabase
+            .from('spaces')
+            .select('id')
+            .eq('company_id', profile.company_id)
+            .eq('has_exited', false)
+        ]);
 
-        const spaces = spacesData || [];
-        const total = spaces.length || 10;
-        const occupied = spaces.filter(s => s.status === 'ocupada').length;
+        const total = settingsRes.data?.total_slots || 10;
+        const occupied = spacesRes.data?.length || 0;
 
-        setTotalSlots(total > 0 ? total : 10);
+        setTotalSlots(total);
         setOccupiedSlots(occupied);
       } catch (error) {
         console.error('Error fetching capacity:', error);
