@@ -153,10 +153,26 @@ const Dashboard = () => {
         
       if (!profile?.company_id) return;
 
-      const { error } = await supabase
+      // Tenta atualizar primeiro
+      const { data: existing } = await supabase
         .from('company_settings')
-        .update({ monthly_goal: editingGoalValue })
-        .eq('company_id', profile.company_id);
+        .select('id')
+        .eq('company_id', profile.company_id)
+        .maybeSingle();
+
+      let error;
+      if (existing) {
+        // Já existe registro => update
+        ({ error } = await supabase
+          .from('company_settings')
+          .update({ monthly_goal: editingGoalValue })
+          .eq('company_id', profile.company_id));
+      } else {
+        // Não existe => insert
+        ({ error } = await supabase
+          .from('company_settings')
+          .insert({ company_id: profile.company_id, monthly_goal: editingGoalValue }));
+      }
         
       if (error) throw error;
       
