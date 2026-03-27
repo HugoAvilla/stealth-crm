@@ -446,6 +446,9 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
                         mode="single"
                         selected={birthDate}
                         onSelect={setBirthDate}
+                        captionLayout="dropdown-buttons"
+                        fromYear={1900}
+                        toYear={new Date().getFullYear()}
                         initialFocus
                         className="p-3 pointer-events-auto"
                       />
