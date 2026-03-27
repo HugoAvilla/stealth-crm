@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Car, User, Clock, CheckCircle, AlertCircle, Loader2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { SlotDetailsDrawer } from "./SlotDetailsDrawer";
 
 interface SlotsDayDrawerProps {
   open: boolean;
@@ -44,6 +46,8 @@ interface DaySpace {
 export function SlotsDayDrawer({ open, onOpenChange, date, onAddSlot }: SlotsDayDrawerProps) {
   const { user } = useAuth();
   const companyId = user?.companyId;
+  const queryClient = useQueryClient();
+  const [selectedSpace, setSelectedSpace] = useState<any>(null);
 
   const dayStr = date ? format(date, 'yyyy-MM-dd') : null;
 
@@ -53,15 +57,17 @@ export function SlotsDayDrawer({ open, onOpenChange, date, onAddSlot }: SlotsDay
       const { data, error } = await supabase
         .from('spaces')
         .select(`
-          id,
-          name,
-          entry_time,
-          exit_time,
-          has_exited,
-          payment_status,
-          client:clients(id, name, phone),
+          *,
+          client:clients(id, name, phone, birth_date),
           vehicle:vehicles(id, brand, model, plate, year),
-          sale:sales(id, total)
+          sale:sales(
+            id, total, subtotal, discount,
+            sale_items(
+              id,
+              total_price,
+              service:services(id, name)
+            )
+          )
         `)
         .eq('company_id', companyId)
         .eq('entry_date', dayStr)
@@ -76,7 +82,8 @@ export function SlotsDayDrawer({ open, onOpenChange, date, onAddSlot }: SlotsDay
   if (!date) return null;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md">
         <SheetHeader>
           <div className="flex items-center justify-between pr-8">
@@ -103,7 +110,11 @@ export function SlotsDayDrawer({ open, onOpenChange, date, onAddSlot }: SlotsDay
               const isCompleted = space.has_exited;
 
               return (
-                <Card key={space.id} className="bg-card/50">
+                <Card 
+                  key={space.id} 
+                  className="bg-card/50 cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => setSelectedSpace(space)}
+                >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{space.name}</span>
@@ -198,5 +209,15 @@ export function SlotsDayDrawer({ open, onOpenChange, date, onAddSlot }: SlotsDay
         </div>
       </SheetContent>
     </Sheet>
+
+    <SlotDetailsDrawer
+        open={!!selectedSpace}
+        onOpenChange={(op) => !op && setSelectedSpace(null)}
+        space={selectedSpace}
+        onUpdate={() => {
+          queryClient.invalidateQueries({ queryKey: ['spaces-day'] });
+        }}
+    />
+    </>
   );
 }
