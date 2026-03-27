@@ -8,7 +8,6 @@ import { TopClientsRanking } from '@/components/dashboard/TopClientsRanking';
 import { SalesChart } from '@/components/dashboard/SalesChart';
 import { CapacityWidget } from '@/components/dashboard/CapacityWidget';
 import { FinancialSummary } from '@/components/dashboard/FinancialSummary';
-import { ConversionFunnel } from '@/components/dashboard/ConversionFunnel';
 import { HelpOverlay } from '@/components/help/HelpOverlay';
 import { Search, DollarSign, TrendingUp, Users, Phone, Settings, Save, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -179,9 +178,9 @@ const Dashboard = () => {
       setStats(prev => ({ ...prev, monthlyGoal: editingGoalValue }));
       setIsEditingGoal(false);
       toast.success("Meta atualizada com sucesso!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao salvar meta:", err);
-      toast.error("Erro ao atualizar a meta do mês");
+      toast.error(err.message || "Erro ao atualizar a meta do mês. Talvez falte rodar uma Migration no Supabase.");
     } finally {
       setIsSavingGoal(false);
     }
@@ -292,9 +291,8 @@ const Dashboard = () => {
       </div>
 
       {/* Secondary Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.5s' }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: '0.5s' }}>
         <CapacityWidget />
-        <ConversionFunnel />
 
         {/* Goal Progress */}
         <div className="rounded-xl border border-border bg-card p-5">
