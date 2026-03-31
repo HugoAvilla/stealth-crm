@@ -17,6 +17,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -77,7 +83,7 @@ interface Client {
   sales_count: number;
   last_sale_date: string | null;
   status: 'Ativo' | 'Inativo';
-  tier: 'VIP' | 'B2B' | 'B2C' | 'Novo';
+  tier: 'VIP' | 'Comum' | 'Sem Compras';
 }
 
 type SortOption = 'name-asc' | 'name-desc' | 'recent' | 'spent';
@@ -160,15 +166,12 @@ export default function Clientes() {
         }
         
         // Calculate Tier
-        let tier: 'VIP' | 'B2B' | 'B2C' | 'Novo' = 'Novo';
-        const isB2B = client.cpf_cnpj?.replace(/\D/g, '').length === 14;
+        let tier: 'VIP' | 'Comum' | 'Sem Compras' = 'Sem Compras';
         
-        if (totalSpent >= 5000 || clientSales.length >= 5) {
+        if (totalSpent >= 3000 || clientSales.length >= 3) {
           tier = 'VIP';
-        } else if (isB2B) {
-          tier = 'B2B';
         } else if (clientSales.length > 0) {
-          tier = 'B2C';
+          tier = 'Comum';
         }
 
         return {
@@ -409,17 +412,16 @@ export default function Clientes() {
         </div>
 
         {/* Tier Filter */}
-        <div className="w-full sm:w-[130px]">
+        <div className="w-full sm:w-[150px]">
           <Select value={filterTier} onValueChange={setFilterTier}>
             <SelectTrigger className="bg-card border-border">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Tipos (Todos)</SelectItem>
-              <SelectItem value="vip">VIP</SelectItem>
-              <SelectItem value="b2b">B2B</SelectItem>
-              <SelectItem value="b2c">B2C</SelectItem>
-              <SelectItem value="novo">Novo</SelectItem>
+              <SelectItem value="todos">Todos os tipos</SelectItem>
+              <SelectItem value="vip">⭐ VIP (Frequente)</SelectItem>
+              <SelectItem value="comum">👤 Comum (Padrão)</SelectItem>
+              <SelectItem value="sem compras">⏳ Sem Compras</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -472,6 +474,7 @@ export default function Clientes() {
                 <TableHead className="text-muted-foreground text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
+          <TooltipProvider>
             <TableBody>
               {filteredAndSortedClients.map((client) => (
                 <TableRow key={client.id} className="border-border">
@@ -479,19 +482,37 @@ export default function Clientes() {
                     <div className="flex flex-col gap-1">
                       <span className="font-medium text-foreground">{client.name}</span>
                       <div className="flex flex-wrap gap-1">
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium uppercase tracking-wider
-                          ${client.status === 'Ativo' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}
-                        `}>
-                          {client.status}
-                        </span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium uppercase tracking-wider
-                          ${client.tier === 'VIP' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 
-                            client.tier === 'B2B' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 
-                            client.tier === 'B2C' ? 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400' :
-                            'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}
-                        `}>
-                          {client.tier}
-                        </span>
+                        <Tooltip delayDuration={300}>
+                          <TooltipTrigger asChild>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium uppercase tracking-wider cursor-help
+                              ${client.status === 'Ativo' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}
+                            `}>
+                              {client.status}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {client.status === 'Ativo' 
+                              ? 'Cliente com compra recente ou cadastro novo.' 
+                              : 'Cliente sem compras recentes (inativo).'}
+                          </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip delayDuration={300}>
+                          <TooltipTrigger asChild>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium uppercase tracking-wider cursor-help
+                              ${client.tier === 'VIP' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 
+                                client.tier === 'Comum' ? 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400' :
+                                'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}
+                            `}>
+                              {client.tier}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {client.tier === 'VIP' ? 'Frequente (3 ou mais serviços ou +R$ 3 mil)' : 
+                             client.tier === 'Comum' ? 'Cliente padrão com compras' :
+                             'Pendente de vendas'}
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
                   </TableCell>
@@ -541,6 +562,7 @@ export default function Clientes() {
                 </TableRow>
               ))}
             </TableBody>
+          </TooltipProvider>
           </Table>
 
           {filteredAndSortedClients.length === 0 && clients.length > 0 && (
