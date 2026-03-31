@@ -76,10 +76,14 @@ export async function consumeStockForSale(
       return result;
     }
 
-    // Create a map of materials by type
-    const materialsByType = new Map(
-      materials.map((m) => [m.type?.toLowerCase() || m.name.toLowerCase(), m])
-    );
+    // Create a map of materials by type, keeping both open rolls and regular ones
+    const materialsByType = new Map<string, any[]>();
+    for (const m of materials || []) {
+      const key = m.type?.toLowerCase() || m.name.toLowerCase();
+      const arr = materialsByType.get(key) || [];
+      arr.push(m);
+      materialsByType.set(key, arr);
+    }
 
     // 4. Process each consumption rule
     for (const rule of rules) {
@@ -100,7 +104,9 @@ export async function consumeStockForSale(
       if (consumeAmount <= 0) continue;
 
       // Find matching material
-      const material = materialsByType.get(rule.material_type.toLowerCase());
+      const productMaterials = materialsByType.get(rule.material_type.toLowerCase()) || [];
+      const openRollMaterial = productMaterials.find(m => m.is_open_roll);
+      const material = openRollMaterial || productMaterials.find(m => !m.is_open_roll);
 
       if (!material) {
         result.warnings.push(
@@ -109,36 +115,53 @@ export async function consumeStockForSale(
         continue;
       }
 
-      const currentStock = material.current_stock || 0;
-
-      // Check if we have enough stock
-      if (currentStock < consumeAmount) {
-        result.warnings.push(
-          `Estoque insuficiente de ${material.name}: necessário ${consumeAmount} ${material.unit}, disponível ${currentStock} ${material.unit}`
-        );
-        // Continue with partial consumption if there's any stock
-        if (currentStock <= 0) continue;
-        consumeAmount = currentStock;
-      }
-
-      // 5. Register stock movement (trigger will update current_stock)
-      const { error: movementError } = await supabase
-        .from("stock_movements")
-        .insert({
-          material_id: material.id,
-          movement_type: "Saida",
-          quantity: consumeAmount,
-          reason: `Consumo automático - Venda #${saleId} (${vehicle.brand} ${vehicle.model} - ${vehicleSize})`,
-          user_id: userId,
-          company_id: companyId,
+      if (material.is_open_roll) {
+        // Consume from open roll via RPC
+        const { error: rpcError } = await supabase.rpc("consume_open_roll", {
+          p_material_id: material.id,
+          p_meters: consumeAmount,
+          p_reason: `Consumo automático - Venda #${saleId} (${vehicle.brand} ${vehicle.model} - ${vehicleSize})`,
+          p_user_id: userId,
+          p_company_id: companyId,
         });
 
-      if (movementError) {
-        console.error("Error registering stock movement:", movementError);
-        result.warnings.push(
-          `Erro ao registrar consumo de ${material.name}`
-        );
-        continue;
+        if (rpcError) {
+          console.error("Error consuming open roll:", rpcError);
+          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+          continue;
+        }
+      } else {
+        const currentStock = material.current_stock || 0;
+
+        // Check if we have enough stock
+        if (currentStock < consumeAmount) {
+          result.warnings.push(
+            `Estoque insuficiente de ${material.name}: necessário ${consumeAmount} ${material.unit}, disponível ${currentStock} ${material.unit}`
+          );
+          // Continue with partial consumption if there's any stock
+          if (currentStock <= 0) continue;
+          consumeAmount = currentStock;
+        }
+
+        // 5. Register stock movement (trigger will update current_stock)
+        const { error: movementError } = await supabase
+          .from("stock_movements")
+          .insert({
+            material_id: material.id,
+            movement_type: "Saida",
+            quantity: consumeAmount,
+            reason: `Consumo automático - Venda #${saleId} (${vehicle.brand} ${vehicle.model} - ${vehicleSize})`,
+            user_id: userId,
+            company_id: companyId,
+          });
+
+        if (movementError) {
+          console.error("Error registering stock movement:", movementError);
+          result.warnings.push(
+            `Erro ao registrar consumo de ${material.name}`
+          );
+          continue;
+        }
       }
 
       result.consumed.push({
@@ -207,9 +230,12 @@ export async function consumeStockForDetailedSale(
     }
 
     // Create a map of materials by product_type_id
-    const materialsByProductType = new Map(
-      (materials || []).map((m) => [m.product_type_id, m])
-    );
+    const materialsByProductType = new Map<number, any[]>();
+    for (const m of materials || []) {
+      const arr = materialsByProductType.get(m.product_type_id) || [];
+      arr.push(m);
+      materialsByProductType.set(m.product_type_id, arr);
+    }
 
     // 2. Group consumption by product_type_id
     const consumptionByProduct = new Map<number, number>();
@@ -222,7 +248,9 @@ export async function consumeStockForDetailedSale(
     for (const [productTypeId, metersToConsume] of consumptionByProduct) {
       if (metersToConsume <= 0) continue;
 
-      const material = materialsByProductType.get(productTypeId);
+      const productMaterials = materialsByProductType.get(productTypeId) || [];
+      const openRollMaterial = productMaterials.find(m => m.is_open_roll);
+      const material = openRollMaterial || productMaterials.find(m => !m.is_open_roll);
 
       if (!material) {
         // Get product type name for warning
@@ -242,35 +270,53 @@ export async function consumeStockForDetailedSale(
         continue;
       }
 
-      const currentStock = material.current_stock || 0;
       let consumeAmount = metersToConsume;
 
-      // Check if we have enough stock
-      if (currentStock < metersToConsume) {
-        result.warnings.push(
-          `Estoque insuficiente de ${material.name}: necessário ${metersToConsume.toFixed(2)} ${material.unit}, disponível ${currentStock.toFixed(2)} ${material.unit}`
-        );
-        // Continue with partial consumption if there's any stock
-        if (currentStock <= 0) continue;
-        consumeAmount = currentStock;
-      }
-
-      // 4. Register stock movement
-      const { error: movementError } = await supabase
-        .from("stock_movements")
-        .insert({
-          material_id: material.id,
-          movement_type: "Saida",
-          quantity: consumeAmount,
-          reason: `Consumo automático - Venda #${saleId} (${vehicleBrand} ${vehicleModel} - ${vehicleSize})`,
-          user_id: userId,
-          company_id: companyId,
+      if (material.is_open_roll) {
+        // Consume from open roll via RPC
+        const { error: rpcError } = await supabase.rpc("consume_open_roll", {
+          p_material_id: material.id,
+          p_meters: consumeAmount,
+          p_reason: `Consumo automático - Venda #${saleId} (${vehicleBrand} ${vehicleModel} - ${vehicleSize})`,
+          p_user_id: userId,
+          p_company_id: companyId,
         });
 
-      if (movementError) {
-        console.error("Error registering stock movement:", movementError);
-        result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
-        continue;
+        if (rpcError) {
+          console.error("Error consuming open roll:", rpcError);
+          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+          continue;
+        }
+      } else {
+        const currentStock = material.current_stock || 0;
+
+        // Check if we have enough stock
+        if (currentStock < metersToConsume) {
+          result.warnings.push(
+            `Estoque insuficiente de ${material.name}: necessário ${metersToConsume.toFixed(2)} ${material.unit}, disponível ${currentStock.toFixed(2)} ${material.unit}`
+          );
+          // Continue with partial consumption if there's any stock
+          if (currentStock <= 0) continue;
+          consumeAmount = currentStock;
+        }
+
+        // 4. Register stock movement
+        const { error: movementError } = await supabase
+          .from("stock_movements")
+          .insert({
+            material_id: material.id,
+            movement_type: "Saida",
+            quantity: consumeAmount,
+            reason: `Consumo automático - Venda #${saleId} (${vehicleBrand} ${vehicleModel} - ${vehicleSize})`,
+            user_id: userId,
+            company_id: companyId,
+          });
+
+        if (movementError) {
+          console.error("Error registering stock movement:", movementError);
+          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+          continue;
+        }
       }
 
       result.consumed.push({

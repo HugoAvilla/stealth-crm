@@ -592,8 +592,10 @@ export type Database = {
           current_stock: number | null
           id: number
           is_active: boolean | null
+          is_open_roll: boolean | null
           minimum_stock: number | null
           name: string
+          open_roll_accumulated: number | null
           product_type_id: number | null
           type: string | null
           unit: string
@@ -607,8 +609,10 @@ export type Database = {
           current_stock?: number | null
           id?: never
           is_active?: boolean | null
+          is_open_roll?: boolean | null
           minimum_stock?: number | null
           name: string
+          open_roll_accumulated?: number | null
           product_type_id?: number | null
           type?: string | null
           unit: string
@@ -622,8 +626,10 @@ export type Database = {
           current_stock?: number | null
           id?: never
           is_active?: boolean | null
+          is_open_roll?: boolean | null
           minimum_stock?: number | null
           name?: string
+          open_roll_accumulated?: number | null
           product_type_id?: number | null
           type?: string | null
           unit?: string
@@ -1462,6 +1468,7 @@ export type Database = {
           company_id: number | null
           created_at: string | null
           id: number
+          is_open_roll_closure: boolean | null
           material_id: number | null
           movement_type: string
           quantity: number
@@ -1472,6 +1479,7 @@ export type Database = {
           company_id?: number | null
           created_at?: string | null
           id?: never
+          is_open_roll_closure?: boolean | null
           material_id?: number | null
           movement_type: string
           quantity: number
@@ -1482,6 +1490,7 @@ export type Database = {
           company_id?: number | null
           created_at?: string | null
           id?: never
+          is_open_roll_closure?: boolean | null
           material_id?: number | null
           movement_type?: string
           quantity?: number
@@ -2274,6 +2283,25 @@ export type Database = {
       }
       approve_company_join_request: {
         Args: { request_id_input: number }
+        Returns: undefined
+      }
+      close_open_roll: {
+        Args: {
+          p_material_id: number
+          p_reason: string
+          p_user_id: string
+          p_company_id: number
+        }
+        Returns: number
+      }
+      consume_open_roll: {
+        Args: {
+          p_material_id: number
+          p_meters: number
+          p_reason: string
+          p_user_id: string
+          p_company_id: number
+        }
         Returns: undefined
       }
       count_company_members: {

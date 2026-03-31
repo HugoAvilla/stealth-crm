@@ -31,6 +31,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
   const [unit, setUnit] = useState("Metros");
   const [minStock, setMinStock] = useState("");
   const [currentStock, setCurrentStock] = useState("");
+  const [isOpenRoll, setIsOpenRoll] = useState(false);
   const [loading, setLoading] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
 
@@ -94,15 +95,17 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
         return;
       }
 
-      // Check if material already exists for this product type (active or inactive)
+      // Check if material already exists for this product type and roll state (active or inactive)
       const { data: existingMaterial } = await supabase
         .from("materials")
         .select("id, is_active")
         .eq("product_type_id", selectedProduct.id)
         .eq("company_id", companyId)
+        .eq("is_open_roll", isOpenRoll)
         .maybeSingle();
 
-      const materialName = `${selectedProduct.brand ? selectedProduct.brand + ' ' : ''}${selectedProduct.name}${selectedProduct.model ? ` - ${selectedProduct.model}` : ''}`;
+      const materialNameBase = `${selectedProduct.brand ? selectedProduct.brand + ' ' : ''}${selectedProduct.name}${selectedProduct.model ? ` - ${selectedProduct.model}` : ''}`;
+      const materialName = isOpenRoll ? `${materialNameBase} (Aberta)` : materialNameBase;
 
       let error;
 
@@ -114,8 +117,9 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
             name: materialName,
             unit,
             minimum_stock: minStock ? parseFloat(minStock) : 0,
-            current_stock: currentStock ? parseFloat(currentStock) : 0,
+            current_stock: isOpenRoll ? 0 : (currentStock ? parseFloat(currentStock) : 0),
             is_active: true,
+            is_open_roll: isOpenRoll,
           })
           .eq("id", existingMaterial.id);
         error = updateError;
@@ -127,11 +131,12 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
           brand: selectedProduct.brand,
           unit,
           minimum_stock: minStock ? parseFloat(minStock) : 0,
-          current_stock: currentStock ? parseFloat(currentStock) : 0,
+          current_stock: isOpenRoll ? 0 : (currentStock ? parseFloat(currentStock) : 0),
           average_cost: selectedProduct.cost_per_meter || 0,
           company_id: companyId,
           product_type_id: selectedProduct.id,
           is_active: true,
+          is_open_roll: isOpenRoll,
         });
         error = insertError;
       }
@@ -154,6 +159,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
     setUnit("Metros");
     setMinStock("");
     setCurrentStock("");
+    setIsOpenRoll(false);
   };
 
   const formatProductLabel = (product: ProductType) => {
@@ -224,14 +230,28 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label>Estado da Bobina</Label>
+            <Select value={isOpenRoll ? "Aberta" : "Nova"} onValueChange={(v) => setIsOpenRoll(v === "Aberta")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Nova">Nova</SelectItem>
+                <SelectItem value="Aberta">Aberta</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Estoque Inicial</Label>
               <Input
                 type="number"
                 placeholder="0"
-                value={currentStock}
+                value={isOpenRoll ? "0" : currentStock}
                 onChange={(e) => setCurrentStock(e.target.value)}
+                disabled={isOpenRoll}
               />
             </div>
 

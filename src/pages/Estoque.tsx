@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Trash2 } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Trash2, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +28,8 @@ interface Material {
   minimum_stock: number | null;
   average_cost: number | null;
   is_active: boolean | null;
+  is_open_roll: boolean | null;
+  open_roll_accumulated: number | null;
   company_id: number | null;
   product_type_id: number | null;
   product_types: { light_transmission: string | null } | null;
@@ -158,6 +160,27 @@ export default function Estoque() {
     } catch (error) {
       console.error("Error deleting material:", error);
       toast.error("Erro ao excluir material");
+    }
+  };
+
+  const handleCloseOpenRoll = async (material: Material) => {
+    if (!user?.id || !companyId) return;
+    if (!confirm(`Deseja encerrar a bobina "${material.name}"? O consumo acumulado total foi de ${material.open_roll_accumulated || 0}m. A bobina será inativada.`)) return;
+
+    try {
+      const { error } = await supabase.rpc("close_open_roll", {
+        p_material_id: material.id,
+        p_reason: "Fechamento manual de bobina",
+        p_user_id: user.id,
+        p_company_id: companyId
+      });
+
+      if (error) throw error;
+      toast.success("Bobina encerrada com sucesso");
+      fetchMaterials();
+    } catch (error) {
+      console.error("Error closing open roll:", error);
+      toast.error("Erro ao encerrar bobina");
     }
   };
 
@@ -369,27 +392,45 @@ export default function Estoque() {
                             {material.product_types?.light_transmission || "-"}
                           </TableCell>
                           <TableCell className="text-center">
-                            {material.current_stock || 0} {material.unit}
+                            {material.is_open_roll ? (
+                              <Badge variant="outline" className="border-blue-500 text-blue-500">
+                                Aberta (Usado: {material.open_roll_accumulated || 0}m)
+                              </Badge>
+                            ) : (
+                              `${material.current_stock || 0} ${material.unit}`
+                            )}
                           </TableCell>
                           <TableCell className="text-center text-muted-foreground">
-                            {material.minimum_stock || 0} {material.unit}
+                            {material.is_open_roll ? "-" : `${material.minimum_stock || 0} ${material.unit}`}
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge className={cn(stockStatus.bg, stockStatus.color, "border-0")}>
-                              {stockStatus.label}
-                            </Badge>
+                            {material.is_open_roll ? (
+                              <Badge className="bg-blue-500/10 text-blue-500 border-0">Em Uso</Badge>
+                            ) : (
+                              <Badge className={cn(stockStatus.bg, stockStatus.color, "border-0")}>
+                                {stockStatus.label}
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => handleEntry(material)} title="Entrada">
-                                <ArrowDown className="h-4 w-4 text-green-500" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
-                                <ArrowUp className="h-4 w-4 text-red-500" />
-                              </Button>
+                            <div className="flex gap-1 justify-end">
+                              {!material.is_open_roll ? (
+                                <>
+                                  <Button variant="ghost" size="icon" onClick={() => handleEntry(material)} title="Entrada">
+                                    <ArrowDown className="h-4 w-4 text-green-500" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
+                                    <ArrowUp className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button variant="ghost" size="icon" onClick={() => handleCloseOpenRoll(material)} title="Encerrar Bobina">
+                                  <StopCircle className="h-4 w-4 text-blue-500" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="icon"
