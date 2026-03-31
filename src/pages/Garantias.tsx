@@ -8,6 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
@@ -42,6 +49,7 @@ interface WarrantyTemplate {
 export default function Garantias() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showTemplatesListModal, setShowTemplatesListModal] = useState(false);
@@ -97,13 +105,35 @@ export default function Garantias() {
     }
   };
 
+  const getStatus = (expiresAt: string) => {
+    const expDate = new Date(expiresAt);
+    const now = new Date();
+    const monthsLeft = Math.floor((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30));
+
+    if (monthsLeft < 0) return { label: 'Expirada', color: 'bg-red-500/20 text-red-400' };
+    if (monthsLeft < 3) return { label: 'Vencendo', color: 'bg-yellow-500/20 text-yellow-400' };
+    return { label: 'Ativa', color: 'bg-green-500/20 text-green-400' };
+  };
+
   const filteredWarranties = warranties.filter(w => {
-    const searchLower = search.toLowerCase();
-    return (
-      w.warranty_type.toLowerCase().includes(searchLower) ||
-      w.client?.name.toLowerCase().includes(searchLower) ||
-      w.vehicle?.plate?.toLowerCase().includes(searchLower)
-    );
+    let pass = true;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      const codeMatch = w.id.toString() === search;
+      if (!w.warranty_type.toLowerCase().includes(searchLower) &&
+          !w.client?.name.toLowerCase().includes(searchLower) &&
+          !w.vehicle?.plate?.toLowerCase().includes(searchLower) &&
+          !codeMatch) {
+         pass = false;
+      }
+    }
+
+    if (statusFilter !== "todos") {
+      const statusLabel = getStatus(w.expiry_date).label.toLowerCase(); // "ativa", "vencendo", "expirada"
+      if (statusLabel !== statusFilter) pass = false;
+    }
+
+    return pass;
   });
 
   const getWarrantyWhatsAppUrl = (warranty: Warranty) => {
@@ -170,16 +200,6 @@ export default function Garantias() {
       console.error('Error deleting warranty:', error);
       toast.error("Erro ao excluir garantia");
     }
-  };
-
-  const getStatus = (expiresAt: string) => {
-    const expDate = new Date(expiresAt);
-    const now = new Date();
-    const monthsLeft = Math.floor((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30));
-
-    if (monthsLeft < 0) return { label: 'Expirada', color: 'bg-red-500/20 text-red-400' };
-    if (monthsLeft < 3) return { label: 'Vencendo', color: 'bg-yellow-500/20 text-yellow-400' };
-    return { label: 'Ativa', color: 'bg-green-500/20 text-green-400' };
   };
 
   const activeCount = warranties.filter(w => getStatus(w.expiry_date).label === 'Ativa').length;
@@ -298,15 +318,30 @@ export default function Garantias() {
             </Card>
           </div>
 
-          {/* Search */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por tipo, cliente ou placa..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-10"
-            />
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por código, tipo, cliente ou placa..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="w-full sm:w-[150px]">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas</SelectItem>
+                  <SelectItem value="ativa">Ativas</SelectItem>
+                  <SelectItem value="vencendo">Vencendo</SelectItem>
+                  <SelectItem value="expirada">Expiradas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Table */}

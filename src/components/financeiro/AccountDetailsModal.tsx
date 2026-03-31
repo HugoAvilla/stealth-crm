@@ -1,5 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Landmark, PiggyBank, Wallet, TrendingUp, CreditCard } from "lucide-react";
+import { Landmark, PiggyBank, Wallet, TrendingUp, CreditCard, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -28,6 +30,8 @@ interface AccountDetailsModalProps {
 export function AccountDetailsModal({ account, open, onOpenChange }: AccountDetailsModalProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "Entrada" | "Saída">("all");
 
   useEffect(() => {
     if (open && account) {
@@ -44,7 +48,7 @@ export function AccountDetailsModal({ account, open, onOpenChange }: AccountDeta
         .select("id, name, amount, type, transaction_date")
         .eq("account_id", account.id)
         .order("transaction_date", { ascending: false })
-        .limit(10);
+        .limit(300); // Fetch more for client-side filtering
       
       setTransactions(data || []);
     } catch (error) {
@@ -67,6 +71,17 @@ export function AccountDetailsModal({ account, open, onOpenChange }: AccountDeta
   const formatCurrency = (value: number) => {
     return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
   };
+
+  const filteredTransactions = transactions.filter(t => {
+    let pass = true;
+    if (searchTerm && !t.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+      pass = false;
+    }
+    if (filterType !== "all" && t.type !== filterType) {
+      pass = false;
+    }
+    return pass;
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,14 +124,55 @@ export function AccountDetailsModal({ account, open, onOpenChange }: AccountDeta
             </div>
 
             <div>
-              <h4 className="text-sm font-semibold mb-3">Últimas Transações</h4>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mb-3">
+                <h4 className="text-sm font-semibold">Transações da Conta</h4>
+                
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:max-w-[200px]">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar descrição..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-8 h-8 text-xs"
+                    />
+                  </div>
+                  <div className="flex items-center rounded-md border p-0.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 px-2 text-xs rounded-sm ${filterType === 'all' ? 'bg-secondary' : ''}`}
+                      onClick={() => setFilterType('all')}
+                    >
+                      Todas
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 px-2 text-xs rounded-sm ${filterType === 'Entrada' ? 'bg-green-500/20 text-green-600' : ''}`}
+                      onClick={() => setFilterType('Entrada')}
+                    >
+                      Entradas
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 px-2 text-xs rounded-sm ${filterType === 'Saída' ? 'bg-red-500/20 text-red-600' : ''}`}
+                      onClick={() => setFilterType('Saída')}
+                    >
+                      Saídas
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               {loading ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
-              ) : transactions.length === 0 ? (
+              ) : filteredTransactions.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4 bg-muted/30 rounded-lg border border-dashed">Nenhuma transação encontrada nesta conta.</p>
               ) : (
                 <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2">
-                  {transactions.map(t => (
+                  {filteredTransactions.map(t => (
                     <div key={t.id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex-1 min-w-0 pr-4">
                         <p className="font-medium text-sm truncate">{t.name}</p>

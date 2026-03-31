@@ -16,6 +16,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus,
@@ -68,6 +75,9 @@ interface Client {
   vehicles: Vehicle[];
   total_spent: number;
   sales_count: number;
+  last_sale_date: string | null;
+  status: 'Ativo' | 'Inativo';
+  tier: 'VIP' | 'B2B' | 'B2C' | 'Novo';
 }
 
 type SortOption = 'name-asc' | 'name-desc' | 'recent' | 'spent';
@@ -78,6 +88,9 @@ export default function Clientes() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterOrigem, setFilterOrigem] = useState<string>("todas");
+  const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [filterTier, setFilterTier] = useState<string>("todos");
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -119,20 +132,53 @@ export default function Clientes() {
       // Fetch sales to calculate stats
       const { data: salesData } = await supabase
         .from("sales")
-        .select("client_id, total")
-        .eq("company_id", profile.company_id);
+        .select("client_id, total, created_at")
+        .eq("company_id", profile.company_id)
+        .order("created_at", { ascending: false });
 
       // Map clients with vehicles and stats
       const clientsWithData = (clientsData || []).map((client) => {
         const clientVehicles = (vehiclesData || []).filter(v => v.client_id === client.id);
         const clientSales = (salesData || []).filter(s => s.client_id === client.id);
         const totalSpent = clientSales.reduce((sum, s) => sum + (s.total || 0), 0);
+        const lastSaleDate = clientSales.length > 0 ? clientSales[0].created_at : null;
+        
+        // Calculate Status
+        let status: 'Ativo' | 'Inativo' = 'Inativo';
+        if (lastSaleDate) {
+          const sixMonthsAgo = new Date();
+          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+          if (new Date(lastSaleDate) > sixMonthsAgo) {
+            status = 'Ativo';
+          }
+        } else if (client.created_at) {
+          const threeMonthsAgo = new Date();
+          threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+          if (new Date(client.created_at) > threeMonthsAgo) {
+            status = 'Ativo'; // New clients are active for a while
+          }
+        }
+        
+        // Calculate Tier
+        let tier: 'VIP' | 'B2B' | 'B2C' | 'Novo' = 'Novo';
+        const isB2B = client.cpf_cnpj?.replace(/\D/g, '').length === 14;
+        
+        if (totalSpent >= 5000 || clientSales.length >= 5) {
+          tier = 'VIP';
+        } else if (isB2B) {
+          tier = 'B2B';
+        } else if (clientSales.length > 0) {
+          tier = 'B2C';
+        }
 
         return {
           ...client,
           vehicles: clientVehicles,
           total_spent: totalSpent,
           sales_count: clientSales.length,
+          last_sale_date: lastSaleDate,
+          status,
+          tier
         };
       });
 
@@ -163,6 +209,16 @@ export default function Clientes() {
           (v.plate?.toLowerCase() || "").includes(term)
         )
       );
+    }
+
+    if (filterOrigem && filterOrigem !== "todas") {
+      result = result.filter(client => client.origem === filterOrigem);
+    }
+    if (filterStatus && filterStatus !== "todos") {
+      result = result.filter(client => client.status.toLowerCase() === filterStatus.toLowerCase());
+    }
+    if (filterTier && filterTier !== "todos") {
+      result = result.filter(client => client.tier.toLowerCase() === filterTier.toLowerCase());
     }
 
     // Sort
@@ -322,6 +378,52 @@ export default function Clientes() {
             className="pl-10 bg-card border-border"
           />
         </div>
+        
+        {/* Origin Filter */}
+        <div className="w-full sm:w-[150px]">
+          <Select value={filterOrigem} onValueChange={setFilterOrigem}>
+            <SelectTrigger className="bg-card border-border">
+              <SelectValue placeholder="Origem" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Origens (Todas)</SelectItem>
+              {Array.from(new Set(clients.map(c => c.origem).filter(Boolean))).sort().map(origem => (
+                <SelectItem key={origem} value={origem as string}>{origem}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Status Filter */}
+        <div className="w-full sm:w-[130px]">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="bg-card border-border">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Status (Todos)</SelectItem>
+              <SelectItem value="ativo">Ativos</SelectItem>
+              <SelectItem value="inativo">Inativos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Tier Filter */}
+        <div className="w-full sm:w-[130px]">
+          <Select value={filterTier} onValueChange={setFilterTier}>
+            <SelectTrigger className="bg-card border-border">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Tipos (Todos)</SelectItem>
+              <SelectItem value="vip">VIP</SelectItem>
+              <SelectItem value="b2b">B2B</SelectItem>
+              <SelectItem value="b2c">B2C</SelectItem>
+              <SelectItem value="novo">Novo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="border-border">
@@ -373,8 +475,25 @@ export default function Clientes() {
             <TableBody>
               {filteredAndSortedClients.map((client) => (
                 <TableRow key={client.id} className="border-border">
-                  <TableCell className="font-medium text-foreground">
-                    {client.name}
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium text-foreground">{client.name}</span>
+                      <div className="flex flex-wrap gap-1">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium uppercase tracking-wider
+                          ${client.status === 'Ativo' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}
+                        `}>
+                          {client.status}
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium uppercase tracking-wider
+                          ${client.tier === 'VIP' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 
+                            client.tier === 'B2B' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 
+                            client.tier === 'B2C' ? 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400' :
+                            'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}
+                        `}>
+                          {client.tier}
+                        </span>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <a

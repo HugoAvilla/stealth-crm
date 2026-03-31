@@ -78,30 +78,10 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
 
       if (error) throw error;
 
-      // Criar material vinculado automaticamente
-      const materialName = `${data.brand ? data.brand + ' ' : ''}${data.name}${data.batch ? ` - ${data.batch}` : ''}`;
-      const { error: materialError } = await supabase.from("materials").insert({
-        name: materialName,
-        type: data.category,
-        brand: data.brand,
-        unit: "Metros",
-        minimum_stock: 0,
-        current_stock: 0,
-        average_cost: data.cost_per_meter || 0,
-        company_id: companyId,
-        product_type_id: result.id,
-        is_active: true,
-      });
-
-      if (materialError) {
-        console.error("Erro ao criar material vinculado:", materialError);
-        // Não bloqueia, apenas loga o erro
-      }
-
       return result;
     },
     onSuccess: () => {
-      toast.success("Tipo de produto criado e material adicionado ao estoque!");
+      toast.success("Tipo de produto criado com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["product-types"] });
       queryClient.invalidateQueries({ queryKey: ["materials"] });
       handleCloseModal();

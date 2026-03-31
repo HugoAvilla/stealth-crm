@@ -12,8 +12,16 @@ import {
   endOfWeek,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, BarChart3, List, Calendar, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, BarChart3, List, Calendar, Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,6 +48,8 @@ const Vendas = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("vendas");
   const [initialSaleDate, setInitialSaleDate] = useState<Date | undefined>(undefined);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -112,10 +122,24 @@ const Vendas = () => {
   };
 
   const getSalesForDay = (day: Date): SaleWithDetails[] => {
-    return sales.filter((sale) => isSameDay(new Date(sale.sale_date + 'T12:00:00'), day));
+    return monthSales.filter((sale) => isSameDay(new Date(sale.sale_date + 'T12:00:00'), day));
   };
 
-  const monthSales = sales;
+  const monthSales = sales.filter((sale) => {
+    let pass = true;
+    if (statusFilter !== "all") {
+      const wantOpen = statusFilter === "aberta";
+      if (sale.is_open !== wantOpen) pass = false;
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchClient = sale.client?.name?.toLowerCase().includes(term);
+      const matchId = sale.id.toString() === term;
+      if (!matchClient && !matchId) pass = false;
+    }
+    return pass;
+  });
+  
   const totalMonthValue = monthSales.reduce((sum, sale) => sum + sale.total, 0);
 
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -192,6 +216,30 @@ const Vendas = () => {
                     Lista
                   </Button>
                 </div>
+                
+                {/* Search and Filters */}
+                <div className="relative flex-1 min-w-[200px] w-full sm:w-auto">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar venda ou cliente..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="w-full sm:w-[150px]">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="aberta">Abertas</SelectItem>
+                      <SelectItem value="fechada">Fechadas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <Button onClick={() => setIsNewSaleModalOpen(true)} className="gap-2 w-full sm:w-auto">
                   <Plus className="h-4 w-4" />
                   Nova venda

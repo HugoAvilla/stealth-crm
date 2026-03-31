@@ -16,6 +16,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { format, subDays, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
@@ -76,6 +83,8 @@ export default function Contas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [filterType, setFilterType] = useState<string>("todos");
+  const [filterStatus, setFilterStatus] = useState<string>("todos");
 
   // New states for FAB modals
   const [fabOpen, setFabOpen] = useState(false);
@@ -113,8 +122,7 @@ export default function Contas() {
         .from("transactions")
         .select("*")
         .eq("company_id", profile.company_id)
-        .order("transaction_date", { ascending: false })
-        .limit(100);
+        .order("transaction_date", { ascending: false });
 
       // Fetch categories
       const { data: categoriesData } = await supabase
@@ -214,6 +222,16 @@ export default function Contas() {
       (t.description?.toLowerCase() || "").includes(term) ||
       (getCategoryById(t.category_id || 0)?.name.toLowerCase() || "").includes(term)
     );
+  }
+  if (filterType !== "todos") {
+    filteredTransactions = filteredTransactions.filter(t => t.type.toLowerCase() === filterType.toLowerCase());
+  }
+  if (filterStatus !== "todos") {
+    if (filterStatus === "pago") {
+      filteredTransactions = filteredTransactions.filter(t => t.is_paid === true);
+    } else if (filterStatus === "pendente") {
+      filteredTransactions = filteredTransactions.filter(t => t.is_paid === false);
+    }
   }
 
   const summaryEntries = filteredTransactions.filter(t => t.type === 'Entrada' && t.is_paid).reduce((sum, t) => sum + t.amount, 0);
@@ -586,15 +604,37 @@ export default function Contas() {
                     />
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
+                    <Select value={filterType} onValueChange={setFilterType}>
+                      <SelectTrigger className="w-[110px] bg-background">
+                        <SelectValue placeholder="Tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="entrada">Entradas</SelectItem>
+                        <SelectItem value="saida">Saídas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger className="w-[120px] bg-background">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="pago">Conciliado</SelectItem>
+                        <SelectItem value="pendente">Pendente</SelectItem>
+                      </SelectContent>
+                    </Select>
+
                     <Input 
                       type="date" 
-                      className="w-full sm:w-[140px] bg-background text-sm"
+                      className="w-full sm:w-[130px] bg-background text-sm"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                     />
                     <Input 
                       type="date" 
-                      className="w-full sm:w-[140px] bg-background text-sm"
+                      className="w-full sm:w-[130px] bg-background text-sm"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                     />

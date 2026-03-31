@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Car, Clock, CheckCircle, AlertTriangle, Plus, Loader2, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Car, Clock, CheckCircle, AlertTriangle, Plus, Loader2, Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -78,6 +79,7 @@ export default function Espaco() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState("vagas");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -159,6 +161,15 @@ export default function Espaco() {
     setSelectedSpaceId(space.id);
     setShowDetailsDrawer(true);
   };
+
+  const filteredSpaces = spaces?.filter(s => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      s.client?.name.toLowerCase().includes(term) ||
+      (s.vehicle?.plate && s.vehicle.plate.toLowerCase().includes(term))
+    );
+  }) || [];
 
   const handleSlotFilled = () => {
     queryClient.invalidateQueries({ queryKey: ['spaces'] });
@@ -302,17 +313,26 @@ export default function Espaco() {
 
           {/* Slots Grid */}
           <Card className="bg-card/50 border-border/50">
-            <CardHeader>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <CardTitle className="text-lg">Vagas Ocupadas</CardTitle>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por cliente ou placa..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-9"
+                />
+              </div>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              ) : spaces && spaces.length > 0 ? (
+              ) : filteredSpaces.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {spaces.map(space => (
+                  {filteredSpaces.map(space => (
                     <SlotCard
                       key={space.id}
                       space={space}
@@ -323,14 +343,16 @@ export default function Espaco() {
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <Car className="h-12 w-12 mb-4 opacity-50" />
-                  <p>Nenhuma vaga ocupada no momento</p>
-                  <Button
-                    variant="link"
-                    className="mt-2"
-                    onClick={() => setShowFillSlotModal(true)}
-                  >
-                    Preencher primeira vaga
-                  </Button>
+                  <p>{searchTerm ? "Nenhuma vaga encontrada para sua busca" : "Nenhuma vaga ocupada no momento"}</p>
+                  {!searchTerm && (
+                    <Button
+                      variant="link"
+                      className="mt-2"
+                      onClick={() => setShowFillSlotModal(true)}
+                    >
+                      Preencher primeira vaga
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>

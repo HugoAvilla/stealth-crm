@@ -7,6 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -14,6 +21,7 @@ import { NewMaterialModal } from "@/components/estoque/NewMaterialModal";
 import { StockEntryModal } from "@/components/estoque/StockEntryModal";
 import { StockExitModal } from "@/components/estoque/StockExitModal";
 import { ConsumptionRulesModal } from "@/components/estoque/ConsumptionRulesModal";
+import { MaterialDetailsModal } from "@/components/estoque/MaterialDetailsModal";
 import { ProductTypesTab } from "@/components/estoque/ProductTypesTab";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { toast } from "sonner";
@@ -39,12 +47,15 @@ export default function Estoque() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("materials");
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("todos");
+  const [statusFilter, setStatusFilter] = useState("todos");
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewMaterial, setShowNewMaterial] = useState(false);
   const [showEntry, setShowEntry] = useState(false);
   const [showExit, setShowExit] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [companyId, setCompanyId] = useState<number | null>(null);
 
@@ -87,11 +98,6 @@ export default function Estoque() {
     fetchMaterials();
   }, [user?.id]);
 
-  const filteredMaterials = materials.filter(m =>
-    m.name.toLowerCase().includes(search.toLowerCase()) ||
-    (m.type?.toLowerCase() || "").includes(search.toLowerCase())
-  );
-
   const getStockStatus = (material: Material) => {
     const currentStock = material.current_stock || 0;
     const minStock = material.minimum_stock || 1;
@@ -102,15 +108,50 @@ export default function Estoque() {
     return { status: "ok", label: "OK", color: "text-green-500", bg: "bg-green-500/10" };
   };
 
+  const filteredMaterials = materials.filter(m => {
+    let pass = true;
+
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      if (!m.name.toLowerCase().includes(lowerSearch) && 
+          !(m.type?.toLowerCase() || "").includes(lowerSearch)) {
+        pass = false;
+      }
+    }
+
+    if (typeFilter !== "todos" && m.type !== typeFilter) {
+      pass = false;
+    }
+
+    if (statusFilter !== "todos") {
+      if (statusFilter === "em_uso") {
+        if (!m.is_open_roll) pass = false;
+      } else {
+        if (m.is_open_roll) {
+           pass = false;
+        } else {
+           const status = getStockStatus(m).status;
+           if (status !== statusFilter) pass = false;
+        }
+      }
+    }
+
+    return pass;
+  });
+
   const criticalCount = materials.filter(m => {
+    if (m.is_open_roll) return false;
     const ratio = (m.current_stock || 0) / (m.minimum_stock || 1);
     return ratio <= 0.5;
   }).length;
 
   const lowCount = materials.filter(m => {
+    if (m.is_open_roll) return false;
     const ratio = (m.current_stock || 0) / (m.minimum_stock || 1);
     return ratio > 0.5 && ratio <= 1;
   }).length;
+
+  const openRollsCount = materials.filter(m => m.is_open_roll).length;
 
   const totalValue = materials.reduce(
     (sum, m) => sum + ((m.current_stock || 0) * (m.average_cost || 0)),
@@ -125,6 +166,11 @@ export default function Estoque() {
   const handleExit = (material: Material) => {
     setSelectedMaterial(material);
     setShowExit(true);
+  };
+
+  const handleDetails = (material: Material) => {
+    setSelectedMaterial(material);
+    setShowDetails(true);
   };
 
   const handleDelete = async (material: Material) => {
@@ -201,8 +247,8 @@ export default function Estoque() {
     return (
       <div className="space-y-6 p-6">
         <Skeleton className="h-10 w-48" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
@@ -269,7 +315,7 @@ export default function Estoque() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <Card className="bg-card/50 border-border/50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -327,17 +373,60 @@ export default function Estoque() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <Package className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Bobinas Abertas</p>
+                    <p className="text-2xl font-bold text-blue-500">{openRollsCount}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Search */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar material..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
+          {/* Search & Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar material..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos Tipos</SelectItem>
+                  {Array.from(new Set(materials.map(m => m.type).filter(Boolean))).sort().map(tipo => (
+                    <SelectItem key={tipo} value={tipo as string}>{tipo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos Status</SelectItem>
+                  <SelectItem value="ok">OK</SelectItem>
+                  <SelectItem value="baixo">Baixo</SelectItem>
+                  <SelectItem value="critico">Crítico</SelectItem>
+                  <SelectItem value="em_uso">Em Uso</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Empty State or Table */}
@@ -378,10 +467,14 @@ export default function Estoque() {
                       return (
                         <TableRow key={material.id}>
                           <TableCell className="font-medium">
-                            <div>
+                            <div 
+                              className="cursor-pointer hover:text-primary hover:underline transition-colors"
+                              onClick={() => handleDetails(material)}
+                              title="Ver detalhes e histórico"
+                            >
                               <p>{material.name}</p>
                               {material.brand && (
-                                <p className="text-xs text-muted-foreground">{material.brand}</p>
+                                <p className="text-xs text-muted-foreground hover:no-underline">{material.brand}</p>
                               )}
                             </div>
                           </TableCell>
@@ -477,6 +570,11 @@ export default function Estoque() {
         onSuccess={handleMovementCompleted}
       />
       <ConsumptionRulesModal open={showRules} onOpenChange={setShowRules} />
+      <MaterialDetailsModal 
+        open={showDetails} 
+        onOpenChange={setShowDetails} 
+        material={selectedMaterial} 
+      />
     </div>
   );
 }
