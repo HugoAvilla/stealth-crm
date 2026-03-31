@@ -58,7 +58,7 @@ interface NewClientModalProps {
   onClientCreated: () => void;
 }
 
-const originOptions = ["Instagram", "Google", "Indicação", "Passante"] as const;
+import { ORIGIN_OPTIONS, ClientOrigin } from "@/constants/origins";
 
 const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalProps) => {
   const { user } = useAuth();
@@ -71,7 +71,7 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
   // Optional fields
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
-  const [origem, setOrigem] = useState<typeof originOptions[number] | "">("");
+  const [origem, setOrigem] = useState<ClientOrigin | "">("");
   const [birthDate, setBirthDate] = useState<Date | undefined>();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
@@ -411,12 +411,12 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
               {visibleFields.has("origem") && (
                 <div className="space-y-2">
                   <Label>Origem</Label>
-                  <Select value={origem} onValueChange={(v) => setOrigem(v as typeof originOptions[number])}>
+                  <Select value={origem} onValueChange={(v) => setOrigem(v as ClientOrigin)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a origem" />
                     </SelectTrigger>
                     <SelectContent>
-                      {originOptions.map((opt) => (
+                      {ORIGIN_OPTIONS.map((opt) => (
                         <SelectItem key={opt} value={opt}>
                           {opt}
                         </SelectItem>

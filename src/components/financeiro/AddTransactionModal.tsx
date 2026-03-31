@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { NewCategoryModal } from "./NewCategoryModal";
+import { CAC_ORIGIN_OPTIONS, CacOrigin } from "@/constants/origins";
 interface Account {
   id: number;
   name: string;
@@ -46,6 +47,9 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
   const [isPaid, setIsPaid] = useState(true);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringMonths, setRecurringMonths] = useState(1);
+  const [includeInCac, setIncludeInCac] = useState(false);
+  const [cacBucket, setCacBucket] = useState<'marketing' | 'vendas' | ''>('');
+  const [cacOrigin, setCacOrigin] = useState<CacOrigin | ''>('');
 
   useEffect(() => {
     if (open) {
@@ -95,6 +99,11 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
       return;
     }
 
+    if (type === 'saida' && includeInCac && !cacBucket) {
+      toast.error("Para controle de CAC, informe se o custo foi Vendas ou Marketing.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -120,6 +129,9 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
           payment_method: paymentMethod || null,
           transaction_date: nextDate,
           is_paid: i === 0 ? isPaid : false,
+          include_in_cac: type === 'saida' ? includeInCac : false,
+          cac_bucket: (type === 'saida' && includeInCac) ? cacBucket : null,
+          cac_origin: (type === 'saida' && includeInCac) ? cacOrigin : null,
         });
       }
 
@@ -150,6 +162,9 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
     setIsPaid(true);
     setIsRecurring(false);
     setRecurringMonths(1);
+    setIncludeInCac(false);
+    setCacBucket('');
+    setCacOrigin('');
   };
 
   return (
@@ -279,7 +294,53 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
 
           {type === 'saida' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/20">
+                <div className="space-y-0.5">
+                  <Label>Custo de Aquisição de Cliente (CAC) ?</Label>
+                  <p className="text-[11px] text-muted-foreground w-[90%]">
+                    Se for um custo de comissão ou marketing que deve ser rateado para os novos clientes deste mês, ative esta opção.
+                  </p>
+                </div>
+                <Switch
+                  checked={includeInCac}
+                  onCheckedChange={setIncludeInCac}
+                />
+              </div>
+
+              {includeInCac && (
+                <div className="p-3 border rounded-lg bg-orange-500/5 border-orange-500/20 space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-orange-700 dark:text-orange-300">Área do Custo *</Label>
+                    <Select value={cacBucket} onValueChange={(v) => setCacBucket(v as any)}>
+                      <SelectTrigger className="border-orange-500/30">
+                        <SelectValue placeholder="Foi Marketing ou Vendas?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="marketing">Marketing (ex: Tráfego)</SelectItem>
+                        <SelectItem value="vendas">Vendas (ex: Comissão)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-orange-700 dark:text-orange-300">Origem Principal</Label>
+                    <Select value={cacOrigin} onValueChange={(v) => setCacOrigin(v as any)}>
+                      <SelectTrigger className="border-orange-500/30">
+                        <SelectValue placeholder="Canal Específico ou Geral?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CAC_ORIGIN_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>
+                            {opt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between rounded-lg border p-3 mt-4">
                 <div className="space-y-0.5">
                   <Label>Essa saída vai se repetir nos próximos meses?</Label>
                 </div>

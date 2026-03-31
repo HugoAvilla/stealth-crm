@@ -11,6 +11,8 @@ import { ptBR } from "date-fns/locale";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CacTab } from "@/components/financeiro/CacTab";
 import { AddTransactionModal } from "@/components/financeiro/AddTransactionModal";
 import { AddTransferModal } from "@/components/financeiro/AddTransferModal";
 import { AddAccountModal } from "@/components/financeiro/AddAccountModal";
@@ -280,7 +282,14 @@ export default function Financeiro() {
         </div>
       </div>
 
-      {/* Visão Geral (Overview) - Cards Grid */}
+      <Tabs defaultValue="visao-geral" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px] mb-6">
+          <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
+          <TabsTrigger value="cac">CAC / Aquisição</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visao-geral" className="space-y-6 animate-in fade-in duration-500">
+          {/* Visão Geral (Overview) - Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
         
         {/* Saldo Geral - Takes full width on mobile, 4 columns on desktop */}
@@ -514,6 +523,12 @@ export default function Financeiro() {
           )}
         </CardContent>
       </Card>
+      </TabsContent>
+
+      <TabsContent value="cac">
+        <CacTab />
+      </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <AddTransactionModal

@@ -36,7 +36,7 @@ interface EditClientModalProps {
   onSave: () => void;
 }
 
-const originOptions = ['Instagram', 'Google', 'Indicação', 'Passante'] as const;
+import { ORIGIN_OPTIONS, ClientOrigin } from "@/constants/origins";
 
 export function EditClientModal({
   open,
@@ -48,7 +48,7 @@ export function EditClientModal({
   const [phone, setPhone] = useState(client.phone);
   const [email, setEmail] = useState(client.email);
   const [cpf, setCpf] = useState(client.cpf || '');
-  const [origem, setOrigem] = useState<typeof originOptions[number]>(client.origem);
+  const [origem, setOrigem] = useState<ClientOrigin>(client.origem as ClientOrigin);
   const [vehicles, setVehicles] = useState<Vehicle[]>(client.vehicles);
   
   // Field visibility
@@ -316,12 +316,12 @@ export function EditClientModal({
               {showOrigem && (
                 <div className="space-y-2">
                   <Label className="text-foreground">Origem</Label>
-                  <Select value={origem} onValueChange={(v) => setOrigem(v as typeof originOptions[number])}>
+                  <Select value={origem} onValueChange={(v) => setOrigem(v as ClientOrigin)}>
                     <SelectTrigger className="bg-background border-border">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border">
-                      {originOptions.map((option) => (
+                      {ORIGIN_OPTIONS.map((option) => (
                         <SelectItem key={option} value={option}>
                           {option}
                         </SelectItem>
