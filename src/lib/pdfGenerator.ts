@@ -311,6 +311,7 @@ export async function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?:
 
   // — HEADER: Logo + Company Name + Subtitle —
   let logoLoaded = false;
+  let logoWidth = 18;
   if (warranty.company_logo_url) {
     try {
       const response = await fetch(warranty.company_logo_url);
@@ -321,14 +322,38 @@ export async function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?:
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
-      doc.addImage(dataUrl, 'PNG', marginLeft, y, 18, 18);
+
+      // Detect image format from blob type
+      const imgFormat = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'JPEG' : 'PNG';
+
+      // Load into Image to get natural dimensions for aspect ratio
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+
+      // Scale proportionally: max height 18mm, width adapts to aspect ratio
+      const maxH = 18;
+      const maxW = 40; // max width cap
+      const ratio = img.naturalWidth / img.naturalHeight;
+      let drawW = maxH * ratio;
+      let drawH = maxH;
+      if (drawW > maxW) {
+        drawW = maxW;
+        drawH = maxW / ratio;
+      }
+
+      doc.addImage(dataUrl, imgFormat, marginLeft, y + (18 - drawH) / 2, drawW, drawH);
+      logoWidth = drawW + 4;
       logoLoaded = true;
     } catch (e) {
       console.warn('Não foi possível carregar a logo para o PDF:', e);
     }
   }
 
-  const textStartX = logoLoaded ? marginLeft + 22 : marginLeft;
+  const textStartX = logoLoaded ? marginLeft + logoWidth : marginLeft;
 
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
