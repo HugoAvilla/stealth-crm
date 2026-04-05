@@ -76,6 +76,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const [showDiscount, setShowDiscount] = useState(false);
   const [showObservations, setShowObservations] = useState(false);
   const [showTag, setShowTag] = useState(false);
+  const [isNewClient, setIsNewClient] = useState(true);
+  const [pastSalesCount, setPastSalesCount] = useState(0);
 
   // Fetch clients
   const { data: clients, isLoading: loadingClients, refetch: refetchClients } = useQuery({
@@ -184,6 +186,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       setShowDiscount(false);
       setShowObservations(false);
       setShowTag(false);
+      setIsNewClient(true);
+      setPastSalesCount(0);
     }
   }, [open]);
 
@@ -198,7 +202,30 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   useEffect(() => {
     setDetailedItems([]);
     setSelectedVehicleId("");
+    setIsNewClient(true);
+    setPastSalesCount(0);
   }, [selectedClientId]);
+
+  // Auto-detect if client is new or returning
+  useEffect(() => {
+    const detectClientType = async () => {
+      if (!selectedClientId || !companyId) {
+        setIsNewClient(true);
+        setPastSalesCount(0);
+        return;
+      }
+      const { count } = await supabase
+        .from('sales')
+        .select('id', { count: 'exact', head: true })
+        .eq('client_id', parseInt(selectedClientId))
+        .eq('company_id', companyId)
+        .eq('status', 'Fechada');
+      const total = count || 0;
+      setPastSalesCount(total);
+      setIsNewClient(total === 0);
+    };
+    detectClientType();
+  }, [selectedClientId, companyId]);
 
   // Auto-select vehicle if there is exactly 1
   useEffect(() => {
@@ -306,6 +333,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           status: 'ocupado',
           payment_status: 'pending',
           has_exited: false,
+          is_new_client: isNewClient,
         })
         .select()
         .single();
@@ -430,6 +458,37 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
               </SelectContent>
             </Select>
           </div>
+
+          {/* Client Type: Novo vs Retorno */}
+          {selectedClientId && (
+            <div className="space-y-2">
+              <Label>Tipo de Atendimento</Label>
+              <Select value={isNewClient ? 'new' : 'returning'} onValueChange={(v) => setIsNewClient(v === 'new')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-green-500" />
+                      Novo Cliente
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="returning">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-blue-500" />
+                      Cliente Retorno
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {pastSalesCount > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  ⓘ Detectado automaticamente: cliente possui {pastSalesCount} venda(s) anterior(es).
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Veículo */}
           {selectedClientId && (

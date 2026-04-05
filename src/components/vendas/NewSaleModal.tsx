@@ -121,6 +121,8 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const [showDetailedServices, setShowDetailedServices] = useState(true);
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
   const [servicePrice, setServicePrice] = useState("");
+  const [isNewClient, setIsNewClient] = useState(true);
+  const [pastSalesCount, setPastSalesCount] = useState(0);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -254,6 +256,27 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
     fetchVehicles();
   }, [selectedClientId, companyId]);
 
+  // Auto-detect if client is new or returning
+  useEffect(() => {
+    const detectClientType = async () => {
+      if (!selectedClientId || !companyId) {
+        setIsNewClient(true);
+        setPastSalesCount(0);
+        return;
+      }
+      const { count } = await supabase
+        .from('sales')
+        .select('id', { count: 'exact', head: true })
+        .eq('client_id', parseInt(selectedClientId))
+        .eq('company_id', companyId)
+        .eq('status', 'Fechada');
+      const total = count || 0;
+      setPastSalesCount(total);
+      setIsNewClient(total === 0);
+    };
+    detectClientType();
+  }, [selectedClientId, companyId]);
+
   // Get selected vehicle
   const selectedVehicle = vehicles.find(v => v.id === parseInt(selectedVehicleId));
 
@@ -377,6 +400,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
           observations: notes || null,
           company_id: companyId,
           seller_id: user?.id,
+          is_new_client: isNewClient,
         })
         .select()
         .single();
@@ -537,6 +561,37 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                   </Button>
                 </div>
               </div>
+
+              {/* Client Type: Novo vs Retorno */}
+              {selectedClientId && (
+                <div className="space-y-2">
+                  <Label>Tipo de Atendimento</Label>
+                  <Select value={isNewClient ? 'new' : 'returning'} onValueChange={(v) => setIsNewClient(v === 'new')}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-green-500" />
+                          Novo Cliente
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="returning">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-blue-500" />
+                          Cliente Retorno
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {pastSalesCount > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      ⓘ Detectado automaticamente: cliente possui {pastSalesCount} venda(s) anterior(es).
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Vehicle Selection */}
               {selectedClientId && (

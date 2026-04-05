@@ -18,7 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { CAC_ORIGIN_OPTIONS, CacOrigin } from "@/constants/origins";
 import { toast } from "sonner";
-import { Target, TrendingUp, Users, DollarSign, PieChart, Plus } from "lucide-react";
+import { Target, TrendingUp, Users, DollarSign, PieChart, Plus, RefreshCw, UserPlus } from "lucide-react";
 import { RoasEntryModal } from "./RoasEntryModal";
 
 export function CacTab() {
@@ -56,6 +56,12 @@ export function CacTab() {
   const [channelStats, setChannelStats] = useState<any[]>([]);
   const [cacTransactions, setCacTransactions] = useState<any[]>([]);
 
+  // New vs Returning stats
+  const [newClientSales, setNewClientSales] = useState(0);
+  const [returningClientSales, setReturningClientSales] = useState(0);
+  const [newClientRevenue, setNewClientRevenue] = useState(0);
+  const [returningClientRevenue, setReturningClientRevenue] = useState(0);
+
   useEffect(() => {
     fetchCacData();
   }, [startDate, endDate]);
@@ -80,13 +86,13 @@ export function CacTab() {
         .from('transactions')
         .select('*')
         .eq('company_id', companyId)
-        .eq('include_in_cac', true)
+        .eq('include_in_cac' as any, true)
         .gte('transaction_date', startDate)
-        .lte('transaction_date', endDate);
+        .lte('transaction_date', endDate) as { data: any[] | null; error: any };
 
       if (cacError) throw cacError;
 
-      const transactions = cacTxData || [];
+      const transactions = (cacTxData || []) as any[];
       setCacTransactions(transactions);
 
       let tCac = 0;
@@ -209,6 +215,31 @@ export function CacTab() {
       // Sort by paying clients descending
       stats.sort((a, b) => b.clientesPagantes - a.clientesPagantes);
       setChannelStats(stats);
+
+      // 5. Fetch New vs Returning client data from ALL sales in the period
+      const { data: allPeriodSales } = await supabase
+        .from('sales')
+        .select('id, client_id, total, is_new_client')
+        .eq('company_id', companyId)
+        .eq('status', 'Fechada')
+        .gte('sale_date', startDate)
+        .lte('sale_date', endDate) as { data: any[] | null };
+
+      const allSales = allPeriodSales || [];
+      let nNew = 0, nReturn = 0, revNew = 0, revReturn = 0;
+      allSales.forEach(s => {
+        if (s.is_new_client === false) {
+          nReturn++;
+          revReturn += Number(s.total);
+        } else {
+          nNew++;
+          revNew += Number(s.total);
+        }
+      });
+      setNewClientSales(nNew);
+      setReturningClientSales(nReturn);
+      setNewClientRevenue(revNew);
+      setReturningClientRevenue(revReturn);
 
     } catch (error: any) {
       console.error("Error fetching CAC data", error);
@@ -339,6 +370,84 @@ export function CacTab() {
           </p>
         </Card>
       </div>
+
+      {/* New vs Returning Card */}
+      <Card className="p-5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5">
+          <UserPlus className="w-20 h-20" />
+        </div>
+        <h3 className="font-semibold flex items-center gap-2 mb-4">
+          <UserPlus className="w-4 h-4 text-primary" />
+          Novos vs Retorno
+        </h3>
+        {(newClientSales + returningClientSales) === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem dados de classificação de clientes no período.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* New Clients */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-green-500" />
+                <span className="text-sm font-medium text-muted-foreground">Novos</span>
+              </div>
+              <p className="text-2xl font-bold">{newClientSales}</p>
+              <p className="text-xs text-muted-foreground">
+                {((newClientSales / (newClientSales + returningClientSales)) * 100).toFixed(0)}% das vendas
+              </p>
+            </div>
+            {/* Returning Clients */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-blue-500" />
+                <span className="text-sm font-medium text-muted-foreground">Retorno</span>
+              </div>
+              <p className="text-2xl font-bold">{returningClientSales}</p>
+              <p className="text-xs text-muted-foreground">
+                {((returningClientSales / (newClientSales + returningClientSales)) * 100).toFixed(0)}% das vendas
+              </p>
+            </div>
+            {/* Ticket Médio Novos */}
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Ticket Médio <span className="text-green-500">Novo</span></p>
+              <p className="text-2xl font-bold text-green-500">
+                {newClientSales > 0 
+                  ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(newClientRevenue / newClientSales)
+                  : 'N/A'
+                }
+              </p>
+            </div>
+            {/* Ticket Médio Retorno */}
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">Ticket Médio <span className="text-blue-500">Retorno</span></p>
+              <p className="text-2xl font-bold text-blue-500">
+                {returningClientSales > 0 
+                  ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(returningClientRevenue / returningClientSales)
+                  : 'N/A'
+                }
+              </p>
+            </div>
+          </div>
+        )}
+        {/* Progress bar */}
+        {(newClientSales + returningClientSales) > 0 && (
+          <div className="mt-4">
+            <div className="flex h-2.5 rounded-full overflow-hidden bg-muted">
+              <div 
+                className="bg-green-500 transition-all duration-500" 
+                style={{ width: `${(newClientSales / (newClientSales + returningClientSales)) * 100}%` }} 
+              />
+              <div 
+                className="bg-blue-500 transition-all duration-500" 
+                style={{ width: `${(returningClientSales / (newClientSales + returningClientSales)) * 100}%` }} 
+              />
+            </div>
+            <div className="flex justify-between mt-1">
+              <span className="text-[10px] text-green-500 font-medium">Novos</span>
+              <span className="text-[10px] text-blue-500 font-medium">Retorno</span>
+            </div>
+          </div>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
