@@ -228,18 +228,25 @@ const TransferToSpaceModal = ({
           {/* Seleção de Veículo */}
           <div className="space-y-2">
             <Label htmlFor="vehicle">Veículo *</Label>
-            <Select value={vehicleId} onValueChange={setVehicleId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um veículo" />
-              </SelectTrigger>
-              <SelectContent>
-                {vehicles.map((v) => (
-                  <SelectItem key={v.id} value={v.id.toString()}>
-                    {v.brand} {v.model} - {v.plate || 'Sem placa'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {vehicles.length > 0 ? (
+              <Select key={vehicleId} value={vehicleId} onValueChange={setVehicleId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um veículo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicles.map((v) => (
+                    <SelectItem key={v.id} value={v.id.toString()}>
+                      {v.brand} {v.model} - {v.plate || 'Sem placa'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="text-sm p-2 border rounded text-muted-foreground flex items-center justify-between">
+                <span>Nenhum veículo disponível</span>
+                {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              </div>
+            )}
           </div>
 
           {/* Data e Hora de Entrada */}
