@@ -190,9 +190,9 @@ export function CacTab() {
       stats.sort((a, b) => b.clientesPagantes - a.clientesPagantes);
       setChannelStats(stats);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching CAC data", error);
-      toast.error("Erro ao buscar dados de CAC.");
+      toast.error(`Erro ao buscar dados: ${error?.message || 'Desconhecido'}`);
     } finally {
       setLoading(false);
     }

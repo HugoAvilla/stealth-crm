@@ -96,9 +96,15 @@ interface NewSaleModalProps {
   onOpenChange: (open: boolean) => void;
   defaultClientId?: number;
   initialDate?: Date;
+  prefillData?: {
+    clientId: number;
+    vehicleId: number;
+    discount?: number;
+    services: any[];
+  };
 }
 
-const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate }: NewSaleModalProps) => {
+const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefillData }: NewSaleModalProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -131,11 +137,28 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate }: NewS
         setSaleDate(new Date());
       }
       fetchData();
-      if (defaultClientId) {
+      if (prefillData) {
+        setSelectedClientId(prefillData.clientId.toString());
+        setSelectedVehicleId(prefillData.vehicleId.toString());
+        if (prefillData.discount) setDiscountValue(prefillData.discount.toString());
+        if (prefillData.services && prefillData.services.length > 0) {
+          // Initialize detailed services from prefill
+          setDetailedItems(prefillData.services.map(s => ({
+            id: crypto.randomUUID(),
+            category: "INSULFILM" as ProductCategory,
+            regionId: null,
+            regionName: s.regionName || "",
+            productTypeId: null,
+            productTypeName: s.productTypeName || "",
+            metersUsed: s.metersUsed || 0,
+            totalPrice: s.totalPrice || 0,
+          })));
+        }
+      } else if (defaultClientId) {
         setSelectedClientId(defaultClientId.toString());
       }
     }
-  }, [open, user?.id, initialDate]);
+  }, [open, user?.id, initialDate, prefillData]);
 
   const fetchData = async () => {
     if (!user?.id) return;

@@ -20,6 +20,8 @@ import { UnpaidExitAlertDialog } from "./UnpaidExitAlertDialog";
 import { SpaceWhatsAppModal } from "./SpaceWhatsAppModal";
 import { generateSpacePDFA4, generateSpacePDFReceipt } from "@/lib/pdfGenerator";
 import { useAuth } from "@/contexts/AuthContext";
+import { EditSlotModal } from "./EditSlotModal";
+import NewSaleModal from "../vendas/NewSaleModal";
 
 interface SpaceDetails {
   id: number;
@@ -86,6 +88,8 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [checklistPhotos, setChecklistPhotos] = useState<{name: string, url: string}[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showExportSaleModal, setShowExportSaleModal] = useState(false);
 
   // Fetch photos
   useEffect(() => {
@@ -604,6 +608,10 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Mais opções</h4>
             <div className="space-y-2">
+              <Button variant="outline" className="w-full justify-start text-primary border-primary/20 hover:bg-primary/10" onClick={() => setShowExportSaleModal(true)}>
+                <DollarSign className="h-4 w-4 mr-2" />
+                Exportar para Venda
+              </Button>
               <Button variant="outline" className="w-full justify-start text-success" onClick={() => handleOpenWhatsApp('entrada')}>
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Enviar mensagem de entrada
@@ -667,7 +675,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
 
           {/* Botões de ação */}
           <div className="flex gap-2 pt-4">
-            <Button variant="outline" className="flex-1" disabled>
+            <Button variant="outline" className="flex-1" onClick={() => setShowEditModal(true)}>
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </Button>
@@ -707,6 +715,33 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           space={whatsAppSpaceData}
           type={whatsAppType}
         />
+
+        {/* Edit Modal */}
+        {space && (
+          <EditSlotModal
+            open={showEditModal}
+            onOpenChange={setShowEditModal}
+            space={space}
+            onSlotUpdated={() => {
+              queryClient.invalidateQueries({ queryKey: ['spaces'] });
+              onUpdate?.();
+            }}
+          />
+        )}
+
+        {/* New Sale Modal */}
+        {space && space.client_id && space.vehicle_id && (
+          <NewSaleModal
+            open={showExportSaleModal}
+            onOpenChange={setShowExportSaleModal}
+            prefillData={{
+              clientId: space.client_id,
+              vehicleId: space.vehicle_id,
+              discount: space.discount || 0,
+              services: space.services_data || []
+            }}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );
