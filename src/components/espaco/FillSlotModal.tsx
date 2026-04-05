@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -63,7 +63,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const [observations, setObservations] = useState("");
   const [tag, setTag] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
-  const fileInputRef = import("react").then(m => m.useRef<HTMLInputElement>(null)).valueOf() as any; // hack to avoid adding useRef everywhere, wait, I can just use React.useRef. Let's use standard import.
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Detailed services state
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
