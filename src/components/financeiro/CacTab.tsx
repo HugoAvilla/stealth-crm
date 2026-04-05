@@ -18,13 +18,33 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { CAC_ORIGIN_OPTIONS, CacOrigin } from "@/constants/origins";
 import { toast } from "sonner";
-import { Target, TrendingUp, Users, DollarSign, PieChart } from "lucide-react";
+import { Target, TrendingUp, Users, DollarSign, PieChart, Plus } from "lucide-react";
+import { RoasEntryModal } from "./RoasEntryModal";
 
 export function CacTab() {
   const { user } = useAuth();
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [loading, setLoading] = useState(false);
+  const [isRoasModalOpen, setIsRoasModalOpen] = useState(false);
+  const [targetRoas, setTargetRoas] = useState<number>(4);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("@stealth-crm:target-roas");
+    if (saved) setTargetRoas(Number(saved));
+  }, []);
+
+  const handleTargetRoasChange = (val: string) => {
+    if (val === '') {
+      setTargetRoas(0);
+      return;
+    }
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      setTargetRoas(num);
+      localStorage.setItem("@stealth-crm:target-roas", num.toString());
+    }
+  };
 
   // States for aggregated data
   const [totalCac, setTotalCac] = useState(0);
@@ -207,8 +227,13 @@ export function CacTab() {
       {/* Header and Filters */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 p-4 bg-muted/30 rounded-xl border">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Custo de Aquisição de Clientes</h2>
-          <p className="text-sm text-muted-foreground">Analise o retorno dos seus investimentos em marketing e vendas.</p>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold tracking-tight">Custo de Aquisição de Clientes</h2>
+            <Button size="sm" variant="outline" className="h-8 gap-1 bg-background" onClick={() => setIsRoasModalOpen(true)}>
+              <Plus className="h-3.5 w-3.5" /> Registrar Gasto em Ads
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">Analise o retorno dos seus investimentos em marketing e vendas.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="space-y-1">
@@ -228,6 +253,19 @@ export function CacTab() {
               onChange={(e) => setEndDate(e.target.value)} 
               className="h-9 w-36 bg-background"
             />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Meta de ROAS</Label>
+            <div className="flex items-center gap-1">
+              <Input 
+                type="number"
+                step="0.5" 
+                value={targetRoas || ''} 
+                onChange={(e) => handleTargetRoasChange(e.target.value)} 
+                className="h-9 w-20 bg-background text-center px-1"
+              />
+              <span className="text-sm font-medium text-muted-foreground">x</span>
+            </div>
           </div>
         </div>
       </div>
@@ -293,11 +331,11 @@ export function CacTab() {
             <PieChart className="w-16 h-16 text-primary" />
           </div>
           <p className="text-sm font-medium text-muted-foreground">ROAS Global</p>
-          <h3 className="text-3xl font-bold text-primary">
-            {globalRoas.toFixed(2)}x
+          <h3 className={`text-3xl font-bold ${globalRoas === 0 ? 'text-primary' : (globalRoas >= targetRoas ? 'text-green-500' : 'text-red-500')}`}>
+            {globalRoas === 0 ? '0.00x' : `${globalRoas.toFixed(2)}x`}
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Retorno sobre investimento
+          <p className={`text-xs mt-1 ${globalRoas === 0 ? 'text-muted-foreground' : (globalRoas >= targetRoas ? 'text-green-500/80 font-medium' : 'text-red-400 font-medium')}`}>
+            {globalRoas === 0 ? 'Retorno sobre investimento' : (globalRoas >= targetRoas ? 'Dentro da meta 🎉' : 'Abaixo da meta ⚠️')}
           </p>
         </Card>
       </div>
@@ -346,7 +384,7 @@ export function CacTab() {
                   <TableCell className="text-right text-green-500">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stat.receita)}
                   </TableCell>
-                  <TableCell className="text-right font-bold text-primary">
+                  <TableCell className={`text-right font-bold ${stat.custoTotal === 0 ? 'text-primary' : (stat.roas >= targetRoas ? 'text-green-500' : 'text-red-500')}`}>
                     {stat.custoTotal === 0 ? 'N/A' : `${stat.roas.toFixed(2)}x`}
                   </TableCell>
                 </TableRow>
@@ -432,6 +470,12 @@ export function CacTab() {
           </TableBody>
         </Table>
       </Card>
+
+      <RoasEntryModal
+        open={isRoasModalOpen}
+        onOpenChange={setIsRoasModalOpen}
+        onSuccess={fetchCacData}
+      />
     </div>
   );
 }
