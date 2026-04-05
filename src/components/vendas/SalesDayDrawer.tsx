@@ -47,7 +47,7 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales, onNewSale 
 
   // Filter sales for the current day
   const daySales = allSales.filter((sale) =>
-    isSameDay(new Date(sale.sale_date), currentDate)
+    isSameDay(new Date(sale.sale_date + 'T12:00:00'), currentDate)
   );
 
   const filteredSales = daySales.filter((sale) => {
