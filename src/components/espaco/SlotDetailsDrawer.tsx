@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { 
   Car, Phone, User, Calendar, Clock, DollarSign, Link2, 
   FileText, MessageSquare, Trash2, Edit, 
-  CheckCircle, Package, AlertCircle, Loader2, Camera
+  CheckCircle, Package, AlertCircle, Loader2, Camera, Undo2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -212,6 +212,36 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     onError: (error) => {
       console.error("Erro ao confirmar pagamento:", error);
       toast.error("Erro ao confirmar pagamento");
+    },
+  });
+
+  // Revert payment mutation
+  const revertPaymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!space) return;
+      const { error } = await supabase
+        .from('spaces')
+        .update({ payment_status: 'pending' })
+        .eq('id', space.id);
+
+      if (error) throw error;
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['spaces'] });
+      queryClient.setQueryData(['spaces', (space as any)?.company_id], (old: any) => {
+        if (!old) return old;
+        return old.map((s: any) => s.id === space?.id ? { ...s, payment_status: 'pending' } : s);
+      });
+    },
+    onSuccess: () => {
+      toast.success("Pagamento revertido para pendente.");
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['unpaid-exited-count'] });
+      onUpdate?.();
+    },
+    onError: (error) => {
+      console.error("Erro ao reverter pagamento:", error);
+      toast.error("Erro ao reverter pagamento");
     },
   });
 
@@ -568,7 +598,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
                 )}
               </Badge>
             </div>
-            {space.payment_status !== 'paid' && (
+            {space.payment_status !== 'paid' ? (
               <Button 
                 size="sm" 
                 variant="outline" 
@@ -580,6 +610,24 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>Confirmar pagamento</>
+                )}
+              </Button>
+            ) : (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => {
+                  if (confirm("Deseja reverter o status de pagamento para pendente?")) {
+                    revertPaymentMutation.mutate();
+                  }
+                }}
+                disabled={revertPaymentMutation.isPending}
+              >
+                {revertPaymentMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <><Undo2 className="h-3.5 w-3.5 mr-1" />Reverter</>
                 )}
               </Button>
             )}
