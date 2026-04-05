@@ -1,6 +1,7 @@
 export const CLIENT_ORIGIN_OPTIONS = [
-  "Instagram",
-  "Google",
+  "Meta Ads",
+  "Google Ads",
+  "TikTok Ads",
   "Indicação",
   "Passante",
 ] as const;
