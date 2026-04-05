@@ -139,6 +139,9 @@ export default function Estoque() {
     return pass;
   });
 
+  const openRolls = filteredMaterials.filter(m => m.is_open_roll);
+  const regularMaterials = filteredMaterials.filter(m => !m.is_open_roll);
+
   const criticalCount = materials.filter(m => {
     if (m.is_open_roll) return false;
     const ratio = (m.current_stock || 0) / (m.minimum_stock || 1);
@@ -242,6 +245,107 @@ export default function Estoque() {
     setShowExit(false);
     setSelectedMaterial(null);
   };
+
+  const renderMaterialTable = (items: Material[]) => (
+    <Card className="bg-card/50 border-border/50">
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Material</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead className="text-center">Transmissão</TableHead>
+              <TableHead className="text-center">Estoque Atual</TableHead>
+              <TableHead className="text-center">Mínimo</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="text-right">Valor Total</TableHead>
+              <TableHead className="w-[100px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((material) => {
+              const stockStatus = getStockStatus(material);
+              const totalVal = (material.current_stock || 0) * (material.average_cost || 0);
+
+              return (
+                <TableRow key={material.id}>
+                  <TableCell className="font-medium">
+                    <div 
+                      className="cursor-pointer hover:text-primary hover:underline transition-colors"
+                      onClick={() => handleDetails(material)}
+                      title="Ver detalhes e histórico"
+                    >
+                      <p>{material.name}</p>
+                      {material.brand && (
+                        <p className="text-xs text-muted-foreground hover:no-underline">{material.brand}</p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{material.type || "-"}</Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {material.product_types?.light_transmission || "-"}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {material.is_open_roll ? (
+                      <Badge variant="outline" className="border-blue-500 text-blue-500">
+                        Aberta (Usado: {material.open_roll_accumulated || 0}m)
+                      </Badge>
+                    ) : (
+                      `${material.current_stock || 0} ${material.unit}`
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center text-muted-foreground">
+                    {material.is_open_roll ? "-" : `${material.minimum_stock || 0} ${material.unit}`}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {material.is_open_roll ? (
+                      <Badge className="bg-blue-500/10 text-blue-500 border-0">Em Uso</Badge>
+                    ) : (
+                      <Badge className={cn(stockStatus.bg, stockStatus.color, "border-0")}>
+                        {stockStatus.label}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1 justify-end">
+                      {!material.is_open_roll ? (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => handleEntry(material)} title="Entrada">
+                            <ArrowDown className="h-4 w-4 text-green-500" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
+                            <ArrowUp className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Button variant="ghost" size="icon" onClick={() => handleCloseOpenRoll(material)} title="Encerrar Bobina">
+                          <StopCircle className="h-4 w-4 text-blue-500" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(material)}
+                        title="Excluir"
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
 
   if (loading) {
     return (
@@ -444,104 +548,37 @@ export default function Estoque() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="bg-card/50 border-border/50">
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Material</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead className="text-center">Transmissão</TableHead>
-                      <TableHead className="text-center">Estoque Atual</TableHead>
-                      <TableHead className="text-center">Mínimo</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-right">Valor Total</TableHead>
-                      <TableHead className="w-[100px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredMaterials.map((material) => {
-                      const stockStatus = getStockStatus(material);
-                      const totalVal = (material.current_stock || 0) * (material.average_cost || 0);
+            <div className="space-y-8">
+              {openRolls.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium flex items-center gap-2">
+                    <Package className="h-5 w-5 text-blue-500" />
+                    Bobinas Abertas
+                  </h3>
+                  {renderMaterialTable(openRolls)}
+                </div>
+              )}
 
-                      return (
-                        <TableRow key={material.id}>
-                          <TableCell className="font-medium">
-                            <div 
-                              className="cursor-pointer hover:text-primary hover:underline transition-colors"
-                              onClick={() => handleDetails(material)}
-                              title="Ver detalhes e histórico"
-                            >
-                              <p>{material.name}</p>
-                              {material.brand && (
-                                <p className="text-xs text-muted-foreground hover:no-underline">{material.brand}</p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{material.type || "-"}</Badge>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {material.product_types?.light_transmission || "-"}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {material.is_open_roll ? (
-                              <Badge variant="outline" className="border-blue-500 text-blue-500">
-                                Aberta (Usado: {material.open_roll_accumulated || 0}m)
-                              </Badge>
-                            ) : (
-                              `${material.current_stock || 0} ${material.unit}`
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center text-muted-foreground">
-                            {material.is_open_roll ? "-" : `${material.minimum_stock || 0} ${material.unit}`}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {material.is_open_roll ? (
-                              <Badge className="bg-blue-500/10 text-blue-500 border-0">Em Uso</Badge>
-                            ) : (
-                              <Badge className={cn(stockStatus.bg, stockStatus.color, "border-0")}>
-                                {stockStatus.label}
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1 justify-end">
-                              {!material.is_open_roll ? (
-                                <>
-                                  <Button variant="ghost" size="icon" onClick={() => handleEntry(material)} title="Entrada">
-                                    <ArrowDown className="h-4 w-4 text-green-500" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
-                                    <ArrowUp className="h-4 w-4 text-red-500" />
-                                  </Button>
-                                </>
-                              ) : (
-                                <Button variant="ghost" size="icon" onClick={() => handleCloseOpenRoll(material)} title="Encerrar Bobina">
-                                  <StopCircle className="h-4 w-4 text-blue-500" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDelete(material)}
-                                title="Excluir"
-                                className="text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+              {regularMaterials.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium flex items-center gap-2">
+                    <Package className="h-5 w-5 text-primary" />
+                    Estoque Padrão (Fechado)
+                  </h3>
+                  {renderMaterialTable(regularMaterials)}
+                </div>
+              )}
+
+              {openRolls.length === 0 && regularMaterials.length === 0 && (
+                <Card className="bg-card/50 border-border/50">
+                  <CardContent className="p-12 text-center">
+                    <p className="text-muted-foreground">
+                      Nenhum material encontrado para os filtros atuais.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
         </TabsContent>
 
