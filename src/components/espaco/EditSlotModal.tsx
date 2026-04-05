@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import React, { useRef } from "react";
+
 import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,13 +50,13 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
   const companyId = user?.companyId;
 
   // Form state
-  const [slotName, setSlotName] = useState("");
-  const [selectedClientId, setSelectedClientId] = useState<string>("");
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-  const [entryDate, setEntryDate] = useState(format(preselectedDate || new Date(), 'yyyy-MM-dd'));
-  const [entryTime, setEntryTime] = useState(format(new Date(), 'HH:mm'));
-  const [exitDate, setExitDate] = useState("");
-  const [exitTime, setExitTime] = useState("");
+  const [slotName, setSlotName] = useState(space?.name || "");
+  const [selectedClientId, setSelectedClientId] = useState<string>(space?.client_id ? space.client_id.toString() : "");
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>(space?.vehicle_id ? space.vehicle_id.toString() : "");
+  const [entryDate, setEntryDate] = useState(space?.entry_date || format(new Date(), 'yyyy-MM-dd'));
+  const [entryTime, setEntryTime] = useState(space?.entry_time || format(new Date(), 'HH:mm'));
+  const [exitDate, setExitDate] = useState(space?.exit_date || "");
+  const [exitTime, setExitTime] = useState(space?.exit_time || "");
   const [discount, setDiscount] = useState<number>(space?.discount || 0);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
