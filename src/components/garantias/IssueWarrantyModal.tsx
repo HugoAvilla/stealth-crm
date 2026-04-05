@@ -60,6 +60,20 @@ interface IssuedWarrantyData {
   pdfLink: string;
 }
 
+interface CompanyInfo {
+  company_name: string;
+  logo_url: string | null;
+  cnpj: string | null;
+  phone: string;
+  email: string | null;
+  street: string | null;
+  number: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  cep: string | null;
+}
+
 export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalProps) {
   const { user } = useAuth();
   const [templateId, setTemplateId] = useState("");
@@ -71,6 +85,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [warrantyTerms, setWarrantyTerms] = useState("");
   const [issuedData, setIssuedData] = useState<IssuedWarrantyData | null>(null);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
@@ -99,15 +114,17 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
       if (!profile?.company_id) return;
       setCompanyId(profile.company_id);
 
-      const [templatesRes, clientsRes, vehiclesRes] = await Promise.all([
+      const [templatesRes, clientsRes, vehiclesRes, companyRes] = await Promise.all([
         supabase.from('warranty_templates').select('*').eq('company_id', profile.company_id),
         supabase.from('clients').select('id, name, phone, email').eq('company_id', profile.company_id),
         supabase.from('vehicles').select('id, brand, model, plate, year, client_id').eq('company_id', profile.company_id),
+        supabase.from('companies').select('company_name, logo_url, cnpj, phone, email, street, number, neighborhood, city, state, cep').eq('id', profile.company_id).single(),
       ]);
 
       setTemplates(templatesRes.data || []);
       setClients(clientsRes.data || []);
       setVehicles(vehiclesRes.data || []);
+      if (companyRes.data) setCompanyInfo(companyRes.data as any);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -188,6 +205,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
       
       // Gerar PDF em try/catch separado - se falhar, a garantia já foi salva
       try {
+        const companyAddress = companyInfo ? [companyInfo.street, companyInfo.number, companyInfo.neighborhood, companyInfo.city, companyInfo.state, companyInfo.cep].filter(Boolean).join(', ') : undefined;
         const pdfData: WarrantyPDFData = {
           certificate_number: certNumber,
           client_name: selectedClient.name,
@@ -201,7 +219,12 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
           issue_date: issueDate.toISOString().split('T')[0],
           expiry_date: expiryDate.toISOString().split('T')[0],
           warranty_text: finalWarrantyText,
-          company_name: 'WFE EVOLUTION',
+          company_name: companyInfo?.company_name || 'Minha Empresa',
+          company_logo_url: companyInfo?.logo_url || undefined,
+          company_cnpj: companyInfo?.cnpj || undefined,
+          company_phone: companyInfo?.phone || undefined,
+          company_email: companyInfo?.email || undefined,
+          company_address: companyAddress || undefined,
         };
 
         console.log('[Garantia] Gerando e fazendo upload do PDF...');
@@ -263,6 +286,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
     expiryDate.setMonth(expiryDate.getMonth() + (selectedTemplate.validity_months || 12));
     const certNumber = `PREV-${Date.now()}`;
 
+    const companyAddress = companyInfo ? [companyInfo.street, companyInfo.number, companyInfo.neighborhood, companyInfo.city, companyInfo.state, companyInfo.cep].filter(Boolean).join(', ') : undefined;
     const pdfData: WarrantyPDFData = {
       certificate_number: certNumber,
       client_name: selectedClient.name,
@@ -276,7 +300,12 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
       issue_date: issueDate.toISOString().split('T')[0],
       expiry_date: expiryDate.toISOString().split('T')[0],
       warranty_text: `${warrantyTerms}\n\n[ INSTRUÇÕES DE CUIDADO ]\n${careInstructions}`,
-      company_name: 'WFE EVOLUTION',
+      company_name: companyInfo?.company_name || 'Minha Empresa',
+      company_logo_url: companyInfo?.logo_url || undefined,
+      company_cnpj: companyInfo?.cnpj || undefined,
+      company_phone: companyInfo?.phone || undefined,
+      company_email: companyInfo?.email || undefined,
+      company_address: companyAddress || undefined,
     };
 
     generateWarrantyPDF(pdfData, companyId || undefined);

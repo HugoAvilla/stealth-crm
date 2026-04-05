@@ -58,6 +58,7 @@ export default function Garantias() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("garantias");
   const [companyId, setCompanyId] = useState<number | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
@@ -81,23 +82,30 @@ export default function Garantias() {
       
       setCompanyId(profile.company_id);
 
-      const { data: warrantiesData } = await supabase
-        .from('warranties')
-        .select(`
-          *,
-          client:clients(id, name, phone, email),
-          vehicle:vehicles(id, brand, model, plate, year)
-        `)
-        .eq('company_id', profile.company_id)
-        .order('issue_date', { ascending: false });
+      const [warrantiesRes, templatesRes, companyRes] = await Promise.all([
+        supabase
+          .from('warranties')
+          .select(`
+            *,
+            client:clients(id, name, phone, email),
+            vehicle:vehicles(id, brand, model, plate, year)
+          `)
+          .eq('company_id', profile.company_id)
+          .order('issue_date', { ascending: false }),
+        supabase
+          .from('warranty_templates')
+          .select('*')
+          .eq('company_id', profile.company_id),
+        supabase
+          .from('companies')
+          .select('company_name, logo_url, cnpj, phone, email, street, number, neighborhood, city, state, cep')
+          .eq('id', profile.company_id)
+          .single(),
+      ]);
 
-      const { data: templatesData } = await supabase
-        .from('warranty_templates')
-        .select('*')
-        .eq('company_id', profile.company_id);
-
-      setWarranties(warrantiesData || []);
-      setTemplates(templatesData || []);
+      setWarranties(warrantiesRes.data || []);
+      setTemplates(templatesRes.data || []);
+      if (companyRes.data) setCompanyInfo(companyRes.data);
     } catch (error) {
       console.error('Error fetching warranties:', error);
     } finally {
@@ -164,6 +172,7 @@ export default function Garantias() {
 
   const handleDownload = (warranty: Warranty) => {
     const certNumber = `${warranty.id.toString().padStart(4, '0')}`;
+    const companyAddress = companyInfo ? [companyInfo.street, companyInfo.number, companyInfo.neighborhood, companyInfo.city, companyInfo.state, companyInfo.cep].filter(Boolean).join(', ') : undefined;
     const pdfData: WarrantyPDFData = {
       certificate_number: certNumber,
       client_name: warranty.client?.name || 'Cliente',
@@ -177,6 +186,12 @@ export default function Garantias() {
       issue_date: warranty.issue_date,
       expiry_date: warranty.expiry_date,
       warranty_text: warranty.warranty_text || undefined,
+      company_name: companyInfo?.company_name || undefined,
+      company_logo_url: companyInfo?.logo_url || undefined,
+      company_cnpj: companyInfo?.cnpj || undefined,
+      company_phone: companyInfo?.phone || undefined,
+      company_email: companyInfo?.email || undefined,
+      company_address: companyAddress || undefined,
     };
 
     generateWarrantyPDF(pdfData, companyId || undefined);

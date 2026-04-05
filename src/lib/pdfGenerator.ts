@@ -33,6 +33,11 @@ export interface WarrantyPDFData {
   expiry_date: string;
   warranty_text?: string;
   company_name?: string;
+  company_logo_url?: string;
+  company_cnpj?: string;
+  company_phone?: string;
+  company_email?: string;
+  company_address?: string;
 }
 
 export interface ReportPDFData {
@@ -296,81 +301,203 @@ export async function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '
 export async function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?: number): Promise<void> {
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
-  let y = 20;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginLeft = 15;
+  const marginRight = 15;
+  const contentWidth = pageWidth - marginLeft - marginRight;
+  let y = 12;
 
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('CERTIFICADO DE GARANTIA', pageWidth / 2, y, { align: 'center' });
-  y += 15;
+  const companyName = warranty.company_name || 'Minha Empresa';
 
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Nº ${warranty.certificate_number}`, pageWidth / 2, y, { align: 'center' });
-  y += 15;
-
-  doc.setLineWidth(0.5);
-  doc.line(20, y, pageWidth - 20, y);
-  y += 10;
-
-  doc.setFillColor(245, 245, 245);
-  doc.rect(20, y, pageWidth - 40, 25, 'F');
-  y += 8;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Dados do Cliente', 25, y);
-  y += 7;
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Nome: ${warranty.client_name}`, 25, y);
-  y += 5;
-  doc.text(`Telefone: ${warranty.client_phone}`, 25, y);
-  if (warranty.client_email) {
-    y += 5;
-    doc.text(`Email: ${warranty.client_email}`, 25, y);
+  // — HEADER: Logo + Company Name + Subtitle —
+  let logoLoaded = false;
+  if (warranty.company_logo_url) {
+    try {
+      const response = await fetch(warranty.company_logo_url);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      doc.addImage(dataUrl, 'PNG', marginLeft, y, 18, 18);
+      logoLoaded = true;
+    } catch (e) {
+      console.warn('Não foi possível carregar a logo para o PDF:', e);
+    }
   }
-  y += 15;
 
-  doc.setFillColor(245, 245, 245);
-  doc.rect(20, y, pageWidth - 40, 20, 'F');
-  y += 8;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Dados do Veículo', 25, y);
-  y += 7;
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${warranty.vehicle_brand} ${warranty.vehicle_model} - Placa: ${warranty.vehicle_plate}`, 25, y);
-  if (warranty.vehicle_year) {
-    doc.text(` (${warranty.vehicle_year})`, 145, y);
-  }
-  y += 15;
+  const textStartX = logoLoaded ? marginLeft + 22 : marginLeft;
 
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('Serviço Realizado:', 25, y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(warranty.service_name, 70, y);
-  y += 10;
+  doc.text(companyName.toUpperCase(), textStartX, y + 7);
 
-  doc.setFont('helvetica', 'bold');
-  doc.text('Data de Emissão:', 25, y);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(formatDate(warranty.issue_date), 70, y);
-  y += 7;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Válido Até:', 25, y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(formatDate(warranty.expiry_date), 70, y);
-  y += 15;
+  doc.setTextColor(100, 100, 100);
+  doc.text('CERTIFICADO DE GARANTIA', textStartX, y + 13);
+  doc.setTextColor(0, 0, 0);
 
-  if (warranty.warranty_text) {
-    doc.setFont('helvetica', 'bold');
-    doc.text('Termos da Garantia:', 25, y);
-    y += 7;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Nº ${warranty.certificate_number}`, pageWidth - marginRight, y + 7, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+
+  y += 22;
+
+  // — Accent line —
+  doc.setDrawColor(0, 122, 255);
+  doc.setLineWidth(1);
+  doc.line(marginLeft, y, pageWidth - marginRight, y);
+  y += 6;
+
+  // — Company info bar —
+  const companyInfoParts: string[] = [];
+  if (warranty.company_cnpj) companyInfoParts.push(`CNPJ: ${warranty.company_cnpj}`);
+  if (warranty.company_phone) companyInfoParts.push(`Tel: ${warranty.company_phone}`);
+  if (warranty.company_email) companyInfoParts.push(`Email: ${warranty.company_email}`);
+
+  if (companyInfoParts.length > 0) {
+    doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    const lines = doc.splitTextToSize(warranty.warranty_text, pageWidth - 50);
-    doc.text(lines, 25, y);
-    y += lines.length * 5 + 10;
+    doc.setTextColor(100, 100, 100);
+    doc.text(companyInfoParts.join('  |  '), pageWidth / 2, y, { align: 'center' });
+    y += 4;
   }
 
-  doc.setFontSize(8);
-  doc.text('Este certificado é intransferível e válido apenas para o veículo especificado.', pageWidth / 2, 280, { align: 'center' });
+  if (warranty.company_address) {
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 100, 100);
+    doc.text(warranty.company_address, pageWidth / 2, y, { align: 'center' });
+    y += 4;
+  }
+
+  doc.setTextColor(0, 0, 0);
+  y += 4;
+
+  // ======= HELPERS =======
+  const drawSectionTitle = (title: string, yPos: number): number => {
+    doc.setFillColor(240, 240, 240);
+    doc.roundedRect(marginLeft, yPos, contentWidth, 7, 1, 1, 'F');
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(50, 50, 50);
+    doc.text(title.toUpperCase(), marginLeft + 4, yPos + 5);
+    doc.setTextColor(0, 0, 0);
+    return yPos + 11;
+  };
+
+  const drawField = (label: string, value: string, xPos: number, yPos: number): void => {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text(label, xPos, yPos);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(9.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text(value, xPos, yPos + 4);
+  };
+
+  const col1 = marginLeft + 4;
+  const col2 = marginLeft + contentWidth / 2;
+
+  // ======= DADOS DO CLIENTE =======
+  y = drawSectionTitle('Dados do Cliente', y);
+  drawField('Nome', warranty.client_name, col1, y);
+  drawField('WhatsApp', warranty.client_phone, col2, y);
+  y += 12;
+  if (warranty.client_email) {
+    drawField('Email', warranty.client_email, col1, y);
+    y += 12;
+  }
+
+  // ======= DADOS DO VEÍCULO =======
+  y = drawSectionTitle('Dados do Veículo', y);
+  const vehicleFull = `${warranty.vehicle_brand} ${warranty.vehicle_model}${warranty.vehicle_year ? ` (${warranty.vehicle_year})` : ''}`;
+  drawField('Veículo', vehicleFull, col1, y);
+  drawField('Placa', warranty.vehicle_plate || 'N/A', col2, y);
+  y += 12;
+
+  // ======= SERVIÇO REALIZADO =======
+  y = drawSectionTitle('Serviço Realizado', y);
+  drawField('Tipo de Serviço', warranty.service_name, col1, y);
+  y += 12;
+
+  // ======= VALIDADE =======
+  y = drawSectionTitle('Validade da Garantia', y);
+  drawField('Data de Emissão', formatDate(warranty.issue_date), col1, y);
+  drawField('Válido Até', formatDate(warranty.expiry_date), col2, y);
+  y += 14;
+
+  // ======= TERMOS DA GARANTIA =======
+  if (warranty.warranty_text) {
+    y = drawSectionTitle('Termos e Condições', y);
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(40, 40, 40);
+    const lines = doc.splitTextToSize(warranty.warranty_text, contentWidth - 8);
+    const linesHeight = lines.length * 4;
+    if (y + linesHeight > pageHeight - 30) {
+      const linesPerPage = Math.floor((pageHeight - 30 - y) / 4);
+      doc.text(lines.slice(0, linesPerPage), col1, y);
+      doc.addPage();
+      y = 15;
+      const remaining = lines.slice(linesPerPage);
+      doc.text(remaining, col1, y);
+      y += remaining.length * 4 + 5;
+    } else {
+      doc.text(lines, col1, y);
+      y += linesHeight + 5;
+    }
+    doc.setTextColor(0, 0, 0);
+  }
+
+  // ======= OBSERVAÇÃO =======
+  y += 3;
+  doc.setDrawColor(200, 170, 0);
+  doc.setFillColor(255, 250, 230);
+  doc.roundedRect(marginLeft, y, contentWidth, 12, 2, 2, 'FD');
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(140, 110, 0);
+  doc.text('OBSERVAÇÃO:', marginLeft + 4, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Esta garantia é intransferível e válida somente para o veículo e cliente especificados.', marginLeft + 28, y + 5);
+  doc.setTextColor(0, 0, 0);
+  y += 18;
+
+  // ======= ASSINATURAS =======
+  if (y < pageHeight - 45) {
+    const sigY = pageHeight - 42;
+    const sigWidth = 60;
+    const sig1X = marginLeft + 15;
+    const sig2X = pageWidth - marginRight - sigWidth - 15;
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.3);
+    doc.line(sig1X, sigY, sig1X + sigWidth, sigY);
+    doc.line(sig2X, sigY, sig2X + sigWidth, sigY);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(companyName, sig1X + sigWidth / 2, sigY + 5, { align: 'center' });
+    doc.text('Responsável', sig1X + sigWidth / 2, sigY + 9, { align: 'center' });
+    doc.text(warranty.client_name, sig2X + sigWidth / 2, sigY + 5, { align: 'center' });
+    doc.text('Cliente', sig2X + sigWidth / 2, sigY + 9, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+  }
+
+  // ======= FOOTER =======
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(150, 150, 150);
+  doc.text(
+    `Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+    pageWidth / 2, pageHeight - 8, { align: 'center' }
+  );
+  doc.setTextColor(0, 0, 0);
 
   const filename = `garantia-${warranty.certificate_number}.pdf`;
   await saveAndUploadPDF(doc, filename, 'Garantia', 'garantias', `${warranty.client_name} - ${warranty.service_name}`, companyId);
