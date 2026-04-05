@@ -182,13 +182,44 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         supabase.from('clients').select('id, name, phone, email').eq('company_id', profile.company_id).order('name'),
         supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
         supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
-        supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
+        supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id)
       ]);
+      const regionsList = regionsRes.data || [];
+      const productsList = productTypesRes.data || [];
 
       setClients(clientsRes.data || []);
-      setProductTypes(productTypesRes.data || []);
-      setVehicleRegions(regionsRes.data || []);
+      setProductTypes(productsList);
+      setVehicleRegions(regionsList);
       setConsumptionRules(rulesRes.data || []);
+
+      // Retroactive mapping for spaces created before ID tracking
+      setDetailedItems(currentItems => {
+        if (!currentItems || currentItems.length === 0) return currentItems;
+        
+        return currentItems.map(item => {
+          let mappedRegionId = item.regionId;
+          if (!mappedRegionId && item.regionName) {
+            const itemCategory = item.category || 'INSULFILM';
+            const found = regionsList.find(r => r.name?.toLowerCase().trim() === item.regionName?.toLowerCase().trim() && r.category === itemCategory);
+            if (found) mappedRegionId = found.id;
+          }
+          
+          let mappedProductId = item.productTypeId;
+          if (!mappedProductId && item.productTypeName) {
+            const itemCategory = item.category || 'INSULFILM';
+            const found = productsList.find(p => {
+               const brand = p.brand || "";
+               const name = p.name || "";
+               const light = p.light_transmission ? ` ${p.light_transmission}` : "";
+               const fullName = `${brand} ${name}${light}`.trim().toLowerCase();
+               return fullName === item.productTypeName?.toLowerCase().trim() && p.category === itemCategory;
+            });
+            if (found) mappedProductId = found.id;
+          }
+          
+          return { ...item, regionId: mappedRegionId, productTypeId: mappedProductId };
+        });
+      });
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
