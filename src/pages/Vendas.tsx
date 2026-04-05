@@ -407,10 +407,10 @@ const Vendas = () => {
           setIsNewSaleModalOpen(open);
           if (!open) {
             setInitialSaleDate(undefined);
-            fetchSales();
           }
         }}
         initialDate={initialSaleDate}
+        onSuccess={fetchSales}
       />
 
       <SalesDayDrawer

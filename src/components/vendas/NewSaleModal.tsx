@@ -102,9 +102,10 @@ interface NewSaleModalProps {
     discount?: number;
     services: any[];
   };
+  onSuccess?: () => void;
 }
 
-const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefillData }: NewSaleModalProps) => {
+const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefillData, onSuccess }: NewSaleModalProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -426,6 +427,11 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       }
 
       toast.success(`Venda de R$ ${total.toFixed(2)} cadastrada com sucesso!`);
+
+      // Call onSuccess to notify parent components
+      if (onSuccess) {
+        onSuccess();
+      }
 
       // Reset form
       setSelectedClientId("");
