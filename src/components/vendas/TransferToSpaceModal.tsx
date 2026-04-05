@@ -78,17 +78,35 @@ const TransferToSpaceModal = ({
   const fetchClientAndVehicles = async () => {
     if (!sale?.client_id) return;
 
-    const [clientRes, vehiclesRes] = await Promise.all([
+    const [clientRes, vehiclesRes, detailedItemsRes, saleItemsRes] = await Promise.all([
       supabase.from("clients").select("id, name").eq("id", sale.client_id).single(),
       supabase.from("vehicles").select("id, brand, model, plate").eq("client_id", sale.client_id),
+      supabase.from("service_items_detailed").select("*, product_type:product_types(name), region:vehicle_regions(name)").eq("sale_id", sale.id),
+      supabase.from("sale_items").select("*, service:services(name)").eq("sale_id", sale.id)
     ]);
 
     if (clientRes.data) setClient(clientRes.data);
-    if (vehiclesRes.data) {
+    
+    if (vehiclesRes.data && vehiclesRes.data.length > 0) {
       setVehicles(vehiclesRes.data);
       if (sale.vehicle_id) {
         setVehicleId(sale.vehicle_id.toString());
+      } else {
+        setVehicleId(vehiclesRes.data[0].id.toString());
       }
+    }
+
+    let servicesText = "";
+    if (detailedItemsRes.data && detailedItemsRes.data.length > 0) {
+      servicesText = detailedItemsRes.data.map(item => 
+        `${item.region?.name || 'Serviço'} - ${item.product_type?.name || 'Produto'}`
+      ).join(", ");
+    } else if (saleItemsRes.data && saleItemsRes.data.length > 0) {
+      servicesText = saleItemsRes.data.map(item => item.service?.name).filter(Boolean).join(", ");
+    }
+
+    if (servicesText) {
+      setObservations(prev => prev ? prev : `Serviços: ${servicesText}`);
     }
   };
 
