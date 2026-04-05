@@ -143,12 +143,12 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         if (prefillData.discount) setDiscountValue(prefillData.discount.toString());
         if (prefillData.services && prefillData.services.length > 0) {
           // Initialize detailed services from prefill
-          setDetailedItems(prefillData.services.map(s => ({
+          setDetailedItems(prefillData.services.map((s: any) => ({
             id: crypto.randomUUID(),
-            category: "INSULFILM" as ProductCategory,
-            regionId: null,
+            category: s.category || "INSULFILM" as ProductCategory,
+            regionId: s.regionId || null,
             regionName: s.regionName || "",
-            productTypeId: null,
+            productTypeId: s.productTypeId || null,
             productTypeName: s.productTypeName || "",
             metersUsed: s.metersUsed || 0,
             totalPrice: s.totalPrice || 0,
@@ -185,10 +185,34 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
       ]);
 
+      const regionsList = regionsRes.data || [];
+      const productsList = productTypesRes.data || [];
+      
       setClients(clientsRes.data || []);
-      setProductTypes(productTypesRes.data || []);
-      setVehicleRegions(regionsRes.data || []);
+      setProductTypes(productsList);
+      setVehicleRegions(regionsList);
       setConsumptionRules(rulesRes.data || []);
+
+      // Retroactive mapping for spaces created before ID tracking
+      setDetailedItems(currentItems => currentItems.map(item => {
+        let mappedRegionId = item.regionId;
+        if (!mappedRegionId && item.regionName) {
+          const found = regionsList.find(r => r.name === item.regionName && r.category === item.category);
+          if (found) mappedRegionId = found.id;
+        }
+        
+        // Exact string match mapping for product if ID missing
+        let mappedProductId = item.productTypeId;
+        if (!mappedProductId && item.productTypeName) {
+          const found = productsList.find(p => {
+             const fullName = `${p.brand} ${p.name}${p.light_transmission ? ` ${p.light_transmission}` : ""}`;
+             return fullName === item.productTypeName && p.category === item.category;
+          });
+          if (found) mappedProductId = found.id;
+        }
+        
+        return { ...item, regionId: mappedRegionId, productTypeId: mappedProductId };
+      }));
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {

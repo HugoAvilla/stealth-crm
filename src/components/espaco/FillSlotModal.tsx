@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import React, { useRef } from "react";
+
 import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -315,7 +315,10 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       // Save services data as JSONB
       if (detailedItems.length > 0) {
         const servicesData = detailedItems.map(item => ({
+          category: item.category,
+          regionId: item.regionId,
           regionName: item.regionName || 'Serviço',
+          productTypeId: item.productTypeId,
           productTypeName: item.productTypeName || '',
           totalPrice: item.totalPrice || 0,
           metersUsed: item.metersUsed || 0,

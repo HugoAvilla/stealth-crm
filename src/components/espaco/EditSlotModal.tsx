@@ -195,10 +195,10 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       if (space.services_data && Array.isArray(space.services_data)) {
          setDetailedItems(space.services_data.map((item: any) => ({
             id: crypto.randomUUID(),
-            category: "INSULFILM" as ProductCategory,
-            regionId: null, // we don't have regionId saved in space natively, only names
+            category: item.category || "INSULFILM" as ProductCategory,
+            regionId: item.regionId || null,
             regionName: item.regionName || "",
-            productTypeId: null,
+            productTypeId: item.productTypeId || null,
             productTypeName: item.productTypeName || "",
             metersUsed: item.metersUsed || 0,
             totalPrice: item.totalPrice || 0,
@@ -324,7 +324,10 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       // Save services data as JSONB
       if (detailedItems.length > 0) {
         const servicesData = detailedItems.map(item => ({
+          category: item.category,
+          regionId: item.regionId,
           regionName: item.regionName || 'Serviço',
+          productTypeId: item.productTypeId,
           productTypeName: item.productTypeName || '',
           totalPrice: item.totalPrice || 0,
           metersUsed: item.metersUsed || 0,
