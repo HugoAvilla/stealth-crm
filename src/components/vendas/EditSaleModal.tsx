@@ -694,7 +694,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
                                   onRemove={handleRemoveDetailedItem}
                                 />
                               </div>
-                              {item.category === 'INSULFILM' && (
+                              {item.category === 'INSULFILM' && item.regionName?.toLowerCase().includes('latera') && (
                                 <Button
                                   variant="outline"
                                   size="icon"

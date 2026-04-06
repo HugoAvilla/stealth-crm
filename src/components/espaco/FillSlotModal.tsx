@@ -651,8 +651,9 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                               onRemove={handleRemoveDetailedItem}
                             />
                           </div>
-                          {item.category === 'INSULFILM' && (
+                          {item.category === 'INSULFILM' && item.regionName?.toLowerCase().includes('latera') && (
                             <Button
+                              type="button"
                               variant="outline"
                               size="icon"
                               className="h-8 w-8 shrink-0"

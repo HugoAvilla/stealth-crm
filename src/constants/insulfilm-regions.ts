@@ -2,7 +2,6 @@
 // Estas regiões são hardcoded no frontend — não são entries em vehicle_regions
 
 export const CUSTOM_INSULFILM_REGIONS = [
-  { code: 'CUSTOM_WINDSHIELD', label: 'Parabrisa', order: 1 },
   { code: 'CUSTOM_SIDE_FRONT', label: 'Laterais dianteiros', order: 2 },
   { code: 'CUSTOM_SIDE_REAR', label: 'Laterais traseiros', order: 3 },
   { code: 'CUSTOM_REAR', label: 'Traseiro', order: 4 },
@@ -25,19 +24,16 @@ export type SimpleRegionCode = typeof SIMPLE_REGION_CODES[number]['code'];
 // Lat.Diant / Lat.Tras / Traseiro dividem a regra SIDE_REAR
 export const CUSTOM_SPLIT_RATIOS = {
   P: { // Hatch, utilitário cabine simples (Gol, Mobi, Kwid, Onix)
-    CUSTOM_WINDSHIELD: { source: 'WINDSHIELD' as const, ratio: 1.00 },
     CUSTOM_SIDE_FRONT: { source: 'SIDE_REAR' as const,  ratio: 0.32 },
     CUSTOM_SIDE_REAR:  { source: 'SIDE_REAR' as const,  ratio: 0.32 },
     CUSTOM_REAR:       { source: 'SIDE_REAR' as const,  ratio: 0.36 },
   },
   M: { // Sedan, hatch médio (Corolla, Civic, Cruze, HB20 sedan)
-    CUSTOM_WINDSHIELD: { source: 'WINDSHIELD' as const, ratio: 1.00 },
     CUSTOM_SIDE_FRONT: { source: 'SIDE_REAR' as const,  ratio: 0.30 },
     CUSTOM_SIDE_REAR:  { source: 'SIDE_REAR' as const,  ratio: 0.30 },
     CUSTOM_REAR:       { source: 'SIDE_REAR' as const,  ratio: 0.40 },
   },
   G: { // SUV, camionete (Compass, Tracker, Hilux, S10, Ranger)
-    CUSTOM_WINDSHIELD: { source: 'WINDSHIELD' as const, ratio: 1.00 },
     CUSTOM_SIDE_FRONT: { source: 'SIDE_REAR' as const,  ratio: 0.39 },
     CUSTOM_SIDE_REAR:  { source: 'SIDE_REAR' as const,  ratio: 0.39 },
     CUSTOM_REAR:       { source: 'SIDE_REAR' as const,  ratio: 0.22 },

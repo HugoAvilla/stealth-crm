@@ -148,7 +148,7 @@ export default function CustomizedServiceBlock({
             Personalizado
           </Badge>
           <span className="text-sm font-medium text-muted-foreground">
-            4 regiões com películas individuais
+            3 regiões com películas individuais
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -167,7 +167,7 @@ export default function CustomizedServiceBlock({
         </div>
       </div>
 
-      {/* 4 blocos */}
+      {/* 3 blocos */}
       <div className="divide-y divide-border/50">
         {items.map((item, index) => (
           <div
@@ -230,7 +230,7 @@ export default function CustomizedServiceBlock({
           <AlertDialogHeader>
             <AlertDialogTitle>Voltar ao modo simples?</AlertDialogTitle>
             <AlertDialogDescription>
-              Os dados detalhados das 4 regiões serão perdidos. O serviço voltará
+              Os dados detalhados das 3 regiões serão perdidos. O serviço voltará
               ao modo simples com uma única película.
             </AlertDialogDescription>
           </AlertDialogHeader>

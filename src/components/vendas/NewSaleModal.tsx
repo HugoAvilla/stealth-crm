@@ -779,13 +779,13 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                                   onRemove={handleRemoveDetailedItem}
                                 />
                               </div>
-                              {item.category === 'INSULFILM' && (
+                              {item.category === 'INSULFILM' && item.regionName?.toLowerCase().includes('latera') && (
                                 <Button
                                   variant="outline"
                                   size="icon"
                                   className="h-8 w-8 shrink-0"
                                   onClick={() => handleToggleCustomize(item.id)}
-                                  title="Personalizar - dividir em 4 regiões com películas individuais"
+                                  title="Personalizar - dividir em 3 regiões com películas individuais"
                                 >
                                   <Sliders className="h-4 w-4" />
                                 </Button>
