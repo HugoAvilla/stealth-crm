@@ -639,7 +639,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                               onRemove={handleRemoveDetailedItem}
                             />
                           </div>
-                          {item.category === 'INSULFILM' && item.regionName?.toLowerCase().includes('latera') && (
+                          {item.category === 'INSULFILM' && item.regionCode === 'SIDE_REAR' && (
                             <Button
                               type="button"
                               variant="outline"

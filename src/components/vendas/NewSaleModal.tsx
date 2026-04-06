@@ -779,7 +779,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                                   onRemove={handleRemoveDetailedItem}
                                 />
                               </div>
-                              {item.category === 'INSULFILM' && item.regionName?.toLowerCase().includes('latera') && (
+                              {item.category === 'INSULFILM' && item.regionCode === 'SIDE_REAR' && (
                                 <Button
                                   variant="outline"
                                   size="icon"

@@ -120,6 +120,7 @@ const ServiceItemRow = ({
       ...item,
       regionId: parseInt(regionId),
       regionName: region?.name || "",
+      regionCode: region?.region_code || null,
       metersUsed: meters,
       totalPrice: fixedPrice, // Sempre usa o preço do serviço
     });
