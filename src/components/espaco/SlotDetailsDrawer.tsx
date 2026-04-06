@@ -287,10 +287,22 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     price: item.total_price,
   })) || [];
 
-  const jsonServices = ((space as any).services_data || []).map((s: any) => ({
-    name: s.regionName || 'Serviço',
-    price: s.totalPrice || 0,
-  }));
+  const jsonServices: { name: string; price: number }[] = [];
+  for (const s of ((space as any).services_data || []) as any[]) {
+    if (s.isCustomized && s.items && Array.isArray(s.items)) {
+      for (const gi of s.items) {
+        jsonServices.push({
+          name: `${gi.regionLabel || 'Região'}${gi.productTypeName ? ` • ${gi.productTypeName}` : ''}`,
+          price: gi.totalPrice || 0,
+        });
+      }
+    } else {
+      jsonServices.push({
+        name: s.displayName || s.regionName || 'Serviço',
+        price: s.totalPrice || 0,
+      });
+    }
+  }
 
   const services = saleServices.length > 0 ? saleServices : jsonServices;
 

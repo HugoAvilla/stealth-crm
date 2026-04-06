@@ -12,11 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X } from "lucide-react";
+import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X, Sliders } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
+import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
 import NewVehicleModal from "@/components/vendas/NewVehicleModal";
 import NewClientModal from "@/components/vendas/NewClientModal";
 
@@ -42,6 +43,7 @@ interface VehicleRegion {
   name: string;
   description: string | null;
   fixed_price: number | null;
+  region_code?: string | null;
 }
 
 export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: EditSlotModalProps) {
@@ -67,6 +69,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
   
   // Detailed services state
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
+  const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
   
   // New vehicle modal
   const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
@@ -133,7 +136,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
         .eq('is_active', true)
         .order('sort_order');
       if (error) throw error;
-      return data as VehicleRegion[];
+      return data as unknown as VehicleRegion[];
     },
     enabled: !!companyId && open,
   });
@@ -147,7 +150,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
         .select('id, category, region_id, vehicle_size, meters_consumed')
         .eq('company_id', companyId);
       if (error) throw error;
-      return data;
+      return data as any[];
     },
     enabled: !!companyId && open,
   });
@@ -193,16 +196,55 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       
       // Detailed items
       if (space.services_data && Array.isArray(space.services_data)) {
-         setDetailedItems(space.services_data.map((item: any) => ({
-            id: crypto.randomUUID(),
-            category: item.category || "INSULFILM" as ProductCategory,
-            regionId: item.regionId || null,
-            regionName: item.regionName || "",
-            productTypeId: item.productTypeId || null,
-            productTypeName: item.productTypeName || "",
-            metersUsed: item.metersUsed || 0,
-            totalPrice: item.totalPrice || 0,
-         })));
+         const loadedItems: DetailedServiceItem[] = [];
+         const loadedGroups = new Map<string, CustomizedRegionItem[]>();
+
+         for (const item of space.services_data as any[]) {
+           if (item.isCustomized && item.customizationGroup && item.items) {
+             const groupId = item.customizationGroup;
+             loadedItems.push({
+               id: crypto.randomUUID(),
+               category: item.category || 'INSULFILM' as ProductCategory,
+               regionId: null,
+               regionName: '',
+               productTypeId: null,
+               productTypeName: '',
+               metersUsed: 0,
+               totalPrice: item.totalPrice || 0,
+               serviceName: '',
+               regionCode: null,
+               displayName: '',
+               isCustomized: true,
+               customizationGroup: groupId,
+             });
+             loadedGroups.set(groupId, item.items.map((gi: any) => ({
+               regionCode: gi.regionCode,
+               regionLabel: gi.regionLabel,
+               productTypeId: gi.productTypeId,
+               productTypeName: gi.productTypeName || '',
+               metersUsed: gi.metersUsed || 0,
+               totalPrice: gi.totalPrice || 0,
+             })));
+           } else {
+             loadedItems.push({
+               id: crypto.randomUUID(),
+               category: item.category || 'INSULFILM' as ProductCategory,
+               regionId: item.regionId || null,
+               regionName: item.regionName || '',
+               productTypeId: item.productTypeId || null,
+               productTypeName: item.productTypeName || '',
+               metersUsed: item.metersUsed || 0,
+               totalPrice: item.totalPrice || 0,
+               serviceName: item.serviceName || '',
+               regionCode: item.regionCode || null,
+               displayName: item.displayName || '',
+               isCustomized: false,
+               customizationGroup: null,
+             });
+           }
+         }
+         setDetailedItems(loadedItems);
+         setCustomizedGroups(loadedGroups);
       }
     }
   }, [open, space]);
@@ -231,8 +273,55 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       productTypeName: "",
       metersUsed: 0,
       totalPrice: 0,
+      serviceName: "",
+      regionCode: null,
+      displayName: "",
+      isCustomized: false,
+      customizationGroup: null,
     };
     setDetailedItems([...detailedItems, newItem]);
+  };
+
+  // Toggle customized mode
+  const handleToggleCustomize = (itemId: string) => {
+    const item = detailedItems.find(i => i.id === itemId);
+    if (!item || (item.isCustomized && item.customizationGroup)) return;
+
+    const groupId = crypto.randomUUID();
+    const initialItems = createInitialCustomItems(
+      selectedVehicle?.size || null,
+      consumptionRules || [],
+      item.productTypeId,
+      item.productTypeName
+    );
+
+    setDetailedItems(prev =>
+      prev.map(i =>
+        i.id === itemId
+          ? { ...i, isCustomized: true, customizationGroup: groupId }
+          : i
+      )
+    );
+    setCustomizedGroups(prev => new Map(prev).set(groupId, initialItems));
+  };
+
+  const handleRevertToSimple = (itemId: string, groupId: string) => {
+    setDetailedItems(prev =>
+      prev.map(i =>
+        i.id === itemId
+          ? { ...i, isCustomized: false, customizationGroup: null, productTypeId: null, productTypeName: "" }
+          : i
+      )
+    );
+    setCustomizedGroups(prev => {
+      const next = new Map(prev);
+      next.delete(groupId);
+      return next;
+    });
+  };
+
+  const handleUpdateCustomizedItems = (groupId: string, items: CustomizedRegionItem[]) => {
+    setCustomizedGroups(prev => new Map(prev).set(groupId, items));
   };
 
   // Handle updating a detailed service item with fixed_price support
@@ -323,15 +412,41 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
 
       // Save services data as JSONB
       if (detailedItems.length > 0) {
-        const servicesData = detailedItems.map(item => ({
-          category: item.category,
-          regionId: item.regionId,
-          regionName: item.regionName || 'Serviço',
-          productTypeId: item.productTypeId,
-          productTypeName: item.productTypeName || '',
-          totalPrice: item.totalPrice || 0,
-          metersUsed: item.metersUsed || 0,
-        }));
+        const servicesData: any[] = [];
+        for (const item of detailedItems) {
+          if (item.isCustomized && item.customizationGroup) {
+            const groupItems = customizedGroups.get(item.customizationGroup) || [];
+            servicesData.push({
+              category: item.category,
+              isCustomized: true,
+              customizationGroup: item.customizationGroup,
+              totalPrice: item.totalPrice || 0,
+              items: groupItems.map(gi => ({
+                regionCode: gi.regionCode,
+                regionLabel: gi.regionLabel,
+                productTypeId: gi.productTypeId,
+                productTypeName: gi.productTypeName,
+                metersUsed: gi.metersUsed,
+                totalPrice: gi.totalPrice,
+              })),
+            });
+          } else {
+            const region = (vehicleRegions || []).find(r => r.id === item.regionId);
+            servicesData.push({
+              category: item.category,
+              regionId: item.regionId,
+              regionName: item.regionName || 'Serviço',
+              productTypeId: item.productTypeId,
+              productTypeName: item.productTypeName || '',
+              totalPrice: item.totalPrice || 0,
+              metersUsed: item.metersUsed || 0,
+              serviceName: item.serviceName || item.regionName,
+              regionCode: region?.region_code || null,
+              displayName: item.displayName || `${item.regionName} • ${item.productTypeName}`,
+              isCustomized: false,
+            });
+          }
+        }
         
         await supabase
           .from('spaces')
@@ -499,16 +614,45 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
               ) : (
                 <div className="space-y-2">
                   {detailedItems.map(item => (
-                    <ServiceItemRow
-                      key={item.id}
-                      item={item}
-                      vehicleSize={selectedVehicle?.size || null}
-                      productTypes={productTypes || []}
-                      vehicleRegions={vehicleRegions || []}
-                      consumptionRules={consumptionRules || []}
-                      onUpdate={handleUpdateDetailedItem}
-                      onRemove={handleRemoveDetailedItem}
-                    />
+                    <div key={item.id} className="space-y-2">
+                      {item.isCustomized && item.customizationGroup ? (
+                        <CustomizedServiceBlock
+                          groupId={item.customizationGroup}
+                          items={customizedGroups.get(item.customizationGroup) || []}
+                          productTypes={productTypes || []}
+                          vehicleSize={selectedVehicle?.size || null}
+                          consumptionRules={consumptionRules || []}
+                          servicePrice={item.totalPrice}
+                          onUpdate={(items) => handleUpdateCustomizedItems(item.customizationGroup!, items)}
+                          onRevertToSimple={() => handleRevertToSimple(item.id, item.customizationGroup!)}
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <ServiceItemRow
+                              item={item}
+                              vehicleSize={selectedVehicle?.size || null}
+                              productTypes={productTypes || []}
+                              vehicleRegions={vehicleRegions || []}
+                              consumptionRules={consumptionRules || []}
+                              onUpdate={handleUpdateDetailedItem}
+                              onRemove={handleRemoveDetailedItem}
+                            />
+                          </div>
+                          {item.category === 'INSULFILM' && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 shrink-0"
+                              onClick={() => handleToggleCustomize(item.id)}
+                              title="Personalizar"
+                            >
+                              <Sliders className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

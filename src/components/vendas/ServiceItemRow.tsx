@@ -20,6 +20,12 @@ export interface DetailedServiceItem {
   productTypeName: string;
   metersUsed: number;
   totalPrice: number; // Preço vem do serviço (fixed_price), não do material
+  // Novos campos para personalização
+  serviceName: string;
+  regionCode: string | null;
+  displayName: string;
+  isCustomized: boolean;
+  customizationGroup: string | null;
 }
 
 interface ProductType {
@@ -38,6 +44,7 @@ interface VehicleRegion {
   name: string;
   description: string | null;
   fixed_price?: number | null;
+  region_code?: string | null;
 }
 
 interface ConsumptionRule {
@@ -46,6 +53,7 @@ interface ConsumptionRule {
   region_id: number;
   vehicle_size: string;
   meters_consumed: number;
+  region_code?: string | null;
 }
 
 interface ServiceItemRowProps {

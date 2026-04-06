@@ -12,11 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X } from "lucide-react";
+import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X, Sliders } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
+import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
 import NewVehicleModal from "@/components/vendas/NewVehicleModal";
 import NewClientModal from "@/components/vendas/NewClientModal";
 
@@ -42,6 +43,7 @@ interface VehicleRegion {
   name: string;
   description: string | null;
   fixed_price: number | null;
+  region_code?: string | null;
 }
 
 export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDate }: FillSlotModalProps) {
@@ -67,6 +69,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   
   // Detailed services state
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
+  const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
   
   // New vehicle modal
   const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
@@ -135,7 +138,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
         .eq('is_active', true)
         .order('sort_order');
       if (error) throw error;
-      return data as VehicleRegion[];
+      return data as unknown as VehicleRegion[];
     },
     enabled: !!companyId && open,
   });
@@ -149,7 +152,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
         .select('id, category, region_id, vehicle_size, meters_consumed')
         .eq('company_id', companyId);
       if (error) throw error;
-      return data;
+      return data as any[];
     },
     enabled: !!companyId && open,
   });
@@ -182,6 +185,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       setObservations("");
       setTag("");
       setDetailedItems([]);
+      setCustomizedGroups(new Map());
       setPhotos([]);
       setShowDiscount(false);
       setShowObservations(false);
@@ -245,8 +249,55 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       productTypeName: "",
       metersUsed: 0,
       totalPrice: 0,
+      serviceName: "",
+      regionCode: null,
+      displayName: "",
+      isCustomized: false,
+      customizationGroup: null,
     };
     setDetailedItems([...detailedItems, newItem]);
+  };
+
+  // Toggle customized mode for an INSULFILM item
+  const handleToggleCustomize = (itemId: string) => {
+    const item = detailedItems.find(i => i.id === itemId);
+    if (!item || (item.isCustomized && item.customizationGroup)) return;
+
+    const groupId = crypto.randomUUID();
+    const initialItems = createInitialCustomItems(
+      selectedVehicle?.size || null,
+      consumptionRules || [],
+      item.productTypeId,
+      item.productTypeName
+    );
+
+    setDetailedItems(prev =>
+      prev.map(i =>
+        i.id === itemId
+          ? { ...i, isCustomized: true, customizationGroup: groupId }
+          : i
+      )
+    );
+    setCustomizedGroups(prev => new Map(prev).set(groupId, initialItems));
+  };
+
+  const handleRevertToSimple = (itemId: string, groupId: string) => {
+    setDetailedItems(prev =>
+      prev.map(i =>
+        i.id === itemId
+          ? { ...i, isCustomized: false, customizationGroup: null, productTypeId: null, productTypeName: "" }
+          : i
+      )
+    );
+    setCustomizedGroups(prev => {
+      const next = new Map(prev);
+      next.delete(groupId);
+      return next;
+    });
+  };
+
+  const handleUpdateCustomizedItems = (groupId: string, items: CustomizedRegionItem[]) => {
+    setCustomizedGroups(prev => new Map(prev).set(groupId, items));
   };
 
   // Handle updating a detailed service item with fixed_price support
@@ -342,15 +393,41 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
 
       // Save services data as JSONB
       if (detailedItems.length > 0) {
-        const servicesData = detailedItems.map(item => ({
-          category: item.category,
-          regionId: item.regionId,
-          regionName: item.regionName || 'Serviço',
-          productTypeId: item.productTypeId,
-          productTypeName: item.productTypeName || '',
-          totalPrice: item.totalPrice || 0,
-          metersUsed: item.metersUsed || 0,
-        }));
+        const servicesData: any[] = [];
+        for (const item of detailedItems) {
+          if (item.isCustomized && item.customizationGroup) {
+            const groupItems = customizedGroups.get(item.customizationGroup) || [];
+            servicesData.push({
+              category: item.category,
+              isCustomized: true,
+              customizationGroup: item.customizationGroup,
+              totalPrice: item.totalPrice || 0,
+              items: groupItems.map(gi => ({
+                regionCode: gi.regionCode,
+                regionLabel: gi.regionLabel,
+                productTypeId: gi.productTypeId,
+                productTypeName: gi.productTypeName,
+                metersUsed: gi.metersUsed,
+                totalPrice: gi.totalPrice,
+              })),
+            });
+          } else {
+            const region = (vehicleRegions || []).find(r => r.id === item.regionId);
+            servicesData.push({
+              category: item.category,
+              regionId: item.regionId,
+              regionName: item.regionName || 'Serviço',
+              productTypeId: item.productTypeId,
+              productTypeName: item.productTypeName || '',
+              totalPrice: item.totalPrice || 0,
+              metersUsed: item.metersUsed || 0,
+              serviceName: item.serviceName || item.regionName,
+              regionCode: region?.region_code || null,
+              displayName: item.displayName || `${item.regionName} • ${item.productTypeName}`,
+              isCustomized: false,
+            });
+          }
+        }
         
         await supabase
           .from('spaces')
@@ -549,16 +626,45 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
               ) : (
                 <div className="space-y-2">
                   {detailedItems.map(item => (
-                    <ServiceItemRow
-                      key={item.id}
-                      item={item}
-                      vehicleSize={selectedVehicle?.size || null}
-                      productTypes={productTypes || []}
-                      vehicleRegions={vehicleRegions || []}
-                      consumptionRules={consumptionRules || []}
-                      onUpdate={handleUpdateDetailedItem}
-                      onRemove={handleRemoveDetailedItem}
-                    />
+                    <div key={item.id} className="space-y-2">
+                      {item.isCustomized && item.customizationGroup ? (
+                        <CustomizedServiceBlock
+                          groupId={item.customizationGroup}
+                          items={customizedGroups.get(item.customizationGroup) || []}
+                          productTypes={productTypes || []}
+                          vehicleSize={selectedVehicle?.size || null}
+                          consumptionRules={consumptionRules || []}
+                          servicePrice={item.totalPrice}
+                          onUpdate={(items) => handleUpdateCustomizedItems(item.customizationGroup!, items)}
+                          onRevertToSimple={() => handleRevertToSimple(item.id, item.customizationGroup!)}
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <ServiceItemRow
+                              item={item}
+                              vehicleSize={selectedVehicle?.size || null}
+                              productTypes={productTypes || []}
+                              vehicleRegions={vehicleRegions || []}
+                              consumptionRules={consumptionRules || []}
+                              onUpdate={handleUpdateDetailedItem}
+                              onRemove={handleRemoveDetailedItem}
+                            />
+                          </div>
+                          {item.category === 'INSULFILM' && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 shrink-0"
+                              onClick={() => handleToggleCustomize(item.id)}
+                              title="Personalizar"
+                            >
+                              <Sliders className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

@@ -33,6 +33,7 @@ export interface VehicleRegion {
   company_id: number;
   fixed_price: number | null;
   product_type_id: number | null;
+  region_code: string | null;
 }
 
 export interface RegionConsumptionRule {
@@ -44,20 +45,26 @@ export interface RegionConsumptionRule {
   created_at: string;
   updated_at: string;
   company_id: number;
+  region_code: string | null;
 }
 
 export interface ServiceItemDetailed {
   id: number;
   sale_id: number;
   category: ProductCategory;
-  product_type_id: number;
-  region_id: number;
+  product_type_id: number | null;
+  region_id: number | null;
   meters_used: number;
   unit_price: number;
   total_price: number;
   notes: string | null;
   created_at: string;
   company_id: number;
+  service_name: string | null;
+  region_code: string | null;
+  display_name: string | null;
+  is_customized: boolean;
+  customization_group: string | null;
 }
 
 export interface Profile {

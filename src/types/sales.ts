@@ -56,14 +56,19 @@ export interface DetailedServiceItemDB {
   id: number;
   sale_id: number;
   category: ProductCategory;
-  product_type_id: number;
-  region_id: number;
+  product_type_id: number | null;
+  region_id: number | null;
   meters_used: number;
   unit_price: number;
   total_price: number;
   notes: string | null;
   created_at: string | null;
   company_id: number;
+  service_name: string | null;
+  region_code: string | null;
+  display_name: string | null;
+  is_customized: boolean;
+  customization_group: string | null;
   product_type?: {
     brand: string;
     name: string;

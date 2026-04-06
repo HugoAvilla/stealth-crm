@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ProductCategory } from "@/lib/database.types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { SIMPLE_REGION_CODES } from "@/constants/insulfilm-regions";
 import {
   DndContext,
   closestCenter,
@@ -47,6 +49,7 @@ interface VehicleRegion {
   company_id: number;
   fixed_price: number | null;
   product_type_id: number | null;
+  region_code: string | null;
 }
 
 interface SortableRegionCardProps {
@@ -86,7 +89,14 @@ function SortableRegionCard({ region, onEdit, onDelete }: SortableRegionCardProp
       </button>
 
       <div className="flex-1">
-        <p className="font-medium">{region.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-medium">{region.name}</p>
+          {region.region_code && (
+            <Badge variant="outline" className="text-xs">
+              {SIMPLE_REGION_CODES.find(r => r.code === region.region_code)?.label || region.region_code}
+            </Badge>
+          )}
+        </div>
         {region.description && (
           <p className="text-sm text-muted-foreground">{region.description}</p>
         )}
@@ -128,12 +138,12 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
   const [deletingRegion, setDeletingRegion] = useState<VehicleRegion | null>(null);
   const [localRegions, setLocalRegions] = useState<VehicleRegion[]>([]);
 
-  // Form state - includes fixed_price
   const [formData, setFormData] = useState({
     category: "INSULFILM" as ProductCategory,
     name: "",
     description: "",
     fixed_price: 0,
+    region_code: "" as string,
   });
 
   const sensors = useSensors(
@@ -188,6 +198,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
           description: data.description || null,
           category: data.category,
           fixed_price: data.fixed_price || null,
+          region_code: data.region_code || null,
           company_id: companyId,
           sort_order: nextOrder,
           is_active: true,
@@ -216,6 +227,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
           name: data.name,
           description: data.description || null,
           fixed_price: data.fixed_price || null,
+          region_code: data.region_code || null,
         })
         .eq("id", id)
         .eq("company_id", companyId)
@@ -329,6 +341,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
         name: region.name,
         description: region.description || "",
         fixed_price: region.fixed_price || 0,
+        region_code: region.region_code || "",
       });
     } else {
       setEditingRegion(null);
@@ -337,6 +350,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
         name: "",
         description: "",
         fixed_price: 0,
+        region_code: "",
       });
     }
     setIsModalOpen(true);
@@ -350,6 +364,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
       name: "",
       description: "",
       fixed_price: 0,
+      region_code: "",
     });
   };
 
@@ -362,7 +377,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
     if (editingRegion) {
       updateMutation.mutate({
         id: editingRegion.id,
-        data: { name: formData.name, description: formData.description, fixed_price: formData.fixed_price },
+        data: { name: formData.name, description: formData.description, fixed_price: formData.fixed_price, region_code: formData.region_code },
       });
     } else {
       createMutation.mutate(formData);
@@ -499,6 +514,31 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
                 Este preço aparecerá automaticamente ao preencher vagas
               </p>
             </div>
+
+            {formData.category === "INSULFILM" && (
+              <div className="space-y-2">
+                <Label>Região Física (Regra de Consumo)</Label>
+                <Select
+                  value={formData.region_code}
+                  onValueChange={(v) => setFormData({ ...formData, region_code: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a região" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {SIMPLE_REGION_CODES.map((rc) => (
+                      <SelectItem key={rc.code} value={rc.code}>
+                        {rc.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Associa este serviço a uma região para regras de consumo automáticas
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

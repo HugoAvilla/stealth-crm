@@ -40,6 +40,7 @@ import {
   User,
   Car,
   Layers,
+  Sliders,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +48,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { consumeStockForDetailedSale, createTransactionFromSale } from "@/lib/stockConsumption";
 import NewClientModal from "@/components/vendas/NewClientModal";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
+import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
 import { toast } from "sonner";
 
 interface Client {
@@ -81,6 +83,7 @@ interface VehicleRegion {
   name: string;
   description: string | null;
   fixed_price: number | null;
+  region_code?: string | null;
 }
 
 interface ConsumptionRule {
@@ -89,6 +92,7 @@ interface ConsumptionRule {
   region_id: number;
   vehicle_size: string;
   meters_consumed: number;
+  region_code?: string | null;
 }
 
 interface NewSaleModalProps {
@@ -130,6 +134,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const [vehicleRegions, setVehicleRegions] = useState<VehicleRegion[]>([]);
   const [consumptionRules, setConsumptionRules] = useState<ConsumptionRule[]>([]);
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
+  const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
   const [companyId, setCompanyId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -155,6 +160,11 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
             productTypeName: s.productTypeName || "",
             metersUsed: s.metersUsed || 0,
             totalPrice: s.totalPrice || 0,
+            serviceName: s.serviceName || s.regionName || "",
+            regionCode: s.regionCode || null,
+            displayName: s.displayName || s.regionName || "",
+            isCustomized: false,
+            customizationGroup: null,
           })));
         }
       } else if (defaultClientId) {
@@ -338,7 +348,6 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
     }
   };
 
-  // Add new detailed service item
   const handleAddDetailedItem = () => {
     const newItem: DetailedServiceItem = {
       id: crypto.randomUUID(),
@@ -349,8 +358,63 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       productTypeName: "",
       metersUsed: 0,
       totalPrice: 0,
+      serviceName: "",
+      regionCode: null,
+      displayName: "",
+      isCustomized: false,
+      customizationGroup: null,
     };
     setDetailedItems([...detailedItems, newItem]);
+  };
+
+  // Toggle customized mode for an item
+  const handleToggleCustomize = (itemId: string) => {
+    const item = detailedItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    if (item.isCustomized && item.customizationGroup) {
+      // Already customized - revert handled by CustomizedServiceBlock
+      return;
+    }
+
+    const groupId = crypto.randomUUID();
+    const initialItems = createInitialCustomItems(
+      selectedVehicle?.size || null,
+      consumptionRules,
+      item.productTypeId,
+      item.productTypeName
+    );
+
+    // Mark this item as customized
+    setDetailedItems(prev =>
+      prev.map(i =>
+        i.id === itemId
+          ? { ...i, isCustomized: true, customizationGroup: groupId }
+          : i
+      )
+    );
+    setCustomizedGroups(prev => new Map(prev).set(groupId, initialItems));
+  };
+
+  // Revert from customized to simple mode
+  const handleRevertToSimple = (itemId: string, groupId: string) => {
+    setDetailedItems(prev =>
+      prev.map(i =>
+        i.id === itemId
+          ? { ...i, isCustomized: false, customizationGroup: null, productTypeId: null, productTypeName: "" }
+          : i
+      )
+    );
+    setCustomizedGroups(prev => {
+      const next = new Map(prev);
+      next.delete(groupId);
+      return next;
+    });
+  };
+
+  // Update customized group items
+  const handleUpdateCustomizedItems = (groupId: string, items: CustomizedRegionItem[]) => {
+    setCustomizedGroups(prev => new Map(prev).set(groupId, items));
   };
 
   // Update detailed service item
@@ -371,10 +435,16 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       return;
     }
 
-    // Validate all items have required fields
-    const invalidItems = detailedItems.filter(
-      item => !item.regionId || !item.productTypeId || item.metersUsed <= 0
-    );
+    // Validate items - customized items don't need regionId/productTypeId at item level
+    const invalidItems = detailedItems.filter(item => {
+      if (item.isCustomized && item.customizationGroup) {
+        // For customized items, validate the group items instead
+        const groupItems = customizedGroups.get(item.customizationGroup);
+        if (!groupItems) return true;
+        return groupItems.some(gi => !gi.productTypeId);
+      }
+      return !item.regionId || !item.productTypeId || item.metersUsed <= 0;
+    });
     if (invalidItems.length > 0) {
       toast.error("Preencha todos os campos de cada serviço (região, produto e metros).");
       return;
@@ -408,16 +478,48 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       if (saleError) throw saleError;
 
       // Create service_items_detailed
-      const serviceItemsData = detailedItems.map(item => ({
-        sale_id: sale.id,
-        category: item.category,
-        product_type_id: item.productTypeId!,
-        region_id: item.regionId!,
-        meters_used: item.metersUsed,
-        unit_price: 0, // Preço unitário não é mais usado
-        total_price: item.totalPrice,
-        company_id: companyId,
-      }));
+      const serviceItemsData: any[] = [];
+      for (const item of detailedItems) {
+        if (item.isCustomized && item.customizationGroup) {
+          // Customized: insert 4 rows
+          const groupItems = customizedGroups.get(item.customizationGroup) || [];
+          for (const gi of groupItems) {
+            serviceItemsData.push({
+              sale_id: sale.id,
+              category: item.category,
+              product_type_id: gi.productTypeId,
+              region_id: null,
+              meters_used: gi.metersUsed,
+              unit_price: 0,
+              total_price: item.totalPrice / 4, // Distribui o preço
+              company_id: companyId,
+              service_name: gi.regionLabel,
+              region_code: gi.regionCode,
+              display_name: `${gi.regionLabel} - ${gi.productTypeName}`,
+              is_customized: true,
+              customization_group: item.customizationGroup,
+            });
+          }
+        } else {
+          // Simple: insert 1 row
+          const region = vehicleRegions.find(r => r.id === item.regionId);
+          serviceItemsData.push({
+            sale_id: sale.id,
+            category: item.category,
+            product_type_id: item.productTypeId,
+            region_id: item.regionId,
+            meters_used: item.metersUsed,
+            unit_price: 0,
+            total_price: item.totalPrice,
+            company_id: companyId,
+            service_name: item.serviceName || item.regionName,
+            region_code: region?.region_code || null,
+            display_name: item.displayName || `${item.regionName} • ${item.productTypeName}`,
+            is_customized: false,
+            customization_group: null,
+          });
+        }
+      }
 
       const { error: itemsError } = await supabase
         .from('service_items_detailed')
@@ -461,6 +563,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       setSelectedClientId("");
       setSelectedVehicleId("");
       setDetailedItems([]);
+      setCustomizedGroups(new Map());
       setDiscountValue("");
       setDiscountPercent("");
       setServicePrice("");
@@ -651,16 +754,45 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                       )}
 
                       {detailedItems.map((item) => (
-                        <ServiceItemRow
-                          key={item.id}
-                          item={item}
-                          vehicleSize={selectedVehicle?.size || null}
-                          productTypes={productTypes}
-                          vehicleRegions={vehicleRegions}
-                          consumptionRules={consumptionRules}
-                          onUpdate={handleUpdateDetailedItem}
-                          onRemove={handleRemoveDetailedItem}
-                        />
+                        <div key={item.id} className="space-y-2">
+                          {item.isCustomized && item.customizationGroup ? (
+                            <CustomizedServiceBlock
+                              groupId={item.customizationGroup}
+                              items={customizedGroups.get(item.customizationGroup) || []}
+                              productTypes={productTypes}
+                              vehicleSize={selectedVehicle?.size || null}
+                              consumptionRules={consumptionRules}
+                              servicePrice={item.totalPrice}
+                              onUpdate={(items) => handleUpdateCustomizedItems(item.customizationGroup!, items)}
+                              onRevertToSimple={() => handleRevertToSimple(item.id, item.customizationGroup!)}
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <ServiceItemRow
+                                  item={item}
+                                  vehicleSize={selectedVehicle?.size || null}
+                                  productTypes={productTypes}
+                                  vehicleRegions={vehicleRegions}
+                                  consumptionRules={consumptionRules}
+                                  onUpdate={handleUpdateDetailedItem}
+                                  onRemove={handleRemoveDetailedItem}
+                                />
+                              </div>
+                              {item.category === 'INSULFILM' && (
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0"
+                                  onClick={() => handleToggleCustomize(item.id)}
+                                  title="Personalizar - dividir em 4 regiões com películas individuais"
+                                >
+                                  <Sliders className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       ))}
 
                       <Button

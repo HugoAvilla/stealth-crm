@@ -238,13 +238,18 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                     </TableHeader>
                     <TableBody>
                       {detailedItems.map((item) => (
-                        <TableRow key={item.id}>
+                        <TableRow key={item.id} className={(item as any).is_customized ? 'bg-muted/30' : ''}>
                           <TableCell>
                             <div>
-                              <span>{item.region?.name || 'Região'}</span>
+                              <span>{(item as any).display_name || item.region?.name || 'Região'}</span>
                               <Badge variant="outline" className="ml-2 text-xs">
                                 {item.category}
                               </Badge>
+                              {(item as any).is_customized && (
+                                <Badge variant="secondary" className="ml-1 text-xs">
+                                  Personalizado
+                                </Badge>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
