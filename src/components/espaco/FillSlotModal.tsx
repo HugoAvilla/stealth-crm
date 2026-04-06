@@ -133,7 +133,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vehicle_regions')
-        .select('id, category, name, description, fixed_price')
+        .select('id, category, name, description, fixed_price, region_code')
         .eq('company_id', companyId)
         .eq('is_active', true)
         .order('sort_order');
@@ -651,7 +651,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                               onRemove={handleRemoveDetailedItem}
                             />
                           </div>
-                          {item.category === 'INSULFILM' && item.regionCode === 'SIDE_REAR' && (
+                          {item.category === 'INSULFILM' && (item.regionCode === 'SIDE_REAR' || item.regionName?.toLowerCase().includes('latera')) && (
                             <Button
                               type="button"
                               variant="outline"

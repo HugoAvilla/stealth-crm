@@ -131,7 +131,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vehicle_regions')
-        .select('id, category, name, description, fixed_price')
+        .select('id, category, name, description, fixed_price, region_code')
         .eq('company_id', companyId)
         .eq('is_active', true)
         .order('sort_order');

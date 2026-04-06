@@ -148,23 +148,31 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       fetchData();
       
       const fetchItems = async () => {
-         const { data } = await supabase.from('service_items_detailed').select('*').eq('sale_id', sale.id);
-         if (data) {
-             setDetailedItems(data.map((item) => ({
-               id: crypto.randomUUID(),
-               category: item.category as ProductCategory,
-               regionId: item.region_id,
-               regionName: '', 
-               productTypeId: item.product_type_id,
-               productTypeName: '', 
-               metersUsed: item.meters_used,
-               totalPrice: item.total_price,
-               serviceName: (item as any).service_name || '',
-               regionCode: (item as any).region_code || null,
-               displayName: (item as any).display_name || '',
-               isCustomized: (item as any).is_customized || false,
-               customizationGroup: (item as any).customization_group || null,
-             })));
+         const queryColumns = 'id, name, region_code' as '*';
+         const [{ data: items }, { data: regions }] = await Promise.all([
+           supabase.from('service_items_detailed').select('*').eq('sale_id', sale.id),
+           supabase.from('vehicle_regions').select(queryColumns).eq('company_id', sale.company_id || profile?.company_id || 0)
+         ]);
+
+         if (items) {
+              setDetailedItems(items.map((item) => {
+                const foundRegion = regions?.find(r => r.id === item.region_id);
+                return {
+                  id: crypto.randomUUID(),
+                  category: item.category as ProductCategory,
+                  regionId: item.region_id,
+                  regionName: foundRegion?.name || '', 
+                  productTypeId: item.product_type_id,
+                  productTypeName: '', 
+                  metersUsed: item.meters_used,
+                  totalPrice: item.total_price,
+                  serviceName: (item as any).service_name || '',
+                  regionCode: (item as any).region_code || foundRegion?.region_code || null,
+                  displayName: (item as any).display_name || '',
+                  isCustomized: (item as any).is_customized || false,
+                  customizationGroup: (item as any).customization_group || null,
+                };
+              }));
          }
       };
       if (sale.id) fetchItems();
@@ -694,7 +702,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
                                   onRemove={handleRemoveDetailedItem}
                                 />
                               </div>
-                              {item.category === 'INSULFILM' && item.regionCode === 'SIDE_REAR' && (
+                              {item.category === 'INSULFILM' && (item.regionCode === 'SIDE_REAR' || item.regionName?.toLowerCase().includes('latera')) && (
                                 <Button
                                   variant="outline"
                                   size="icon"
