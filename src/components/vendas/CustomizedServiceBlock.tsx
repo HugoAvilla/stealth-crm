@@ -60,9 +60,10 @@ interface CustomizedServiceBlockProps {
   productTypes: ProductType[];
   vehicleSize: string | null;
   consumptionRules: ConsumptionRule[];
-  servicePrice: number; // Preço total do serviço — não muda
+  servicePrice: number;
   onUpdate: (items: CustomizedRegionItem[]) => void;
   onRevertToSimple: () => void;
+  onPriceChange?: (price: number) => void;
 }
 
 /**
@@ -112,8 +113,11 @@ export default function CustomizedServiceBlock({
   servicePrice,
   onUpdate,
   onRevertToSimple,
+  onPriceChange,
 }: CustomizedServiceBlockProps) {
   const [showRevertAlert, setShowRevertAlert] = useState(false);
+
+  const totalMeters = items.reduce((acc, curr) => acc + (curr.metersUsed || 0), 0);
 
   const filteredProducts = productTypes.filter(
     (p) => p.category === "INSULFILM"
@@ -152,9 +156,6 @@ export default function CustomizedServiceBlock({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-success">
-            R$ {servicePrice.toFixed(2)}
-          </span>
           <Button
             variant="ghost"
             size="sm"
@@ -222,6 +223,37 @@ export default function CustomizedServiceBlock({
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Footer com Metros Totais e Ajuste de Preço */}
+      <div className="bg-muted/40 p-3 flex flex-wrap items-center justify-between border-t border-primary/20 gap-4">
+        {/* Visualização da Distribuição */}
+        <div className="flex items-center gap-2 text-xs">
+          <span className="font-medium text-muted-foreground mr-2">
+            Consumo Total: <span className="text-foreground ml-1">{totalMeters.toFixed(2)}m</span>
+          </span>
+          {items.map((item) => (
+             <Badge key={"badge-" + item.regionCode} variant="outline" className="bg-background">
+               {item.regionLabel.split(' ')[0]}: {item.metersUsed.toFixed(2)}m
+             </Badge>
+          ))}
+        </div>
+
+        {/* Input de Preço Total do Serviço */}
+        <div className="flex items-center gap-2">
+           <span className="text-sm font-medium text-muted-foreground mr-1">Preço Serviço:</span>
+           <div className="flex items-center gap-1 min-w-[110px]">
+             <span className="text-sm text-muted-foreground">R$</span>
+             <Input
+               type="number"
+               step="0.01"
+               className="w-[90px] text-right font-medium text-success h-8"
+               value={servicePrice || ""}
+               onChange={(e) => onPriceChange?.(parseFloat(e.target.value) || 0)}
+               placeholder="0.00"
+             />
+           </div>
+        </div>
       </div>
 
       {/* Alert para reverter */}

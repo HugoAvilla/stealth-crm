@@ -182,68 +182,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     },
   });
 
-  // Mark as paid mutation
-  const paymentMutation = useMutation({
-    mutationFn: async () => {
-      if (!space) return;
-      const { error } = await supabase
-        .from('spaces')
-        .update({ payment_status: 'paid' })
-        .eq('id', space.id);
 
-      if (error) throw error;
-    },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['spaces'] });
-      const previousSpaces = queryClient.getQueryData(['spaces']);
-      
-      queryClient.setQueryData(['spaces', (space as any)?.company_id], (old: any) => {
-        if (!old) return old;
-        return old.map((s: any) => s.id === space?.id ? { ...s, payment_status: 'paid' } : s);
-      });
-      return { previousSpaces };
-    },
-    onSuccess: () => {
-      toast.success("Pagamento confirmado!");
-      queryClient.invalidateQueries({ queryKey: ['spaces'] });
-      queryClient.invalidateQueries({ queryKey: ['unpaid-exited-count'] });
-      onUpdate?.();
-    },
-    onError: (error) => {
-      console.error("Erro ao confirmar pagamento:", error);
-      toast.error("Erro ao confirmar pagamento");
-    },
-  });
-
-  // Revert payment mutation
-  const revertPaymentMutation = useMutation({
-    mutationFn: async () => {
-      if (!space) return;
-      const { error } = await supabase
-        .from('spaces')
-        .update({ payment_status: 'pending' })
-        .eq('id', space.id);
-
-      if (error) throw error;
-    },
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['spaces'] });
-      queryClient.setQueryData(['spaces', (space as any)?.company_id], (old: any) => {
-        if (!old) return old;
-        return old.map((s: any) => s.id === space?.id ? { ...s, payment_status: 'pending' } : s);
-      });
-    },
-    onSuccess: () => {
-      toast.success("Pagamento revertido para pendente.");
-      queryClient.invalidateQueries({ queryKey: ['spaces'] });
-      queryClient.invalidateQueries({ queryKey: ['unpaid-exited-count'] });
-      onUpdate?.();
-    },
-    onError: (error) => {
-      console.error("Erro ao reverter pagamento:", error);
-      toast.error("Erro ao reverter pagamento");
-    },
-  });
 
   // Delete slot mutation
   const deleteMutation = useMutation({
@@ -610,39 +549,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
                 )}
               </Badge>
             </div>
-            {space.payment_status !== 'paid' ? (
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="text-success border-success/30 hover:bg-success/10"
-                onClick={() => paymentMutation.mutate()}
-                disabled={paymentMutation.isPending}
-              >
-                {paymentMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>Confirmar pagamento</>
-                )}
-              </Button>
-            ) : (
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={() => {
-                  if (confirm("Deseja reverter o status de pagamento para pendente?")) {
-                    revertPaymentMutation.mutate();
-                  }
-                }}
-                disabled={revertPaymentMutation.isPending}
-              >
-                {revertPaymentMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <><Undo2 className="h-3.5 w-3.5 mr-1" />Reverter</>
-                )}
-              </Button>
-            )}
+
           </div>
 
           {/* Comprovantes em PDF */}
@@ -798,7 +705,8 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
               clientId: space.client_id,
               vehicleId: space.vehicle_id,
               discount: space.discount || 0,
-              services: space.services_data || []
+              services: space.services_data || [],
+              spaceId: space.id
             }}
           />
         )}

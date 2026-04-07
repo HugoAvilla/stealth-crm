@@ -159,6 +159,11 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
   const selectedClient = clients?.find(c => c.id === parseInt(selectedClientId));
   const selectedVehicle = clientVehicles?.find(v => v.id === parseInt(selectedVehicleId));
 
+  const rulesWithRegionCode = (consumptionRules || []).map(rule => {
+    const region = vehicleRegions?.find(r => r.id === rule.region_id);
+    return { ...rule, region_code: (region as any)?.region_code || null };
+  });
+
   // Calculate totals
   const subtotal = detailedItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
   const calculatedDiscount = discountType === 'percent' 
@@ -332,8 +337,15 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       updatedItem = { ...updatedItem, totalPrice: region.fixed_price };
     }
     
-    setDetailedItems(items =>
-      items.map(item => item.id === updatedItem.id ? updatedItem : item)
+    setDetailedItems(prev =>
+      prev.map(item => item.id === updatedItem.id ? updatedItem : item)
+    );
+  };
+
+  // Update customized group price
+  const handleUpdateCustomizedPrice = (itemId: string, newPrice: number) => {
+    setDetailedItems(prev =>
+      prev.map(i => i.id === itemId ? { ...i, totalPrice: newPrice } : i)
     );
   };
 
@@ -621,10 +633,11 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                           items={customizedGroups.get(item.customizationGroup) || []}
                           productTypes={productTypes || []}
                           vehicleSize={selectedVehicle?.size || null}
-                          consumptionRules={consumptionRules || []}
+                          consumptionRules={rulesWithRegionCode}
                           servicePrice={item.totalPrice}
                           onUpdate={(items) => handleUpdateCustomizedItems(item.customizationGroup!, items)}
                           onRevertToSimple={() => handleRevertToSimple(item.id, item.customizationGroup!)}
+                          onPriceChange={(price) => handleUpdateCustomizedPrice(item.id, price)}
                         />
                       ) : (
                         <div className="flex items-center gap-2">
@@ -634,7 +647,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                               vehicleSize={selectedVehicle?.size || null}
                               productTypes={productTypes || []}
                               vehicleRegions={vehicleRegions || []}
-                              consumptionRules={consumptionRules || []}
+                              consumptionRules={rulesWithRegionCode}
                               onUpdate={handleUpdateDetailedItem}
                               onRemove={handleRemoveDetailedItem}
                             />

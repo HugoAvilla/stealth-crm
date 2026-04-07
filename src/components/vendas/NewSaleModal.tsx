@@ -105,6 +105,7 @@ interface NewSaleModalProps {
     vehicleId: number;
     discount?: number;
     services: any[];
+    spaceId?: number;
   };
   onSuccess?: () => void;
 }
@@ -203,7 +204,12 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       setClients(clientsRes.data || []);
       setProductTypes(productsList);
       setVehicleRegions(regionsList);
-      setConsumptionRules(rulesRes.data || []);
+      
+      const rulesList = (rulesRes.data || []).map((rule: any) => {
+        const region = regionsList.find(r => r.id === rule.region_id);
+        return { ...rule, region_code: region?.region_code || null };
+      });
+      setConsumptionRules(rulesList);
 
       // Retroactive mapping for spaces created before ID tracking
       setDetailedItems(currentItems => {
@@ -424,6 +430,13 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
     );
   };
 
+  // Update customized group price
+  const handleUpdateCustomizedPrice = (itemId: string, newPrice: number) => {
+    setDetailedItems(prev =>
+      prev.map(i => i.id === itemId ? { ...i, totalPrice: newPrice } : i)
+    );
+  };
+
   // Remove detailed service item
   const handleRemoveDetailedItem = (id: string) => {
     setDetailedItems(prev => prev.filter(item => item.id !== id));
@@ -526,6 +539,18 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         .insert(serviceItemsData);
 
       if (itemsError) throw itemsError;
+
+      // Update space if exported from a slot
+      if (prefillData?.spaceId) {
+        const { error: spaceUpdateError } = await supabase
+          .from('spaces')
+          .update({ sale_id: sale.id, payment_status: 'paid' })
+          .eq('id', prefillData.spaceId);
+          
+        if (spaceUpdateError) {
+          console.error('Error updating space:', spaceUpdateError);
+        }
+      }
 
       // Consume stock based on detailed items
       if (selectedVehicle?.size) {
@@ -765,6 +790,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                               servicePrice={item.totalPrice}
                               onUpdate={(items) => handleUpdateCustomizedItems(item.customizationGroup!, items)}
                               onRevertToSimple={() => handleRevertToSimple(item.id, item.customizationGroup!)}
+                              onPriceChange={(price) => handleUpdateCustomizedPrice(item.id, price)}
                             />
                           ) : (
                             <div className="flex items-center gap-2">

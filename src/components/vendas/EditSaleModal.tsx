@@ -151,7 +151,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
          const queryColumns = 'id, name, region_code' as '*';
          const [{ data: items }, { data: regions }] = await Promise.all([
            supabase.from('service_items_detailed').select('*').eq('sale_id', sale.id),
-           supabase.from('vehicle_regions').select(queryColumns).eq('company_id', sale.company_id || profile?.company_id || 0)
+           supabase.from('vehicle_regions').select(queryColumns).eq('company_id', (sale as any).company_id || companyId || 0)
          ]);
 
          if (items) {
@@ -204,10 +204,16 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
         supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
       ]);
 
+      const regionsList = regionsRes.data || [];
       setClients(clientsRes.data || []);
       setProductTypes(productTypesRes.data || []);
-      setVehicleRegions(regionsRes.data || []);
-      setConsumptionRules(rulesRes.data || []);
+      setVehicleRegions(regionsList);
+      
+      const rulesList = (rulesRes.data || []).map((rule: any) => {
+        const region = regionsList.find(r => r.id === rule.region_id);
+        return { ...rule, region_code: region?.region_code || null };
+      });
+      setConsumptionRules(rulesList);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -367,6 +373,13 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
   const handleUpdateDetailedItem = (updatedItem: DetailedServiceItem) => {
     setDetailedItems(prev =>
       prev.map(item => item.id === updatedItem.id ? updatedItem : item)
+    );
+  };
+
+  // Update customized group price
+  const handleUpdateCustomizedPrice = (itemId: string, newPrice: number) => {
+    setDetailedItems(prev =>
+      prev.map(i => i.id === itemId ? { ...i, totalPrice: newPrice } : i)
     );
   };
 
@@ -688,6 +701,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
                               servicePrice={item.totalPrice}
                               onUpdate={(items) => handleUpdateCustomizedItems(item.customizationGroup!, items)}
                               onRevertToSimple={() => handleRevertToSimple(item.id, item.customizationGroup!)}
+                              onPriceChange={(price) => handleUpdateCustomizedPrice(item.id, price)}
                             />
                           ) : (
                             <div className="flex items-center gap-2">
