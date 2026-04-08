@@ -388,7 +388,8 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       selectedVehicle?.size || null,
       consumptionRules,
       item.productTypeId,
-      item.productTypeName
+      item.productTypeName,
+      item.regionId
     );
 
     // Mark this item as customized

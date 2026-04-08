@@ -297,7 +297,8 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       selectedVehicle?.size || null,
       consumptionRules || [],
       item.productTypeId,
-      item.productTypeName
+      item.productTypeName,
+      item.regionId
     );
 
     setDetailedItems(prev =>

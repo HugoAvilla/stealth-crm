@@ -74,17 +74,18 @@ export function createInitialCustomItems(
   vehicleSize: string | null,
   consumptionRules: ConsumptionRule[],
   baseProductTypeId: number | null = null,
-  baseProductTypeName: string = ""
+  baseProductTypeName: string = "",
+  baseRegionId: number | null = null
 ): CustomizedRegionItem[] {
   return CUSTOM_INSULFILM_REGIONS.map((region) => {
     let metersUsed = 0;
 
-    if (vehicleSize && (vehicleSize === "P" || vehicleSize === "M" || vehicleSize === "G")) {
+    if (vehicleSize && (vehicleSize === "P" || vehicleSize === "M" || vehicleSize === "G") && baseRegionId) {
       const ratioConfig = CUSTOM_SPLIT_RATIOS[vehicleSize as VehicleSizeKey][region.code];
-      // Buscar regra de consumo pela source region_code
+      // Buscar regra de consumo pela region base do item original
       const sourceRule = consumptionRules.find(
         (r) =>
-          r.region_code === ratioConfig.source &&
+          r.region_id === baseRegionId &&
           r.vehicle_size === vehicleSize &&
           r.category === "INSULFILM"
       );

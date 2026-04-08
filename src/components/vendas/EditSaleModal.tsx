@@ -337,7 +337,8 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       selectedVehicle?.size || null,
       consumptionRules,
       item.productTypeId,
-      item.productTypeName
+      item.productTypeName,
+      item.regionId
     );
 
     setDetailedItems(prev =>
