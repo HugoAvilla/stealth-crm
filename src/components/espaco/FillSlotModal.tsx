@@ -20,6 +20,7 @@ import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/componen
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
 import NewVehicleModal from "@/components/vendas/NewVehicleModal";
 import NewClientModal from "@/components/vendas/NewClientModal";
+import { validateUpload, sanitizeFilename } from "@/lib/uploadValidator";
 
 interface FillSlotModalProps {
   open: boolean;
@@ -334,11 +335,23 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      if (photos.length + newFiles.length > 20) {
-        toast.error("Máximo de 20 fotos permitidas");
-        return;
+      
+      const validFiles: File[] = [];
+      for (const file of newFiles) {
+        const validation = validateUpload(file, { 
+          type: 'checklist-photo', 
+          maxFiles: 20, 
+          currentFiles: photos.length + validFiles.length 
+        });
+        
+        if (!validation.valid) {
+          toast.error(`Falha em ${file.name}: ${validation.error}`);
+          continue;
+        }
+        validFiles.push(file);
       }
-      setPhotos([...photos, ...newFiles]);
+      
+      setPhotos([...photos, ...validFiles]);
     }
   };
 
@@ -448,12 +461,13 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           .eq('id', spaceData.id);
       }
 
-      // Upload photos
+      // Upload photos (validated locally, but Storage RLS ensures bounds too)
       if (photos.length > 0) {
         for (let i = 0; i < photos.length; i++) {
           const photo = photos[i];
           const fileExt = photo.name.split('.').pop() || 'jpg';
-          const fileName = `${Date.now()}_${i}.${fileExt}`;
+          const sanitizedName = sanitizeFilename(photo.name.replace(`.${fileExt}`, ''));
+          const fileName = `${Date.now()}_${i}_${sanitizedName}.${fileExt}`;
           const filePath = `${companyId}/${spaceData.id}/${fileName}`;
           
           const { error: uploadError } = await supabase.storage
@@ -776,7 +790,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             <input 
               type="file" 
               multiple 
-              accept="image/*" 
+              accept="image/png, image/jpeg, image/webp, image/heic" 
               className="hidden" 
               ref={fileInputRef}
               onChange={handlePhotoSelect} 

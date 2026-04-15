@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { validateUpload, sanitizeFilename } from "@/lib/uploadValidator";
 
 interface CompanyData {
   company_name: string;
@@ -75,11 +76,18 @@ export default function Empresa() {
     const file = e.target.files?.[0];
     if (!file || !user?.companyId) return;
 
+    const validation = validateUpload(file, { type: 'logo' });
+    if (!validation.valid) {
+      toast.error(validation.error);
+      return;
+    }
+
     setIsUploading(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `logo-${Date.now()}.${fileExt}`;
+      const fileExt = file.name.split('.').pop() || 'png';
+      const sanitizedName = sanitizeFilename(file.name.replace(`.${fileExt}`, ''));
+      const fileName = `logo-${Date.now()}-${sanitizedName}.${fileExt}`;
       const filePath = `${user.companyId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -178,7 +186,7 @@ export default function Empresa() {
               type="file"
               ref={fileInputRef}
               onChange={handleLogoUpload}
-              accept="image/*"
+              accept="image/png, image/jpeg, image/webp"
               className="hidden"
             />
             <div

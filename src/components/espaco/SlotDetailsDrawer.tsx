@@ -103,13 +103,15 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           
         if (data && !error) {
           const files = data.filter(f => f.name !== '.emptyFolderPlaceholder');
-          const urls = files.map(file => {
-            const { data: { publicUrl } } = supabase.storage
-              .from('checklists')
-              .getPublicUrl(`${companyId}/${space.id}/${file.name}`);
-            return { name: file.name, url: publicUrl };
-          });
-          setChecklistPhotos(urls);
+          const urls = await Promise.all(
+            files.map(async file => {
+              const { data } = await supabase.storage
+                .from('checklists')
+                .createSignedUrl(`${companyId}/${space.id}/${file.name}`, 3600);
+              return { name: file.name, url: data?.signedUrl || '' };
+            })
+          );
+          setChecklistPhotos(urls.filter(u => u.url !== ''));
         } else {
           setChecklistPhotos([]);
         }

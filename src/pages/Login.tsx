@@ -9,7 +9,6 @@ import wfeLogo from '@/assets/wfe-logo.png';
 
 interface SavedCredential {
   email: string;
-  password: string;
   savedAt: string;
 }
 
@@ -19,15 +18,21 @@ const getSavedCredentials = (): SavedCredential[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    return JSON.parse(raw);
+    const creds = JSON.parse(raw);
+    return creds.map((c: any) => {
+      // remove password if it exists from older versions
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...rest } = c;
+      return rest;
+    });
   } catch {
     return [];
   }
 };
 
-const saveCredential = (email: string, password: string) => {
+const saveCredential = (email: string) => {
   const existing = getSavedCredentials().filter(c => c.email !== email);
-  existing.unshift({ email, password, savedAt: new Date().toISOString() });
+  existing.unshift({ email, savedAt: new Date().toISOString() });
   // Máximo de 5 contas salvas
   localStorage.setItem(STORAGE_KEY, JSON.stringify(existing.slice(0, 5)));
 };
@@ -96,7 +101,7 @@ const Login = () => {
       });
     } else {
       // Salvar credenciais no localStorage
-      saveCredential(email, password);
+      saveCredential(email);
       toast({
         title: "Bem-vindo!",
         description: "Login realizado com sucesso."
@@ -105,35 +110,10 @@ const Login = () => {
     }
   };
 
-  const handleSavedLogin = async (credential: SavedCredential) => {
-    setLoadingCredentialEmail(credential.email);
-    const { error } = await signIn(credential.email, credential.password);
-    setLoadingCredentialEmail(null);
-    if (error) {
-      let errorMessage = "Email ou senha incorretos.";
-      if (error.message.includes('Invalid login credentials')) {
-        errorMessage = "Credenciais salvas inválidas. Tente novamente com sua senha atual.";
-        removeCredential(credential.email);
-        setSavedCredentials(getSavedCredentials());
-      } else if (error.message.includes('Email not confirmed')) {
-        errorMessage = "Por favor, confirme seu email antes de fazer login.";
-      } else {
-        errorMessage = error.message;
-      }
-      toast({
-        title: "Erro no login",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    } else {
-      // Atualizar timestamp
-      saveCredential(credential.email, credential.password);
-      toast({
-        title: "Bem-vindo!",
-        description: "Login realizado com sucesso."
-      });
-      navigate('/');
-    }
+  const handleSavedLogin = (credential: SavedCredential) => {
+    setEmail(credential.email);
+    setPassword('');
+    setShowSavedAccounts(false);
   };
 
   const handleRemoveCredential = (e: React.MouseEvent, email: string) => {
@@ -201,7 +181,7 @@ const Login = () => {
                       {credential.email}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Senha salva • Clique para entrar
+                      Conta lembrada • Clique para inserir a senha
                     </p>
                   </div>
 
