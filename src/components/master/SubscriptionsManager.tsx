@@ -103,7 +103,7 @@ const SubscriptionsManager = () => {
   // Form states
   const [newPrice, setNewPrice] = useState("");
   const [priceReason, setPriceReason] = useState("");
-  const [newExpiry, setNewExpiry] = useState("");
+  const [individualExpirationPeriod, setIndividualExpirationPeriod] = useState("1");
   const [expiryReason, setExpiryReason] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [statusReason, setStatusReason] = useState("");
@@ -240,13 +240,14 @@ const SubscriptionsManager = () => {
 
   const handleChangeExpiry = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSub || !newExpiry || !expiryReason) return;
+    if (!selectedSub || !individualExpirationPeriod || !expiryReason) return;
 
     setIsSubmitting(true);
     try {
+      const expiresAt = addMonths(new Date(), parseInt(individualExpirationPeriod));
       const { error } = await supabase.rpc("master_change_expiry_date", {
         subscription_id_input: selectedSub.id,
-        new_expiry_input: new Date(newExpiry).toISOString(),
+        new_expiry_input: expiresAt.toISOString(),
         reason_input: expiryReason,
       });
       if (error) throw error;
@@ -375,7 +376,7 @@ const SubscriptionsManager = () => {
     setSelectedSub(null);
     setNewPrice("");
     setPriceReason("");
-    setNewExpiry("");
+    setIndividualExpirationPeriod("1");
     setExpiryReason("");
     setNewStatus("");
     setStatusReason("");
@@ -607,6 +608,7 @@ const SubscriptionsManager = () => {
                 <SelectContent>
                   <SelectItem value="1">Mensal (1 mês)</SelectItem>
                   <SelectItem value="2">Bimestral (2 meses)</SelectItem>
+                  <SelectItem value="3">Trimestral (3 meses)</SelectItem>
                   <SelectItem value="6">Semestral (6 meses)</SelectItem>
                   <SelectItem value="12">Anual (12 meses)</SelectItem>
                 </SelectContent>
@@ -663,8 +665,20 @@ const SubscriptionsManager = () => {
           </DialogHeader>
           <form onSubmit={handleChangeExpiry} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="newExpiry">Nova Data de Expiração *</Label>
-              <Input id="newExpiry" type="datetime-local" value={newExpiry} onChange={(e) => setNewExpiry(e.target.value)} required />
+              <Label htmlFor="individualExpirationPeriod">Período *</Label>
+              <Select value={individualExpirationPeriod} onValueChange={setIndividualExpirationPeriod}>
+                <SelectTrigger><SelectValue placeholder="Selecione o período" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Mensal (1 mês)</SelectItem>
+                  <SelectItem value="2">Bimestral (2 meses)</SelectItem>
+                  <SelectItem value="3">Trimestral (3 meses)</SelectItem>
+                  <SelectItem value="6">Semestral (6 meses)</SelectItem>
+                  <SelectItem value="12">Anual (12 meses)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Nova expiração: {format(addMonths(new Date(), parseInt(individualExpirationPeriod)), "dd/MM/yyyy", { locale: ptBR })}
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="expiryReason">Motivo *</Label>
@@ -709,6 +723,7 @@ const SubscriptionsManager = () => {
                   <SelectContent>
                     <SelectItem value="1">Mensal (1 mês)</SelectItem>
                     <SelectItem value="2">Bimestral (2 meses)</SelectItem>
+                    <SelectItem value="3">Trimestral (3 meses)</SelectItem>
                     <SelectItem value="6">Semestral (6 meses)</SelectItem>
                     <SelectItem value="12">Anual (12 meses)</SelectItem>
                   </SelectContent>
