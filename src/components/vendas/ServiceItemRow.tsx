@@ -1,7 +1,9 @@
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -157,6 +159,61 @@ const ServiceItemRow = ({
     });
   };
 
+  const renderProductSelect = () => {
+    if (filteredProducts.length === 0) {
+      return (
+        <SelectItem value="none" disabled>
+          Nenhum produto
+        </SelectItem>
+      );
+    }
+
+    const openRolls = filteredProducts.filter((p) => p.openRollsCount && p.openRollsCount > 0);
+    const closedRollsOnly = filteredProducts.filter((p) => p.hasClosedRoll && (!p.openRollsCount || p.openRollsCount === 0));
+    const outOfStock = filteredProducts.filter((p) => !p.openRollsCount && !p.hasClosedRoll);
+
+    const renderProduct = (product: ProductType) => {
+      let stockDisplay = "";
+      if (product.openRollsCount && product.openRollsCount > 0) {
+         stockDisplay += `${product.openRollsCount} Aberta${product.openRollsCount === 1 ? '' : 's'}`;
+      }
+      if (product.hasClosedRoll) {
+         stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
+      }
+
+      return (
+        <SelectItem key={product.id} value={product.id.toString()}>
+          {product.brand} {product.name}
+          {product.light_transmission ? ` ${product.light_transmission}` : ""}
+          {stockDisplay ? ` [${stockDisplay}]` : ""}
+        </SelectItem>
+      );
+    };
+
+    return (
+      <>
+        {openRolls.length > 0 && (
+          <SelectGroup>
+            <SelectLabel className="text-xs font-semibold text-primary">Com Bobina Aberta</SelectLabel>
+            {openRolls.map(renderProduct)}
+          </SelectGroup>
+        )}
+        {closedRollsOnly.length > 0 && (
+          <SelectGroup>
+            <SelectLabel className="text-xs font-semibold text-muted-foreground">Somente Bobina Fechada</SelectLabel>
+            {closedRollsOnly.map(renderProduct)}
+          </SelectGroup>
+        )}
+        {outOfStock.length > 0 && (
+          <SelectGroup>
+            <SelectLabel className="text-xs text-destructive/70">Sem Estoque</SelectLabel>
+            {outOfStock.map(renderProduct)}
+          </SelectGroup>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
       {/* Category Select */}
@@ -198,31 +255,11 @@ const ServiceItemRow = ({
         value={item.productTypeId?.toString() || ""}
         onValueChange={handleProductChange}
       >
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-[200px]">
           <SelectValue placeholder="Produto" />
         </SelectTrigger>
         <SelectContent>
-          {filteredProducts.length === 0 ? (
-            <SelectItem value="none" disabled>
-              Nenhum produto
-            </SelectItem>
-          ) : (
-            filteredProducts.map((product) => {
-              const stockDisplay = product.openRollsCount && product.openRollsCount > 0 
-                ? ` [${product.openRollsCount} Bobina Aberta${product.openRollsCount === 1 ? '' : 's'}]`
-                : "";
-
-              return (
-                <SelectItem key={product.id} value={product.id.toString()}>
-                  {product.brand} {product.name}
-                  {product.light_transmission
-                    ? ` ${product.light_transmission}`
-                    : ""}
-                  {stockDisplay}
-                </SelectItem>
-              );
-            })
-          )}
+          {renderProductSelect()}
         </SelectContent>
       </Select>
 

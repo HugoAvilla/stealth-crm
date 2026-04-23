@@ -2,7 +2,9 @@ import { useState } from "react";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -190,23 +192,60 @@ export default function CustomizedServiceBlock({
                 <SelectValue placeholder="Película / Tom" />
               </SelectTrigger>
               <SelectContent>
-                {filteredProducts.length === 0 ? (
-                  <SelectItem value="none" disabled>
-                    Nenhum produto
-                  </SelectItem>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <SelectItem
-                      key={product.id}
-                      value={product.id.toString()}
-                    >
-                      {product.brand} {product.name}
-                      {product.light_transmission
-                        ? ` ${product.light_transmission}`
-                        : ""}
-                    </SelectItem>
-                  ))
-                )}
+                {(() => {
+                  if (filteredProducts.length === 0) {
+                    return (
+                      <SelectItem value="none" disabled>
+                        Nenhum produto
+                      </SelectItem>
+                    );
+                  }
+
+                  const openRolls = filteredProducts.filter((p: any) => p.openRollsCount && p.openRollsCount > 0);
+                  const closedRollsOnly = filteredProducts.filter((p: any) => p.hasClosedRoll && (!p.openRollsCount || p.openRollsCount === 0));
+                  const outOfStock = filteredProducts.filter((p: any) => !p.openRollsCount && !p.hasClosedRoll);
+
+                  const renderProduct = (product: any) => {
+                    let stockDisplay = "";
+                    if (product.openRollsCount && product.openRollsCount > 0) {
+                       stockDisplay += `${product.openRollsCount} Aberta${product.openRollsCount === 1 ? '' : 's'}`;
+                    }
+                    if (product.hasClosedRoll) {
+                       stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
+                    }
+
+                    return (
+                      <SelectItem key={product.id} value={product.id.toString()}>
+                        {product.brand} {product.name}
+                        {product.light_transmission ? ` ${product.light_transmission}` : ""}
+                        {stockDisplay ? ` [${stockDisplay}]` : ""}
+                      </SelectItem>
+                    );
+                  };
+
+                  return (
+                    <>
+                      {openRolls.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel className="text-xs font-semibold text-primary">Com Bobina Aberta</SelectLabel>
+                          {openRolls.map(renderProduct)}
+                        </SelectGroup>
+                      )}
+                      {closedRollsOnly.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel className="text-xs font-semibold text-muted-foreground">Somente Bobina Fechada</SelectLabel>
+                          {closedRollsOnly.map(renderProduct)}
+                        </SelectGroup>
+                      )}
+                      {outOfStock.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel className="text-xs text-destructive/70">Sem Estoque</SelectLabel>
+                          {outOfStock.map(renderProduct)}
+                        </SelectGroup>
+                      )}
+                    </>
+                  );
+                })()}
               </SelectContent>
             </Select>
 

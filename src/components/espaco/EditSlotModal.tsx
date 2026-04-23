@@ -115,13 +115,38 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
   const { data: productTypes } = useQuery({
     queryKey: ['product-types', companyId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1. Fetch materials (bobinas) from stock
+      const { data: materialsData, error: materialsError } = await supabase
+        .from('materials')
+        .select('product_type_id, is_open_roll')
+        .eq('company_id', companyId)
+        .eq('status', 'available');
+
+      if (materialsError) throw materialsError;
+
+      // 2. Fetch product types
+      const { data: productsData, error: productsError } = await supabase
         .from('product_types')
         .select('id, category, brand, name, model, light_transmission, unit_price')
         .eq('company_id', companyId)
         .eq('is_active', true);
-      if (error) throw error;
-      return data;
+
+      if (productsError) throw productsError;
+
+      // 3. Map stock to products
+      const materialsList = materialsData || [];
+      const enrichedProducts = (productsData || []).map(pt => {
+        const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
+        const openRolls = ptMaterials.filter(m => m.is_open_roll);
+        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
+        return {
+          ...pt,
+          openRollsCount: openRolls.length,
+          hasClosedRoll: closedRolls.length > 0
+        };
+      });
+
+      return enrichedProducts;
     },
     enabled: !!companyId && open,
   });
