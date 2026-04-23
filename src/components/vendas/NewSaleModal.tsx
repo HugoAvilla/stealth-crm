@@ -25,6 +25,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +49,8 @@ import {
   Car,
   Layers,
   Sliders,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,6 +135,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const [showNotes, setShowNotes] = useState(false);
   const [showDetailedServices, setShowDetailedServices] = useState(true);
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [openClientPopover, setOpenClientPopover] = useState(false);
   const [servicePrice, setServicePrice] = useState("");
   const [isNewClient, setIsNewClient] = useState(true);
   const [pastSalesCount, setPastSalesCount] = useState(0);
@@ -192,14 +203,25 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
 
       setCompanyId(profile.company_id);
 
-      const [clientsRes, productTypesRes, regionsRes, rulesRes] = await Promise.all([
+      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes] = await Promise.all([
         supabase.from('clients').select('id, name, phone, email').eq('company_id', profile.company_id).order('name'),
         supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
         supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
-        supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id)
+        supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
+        supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true)
       ]);
       const regionsList = regionsRes.data || [];
-      const productsList = productTypesRes.data || [];
+      const materialsList = materialsRes.data || [];
+      const productsList = (productTypesRes.data || []).map(pt => {
+        const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
+        const openRolls = ptMaterials.filter(m => m.is_open_roll);
+        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
+        return {
+          ...pt,
+          openRollsCount: openRolls.length,
+          hasClosedRoll: closedRolls.length > 0
+        };
+      });
 
       setClients(clientsRes.data || []);
       setProductTypes(productsList);
@@ -604,9 +626,12 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
     }
   };
 
-  const handleNewClientCreated = () => {
+  const handleNewClientCreated = async (newClient?: any) => {
     setIsNewClientModalOpen(false);
-    fetchData();
+    await fetchData();
+    if (newClient?.id) {
+      setSelectedClientId(newClient.id.toString());
+    }
   };
 
   return (
@@ -665,21 +690,64 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
               <div className="space-y-2">
                 <Label>Cliente *</Label>
                 <div className="flex gap-2">
-                  <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Selecione um cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id.toString()}>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            {client.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={openClientPopover} onOpenChange={setOpenClientPopover}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openClientPopover}
+                        className="flex-1 justify-between"
+                      >
+                        {selectedClientId
+                          ? (
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              <span className="truncate">
+                                {clients?.find((c) => c.id.toString() === selectedClientId)?.name}
+                              </span>
+                            </div>
+                          )
+                          : loading ? "Carregando..." : "Selecione um cliente"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar cliente por nome..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {clients?.map((client) => (
+                              <CommandItem
+                                key={client.id}
+                                value={client.name}
+                                onSelect={() => {
+                                  setSelectedClientId(client.id.toString());
+                                  setOpenClientPopover(false);
+                                }}
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  <User className="h-4 w-4 text-muted-foreground" />
+                                  <span>{client.name}</span>
+                                  {client.phone && (
+                                    <span className="text-muted-foreground text-xs ml-auto whitespace-nowrap">
+                                      ({client.phone})
+                                    </span>
+                                  )}
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      selectedClientId === client.id.toString() ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <Button
                     variant="outline"
                     onClick={() => setIsNewClientModalOpen(true)}

@@ -11,8 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
-import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X, Sliders } from "lucide-react";
+import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X, Sliders, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -75,6 +78,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   // New vehicle modal
   const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [openClientPopover, setOpenClientPopover] = useState(false);
   
   // Toggle states for optional fields
   const [showDiscount, setShowDiscount] = useState(false);
@@ -543,24 +547,64 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                 Novo
               </Button>
             </div>
-            <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-              <SelectTrigger>
-                <SelectValue placeholder={loadingClients ? "Carregando..." : "Selecione um cliente"} />
-              </SelectTrigger>
-              <SelectContent>
-                {clients?.map(client => (
-                  <SelectItem key={client.id} value={client.id.toString()}>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span>{client.name}</span>
-                      {client.phone && (
-                        <span className="text-muted-foreground text-xs">({client.phone})</span>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={openClientPopover} onOpenChange={setOpenClientPopover}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openClientPopover}
+                  className="w-full justify-between justify-items-stretch"
+                >
+                  {selectedClientId
+                    ? (
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="truncate">
+                          {clients?.find((c) => c.id.toString() === selectedClientId)?.name}
+                        </span>
+                      </div>
+                    )
+                    : loadingClients ? "Carregando..." : "Selecione um cliente"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar cliente por nome..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {clients?.map((client) => (
+                        <CommandItem
+                          key={client.id}
+                          value={client.name}
+                          onSelect={() => {
+                            setSelectedClientId(client.id.toString());
+                            setOpenClientPopover(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-2 w-full">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span>{client.name}</span>
+                            {client.phone && (
+                              <span className="text-muted-foreground text-xs ml-auto whitespace-nowrap">
+                                ({client.phone})
+                              </span>
+                            )}
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedClientId === client.id.toString() ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Client Type: Novo vs Retorno */}
@@ -1003,8 +1047,11 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       <NewClientModal
         open={showNewClientModal}
         onOpenChange={setShowNewClientModal}
-        onClientCreated={() => {
+        onClientCreated={(newClient) => {
           refetchClients();
+          if (newClient?.id) {
+            setSelectedClientId(newClient.id.toString());
+          }
           setShowNewClientModal(false);
         }}
       />

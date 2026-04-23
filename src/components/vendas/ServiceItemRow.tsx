@@ -35,7 +35,8 @@ interface ProductType {
   name: string;
   model: string | null;
   light_transmission: string | null;
-  // unit_price removido - preço vem do serviço, não do material
+  openRollsCount?: number;
+  hasClosedRoll?: boolean;
 }
 
 interface VehicleRegion {
@@ -206,14 +207,21 @@ const ServiceItemRow = ({
               Nenhum produto
             </SelectItem>
           ) : (
-            filteredProducts.map((product) => (
-              <SelectItem key={product.id} value={product.id.toString()}>
-                {product.brand} {product.name}
-                {product.light_transmission
-                  ? ` ${product.light_transmission}`
-                  : ""}
-              </SelectItem>
-            ))
+            filteredProducts.map((product) => {
+              const stockDisplay = product.openRollsCount && product.openRollsCount > 0 
+                ? ` [${product.openRollsCount} Bobina Aberta${product.openRollsCount === 1 ? '' : 's'}]`
+                : "";
+
+              return (
+                <SelectItem key={product.id} value={product.id.toString()}>
+                  {product.brand} {product.name}
+                  {product.light_transmission
+                    ? ` ${product.light_transmission}`
+                    : ""}
+                  {stockDisplay}
+                </SelectItem>
+              );
+            })
           )}
         </SelectContent>
       </Select>

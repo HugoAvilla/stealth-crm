@@ -55,7 +55,7 @@ interface Vehicle {
 interface NewClientModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onClientCreated: () => void;
+  onClientCreated: (client?: any) => void;
 }
 
 import { ORIGIN_OPTIONS, ClientOrigin } from "@/constants/origins";
@@ -255,7 +255,7 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
 
       toast.success(`${name} foi adicionado com sucesso!`);
       resetForm();
-      onClientCreated();
+      onClientCreated(newClient);
     } catch (error) {
       console.error('Error creating client:', error);
       toast.error("Erro ao cadastrar cliente");
