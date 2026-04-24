@@ -126,7 +126,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
         .from('materials')
         .select('product_type_id, is_open_roll')
         .eq('company_id', companyId)
-        .eq('status', 'available');
+        .eq('is_active', true);
 
       if (materialsError) throw materialsError;
 
