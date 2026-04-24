@@ -91,6 +91,7 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
 
   // Vehicle modal
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
+  const [vehicleToEdit, setVehicleToEdit] = useState<Vehicle | null>(null);
 
   const availableFields = [
     { id: "cpf", label: "CPF/CNPJ" },
@@ -158,7 +159,14 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
   };
 
   const handleVehicleCreated = (vehicle: Vehicle) => {
-    setVehicles((prev) => [...prev, { ...vehicle, id: Date.now() }]);
+    if (vehicleToEdit) {
+      setVehicles((prev) =>
+        prev.map((v) => (v.id === vehicleToEdit.id ? { ...vehicle, id: vehicleToEdit.id } : v))
+      );
+      setVehicleToEdit(null);
+    } else {
+      setVehicles((prev) => [...prev, { ...vehicle, id: Date.now() }]);
+    }
     setIsVehicleModalOpen(false);
   };
 
@@ -496,7 +504,14 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setVehicleToEdit(vehicle);
+                            setIsVehicleModalOpen(true);
+                          }}
+                        >
                           <Edit2 className="h-4 w-4" />
                         </Button>
                         <Button
@@ -523,8 +538,12 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
 
       <NewVehicleModal
         open={isVehicleModalOpen}
-        onOpenChange={setIsVehicleModalOpen}
+        onOpenChange={(open) => {
+          setIsVehicleModalOpen(open);
+          if (!open) setVehicleToEdit(null);
+        }}
         onVehicleCreated={handleVehicleCreated}
+        editVehicle={vehicleToEdit}
       />
     </>
   );

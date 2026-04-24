@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -58,16 +58,32 @@ const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: 
   const [year, setYear] = useState(editVehicle?.year?.toString() || "");
   const [size, setSize] = useState<"P" | "M" | "G" | "">(editVehicle?.size || "");
 
-  // Reset form when editVehicle changes
-  useState(() => {
-    if (editVehicle) {
-      setPlate(editVehicle.plate);
-      setBrand(editVehicle.brand);
-      setModel(editVehicle.model);
-      setYear(editVehicle.year.toString());
-      setSize(editVehicle.size);
+  // Reset form when editVehicle changes or modal opens
+  useEffect(() => {
+    if (open) {
+      if (editVehicle) {
+        setPlate(editVehicle.plate);
+        setModel(editVehicle.model);
+        setYear(editVehicle.year.toString());
+        setSize(editVehicle.size);
+        
+        if (editVehicle.brand && !brands.includes(editVehicle.brand)) {
+          setCustomBrand(editVehicle.brand);
+          setBrand("Outro");
+        } else {
+          setBrand(editVehicle.brand || "");
+          setCustomBrand("");
+        }
+      } else {
+        setPlate("");
+        setBrand("");
+        setCustomBrand("");
+        setModel("");
+        setYear("");
+        setSize("");
+      }
     }
-  });
+  }, [editVehicle, open]);
 
   const formatPlate = (value: string) => {
     // Accept both old format (ABC-1234) and Mercosul (ABC1D23)
@@ -108,14 +124,6 @@ const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: 
     };
 
     onVehicleCreated(vehicle);
-
-    // Reset form
-    setPlate("");
-    setBrand("");
-    setCustomBrand("");
-    setModel("");
-    setYear("");
-    setSize("");
   };
 
   return (
@@ -127,7 +135,7 @@ const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: 
               <Car className="h-5 w-5 text-info" />
             </div>
             <div>
-              <DialogTitle>Adicionar veículo</DialogTitle>
+              <DialogTitle>{editVehicle ? "Editar veículo" : "Adicionar veículo"}</DialogTitle>
               <DialogDescription>
                 Preencha os dados do veículo
               </DialogDescription>
