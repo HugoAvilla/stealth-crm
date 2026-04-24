@@ -85,6 +85,8 @@ interface ProductType {
   model: string | null;
   light_transmission: string | null;
   // unit_price removido - preço vem do serviço
+  openRollsCount?: number;
+  hasClosedRoll?: boolean;
 }
 
 interface VehicleRegion {
