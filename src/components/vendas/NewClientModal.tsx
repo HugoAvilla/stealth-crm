@@ -308,61 +308,6 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
               </div>
             </div>
 
-            {/* Vehicles Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2">
-                  <Car className="h-4 w-4" />
-                  Gestão de Frota
-                </Label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsVehicleModalOpen(true)}
-                  className="gap-1"
-                >
-                  <Plus className="h-4 w-4" />
-                  Novo veículo
-                </Button>
-              </div>
-
-              {vehicles.length === 0 ? (
-                <Card className="p-4 text-center text-muted-foreground">
-                  Nenhum veículo cadastrado
-                </Card>
-              ) : (
-                <div className="space-y-2">
-                  {vehicles.map((vehicle) => (
-                    <Card key={vehicle.id} className="p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Car className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">
-                            {vehicle.brand} {vehicle.model}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {vehicle.plate} • {vehicle.year} • Porte {vehicle.size}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon">
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeVehicle(vehicle.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Field Toggle Tags */}
             <div className="space-y-2">
               <Label className="text-muted-foreground">Dados cadastrais</Label>
@@ -507,6 +452,63 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
                       />
                     </div>
                   </div>
+                </div>
+              )}
+            </div>
+            {/* Vehicles Section */}
+            <div className="space-y-3 pt-2 border-t border-border/50">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2 text-base font-medium">
+                  <Car className="h-5 w-5 text-primary" />
+                  Gestão de Frota
+                </Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsVehicleModalOpen(true)}
+                  className="gap-1"
+                >
+                  <Plus className="h-4 w-4" />
+                  Novo veículo
+                </Button>
+              </div>
+
+              {vehicles.length === 0 ? (
+                <Card className="p-4 text-center text-muted-foreground border-dashed bg-muted/30">
+                  Nenhum veículo cadastrado
+                  <p className="text-xs text-muted-foreground mt-1">Adicione pelo menos um veículo se o cliente tiver frota</p>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {vehicles.map((vehicle) => (
+                    <Card key={vehicle.id} className="p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-full">
+                          <Car className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {vehicle.brand} {vehicle.model}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {vehicle.plate} • {vehicle.year} • Porte {vehicle.size}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon">
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeVehicle(vehicle.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               )}
             </div>
