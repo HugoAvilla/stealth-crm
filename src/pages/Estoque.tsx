@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Trash2, StopCircle } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Trash2, StopCircle, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +23,7 @@ import { StockExitModal } from "@/components/estoque/StockExitModal";
 import { ConsumptionRulesModal } from "@/components/estoque/ConsumptionRulesModal";
 import { MaterialDetailsModal } from "@/components/estoque/MaterialDetailsModal";
 import { ProductTypesTab } from "@/components/estoque/ProductTypesTab";
+import { MaterialHistoryTab } from "@/components/estoque/MaterialHistoryTab";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { toast } from "sonner";
 
@@ -398,7 +399,7 @@ export default function Estoque() {
 
       {/* Sistema de Abas Principal */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-2 w-full max-w-md">
+        <TabsList className="grid grid-cols-3 w-full max-w-lg">
           <TabsTrigger value="product-types" className="flex items-center gap-2">
             <Tag className="h-4 w-4" />
             <span className="hidden sm:inline">Tipos de Produtos</span>
@@ -406,6 +407,10 @@ export default function Estoque() {
           <TabsTrigger value="materials" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             <span className="hidden sm:inline">Materiais</span>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            <span className="hidden sm:inline">Histórico</span>
           </TabsTrigger>
         </TabsList>
 
@@ -585,6 +590,11 @@ export default function Estoque() {
         {/* Aba Tipos de Produtos */}
         <TabsContent value="product-types">
           <ProductTypesTab companyId={companyId} />
+        </TabsContent>
+
+        {/* Aba Histórico de Materiais */}
+        <TabsContent value="history">
+          <MaterialHistoryTab companyId={companyId} />
         </TabsContent>
       </Tabs>
 

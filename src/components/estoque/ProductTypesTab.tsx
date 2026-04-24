@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ProductCategory, ProductType } from "@/lib/database.types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface ProductTypesTabProps {
   companyId: number | null;
@@ -36,6 +37,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
     light_transmission: "",
     description: "",
     cost_per_meter: 0,
+    ppf_material_type: "" as string,
   });
 
   const { data: productTypes, isLoading } = useQuery({
@@ -69,6 +71,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
           light_transmission: data.light_transmission,
           description: data.description,
           cost_per_meter: data.cost_per_meter,
+          ppf_material_type: data.category === 'PPF' && data.ppf_material_type ? data.ppf_material_type : null,
           unit_price: 0, // No longer set here, will be set in sales
           company_id: companyId,
           is_active: true,
@@ -103,6 +106,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
           light_transmission: data.light_transmission,
           description: data.description,
           cost_per_meter: data.cost_per_meter,
+          ppf_material_type: data.category === 'PPF' && data.ppf_material_type ? data.ppf_material_type : null,
         })
         .eq("id", id)
         .eq("company_id", companyId)
@@ -215,6 +219,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         light_transmission: product.light_transmission || "",
         description: product.description || "",
         cost_per_meter: product.cost_per_meter,
+        ppf_material_type: product.ppf_material_type || "",
       });
     } else {
       setEditingProduct(null);
@@ -226,6 +231,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         light_transmission: "",
         description: "",
         cost_per_meter: 0,
+        ppf_material_type: "",
       });
     }
     setIsModalOpen(true);
@@ -242,6 +248,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
       light_transmission: "",
       description: "",
       cost_per_meter: 0,
+      ppf_material_type: "",
     });
   };
 
@@ -311,6 +318,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                   <TableHead>Marca</TableHead>
                   <TableHead>Nome/Lote</TableHead>
                   {activeCategory === "INSULFILM" && <TableHead>Transmissão</TableHead>}
+                  {activeCategory === "PPF" && <TableHead>Tipo Material</TableHead>}
                   <TableHead className="text-right">Custo/Metro</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="w-[100px]">Ações</TableHead>
@@ -333,6 +341,13 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                     </TableCell>
                     {activeCategory === "INSULFILM" && (
                       <TableCell>{product.light_transmission || "-"}</TableCell>
+                    )}
+                    {activeCategory === "PPF" && (
+                      <TableCell>
+                        {product.ppf_material_type ? (
+                          <Badge variant="outline">{product.ppf_material_type}</Badge>
+                        ) : "-"}
+                      </TableCell>
                     )}
                     <TableCell className="text-right">
                       {formatCurrency(product.cost_per_meter)}
@@ -450,6 +465,29 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                 </div>
               )}
             </div>
+
+            {formData.category === "PPF" && (
+              <div className="space-y-2">
+                <Label>Tipo de Material PPF</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["TPU", "TPH", "PVC"] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, ppf_material_type: type })}
+                      className={cn(
+                        "px-4 py-2 rounded-lg border text-sm font-medium transition-colors",
+                        formData.ppf_material_type === type
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-muted"
+                      )}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Custo por Metro (R$)</Label>

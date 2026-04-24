@@ -16,6 +16,7 @@ export interface ProductType {
   description: string | null;
   unit_price: number;
   cost_per_meter: number;
+  ppf_material_type: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
