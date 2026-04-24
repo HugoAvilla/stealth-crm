@@ -227,13 +227,13 @@ export default function CustomizedServiceBlock({
                     <>
                       {openRolls.length > 0 && (
                         <SelectGroup>
-                          <SelectLabel className="text-xs font-semibold text-primary">Com Bobina Aberta</SelectLabel>
+                          <SelectLabel className="text-xs font-semibold text-primary">Estoque Aberto</SelectLabel>
                           {openRolls.map(renderProduct)}
                         </SelectGroup>
                       )}
                       {closedRollsOnly.length > 0 && (
                         <SelectGroup>
-                          <SelectLabel className="text-xs font-semibold text-muted-foreground">Somente Bobina Fechada</SelectLabel>
+                          <SelectLabel className="text-xs font-semibold text-muted-foreground">Estoque Fechado</SelectLabel>
                           {closedRollsOnly.map(renderProduct)}
                         </SelectGroup>
                       )}
