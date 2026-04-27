@@ -1,13 +1,25 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Package,
   Activity,
+  Package,
+  Search,
   StopCircle,
   XCircle,
-  Search,
 } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -16,25 +28,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
+import { ProductCategory } from "@/lib/database.types";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { ProductCategory } from "@/lib/database.types";
-import { MaterialDetailsModal } from "./MaterialDetailsModal";
+import {
+  getCategoryFromMaterial,
+  getHistoryRangeStart,
+  getOperationalStatus,
+  HISTORY_RANGE_LABELS,
+  HistoryRange,
+  materialMatchesHistoryRange,
+  OperationalStatus,
+} from "@/lib/stockHistory";
 import { HistoryAnalyticsSection } from "./HistoryAnalyticsSection";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-
-// --- Types ---
+import { MaterialDetailsModal } from "./MaterialDetailsModal";
 
 interface HistoryMaterial {
   id: number;
   name: string;
   brand: string | null;
   type: string | null;
+  created_at: string;
   unit: string;
   current_stock: number | null;
   is_active: boolean | null;
@@ -50,12 +65,6 @@ interface HistoryMaterial {
     ppf_material_type: string | null;
   } | null;
 }
-
-type OperationalStatus =
-  | "open_in_use"
-  | "open_closed"
-  | "closed_in_stock"
-  | "inactive";
 
 interface StatusConfig {
   label: string;
@@ -91,30 +100,6 @@ const STATUS_MAP: Record<OperationalStatus, StatusConfig> = {
   },
 };
 
-// --- Helpers ---
-
-function getOperationalStatus(material: HistoryMaterial): OperationalStatus {
-  if (material.is_open_roll && material.is_active) return "open_in_use";
-  if (material.is_open_roll && !material.is_active) return "open_closed";
-  if (!material.is_open_roll && material.is_active) return "closed_in_stock";
-  return "inactive";
-}
-
-function getCategoryFromMaterial(
-  material: HistoryMaterial
-): ProductCategory | null {
-  if (material.product_types?.category) return material.product_types.category;
-  // Fallback to materials.type (HIST-12)
-  if (material.type) {
-    const upper = material.type.toUpperCase();
-    if (upper === "INSULFILM") return "INSULFILM";
-    if (upper === "PPF") return "PPF";
-  }
-  return null;
-}
-
-// --- Props ---
-
 interface MaterialHistoryTabProps {
   companyId: number | null;
 }
@@ -122,16 +107,22 @@ interface MaterialHistoryTabProps {
 export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
   const [activeCategory, setActiveCategory] =
     useState<ProductCategory>("INSULFILM");
+  const [historyRange, setHistoryRange] = useState<HistoryRange>("1y");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMaterial, setSelectedMaterial] =
     useState<HistoryMaterial | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Fetch all materials (no is_active filter) with product_types JOIN
+  const rangeStart = useMemo(
+    () => getHistoryRangeStart(historyRange),
+    [historyRange]
+  );
+
   const { data: allMaterials, isLoading: materialsLoading } = useQuery({
     queryKey: ["history-materials", companyId],
     queryFn: async () => {
       if (!companyId) return [];
+
       const { data, error } = await supabase
         .from("materials")
         .select(
@@ -146,15 +137,15 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
     enabled: !!companyId,
   });
 
-  // Fetch last entry dates
-  const { data: lastEntries } = useQuery({
-    queryKey: ["history-last-entries", companyId],
+  const { data: historyMovements } = useQuery({
+    queryKey: ["history-movements", companyId],
     queryFn: async () => {
       if (!companyId) return [];
+
       const { data, error } = await supabase
         .from("stock_movements")
-        .select("material_id, created_at")
-        .eq("movement_type", "Entrada")
+        .select("material_id, movement_type, created_at")
+        .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -163,47 +154,72 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
     enabled: !!companyId,
   });
 
-  // Build last entry map
-  const lastEntryMap = useMemo(() => {
-    const map = new Map<number, string>();
-    if (!lastEntries) return map;
-    for (const entry of lastEntries) {
-      if (entry.material_id && !map.has(entry.material_id)) {
-        map.set(entry.material_id, entry.created_at);
-      }
-    }
-    return map;
-  }, [lastEntries]);
+  const { lastMovementMap, lastEntryMap } = useMemo(() => {
+    const movementMap = new Map<number, string>();
+    const entryMap = new Map<number, string>();
 
-  // Filter materials by category and search
+    (historyMovements || []).forEach((movement) => {
+      if (!movement.material_id) return;
+      if (new Date(movement.created_at) < rangeStart) return;
+
+      if (!movementMap.has(movement.material_id)) {
+        movementMap.set(movement.material_id, movement.created_at);
+      }
+
+      if (
+        movement.movement_type === "Entrada" &&
+        !entryMap.has(movement.material_id)
+      ) {
+        entryMap.set(movement.material_id, movement.created_at);
+      }
+    });
+
+    return {
+      lastMovementMap: movementMap,
+      lastEntryMap: entryMap,
+    };
+  }, [historyMovements, rangeStart]);
+
   const filteredMaterials = useMemo(() => {
     if (!allMaterials) return [];
-    return allMaterials.filter((m) => {
-      const cat = getCategoryFromMaterial(m);
-      if (cat !== activeCategory) return false;
+
+    return allMaterials.filter((material) => {
+      const category = getCategoryFromMaterial(material);
+      if (category !== activeCategory) return false;
+
+      if (
+        !materialMatchesHistoryRange(
+          material,
+          lastMovementMap.get(material.id),
+          rangeStart
+        )
+      ) {
+        return false;
+      }
 
       if (searchTerm) {
-        const lower = searchTerm.toLowerCase();
-        const nameMatch = m.name.toLowerCase().includes(lower);
-        const brandMatch = (m.brand || "").toLowerCase().includes(lower);
+        const search = searchTerm.toLowerCase();
+        const nameMatch = material.name.toLowerCase().includes(search);
+        const brandMatch = (material.brand || "")
+          .toLowerCase()
+          .includes(search);
+
         if (!nameMatch && !brandMatch) return false;
       }
 
       return true;
     });
-  }, [allMaterials, activeCategory, searchTerm]);
+  }, [activeCategory, allMaterials, lastMovementMap, rangeStart, searchTerm]);
 
-  // Split into open and closed rolls
   const openRolls = useMemo(
-    () => filteredMaterials.filter((m) => m.is_open_roll),
+    () => filteredMaterials.filter((material) => material.is_open_roll),
     [filteredMaterials]
   );
   const closedRolls = useMemo(
-    () => filteredMaterials.filter((m) => !m.is_open_roll),
+    () => filteredMaterials.filter((material) => !material.is_open_roll),
     [filteredMaterials]
   );
 
-  // Status counts for summary cards
   const statusCounts = useMemo(() => {
     const counts: Record<OperationalStatus, number> = {
       open_in_use: 0,
@@ -211,9 +227,11 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
       closed_in_stock: 0,
       inactive: 0,
     };
-    for (const m of filteredMaterials) {
-      counts[getOperationalStatus(m)]++;
-    }
+
+    filteredMaterials.forEach((material) => {
+      counts[getOperationalStatus(material)] += 1;
+    });
+
     return counts;
   }, [filteredMaterials]);
 
@@ -222,15 +240,13 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
     setShowDetails(true);
   };
 
-  // --- Render ---
-
   if (materialsLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-full" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-20" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {[1, 2, 3, 4].map((item) => (
+            <Skeleton key={item} className="h-20" />
           ))}
         </div>
         <Skeleton className="h-64 w-full" />
@@ -239,15 +255,16 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
   }
 
   const renderSummaryCards = () => (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
       {(Object.entries(STATUS_MAP) as [OperationalStatus, StatusConfig][]).map(
         ([key, config]) => {
           const Icon = config.icon;
+
           return (
             <Card key={key} className="bg-card/50 border-border/50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className={cn("p-2 rounded-lg", config.bg)}>
+                  <div className={cn("rounded-lg p-2", config.bg)}>
                     <Icon className={cn("h-5 w-5", config.color)} />
                   </div>
                   <div>
@@ -276,9 +293,9 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
       <TableRow key={material.id}>
         <TableCell className="font-medium">
           <div
-            className="cursor-pointer hover:text-primary hover:underline transition-colors"
+            className="cursor-pointer transition-colors hover:text-primary hover:underline"
             onClick={() => handleDetails(material)}
-            title="Ver detalhes e histórico"
+            title="Ver detalhes e historico"
           >
             <p>{material.name}</p>
             {material.brand && (
@@ -287,9 +304,7 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
           </div>
         </TableCell>
         {activeCategory === "INSULFILM" && (
-          <TableCell>
-            {material.product_types?.light_transmission || "-"}
-          </TableCell>
+          <TableCell>{material.product_types?.light_transmission || "-"}</TableCell>
         )}
         {activeCategory === "PPF" && (
           <TableCell>
@@ -313,23 +328,18 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
             : `${material.current_stock || 0} ${material.unit}`}
         </TableCell>
         <TableCell className="text-center text-sm">
-          {lastEntry
-            ? format(new Date(lastEntry), "dd/MM/yyyy", { locale: ptBR })
-            : (
-              <span className="text-muted-foreground">
-                Sem entrada registrada
-              </span>
-            )}
+          {lastEntry ? (
+            format(new Date(lastEntry), "dd/MM/yyyy", { locale: ptBR })
+          ) : (
+            <span className="text-muted-foreground">Sem entrada no periodo</span>
+          )}
         </TableCell>
       </TableRow>
     );
   };
 
-  const renderTable = (
-    items: HistoryMaterial[],
-    emptyMessage: string
-  ) => {
-    if (items.length === 0) {
+  const renderTable = (items: HistoryMaterial[], emptyMessage: string) => {
+    if (!items.length) {
       return (
         <Card className="bg-card/50 border-border/50">
           <CardContent className="p-8 text-center">
@@ -347,16 +357,14 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
               <TableRow>
                 <TableHead>Material</TableHead>
                 {activeCategory === "INSULFILM" && (
-                  <TableHead>Transmissão</TableHead>
+                  <TableHead>Transmissao</TableHead>
                 )}
                 {activeCategory === "PPF" && (
                   <TableHead>Tipo Material</TableHead>
                 )}
-                <TableHead className="text-center">Situação</TableHead>
-                <TableHead className="text-center">
-                  Saldo / Consumo
-                </TableHead>
-                <TableHead className="text-center">Última Entrada</TableHead>
+                <TableHead className="text-center">Situacao</TableHead>
+                <TableHead className="text-center">Saldo / Consumo</TableHead>
+                <TableHead className="text-center">Ultima Entrada</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>{items.map(renderMaterialRow)}</TableBody>
@@ -367,15 +375,14 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
   };
 
   const hasNoMaterials = filteredMaterials.length === 0 && !searchTerm;
-  const hasNoResults = filteredMaterials.length === 0 && searchTerm;
+  const hasNoResults = filteredMaterials.length === 0 && !!searchTerm;
 
   return (
     <div className="space-y-6">
-      {/* Subtabs */}
       <div className="flex items-center justify-between">
         <Tabs
           value={activeCategory}
-          onValueChange={(v) => setActiveCategory(v as ProductCategory)}
+          onValueChange={(value) => setActiveCategory(value as ProductCategory)}
         >
           <TabsList>
             <TabsTrigger value="INSULFILM">INSULFILM</TabsTrigger>
@@ -384,31 +391,48 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
         </Tabs>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome ou marca..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome ou marca..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <div className="w-full md:w-[180px]">
+          <Select
+            value={historyRange}
+            onValueChange={(value) => setHistoryRange(value as HistoryRange)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Periodo" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(HISTORY_RANGE_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Summary Cards */}
       {renderSummaryCards()}
 
-      {/* Empty states */}
       {hasNoMaterials && (
         <Card className="bg-card/50 border-border/50">
           <CardContent className="p-12 text-center">
-            <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">
+            <Package className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <h3 className="mb-2 text-lg font-medium">
               Nenhum material de {activeCategory} registrado
             </h3>
             <p className="text-muted-foreground">
-              Materiais de {activeCategory} aparecerão aqui quando forem
-              cadastrados
+              Nenhum material de {activeCategory} teve atividade nos ultimos{" "}
+              {HISTORY_RANGE_LABELS[historyRange].toLowerCase()}.
             </p>
           </CardContent>
         </Card>
@@ -417,57 +441,55 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
       {hasNoResults && (
         <Card className="bg-card/50 border-border/50">
           <CardContent className="p-12 text-center">
-            <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">
+            <Search className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <h3 className="mb-2 text-lg font-medium">
               Nenhum resultado encontrado
             </h3>
             <p className="text-muted-foreground">
               Nenhum material de {activeCategory} corresponde a "{searchTerm}"
+              {" "}no periodo selecionado.
             </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Material Sections */}
       {filteredMaterials.length > 0 && (
         <div className="space-y-8">
-          {/* Open Rolls */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium flex items-center gap-2">
+            <h3 className="flex items-center gap-2 text-lg font-medium">
               <Package className="h-5 w-5 text-blue-500" />
               Bobinas Abertas
             </h3>
             {renderTable(
               openRolls,
-              "Bobinas abertas aparecerão aqui quando materiais forem cadastrados como bobina aberta"
+              "Bobinas abertas aparecerao aqui quando houver movimentacao no periodo selecionado."
             )}
           </div>
 
-          {/* Closed Rolls */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium flex items-center gap-2">
+            <h3 className="flex items-center gap-2 text-lg font-medium">
               <Package className="h-5 w-5 text-primary" />
               Bobinas Fechadas
             </h3>
             {renderTable(
               closedRolls,
-              "Bobinas fechadas aparecerão aqui quando materiais forem cadastrados"
+              "Bobinas fechadas aparecerao aqui quando houver movimentacao ou cadastro no periodo selecionado."
             )}
           </div>
         </div>
       )}
 
-      {/* Material Details Modal */}
       <MaterialDetailsModal
         open={showDetails}
         onOpenChange={setShowDetails}
         material={selectedMaterial}
       />
 
-      {/* Analytics Section */}
       <HistoryAnalyticsSection
         companyId={companyId}
         activeCategory={activeCategory}
+        filteredMaterials={filteredMaterials}
+        rangeStart={rangeStart}
       />
     </div>
   );

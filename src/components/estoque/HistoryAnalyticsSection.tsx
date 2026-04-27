@@ -1,23 +1,31 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
-import { ProductCategory } from "@/lib/database.types";
 import {
-  BarChart,
   Bar,
-  XAxis,
-  YAxis,
+  BarChart,
+  Cell,
   ResponsiveContainer,
   Tooltip,
-  Cell,
+  XAxis,
+  YAxis,
 } from "recharts";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ProductCategory } from "@/lib/database.types";
+import { supabase } from "@/integrations/supabase/client";
 
 interface HistoryAnalyticsSectionProps {
   companyId: number | null;
   activeCategory: ProductCategory;
+  filteredMaterials: {
+    id: number;
+    name: string;
+    product_types: {
+      ppf_material_type: string | null;
+    } | null;
+  }[];
+  rangeStart: Date;
 }
 
 const PPF_TYPE_COLORS: Record<string, string> = {
@@ -29,98 +37,93 @@ const PPF_TYPE_COLORS: Record<string, string> = {
 export function HistoryAnalyticsSection({
   companyId,
   activeCategory,
+  filteredMaterials,
+  rangeStart,
 }: HistoryAnalyticsSectionProps) {
-  // Fetch top 10 most consumed materials
-  const { data: consumptionData, isLoading } = useQuery({
-    queryKey: ["history-analytics-consumption", companyId, activeCategory],
-    queryFn: async () => {
-      if (!companyId) return [];
+  const eligibleMaterialIds = useMemo(
+    () => filteredMaterials.map((material) => material.id),
+    [filteredMaterials]
+  );
 
-      // Get all relevant stock movements with material and product_type info
+  const materialNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    filteredMaterials.forEach((material) => {
+      map.set(material.id, material.name);
+    });
+    return map;
+  }, [filteredMaterials]);
+
+  const { data: consumptionData, isLoading } = useQuery({
+    queryKey: [
+      "history-analytics-consumption",
+      companyId,
+      activeCategory,
+      rangeStart.toISOString(),
+      eligibleMaterialIds.join(","),
+    ],
+    queryFn: async () => {
+      if (!companyId || !eligibleMaterialIds.length) return [];
+
       const { data, error } = await supabase
         .from("stock_movements")
-        .select(
-          "quantity, material_id, is_open_roll_closure, materials(name, product_type_id, company_id, product_types(category))"
-        )
+        .select("quantity, material_id, created_at, is_open_roll_closure")
+        .eq("company_id", companyId)
         .in("movement_type", ["Saida", "open_roll_use"])
-        .eq("is_open_roll_closure", false);
+        .eq("is_open_roll_closure", false)
+        .in("material_id", eligibleMaterialIds)
+        .gte("created_at", rangeStart.toISOString());
 
       if (error) throw error;
       if (!data) return [];
 
-      // Group by material and sum consumption, filtering by category and company
-      const materialMap = new Map<
-        number,
-        { name: string; total: number }
-      >();
+      const materialMap = new Map<number, { name: string; total: number }>();
 
-      for (const mov of data) {
-        const mat = mov.materials as unknown as {
-          name: string;
-          product_type_id: number | null;
-          company_id: number | null;
-          product_types: { category: string } | null;
-        };
+      data.forEach((movement) => {
+        if (!movement.material_id) return;
 
-        if (!mat || mat.company_id !== companyId) continue;
-        if (mat.product_types?.category !== activeCategory) continue;
-        if (!mov.material_id) continue;
-
-        const existing = materialMap.get(mov.material_id);
+        const existing = materialMap.get(movement.material_id);
         if (existing) {
-          existing.total += mov.quantity;
-        } else {
-          materialMap.set(mov.material_id, {
-            name: mat.name,
-            total: mov.quantity,
-          });
+          existing.total += movement.quantity;
+          return;
         }
-      }
 
-      // Sort and take top 10
+        materialMap.set(movement.material_id, {
+          name:
+            materialNameMap.get(movement.material_id) ||
+            `Material ${movement.material_id}`,
+          total: movement.quantity,
+        });
+      });
+
       return Array.from(materialMap.values())
-        .sort((a, b) => b.total - a.total)
+        .sort((left, right) => right.total - left.total)
         .slice(0, 10);
     },
     enabled: !!companyId,
   });
 
-  // Fetch PPF type distribution
-  const { data: ppfDistribution } = useQuery({
-    queryKey: ["history-analytics-ppf-distribution", companyId],
-    queryFn: async () => {
-      if (!companyId) return [];
+  const ppfDistribution = useMemo(() => {
+    if (activeCategory !== "PPF") return [];
 
-      const { data, error } = await supabase
-        .from("product_types")
-        .select("ppf_material_type")
-        .eq("company_id", companyId)
-        .eq("category", "PPF")
-        .not("ppf_material_type", "is", null);
+    const counts: Record<string, number> = {};
+    filteredMaterials.forEach((material) => {
+      const type = material.product_types?.ppf_material_type;
+      if (!type) return;
+      counts[type] = (counts[type] || 0) + 1;
+    });
 
-      if (error) throw error;
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [activeCategory, filteredMaterials]);
 
-      // Count by type
-      const counts: Record<string, number> = {};
-      for (const pt of data || []) {
-        const type = pt.ppf_material_type as string;
-        counts[type] = (counts[type] || 0) + 1;
-      }
-
-      return Object.entries(counts).map(([name, value]) => ({ name, value }));
-    },
-    enabled: !!companyId && activeCategory === "PPF",
-  });
-
-  const hasConsumptionData = consumptionData && consumptionData.length > 0;
+  const hasConsumptionData = !!consumptionData?.length;
   const hasPpfDistribution =
-    activeCategory === "PPF" && ppfDistribution && ppfDistribution.length > 0;
+    activeCategory === "PPF" && ppfDistribution.length > 0;
 
   if (isLoading) {
     return (
       <Card className="bg-card/50 border-border/50">
         <CardContent className="p-6">
-          <Skeleton className="h-6 w-48 mb-4" />
+          <Skeleton className="mb-4 h-6 w-48" />
           <Skeleton className="h-64 w-full" />
         </CardContent>
       </Card>
@@ -131,10 +134,10 @@ export function HistoryAnalyticsSection({
     return (
       <Card className="bg-card/50 border-border/50">
         <CardContent className="p-8 text-center">
-          <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">Análises do Histórico</h3>
+          <BarChart3 className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+          <h3 className="mb-2 text-lg font-medium">Analises do Historico</h3>
           <p className="text-muted-foreground">
-            Dados insuficientes para gerar análise
+            Dados insuficientes para gerar analise no periodo selecionado.
           </p>
         </CardContent>
       </Card>
@@ -143,13 +146,12 @@ export function HistoryAnalyticsSection({
 
   return (
     <div className="space-y-6">
-      {/* Top 10 most consumed materials */}
       {hasConsumptionData && (
         <Card className="bg-card/50 border-border/50">
           <CardContent className="p-6">
-            <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-medium">
               <BarChart3 className="h-5 w-5 text-primary" />
-              Top 10 — Materiais Mais Usados ({activeCategory})
+              Top 10 - Materiais Mais Usados ({activeCategory})
             </h3>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -183,13 +185,12 @@ export function HistoryAnalyticsSection({
         </Card>
       )}
 
-      {/* PPF Distribution by Type */}
       {hasPpfDistribution && (
         <Card className="bg-card/50 border-border/50">
           <CardContent className="p-6">
-            <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-medium">
               <BarChart3 className="h-5 w-5 text-primary" />
-              Distribuição PPF por Tipo de Material
+              Distribuicao PPF por Tipo de Material
             </h3>
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
@@ -203,7 +204,7 @@ export function HistoryAnalyticsSection({
                     formatter={(value: number) => [value, "Tipos cadastrados"]}
                   />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {ppfDistribution!.map((entry) => (
+                    {ppfDistribution.map((entry) => (
                       <Cell
                         key={entry.name}
                         fill={PPF_TYPE_COLORS[entry.name] || "#6b7280"}

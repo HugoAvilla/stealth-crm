@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
+import { useState } from "react";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Car, Clock, CheckCircle, AlertTriangle, Plus, Loader2, Download, Search } from "lucide-react";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
+import { BrazilCalendarLegend } from "@/components/calendar/BrazilCalendarLegend";
 import { SlotCard } from "@/components/espaco/SlotCard";
 import { FillSlotModal } from "@/components/espaco/FillSlotModal";
 import { SlotDetailsDrawer } from "@/components/espaco/SlotDetailsDrawer";
@@ -20,6 +21,11 @@ import UnpaidExitedVehicles from "@/components/espaco/UnpaidExitedVehicles";
 import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  BRAZIL_CALENDAR_EVENT_STYLES,
+  getBrazilCalendarTitle,
+  getPrimaryBrazilCalendarEvent,
+} from "@/lib/brazilCalendar";
 
 interface SpaceData {
   id: number;
@@ -377,6 +383,9 @@ export default function Espaco() {
               </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <BrazilCalendarLegend />
+              </div>
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
                   <div key={day} className="text-center text-xs sm:text-sm text-muted-foreground py-1 sm:py-2 truncate">{day}</div>
@@ -390,25 +399,43 @@ export default function Espaco() {
                   const daySpaces = getSpacesForDay(day);
                   const inProgress = daySpaces.filter(s => !s.has_exited && s.payment_status !== 'paid').length;
                   const completed = daySpaces.filter(s => s.has_exited || s.payment_status === 'paid').length;
+                  const calendarEvent = getPrimaryBrazilCalendarEvent(day);
+                  const eventTitle = getBrazilCalendarTitle(day);
 
                   return (
                     <button
                       key={format(day, 'yyyy-MM-dd')}
                       onClick={() => setSelectedDay(day)}
+                      title={eventTitle}
                       className={cn(
-                        "aspect-square min-h-[50px] sm:min-h-[80px] p-0.5 sm:p-1 md:p-2 rounded-lg border transition-colors flex flex-col items-center justify-center gap-0.5 hover:bg-accent cursor-pointer overflow-hidden",
+                        "aspect-square min-h-[50px] sm:min-h-[80px] p-0.5 sm:p-1 md:p-2 rounded-lg border transition-colors flex flex-col items-center justify-start gap-0.5 hover:bg-accent cursor-pointer overflow-hidden",
+                        calendarEvent &&
+                          BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
                         isToday(day) && "border-primary",
                         !isSameMonth(day, currentDate) && "opacity-50"
                       )}
                     >
-                      <span className={cn(
-                        "text-xs sm:text-sm",
-                        isToday(day) && "font-bold text-primary"
-                      )}>
-                        {format(day, 'd')}
-                      </span>
+                      <div className="flex w-full items-start justify-between gap-1">
+                        <span className={cn(
+                          "text-xs sm:text-sm",
+                          isToday(day) && "font-bold text-primary"
+                        )}>
+                          {format(day, 'd')}
+                        </span>
+
+                        {calendarEvent && (
+                          <span
+                            className={cn(
+                              "max-w-[65%] truncate rounded px-1 py-0.5 text-[8px] leading-none sm:text-[9px]",
+                              BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].chipClass
+                            )}
+                          >
+                            {calendarEvent.shortName}
+                          </span>
+                        )}
+                      </div>
                       {(inProgress > 0 || completed > 0) && (
-                        <div className="flex flex-col sm:flex-row gap-0.5 items-center w-full">
+                        <div className="mt-auto flex flex-col sm:flex-row gap-0.5 items-center w-full">
                           {inProgress > 0 && (
                             <Badge variant="outline" className="text-[9px] sm:text-xs px-0.5 sm:px-1 py-0 bg-yellow-500/20 text-yellow-400 border-yellow-500/30 truncate flex justify-center w-full sm:w-auto">
                               {inProgress}

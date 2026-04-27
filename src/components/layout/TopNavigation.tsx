@@ -20,6 +20,7 @@ import {
   Crown,
   UserPlus,
   Wrench,
+  Percent,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -93,6 +94,7 @@ export function TopNavigation() {
     { icon: Landmark, label: 'Contas', path: '/contas' },
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
+    { icon: Percent, label: 'Comissões', path: '/comissoes', adminOnly: true },
     { icon: Shield, label: 'Garantias', path: '/garantias' },
     { icon: Wrench, label: 'Serviços', path: '/servicos' },
     { icon: Package, label: 'Estoque', path: '/estoque', productionOnly: true },

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,6 +25,7 @@ import Espaco from "./pages/Espaco";
 import Financeiro from "./pages/Financeiro";
 import Contas from "./pages/Contas";
 import Relatorios from "./pages/Relatorios";
+import Comissoes from "./pages/Comissoes";
 
 import Garantias from "./pages/Garantias";
 import Estoque from "./pages/Estoque";
@@ -41,6 +43,25 @@ const queryClient = new QueryClient();
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, user } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading) {
+      const loader = document.getElementById('loader-screen');
+      if (loader) {
+        const startTime = (window as any).__loaderStartTime || Date.now();
+        const elapsed = Date.now() - startTime;
+        const MIN_DISPLAY_TIME = 1500;
+        const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
+        
+        setTimeout(() => {
+          loader.classList.add('hide-loader');
+          setTimeout(() => {
+            loader.remove();
+          }, 800);
+        }, remaining);
+      }
+    }
+  }, [isLoading]);
 
   if (isLoading) {
     return null;
@@ -163,6 +184,11 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       
+      <Route path="/comissoes" element={
+        <ProtectedRoute allowedRoles={['ADMIN']}>
+          <MainLayout><Comissoes /></MainLayout>
+        </ProtectedRoute>
+      } />
       
       <Route path="/garantias" element={
         <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>

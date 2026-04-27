@@ -1,22 +1,41 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Tag, Trash2 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Plus, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { ProductCategory, ProductType } from "@/lib/database.types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { ProductCategory, ProductType } from "@/lib/database.types";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ProductTypesTabProps {
   companyId: number | null;
@@ -24,26 +43,27 @@ interface ProductTypesTabProps {
 
 export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
   const queryClient = useQueryClient();
-  const [activeCategory, setActiveCategory] = useState<ProductCategory>("INSULFILM");
+  const [activeCategory, setActiveCategory] =
+    useState<ProductCategory>("INSULFILM");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductType | null>(null);
 
-  // Form state
   const [formData, setFormData] = useState({
     category: "INSULFILM" as ProductCategory,
     brand: "",
     name: "",
-    batch: "", // Renamed from model to batch (Lote)
+    batch: "",
     light_transmission: "",
     description: "",
     cost_per_meter: 0,
-    ppf_material_type: "" as string,
+    ppf_material_type: "",
   });
 
   const { data: productTypes, isLoading } = useQuery({
     queryKey: ["product-types", activeCategory, companyId],
     queryFn: async () => {
       if (!companyId) return [];
+
       const { data, error } = await supabase
         .from("product_types")
         .select("*")
@@ -58,21 +78,31 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
     enabled: !!companyId,
   });
 
+  const invalidateStockQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["product-types"] });
+    queryClient.invalidateQueries({ queryKey: ["materials"] });
+    queryClient.invalidateQueries({ queryKey: ["history-materials"] });
+    queryClient.invalidateQueries({ queryKey: ["history-movements"] });
+    queryClient.invalidateQueries({ queryKey: ["history-analytics-consumption"] });
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Criar tipo de produto - map batch to model field in DB
       const { data: result, error } = await supabase
         .from("product_types")
         .insert({
           category: data.category,
           brand: data.brand,
           name: data.name,
-          model: data.batch, // Save batch as model in DB
+          model: data.batch,
           light_transmission: data.light_transmission,
           description: data.description,
           cost_per_meter: data.cost_per_meter,
-          ppf_material_type: data.category === 'PPF' && data.ppf_material_type ? data.ppf_material_type : null,
-          unit_price: 0, // No longer set here, will be set in sales
+          ppf_material_type:
+            data.category === "PPF" && data.ppf_material_type
+              ? data.ppf_material_type
+              : null,
+          unit_price: 0,
           company_id: companyId,
           is_active: true,
         })
@@ -80,13 +110,11 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         .single();
 
       if (error) throw error;
-
       return result;
     },
     onSuccess: () => {
       toast.success("Tipo de produto criado com sucesso!");
-      queryClient.invalidateQueries({ queryKey: ["product-types"] });
-      queryClient.invalidateQueries({ queryKey: ["materials"] });
+      invalidateStockQueries();
       handleCloseModal();
     },
     onError: (error: Error) => {
@@ -102,11 +130,14 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
           category: data.category,
           brand: data.brand,
           name: data.name,
-          model: data.batch, // Save batch as model in DB
+          model: data.batch,
           light_transmission: data.light_transmission,
           description: data.description,
           cost_per_meter: data.cost_per_meter,
-          ppf_material_type: data.category === 'PPF' && data.ppf_material_type ? data.ppf_material_type : null,
+          ppf_material_type:
+            data.category === "PPF" && data.ppf_material_type
+              ? data.ppf_material_type
+              : null,
         })
         .eq("id", id)
         .eq("company_id", companyId)
@@ -118,7 +149,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
     },
     onSuccess: () => {
       toast.success("Tipo de produto atualizado!");
-      queryClient.invalidateQueries({ queryKey: ["product-types"] });
+      invalidateStockQueries();
       handleCloseModal();
     },
     onError: (error: Error) => {
@@ -127,7 +158,13 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: async ({ id, currentStatus }: { id: number; currentStatus: boolean }) => {
+    mutationFn: async ({
+      id,
+      currentStatus,
+    }: {
+      id: number;
+      currentStatus: boolean;
+    }) => {
       const { error } = await supabase
         .from("product_types")
         .update({ is_active: !currentStatus })
@@ -139,7 +176,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
     },
     onSuccess: (data) => {
       toast.success(data.newStatus ? "Produto ativado!" : "Produto desativado!");
-      queryClient.invalidateQueries({ queryKey: ["product-types"] });
+      invalidateStockQueries();
     },
     onError: (error: Error) => {
       toast.error("Erro ao alterar status: " + error.message);
@@ -148,14 +185,12 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      // Verifica se existem serviços vinculados
       const { count } = await supabase
         .from("service_items_detailed")
         .select("*", { count: "exact", head: true })
         .eq("product_type_id", id);
 
       if (count && count > 0) {
-        // Soft delete - desativa o produto e o material vinculado
         const { error } = await supabase
           .from("product_types")
           .update({ is_active: false })
@@ -164,39 +199,32 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
 
         if (error) throw error;
 
-        // Desativa material vinculado também
         await supabase
           .from("materials")
           .update({ is_active: false })
           .eq("product_type_id", id);
 
         return "soft";
-      } else {
-        // Hard delete - remove material vinculado primeiro
-        await supabase
-          .from("materials")
-          .delete()
-          .eq("product_type_id", id);
-
-        // Remove o tipo de produto
-        const { error } = await supabase
-          .from("product_types")
-          .delete()
-          .eq("id", id)
-          .eq("company_id", companyId);
-
-        if (error) throw error;
-        return "hard";
       }
+
+      await supabase.from("materials").delete().eq("product_type_id", id);
+
+      const { error } = await supabase
+        .from("product_types")
+        .delete()
+        .eq("id", id)
+        .eq("company_id", companyId);
+
+      if (error) throw error;
+      return "hard";
     },
     onSuccess: (type) => {
       if (type === "soft") {
-        toast.success("Produto desativado (possui serviços vinculados)");
+        toast.success("Produto desativado (possui servicos vinculados)");
       } else {
-        toast.success("Tipo de produto excluído com sucesso!");
+        toast.success("Tipo de produto excluido com sucesso!");
       }
-      queryClient.invalidateQueries({ queryKey: ["product-types"] });
-      queryClient.invalidateQueries({ queryKey: ["materials"] });
+      invalidateStockQueries();
     },
     onError: (error: Error) => {
       toast.error("Erro ao excluir produto: " + error.message);
@@ -204,7 +232,14 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
   });
 
   const handleDelete = (product: ProductType) => {
-    if (!confirm(`Tem certeza que deseja excluir "${product.brand} ${product.name}"?`)) return;
+    if (
+      !confirm(
+        `Tem certeza que deseja excluir "${product.brand} ${product.name}"?`
+      )
+    ) {
+      return;
+    }
+
     deleteMutation.mutate(product.id);
   };
 
@@ -215,7 +250,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         category: product.category,
         brand: product.brand,
         name: product.name,
-        batch: product.model || "", // model in DB is now batch
+        batch: product.model || "",
         light_transmission: product.light_transmission || "",
         description: product.description || "",
         cost_per_meter: product.cost_per_meter,
@@ -234,6 +269,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         ppf_material_type: "",
       });
     }
+
     setIsModalOpen(true);
   };
 
@@ -254,23 +290,23 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
 
   const handleSubmit = () => {
     if (!formData.name.trim()) {
-      toast.error("Nome é obrigatório");
+      toast.error("Nome e obrigatorio");
       return;
     }
 
     if (editingProduct) {
       updateMutation.mutate({ id: editingProduct.id, data: formData });
-    } else {
-      createMutation.mutate(formData);
+      return;
     }
+
+    createMutation.mutate(formData);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
     }).format(value);
-  };
 
   if (isLoading) {
     return (
@@ -283,9 +319,11 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Sub-tabs e botão */}
       <div className="flex items-center justify-between">
-        <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as ProductCategory)}>
+        <Tabs
+          value={activeCategory}
+          onValueChange={(value) => setActiveCategory(value as ProductCategory)}
+        >
           <TabsList>
             <TabsTrigger value="INSULFILM">INSULFILM</TabsTrigger>
             <TabsTrigger value="PPF">PPF</TabsTrigger>
@@ -293,22 +331,23 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         </Tabs>
 
         <Button onClick={() => handleOpenModal()}>
-          <Plus className="h-4 w-4 mr-2" /> Novo Tipo de Produto
+          <Plus className="mr-2 h-4 w-4" /> Novo Tipo de Produto
         </Button>
       </div>
 
-      {/* Tabela */}
       <Card className="bg-card/50 border-border/50">
         <CardContent className="p-0">
           {productTypes?.length === 0 ? (
             <div className="p-12 text-center">
-              <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Nenhum tipo de produto cadastrado</h3>
-              <p className="text-muted-foreground mb-4">
+              <Tag className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+              <h3 className="mb-2 text-lg font-medium">
+                Nenhum tipo de produto cadastrado
+              </h3>
+              <p className="mb-4 text-muted-foreground">
                 Cadastre tipos de produtos para {activeCategory}
               </p>
               <Button onClick={() => handleOpenModal()}>
-                <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Produto
+                <Plus className="mr-2 h-4 w-4" /> Cadastrar Primeiro Produto
               </Button>
             </div>
           ) : (
@@ -317,15 +356,19 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                 <TableRow>
                   <TableHead>Marca</TableHead>
                   <TableHead>Nome/Lote</TableHead>
-                  {activeCategory === "INSULFILM" && <TableHead>Transmissão</TableHead>}
-                  {activeCategory === "PPF" && <TableHead>Tipo Material</TableHead>}
+                  {activeCategory === "INSULFILM" && (
+                    <TableHead>Transmissao</TableHead>
+                  )}
+                  {activeCategory === "PPF" && (
+                    <TableHead>Tipo Material</TableHead>
+                  )}
                   <TableHead className="text-right">Custo/Metro</TableHead>
                   <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="w-[100px]">Ações</TableHead>
+                  <TableHead className="w-[100px]">Acoes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {productTypes?.map((product) => (
+                {productTypes.map((product) => (
                   <TableRow
                     key={product.id}
                     className={!product.is_active ? "opacity-50" : ""}
@@ -335,7 +378,9 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                       <div>
                         <span>{product.name}</span>
                         {product.model && (
-                          <span className="text-muted-foreground ml-1">- Lote {product.model}</span>
+                          <span className="ml-1 text-muted-foreground">
+                            - Lote {product.model}
+                          </span>
                         )}
                       </div>
                     </TableCell>
@@ -345,8 +390,12 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                     {activeCategory === "PPF" && (
                       <TableCell>
                         {product.ppf_material_type ? (
-                          <Badge variant="outline">{product.ppf_material_type}</Badge>
-                        ) : "-"}
+                          <Badge variant="outline">
+                            {product.ppf_material_type}
+                          </Badge>
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
                     )}
                     <TableCell className="text-right">
@@ -397,12 +446,13 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         </CardContent>
       </Card>
 
-      {/* Modal de criar/editar */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingProduct ? "Editar Tipo de Produto" : "Novo Tipo de Produto"}
+              {editingProduct
+                ? "Editar Tipo de Produto"
+                : "Novo Tipo de Produto"}
             </DialogTitle>
           </DialogHeader>
 
@@ -411,7 +461,12 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
               <Label>Categoria</Label>
               <Select
                 value={formData.category}
-                onValueChange={(v) => setFormData({ ...formData, category: v as ProductCategory })}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    category: value as ProductCategory,
+                  })
+                }
                 disabled={!!editingProduct}
               >
                 <SelectTrigger>
@@ -430,7 +485,9 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                 <Input
                   placeholder="Ex: 3M, XPEL"
                   value={formData.brand}
-                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                  onChange={(event) =>
+                    setFormData({ ...formData, brand: event.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -438,7 +495,9 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                 <Input
                   placeholder="Ex: G70, Ultimate"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(event) =>
+                    setFormData({ ...formData, name: event.target.value })
+                  }
                 />
               </div>
             </div>
@@ -449,17 +508,22 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                 <Input
                   placeholder="Ex: A001, B002, C003"
                   value={formData.batch}
-                  onChange={(e) => setFormData({ ...formData, batch: e.target.value })}
+                  onChange={(event) =>
+                    setFormData({ ...formData, batch: event.target.value })
+                  }
                 />
               </div>
               {formData.category === "INSULFILM" && (
                 <div className="space-y-2">
-                  <Label>Transmissão de Luz</Label>
+                  <Label>Transmissao de Luz</Label>
                   <Input
                     placeholder="Ex: 5%, 20%, 70%"
                     value={formData.light_transmission}
-                    onChange={(e) =>
-                      setFormData({ ...formData, light_transmission: e.target.value })
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        light_transmission: event.target.value,
+                      })
                     }
                   />
                 </div>
@@ -474,9 +538,11 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                     <button
                       key={type}
                       type="button"
-                      onClick={() => setFormData({ ...formData, ppf_material_type: type })}
+                      onClick={() =>
+                        setFormData({ ...formData, ppf_material_type: type })
+                      }
                       className={cn(
-                        "px-4 py-2 rounded-lg border text-sm font-medium transition-colors",
+                        "rounded-lg border px-4 py-2 text-sm font-medium transition-colors",
                         formData.ppf_material_type === type
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border hover:bg-muted"
@@ -496,18 +562,23 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                 step="0.01"
                 min="0"
                 value={formData.cost_per_meter}
-                onChange={(e) =>
-                  setFormData({ ...formData, cost_per_meter: parseFloat(e.target.value) || 0 })
+                onChange={(event) =>
+                  setFormData({
+                    ...formData,
+                    cost_per_meter: parseFloat(event.target.value) || 0,
+                  })
                 }
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Descrição</Label>
+              <Label>Descricao</Label>
               <Textarea
-                placeholder="Descrição adicional do produto..."
+                placeholder="Descricao adicional do produto..."
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(event) =>
+                  setFormData({ ...formData, description: event.target.value })
+                }
               />
             </div>
           </div>
@@ -520,7 +591,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
               onClick={handleSubmit}
               disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {editingProduct ? "Salvar Alterações" : "Criar Produto"}
+              {editingProduct ? "Salvar Alteracoes" : "Criar Produto"}
             </Button>
           </DialogFooter>
         </DialogContent>

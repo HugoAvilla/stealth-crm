@@ -49,6 +49,7 @@ import { consumeStockForDetailedSale, createTransactionFromSale } from "@/lib/st
 import NewClientModal from "@/components/vendas/NewClientModal";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
+import CommissionSelectors from "@/components/vendas/CommissionSelectors";
 import { toast } from "sonner";
 import { SaleWithDetails } from "@/types/sales";
 
@@ -121,6 +122,9 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
   const [servicePrice, setServicePrice] = useState("");
 
+  const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
+  const [selectedInstallerIds, setSelectedInstallerIds] = useState<number[]>([]);
+
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
@@ -151,9 +155,10 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       
       const fetchItems = async () => {
          const queryColumns = 'id, name, region_code' as '*';
-         const [{ data: items }, { data: regions }] = await Promise.all([
+         const [{ data: items }, { data: regions }, { data: commissions }] = await Promise.all([
            supabase.from('service_items_detailed').select('*').eq('sale_id', sale.id),
-           supabase.from('vehicle_regions').select(queryColumns).eq('company_id', (sale as any).company_id || companyId || 0)
+           supabase.from('vehicle_regions').select(queryColumns).eq('company_id', (sale as any).company_id || companyId || 0),
+           supabase.from('sale_commissions').select('*').eq('sale_id', sale.id)
          ]);
 
          if (items) {
@@ -175,6 +180,16 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
                   customizationGroup: (item as any).customization_group || null,
                 };
               }));
+         }
+
+         if (commissions) {
+           const seller = commissions.find(c => c.person_type === 'VENDEDOR');
+           if (seller) setSelectedSellerId(seller.commission_person_id);
+           
+           const installers = commissions
+             .filter(c => c.person_type !== 'VENDEDOR')
+             .map(c => c.commission_person_id);
+           setSelectedInstallerIds(installers);
          }
       };
       if (sale.id) fetchItems();
@@ -467,6 +482,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       
       await supabase.from('service_items_detailed').delete().eq('sale_id', sale.id);
       await supabase.from('transactions').delete().eq('sale_id', sale.id);
+      await supabase.from('sale_commissions').delete().eq('sale_id', sale.id);
 
       // Create service_items_detailed
       const serviceItemsData: any[] = [];
@@ -539,6 +555,29 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
           format(saleDate, 'yyyy-MM-dd'),
           companyId
         );
+      }
+
+      // Re-insert commission snapshots
+      if (selectedSellerId || selectedInstallerIds.length > 0) {
+        const { data: peopleData } = await supabase
+          .from('commission_people')
+          .select('id, name, type, commission_percentage')
+          .in('id', [selectedSellerId, ...selectedInstallerIds].filter(Boolean) as number[]);
+
+        if (peopleData && peopleData.length > 0) {
+          const commissionsToInsert = peopleData.map(person => ({
+            sale_id: sale.id,
+            commission_person_id: person.id,
+            person_name_snapshot: person.name,
+            person_type: person.type,
+            percentage_snapshot: person.commission_percentage,
+            commission_base_amount: subtotal,
+            commission_amount: (subtotal * person.commission_percentage) / 100,
+            company_id: companyId
+          }));
+
+          await supabase.from('sale_commissions').insert(commissionsToInsert);
+        }
       }
 
       toast.success(`Venda de R$ ${total.toFixed(2)} atualizada com sucesso!`);
@@ -850,6 +889,15 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
                   </div>
                 </div>
               </div>
+
+              {/* Commission Selectors */}
+              <CommissionSelectors
+                companyId={companyId || 0}
+                selectedSellerId={selectedSellerId}
+                selectedInstallerIds={selectedInstallerIds}
+                onSellerChange={setSelectedSellerId}
+                onInstallersChange={setSelectedInstallerIds}
+              />
 
               {/* Toggle Open Sale */}
               <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">

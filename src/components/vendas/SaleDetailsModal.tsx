@@ -34,6 +34,7 @@ import {
   Trash2,
   Settings,
   Layers,
+  Percent,
 } from "lucide-react";
 import { SaleWithDetails, DetailedServiceItemDB } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
@@ -84,6 +85,25 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
         return [];
       }
       return (data || []) as DetailedServiceItemDB[];
+    },
+    enabled: !!sale?.id && open,
+  });
+
+  // Fetch commissions
+  const { data: commissions } = useQuery({
+    queryKey: ['sale-commissions', sale?.id],
+    queryFn: async () => {
+      if (!sale?.id) return [];
+      const { data, error } = await supabase
+        .from('sale_commissions')
+        .select('*')
+        .eq('sale_id', sale.id);
+      
+      if (error) {
+        console.error('Error fetching commissions:', error);
+        return [];
+      }
+      return data;
     },
     enabled: !!sale?.id && open,
   });
@@ -346,6 +366,30 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                 </span>
               </div>
             </div>
+
+            {/* Commissions Summary */}
+            {commissions && commissions.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <Percent className="h-4 w-4" /> Comissões
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {commissions.map((comm) => (
+                    <div key={comm.id} className="flex justify-between items-center p-2 rounded border bg-muted/20">
+                      <div>
+                        <p className="text-sm font-medium">{comm.person_name_snapshot}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {comm.person_type.replace('_', ' ')} • {comm.percentage_snapshot}%
+                        </p>
+                      </div>
+                      <span className="text-sm font-medium text-success">
+                        R$ {Number(comm.commission_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Document Actions */}
             <div className="space-y-2">

@@ -30,12 +30,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
+import { BrazilCalendarLegend } from "@/components/calendar/BrazilCalendarLegend";
 import SalesKPIBar from "@/components/vendas/SalesKPIBar";
 import NewSaleModal from "@/components/vendas/NewSaleModal";
 import SalesDayDrawer from "@/components/vendas/SalesDayDrawer";
 import SalesChartsModal from "@/components/vendas/SalesChartsModal";
 import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
 import { SaleWithDetails } from "@/types/sales";
+import {
+  BRAZIL_CALENDAR_EVENT_STYLES,
+  getBrazilCalendarTitle,
+  getPrimaryBrazilCalendarEvent,
+} from "@/lib/brazilCalendar";
 
 const Vendas = () => {
   const { user } = useAuth();
@@ -299,6 +305,10 @@ const Vendas = () => {
               {/* Calendar Grid */}
               {viewMode === "calendar" && (
                 <Card className="p-4">
+                  <div className="mb-4">
+                    <BrazilCalendarLegend />
+                  </div>
+
                   {/* Week days header */}
                   <div className="grid grid-cols-7 mb-2">
                     {weekDays.map((day) => (
@@ -315,22 +325,40 @@ const Vendas = () => {
                       const dayTotal = daySales.reduce((sum, sale) => sum + sale.total, 0);
                       const isCurrentMonth = isSameMonth(day, currentDate);
                       const isToday = isSameDay(day, new Date());
+                      const calendarEvent = getPrimaryBrazilCalendarEvent(day);
+                      const eventTitle = getBrazilCalendarTitle(day);
 
                       return (
                         <div
                           key={day.toISOString()}
                           onClick={() => setSelectedDay(day)}
+                          title={eventTitle}
                           className={cn(
                             "min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border border-border rounded-lg transition-colors overflow-hidden cursor-pointer hover:bg-muted/50",
                             isCurrentMonth ? "bg-card" : "bg-background opacity-50",
+                            calendarEvent &&
+                              BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
                             isToday && "ring-2 ring-primary"
                           )}
                         >
-                          <div className={cn(
-                            "text-xs sm:text-sm font-medium mb-1 sm:mb-2",
-                            isToday && "text-primary"
-                          )}>
-                            {format(day, "d")}
+                          <div className="mb-1 flex items-start justify-between gap-1">
+                            <div className={cn(
+                              "text-xs sm:text-sm font-medium",
+                              isToday && "text-primary"
+                            )}>
+                              {format(day, "d")}
+                            </div>
+
+                            {calendarEvent && (
+                              <span
+                                className={cn(
+                                  "max-w-[65%] truncate rounded px-1 py-0.5 text-[9px] leading-none sm:text-[10px]",
+                                  BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].chipClass
+                                )}
+                              >
+                                {calendarEvent.shortName}
+                              </span>
+                            )}
                           </div>
 
                           {daySales.length > 0 && (

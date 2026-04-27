@@ -59,6 +59,7 @@ import { consumeStockForDetailedSale, createTransactionFromSale } from "@/lib/st
 import NewClientModal from "@/components/vendas/NewClientModal";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
+import CommissionSelectors from "@/components/vendas/CommissionSelectors";
 import { toast } from "sonner";
 
 interface Client {
@@ -141,6 +142,9 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const [servicePrice, setServicePrice] = useState("");
   const [isNewClient, setIsNewClient] = useState(true);
   const [pastSalesCount, setPastSalesCount] = useState(0);
+  
+  const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
+  const [selectedInstallerIds, setSelectedInstallerIds] = useState<number[]>([]);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -565,6 +569,29 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
 
       if (itemsError) throw itemsError;
 
+      // Insert commission snapshots
+      if (selectedSellerId || selectedInstallerIds.length > 0) {
+        const { data: peopleData } = await supabase
+          .from('commission_people')
+          .select('id, name, type, commission_percentage')
+          .in('id', [selectedSellerId, ...selectedInstallerIds].filter(Boolean) as number[]);
+
+        if (peopleData && peopleData.length > 0) {
+          const commissionsToInsert = peopleData.map(person => ({
+            sale_id: sale.id,
+            commission_person_id: person.id,
+            person_name_snapshot: person.name,
+            person_type: person.type,
+            percentage_snapshot: person.commission_percentage,
+            commission_base_amount: subtotal,
+            commission_amount: (subtotal * person.commission_percentage) / 100,
+            company_id: companyId
+          }));
+
+          await supabase.from('sale_commissions').insert(commissionsToInsert);
+        }
+      }
+
       // Update space if exported from a slot
       if (prefillData?.spaceId) {
         const { error: spaceUpdateError } = await supabase
@@ -619,6 +646,8 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       setServicePrice("");
       setNotes("");
       setIsOpen(false);
+      setSelectedSellerId(null);
+      setSelectedInstallerIds([]);
       onOpenChange(false);
     } catch (error) {
       console.error('Error creating sale:', error);
@@ -994,6 +1023,15 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                   </div>
                 </div>
               </div>
+
+              {/* Commission Selectors */}
+              <CommissionSelectors
+                companyId={companyId || 0}
+                selectedSellerId={selectedSellerId}
+                selectedInstallerIds={selectedInstallerIds}
+                onSellerChange={setSelectedSellerId}
+                onInstallersChange={setSelectedInstallerIds}
+              />
 
               {/* Toggle Open Sale */}
               <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">

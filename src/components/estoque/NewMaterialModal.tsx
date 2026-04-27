@@ -115,9 +115,13 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
           .from("materials")
           .update({
             name: materialName,
+            type: selectedProduct.category,
+            brand: selectedProduct.brand,
             unit,
             minimum_stock: minStock ? parseFloat(minStock) : 0,
             current_stock: isOpenRoll ? 0 : (currentStock ? parseFloat(currentStock) : 0),
+            average_cost: selectedProduct.cost_per_meter || 0,
+            product_type_id: selectedProduct.id,
             is_active: true,
             is_open_roll: isOpenRoll,
           })
