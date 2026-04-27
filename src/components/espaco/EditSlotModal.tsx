@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -11,8 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
-import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X, Sliders } from "lucide-react";
+import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X, Sliders, CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -56,9 +59,9 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
   const [slotName, setSlotName] = useState(space?.name || "");
   const [selectedClientId, setSelectedClientId] = useState<string>(space?.client_id ? space.client_id.toString() : "");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(space?.vehicle_id ? space.vehicle_id.toString() : "");
-  const [entryDate, setEntryDate] = useState(space?.entry_date || format(new Date(), 'yyyy-MM-dd'));
+  const [entryDate, setEntryDate] = useState<Date>(space?.entry_date ? parseISO(space.entry_date) : new Date());
   const [entryTime, setEntryTime] = useState(space?.entry_time || format(new Date(), 'HH:mm'));
-  const [exitDate, setExitDate] = useState(space?.exit_date || "");
+  const [exitDate, setExitDate] = useState<Date | undefined>(space?.exit_date ? parseISO(space.exit_date) : undefined);
   const [exitTime, setExitTime] = useState(space?.exit_time || "");
   const [discount, setDiscount] = useState<number>(space?.discount || 0);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
@@ -204,9 +207,9 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       if (space.client_id) setSelectedClientId(space.client_id.toString());
       if (space.vehicle_id) setSelectedVehicleId(space.vehicle_id.toString());
       
-      if (space.entry_date) setEntryDate(space.entry_date);
+      if (space.entry_date) setEntryDate(parseISO(space.entry_date));
       if (space.entry_time) setEntryTime(space.entry_time);
-      if (space.exit_date) setExitDate(space.exit_date);
+      if (space.exit_date) setExitDate(parseISO(space.exit_date));
       if (space.exit_time) setExitTime(space.exit_time);
       
       if (space.discount) {
@@ -447,9 +450,9 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
           name: slotName || `Vaga de ${selectedClient?.name}`,
           client_id: parseInt(selectedClientId),
           vehicle_id: parseInt(selectedVehicleId),
-          entry_date: entryDate,
+          entry_date: format(entryDate, 'yyyy-MM-dd'),
           entry_time: entryTime,
-          exit_date: exitDate || null,
+          exit_date: exitDate ? format(exitDate, 'yyyy-MM-dd') : null,
           exit_time: exitTime || null,
           discount: calculatedDiscount || null,
           observations: observations || null,
@@ -725,14 +728,29 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+                <CalendarIcon className="h-4 w-4" />
                 Dia da entrada *
               </Label>
-              <Input 
-                type="date" 
-                value={entryDate} 
-                onChange={(e) => setEntryDate(e.target.value)}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(entryDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker
+                    mode="single"
+                    selected={entryDate}
+                    onSelect={(date) => date && setEntryDate(date)}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
@@ -750,14 +768,34 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+                <CalendarIcon className="h-4 w-4" />
                 Dia da saída (previsão)
               </Label>
-              <Input 
-                type="date" 
-                value={exitDate} 
-                onChange={(e) => setExitDate(e.target.value)}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !exitDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exitDate
+                      ? format(exitDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+                      : "Selecione uma data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker
+                    mode="single"
+                    selected={exitDate}
+                    onSelect={(date) => setExitDate(date)}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
