@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Check, ChevronsUpDown, X, Percent, Users, User } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Check, ChevronsUpDown, X, Percent, Users, User, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -108,20 +108,24 @@ const CommissionSelectors = ({
   if (commissionPeople.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      <Separator />
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        <Percent className="h-4 w-4" />
-        Comissões (opcional)
-      </div>
-
-      {/* Seller single-select */}
+    <div className="space-y-3">
+      {/* Card: Comissão do Vendedor */}
       {sellers.length > 0 && (
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2">
-            <User className="h-3.5 w-3.5" />
-            Vendedor
-          </Label>
+        <Card className="p-4 bg-muted/30 border-border/50 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-500/15">
+              <User className="h-4 w-4 text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <Label className="font-medium text-sm">Comissão do Vendedor</Label>
+              <p className="text-xs text-muted-foreground">Selecione 1 vendedor para esta venda</p>
+            </div>
+            {selectedSeller && (
+              <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/30">
+                {selectedSeller.commission_percentage}%
+              </Badge>
+            )}
+          </div>
           <Select
             value={selectedSellerId?.toString() || "none"}
             onValueChange={(v) => onSellerChange(v === "none" ? null : parseInt(v))}
@@ -143,16 +147,27 @@ const CommissionSelectors = ({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Card>
       )}
 
-      {/* Installers multi-select */}
+      {/* Card: Aplicadores */}
       {installers.length > 0 && (
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2">
-            <Users className="h-3.5 w-3.5" />
-            Instaladores
-          </Label>
+        <Card className="p-4 bg-muted/30 border-border/50 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/15">
+              <Wrench className="h-4 w-4 text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <Label className="font-medium text-sm">Aplicadores</Label>
+              <p className="text-xs text-muted-foreground">Selecione 1 ou mais aplicadores</p>
+            </div>
+            {selectedInstallerIds.length > 0 && (
+              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
+                {selectedInstallerIds.length} selecionado(s)
+              </Badge>
+            )}
+          </div>
+
           <Popover open={openInstallerPopover} onOpenChange={setOpenInstallerPopover}>
             <PopoverTrigger asChild>
               <Button
@@ -162,16 +177,16 @@ const CommissionSelectors = ({
                 className="w-full justify-between"
               >
                 {selectedInstallerIds.length > 0
-                  ? `${selectedInstallerIds.length} instalador(es) selecionado(s)`
-                  : "Selecionar instaladores"}
+                  ? `${selectedInstallerIds.length} aplicador(es) selecionado(s)`
+                  : "Selecionar aplicadores"}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[400px] p-0" align="start">
               <Command>
-                <CommandInput placeholder="Buscar instalador..." />
+                <CommandInput placeholder="Buscar aplicador..." />
                 <CommandList>
-                  <CommandEmpty>Nenhum instalador encontrado.</CommandEmpty>
+                  <CommandEmpty>Nenhum aplicador encontrado.</CommandEmpty>
                   <CommandGroup>
                     {installers.map((installer) => (
                       <CommandItem
@@ -204,7 +219,7 @@ const CommissionSelectors = ({
 
           {/* Selected Badges */}
           {selectedInstallers.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
+            <div className="flex flex-wrap gap-1.5">
               {selectedInstallers.map((inst) => (
                 <Badge
                   key={inst.id}
@@ -222,7 +237,7 @@ const CommissionSelectors = ({
               ))}
             </div>
           )}
-        </div>
+        </Card>
       )}
     </div>
   );
