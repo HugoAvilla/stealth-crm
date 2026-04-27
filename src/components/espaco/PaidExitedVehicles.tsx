@@ -16,6 +16,7 @@ import {
   FileText,
   Loader2,
   Trash2,
+  Undo2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -95,6 +96,50 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRevert = async (space: PaidExitedVehicle) => {
+    if (!window.confirm("Deseja reverter esta vaga para não paga? Caso esteja vinculada a uma venda, a venda será excluída e os serviços retornarão para a vaga.")) return;
+
+    try {
+      if (space.sale_id) {
+        const { error: saleError } = await supabase
+          .from("sales")
+          .delete()
+          .eq("id", space.sale_id);
+          
+        if (saleError) {
+          console.error("Erro ao deletar venda vinculada:", saleError);
+          throw saleError;
+        }
+      }
+
+      const { error: spaceError } = await supabase
+        .from("spaces")
+        .update({
+          payment_status: "pending",
+          sale_id: null,
+          has_exited: false,
+          exit_date: null,
+          exit_time: null
+        })
+        .eq("id", space.id);
+
+      if (spaceError) throw spaceError;
+
+      toast({
+        title: "Vaga revertida com sucesso!",
+        description: "A vaga retornou para o status original na aba de espaços ativos.",
+      });
+      fetchPaidExitedVehicles();
+    } catch (error) {
+      console.error("Erro ao reverter vaga:", error);
+      toast({
+        title: "Erro ao reverter",
+        description: "Não foi possível reverter a vaga.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -247,16 +292,26 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
                         R$ {space.sale.total.toFixed(2)}
                       </span>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10 mt-auto"
-                      onClick={() => handleDelete(space.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Excluir
-                    </Button>
-                  </div>
+                    <div className="flex gap-2 mt-auto">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                        onClick={() => handleRevert(space)}
+                      >
+                        <Undo2 className="h-4 w-4 mr-2" />
+                        Reverter
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDelete(space.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir
+                      </Button>
+                    </div>
                 </div>
               </CardContent>
             </Card>
