@@ -312,6 +312,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
                         Excluir
                       </Button>
                     </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
