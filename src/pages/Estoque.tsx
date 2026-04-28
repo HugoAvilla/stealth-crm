@@ -24,6 +24,7 @@ import { ConsumptionRulesModal } from "@/components/estoque/ConsumptionRulesModa
 import { MaterialDetailsModal } from "@/components/estoque/MaterialDetailsModal";
 import { ProductTypesTab } from "@/components/estoque/ProductTypesTab";
 import { MaterialHistoryTab } from "@/components/estoque/MaterialHistoryTab";
+import { CloseRollModal } from "@/components/estoque/CloseRollModal";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { toast } from "sonner";
 
@@ -57,6 +58,7 @@ export default function Estoque() {
   const [showExit, setShowExit] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showCloseRoll, setShowCloseRoll] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [companyId, setCompanyId] = useState<number | null>(null);
 
@@ -214,24 +216,8 @@ export default function Estoque() {
   };
 
   const handleCloseOpenRoll = async (material: Material) => {
-    if (!user?.id || !companyId) return;
-    if (!confirm(`Deseja encerrar a bobina "${material.name}"? O consumo acumulado total foi de ${material.open_roll_accumulated || 0}m. A bobina será inativada.`)) return;
-
-    try {
-      const { error } = await supabase.rpc("close_open_roll", {
-        p_material_id: material.id,
-        p_reason: "Fechamento manual de bobina",
-        p_user_id: user.id,
-        p_company_id: companyId
-      });
-
-      if (error) throw error;
-      toast.success("Bobina encerrada com sucesso");
-      fetchMaterials();
-    } catch (error) {
-      console.error("Error closing open roll:", error);
-      toast.error("Erro ao encerrar bobina");
-    }
+    setSelectedMaterial(material);
+    setShowCloseRoll(true);
   };
 
   const handleMaterialCreated = () => {
@@ -621,6 +607,15 @@ export default function Estoque() {
         open={showDetails} 
         onOpenChange={setShowDetails} 
         material={selectedMaterial} 
+      />
+      <CloseRollModal
+        open={showCloseRoll}
+        onOpenChange={setShowCloseRoll}
+        material={selectedMaterial}
+        onSuccess={() => {
+          setShowCloseRoll(false);
+          fetchMaterials();
+        }}
       />
     </div>
   );

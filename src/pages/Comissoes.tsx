@@ -8,6 +8,7 @@ import CommissionPeopleSection from "@/components/comissoes/CommissionPeopleSect
 import CommissionPersonModal from "@/components/comissoes/CommissionPersonModal";
 import { CommissionPersonWithMetrics } from "@/components/comissoes/CommissionPersonCard";
 import CommissionDetailDrawer from "@/components/comissoes/CommissionDetailDrawer";
+import { HelpOverlay } from "@/components/help/HelpOverlay";
 
 export default function Comissoes() {
   const { user } = useAuth();
@@ -89,6 +90,22 @@ export default function Comissoes() {
 
   return (
     <div className="space-y-6 p-6 pb-20">
+      <HelpOverlay
+        tabId="comissoes"
+        title="Guia de Comissões"
+        sections={[
+          {
+            title: "Vídeo Aula — Comissões",
+            description: "Assista ao vídeo tutorial para entender como gerenciar vendedores, instaladores e pagamentos.",
+            videoUrl: "/help/video-aula-comissoes.mp4"
+          },
+          {
+            title: "Gestão de Comissionados",
+            description: "Adicione pessoas para receber comissões, configure suas taxas e visualize métricas e relatórios diretamente no card de cada um.",
+            screenshotUrl: "/help/help-comissoes.png"
+          }
+        ]}
+      />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
