@@ -103,18 +103,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
     if (!window.confirm("Deseja reverter esta vaga para não paga? Caso esteja vinculada a uma venda, a venda será excluída e os serviços retornarão para a vaga.")) return;
 
     try {
-      if (space.sale_id) {
-        const { error: saleError } = await supabase
-          .from("sales")
-          .delete()
-          .eq("id", space.sale_id);
-          
-        if (saleError) {
-          console.error("Erro ao deletar venda vinculada:", saleError);
-          throw saleError;
-        }
-      }
-
+      // 1) First update the space — clears sale_id FK and resets status
       const { error: spaceError } = await supabase
         .from("spaces")
         .update({
@@ -127,6 +116,55 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
         .eq("id", space.id);
 
       if (spaceError) throw spaceError;
+
+      // 2) If there was a linked sale, delete all dependent records then the sale
+      if (space.sale_id) {
+        // Delete service_items_detailed linked to the sale
+        const { error: sidError } = await supabase
+          .from("service_items_detailed")
+          .delete()
+          .eq("sale_id", space.sale_id);
+        if (sidError) console.error("Erro ao deletar service_items_detailed:", sidError);
+
+        // Delete sale_items linked to the sale
+        const { error: siError } = await supabase
+          .from("sale_items")
+          .delete()
+          .eq("sale_id", space.sale_id);
+        if (siError) console.error("Erro ao deletar sale_items:", siError);
+
+        // Delete sale_commissions linked to the sale
+        const { error: scError } = await supabase
+          .from("sale_commissions")
+          .delete()
+          .eq("sale_id", space.sale_id);
+        if (scError) console.error("Erro ao deletar sale_commissions:", scError);
+
+        // Delete transactions linked to the sale
+        const { error: txError } = await supabase
+          .from("transactions")
+          .delete()
+          .eq("sale_id", space.sale_id);
+        if (txError) console.error("Erro ao deletar transactions:", txError);
+
+        // Delete warranties linked to the sale
+        const { error: wError } = await supabase
+          .from("warranties")
+          .delete()
+          .eq("sale_id", space.sale_id);
+        if (wError) console.error("Erro ao deletar warranties:", wError);
+
+        // Finally delete the sale itself
+        const { error: saleError } = await supabase
+          .from("sales")
+          .delete()
+          .eq("id", space.sale_id);
+
+        if (saleError) {
+          console.error("Erro ao deletar venda vinculada:", saleError);
+          // Sale deletion failed but space was already reverted — log but don't throw
+        }
+      }
 
       toast({
         title: "Vaga revertida com sucesso!",
