@@ -46,6 +46,8 @@ interface Account {
   current_balance: number | null;
   is_main: boolean | null;
   is_active: boolean | null;
+  bank_code?: string | null;
+  bank_name?: string | null;
 }
 
 interface Transaction {
@@ -78,6 +80,7 @@ export default function Contas() {
   const [showValues, setShowValues] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [activeTab, setActiveTab] = useState<'extrato' | 'maquininhas'>('extrato');
 
   // New states for filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -374,13 +377,32 @@ export default function Contas() {
                 </button>
 
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-sm">{account.name}</span>
+                  <span className="font-medium text-sm truncate pr-2">{account.name}</span>
                   {account.is_main && (
-                    <Badge variant="outline" className="text-[10px]">Principal</Badge>
+                    <Badge variant="outline" className="text-[10px] shrink-0">Principal</Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">{account.account_type}</p>
-                <p className="text-lg font-bold mt-1">{formatCurrency(account.current_balance || 0)}</p>
+                <div className="flex items-center gap-2 mt-1 mb-2">
+                  {account.bank_code ? (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={account.bank_name || undefined}>
+                      <img 
+                        src={`/banks/${account.bank_code}.svg`} 
+                        alt={account.bank_name || "Banco"} 
+                        className="w-4 h-4 object-contain rounded-sm"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <span className="truncate max-w-[130px]">{account.bank_name}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Landmark className="w-3.5 h-3.5" />
+                      <span className="truncate max-w-[130px]">{account.account_type}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-lg font-bold">{formatCurrency(account.current_balance || 0)}</p>
               </button>
             ))}
           </div>
@@ -393,9 +415,35 @@ export default function Contas() {
           <>
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div>
-                <h1 className="text-2xl font-bold">{selectedAccount.name}</h1>
-                <p className="text-muted-foreground">{selectedAccount.account_type}</p>
+              <div className="flex items-center gap-3">
+                {selectedAccount.bank_code ? (
+                  <div className="w-12 h-12 rounded-xl bg-white border border-border/50 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+                    <img 
+                      src={`/banks/${selectedAccount.bank_code}.svg`} 
+                      alt={selectedAccount.bank_name || "Banco"} 
+                      className="w-8 h-8 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-muted border border-border/50 flex items-center justify-center shrink-0">
+                    <Landmark className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-2xl font-bold">{selectedAccount.name}</h1>
+                  <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
+                    <span>{selectedAccount.account_type}</span>
+                    {selectedAccount.bank_name && (
+                      <>
+                        <span className="text-muted-foreground/50">•</span>
+                        <span>{selectedAccount.bank_name}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Dialog open={fabOpen} onOpenChange={setFabOpen}>
@@ -443,7 +491,35 @@ export default function Contas() {
               </div>
             </div>
 
-            {/* Balance Card */}
+            {/* Sub-tabs */}
+            <div className="flex space-x-1 border-b border-border/50 mb-6">
+              <button
+                className={cn(
+                  "px-4 py-2 text-sm font-medium transition-colors border-b-2 relative top-[1px]",
+                  activeTab === 'extrato'
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                )}
+                onClick={() => setActiveTab('extrato')}
+              >
+                Extrato
+              </button>
+              <button
+                className={cn(
+                  "px-4 py-2 text-sm font-medium transition-colors border-b-2 relative top-[1px]",
+                  activeTab === 'maquininhas'
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                )}
+                onClick={() => setActiveTab('maquininhas')}
+              >
+                Maquininhas
+              </button>
+            </div>
+
+            {activeTab === 'extrato' ? (
+              <>
+                {/* Balance Card */}
             <Card className="bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30 relative overflow-hidden">
               <div className="absolute right-4 top-4 opacity-10">
                 <Landmark size={80} />
@@ -714,6 +790,14 @@ export default function Contas() {
                 )}
               </CardContent>
             </Card>
+            </>
+            ) : (
+              <div className="flex items-center justify-center py-12 text-muted-foreground">
+                <div className="text-center">
+                  <p>Configuração de Maquininhas (Em desenvolvimento)</p>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
