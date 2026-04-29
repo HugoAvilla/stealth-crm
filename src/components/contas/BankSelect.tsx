@@ -67,10 +67,10 @@ const BankSelect = ({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0" align="start">
-        <Command>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[300px] p-0" align="start">
+        <Command className="max-h-[400px]">
           <CommandInput placeholder="Buscar banco..." />
-          <CommandList>
+          <CommandList className="max-h-[350px] overflow-y-auto">
             <CommandEmpty>Nenhum banco encontrado.</CommandEmpty>
             <CommandGroup>
               <CommandItem
@@ -108,7 +108,7 @@ const BankSelect = ({
                     <img 
                       src={bank.logoUrl} 
                       alt={bank.name} 
-                      className="w-5 h-5 object-contain rounded-sm bg-muted/20"
+                      className="w-5 h-5 object-contain rounded-sm bg-white p-0.5"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
                       }}
