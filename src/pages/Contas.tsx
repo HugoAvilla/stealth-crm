@@ -802,6 +802,7 @@ export default function Contas() {
                 )}
               </CardContent>
             </Card>
+          </>
           ) : activeTab === 'maquininhas' ? (
             <CardMachinesList />
           ) : (
