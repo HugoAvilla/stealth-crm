@@ -376,12 +376,14 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
     }
   }, [total]);
 
-  // Update service price when calculated subtotal changes (only if not manually set)
+  // Update service price when calculated subtotal changes
   useEffect(() => {
-    if (calculatedSubtotal > 0 && !servicePrice) {
+    if (calculatedSubtotal > 0) {
       setServicePrice(calculatedSubtotal.toFixed(2));
+    } else if (detailedItems.length === 0) {
+      setServicePrice("");
     }
-  }, [calculatedSubtotal]);
+  }, [calculatedSubtotal, detailedItems.length]);
 
   // Handle discount changes
   const handleDiscountValueChange = (value: string) => {

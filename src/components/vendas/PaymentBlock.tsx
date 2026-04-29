@@ -121,7 +121,7 @@ export function PaymentBlock({
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Forma</Label>
             <Select 
               value={payment.payment_method} 
-              onValueChange={(val) => onUpdate({ ...payment, payment_method: val })}
+              onValueChange={(val) => onUpdate({ ...payment, payment_method: val, installments: 1 })}
             >
               <SelectTrigger className="h-10">
                 <SelectValue />
@@ -165,7 +165,7 @@ export function PaymentBlock({
           )}
         </div>
 
-        <div className={cn("grid grid-cols-1 gap-4", isBoleto ? "md:grid-cols-2" : "md:grid-cols-1")}>
+        <div className={cn("grid grid-cols-1 gap-4", isBoleto ? "md:grid-cols-3" : "md:grid-cols-1")}>
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Conta de Destino</Label>
             <Select 
@@ -220,6 +220,23 @@ export function PaymentBlock({
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Parcelas</Label>
+              <Select 
+                value={payment.installments.toString()} 
+                onValueChange={(val) => onUpdate({ ...payment, installments: parseInt(val) })}
+              >
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => (
+                    <SelectItem key={n} value={n.toString()}>{n}x</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>
