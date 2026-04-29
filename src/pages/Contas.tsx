@@ -491,7 +491,6 @@ export default function Contas() {
                   <Settings className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
 
             {/* Sub-tabs */}
             <div className="flex space-x-1 border-b border-border/50 mb-6">
@@ -803,15 +802,14 @@ export default function Contas() {
                 )}
               </CardContent>
             </Card>
-          </>
-        ) : activeTab === 'maquininhas' ? (
-          <CardMachinesList />
-        ) : (
-          <BoletoManagement />
-        )}
-      </div>
-    ) : (
-      <div className="flex items-center justify-center h-full text-muted-foreground">
+          ) : activeTab === 'maquininhas' ? (
+            <CardMachinesList />
+          ) : (
+            <BoletoManagement />
+          )}
+        </>
+      ) : (
+        <div className="flex items-center justify-center h-full text-muted-foreground">
         <div className="text-center">
           <p>Selecione ou crie uma conta para visualizar</p>
           <Button onClick={() => setShowAddModal(true)} className="mt-4">
@@ -857,5 +855,6 @@ export default function Contas() {
         onCategoriesChange={fetchData}
       />
     </div>
-  );
+  </div>
+);
 }
