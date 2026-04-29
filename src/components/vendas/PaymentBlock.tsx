@@ -196,48 +196,50 @@ export function PaymentBlock({
           </div>
 
           {isBoleto && (
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">Data / Vencimento</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal h-9 text-sm",
-                      !payment.due_date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {payment.due_date ? format(new Date(payment.due_date), "dd 'de' MMMM", { locale: ptBR }) : <span>Selecione a data</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={new Date(payment.due_date)}
-                    onSelect={(date) => date && onUpdate({ ...payment, due_date: date.toISOString() })}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">Data / Vencimento</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal h-9 text-sm",
+                        !payment.due_date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {payment.due_date ? format(new Date(payment.due_date), "dd 'de' MMMM", { locale: ptBR }) : <span>Selecione a data</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={new Date(payment.due_date)}
+                      onSelect={(date) => date && onUpdate({ ...payment, due_date: date.toISOString() })}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">Parcelas</Label>
-              <Select 
-                value={payment.installments.toString()} 
-                onValueChange={(val) => onUpdate({ ...payment, installments: parseInt(val) })}
-              >
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => (
-                    <SelectItem key={n} value={n.toString()}>{n}x</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">Parcelas</Label>
+                <Select 
+                  value={payment.installments.toString()} 
+                  onValueChange={(val) => onUpdate({ ...payment, installments: parseInt(val) })}
+                >
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => (
+                      <SelectItem key={n} value={n.toString()}>{n}x</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
           )}
         </div>
 
