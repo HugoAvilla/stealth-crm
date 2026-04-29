@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import BankSelect from "@/components/contas/BankSelect";
+import { getBankByCode } from "@/constants/bankCatalog";
 
 interface Account {
   id: number;
@@ -27,6 +29,7 @@ interface Account {
   current_balance: number | null;
   is_main: boolean | null;
   is_active: boolean | null;
+  bank_code?: string | null;
 }
 
 interface EditAccountModalProps {
@@ -50,6 +53,7 @@ export function EditAccountModal({
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [balance, setBalance] = useState("");
+  const [bankCode, setBankCode] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -59,6 +63,7 @@ export function EditAccountModal({
       setName(account.name);
       setType(account.account_type || "");
       setBalance((account.current_balance || 0).toString());
+      setBankCode(account.bank_code || null);
       setIsPrimary(account.is_main || false);
     }
   }, [account]);
@@ -98,6 +103,8 @@ export function EditAccountModal({
           account_type: type,
           current_balance: parseFloat(balance) || 0,
           is_main: isPrimary,
+          bank_code: bankCode,
+          bank_name: bankCode ? getBankByCode(bankCode)?.name : null,
         })
         .eq("id", account.id);
 
@@ -167,6 +174,14 @@ export function EditAccountModal({
                 placeholder="Ex: Conta Empresarial"
                 value={name}
                 onChange={e => setName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Banco (Opcional)</Label>
+              <BankSelect 
+                value={bankCode} 
+                onValueChange={setBankCode} 
               />
             </div>
 

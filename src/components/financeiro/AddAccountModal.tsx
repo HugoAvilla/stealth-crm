@@ -8,6 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import BankSelect from "@/components/contas/BankSelect";
+import { getBankByCode } from "@/constants/bankCatalog";
 
 interface AddAccountModalProps {
   open: boolean;
@@ -20,6 +22,7 @@ export function AddAccountModal({ open, onOpenChange, onSuccess }: AddAccountMod
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [balance, setBalance] = useState("");
+  const [bankCode, setBankCode] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -66,6 +69,8 @@ export function AddAccountModal({ open, onOpenChange, onSuccess }: AddAccountMod
         is_main: isPrimary,
         is_active: true,
         company_id: profile.company_id,
+        bank_code: bankCode,
+        bank_name: bankCode ? getBankByCode(bankCode)?.name : null,
       });
 
       if (error) throw error;
@@ -86,6 +91,7 @@ export function AddAccountModal({ open, onOpenChange, onSuccess }: AddAccountMod
     setName("");
     setType("");
     setBalance("");
+    setBankCode(null);
     setIsPrimary(false);
   };
 
@@ -103,6 +109,14 @@ export function AddAccountModal({ open, onOpenChange, onSuccess }: AddAccountMod
               placeholder="Ex: Conta Empresarial"
               value={name}
               onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Banco (Opcional)</Label>
+            <BankSelect 
+              value={bankCode} 
+              onValueChange={setBankCode} 
             />
           </div>
 
