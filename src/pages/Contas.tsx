@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { 
   Eye, EyeOff, Settings, ArrowUpRight, ArrowDownRight, RefreshCw, Plus,
-  Search, Calendar as CalendarIcon, Filter, ArrowUpDown, Landmark, FolderPlus, FolderTree, ArrowRightLeft, X
+  Search, Calendar as CalendarIcon, Filter, ArrowUpDown, Landmark, FolderPlus, FolderTree, ArrowRightLeft, X, Receipt
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
