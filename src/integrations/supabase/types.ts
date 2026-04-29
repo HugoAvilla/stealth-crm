@@ -402,7 +402,8 @@ export type Database = {
           complement?: string | null
           cpf_cnpj?: string | null
           created_at?: string | null
-          created_by?: string | null\n          email: string | null
+          created_by?: string | null
+          email?: string | null
           id?: never
           name: string
           neighborhood?: string | null
@@ -694,7 +695,8 @@ export type Database = {
           id?: never
           material_type: string
           size_g?: number | null
-          size_m?: number | null\n          size_p?: number | null
+          size_m?: number | null
+          size_p?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -1722,7 +1724,7 @@ export type Database = {
           product_type_id?: number | null
           region_code?: string | null
           region_id?: number | null
-          sale_id: number
+          sale_id?: number
           service_name?: string | null
           total_price?: number
           unit_price?: number
@@ -1751,7 +1753,6 @@ export type Database = {
           },
           {
             foreignKeyName: "service_items_detailed_sale_id_fkey"
-            columns: ["service_items_detailed_sale_id_fkey"]
             columns: ["sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
@@ -2312,9 +2313,9 @@ export type Database = {
           category: string
           company_id: number
           created_at?: string | null
+          id?: number
           description?: string | null
           fixed_price?: number | null
-          id?: number
           is_active?: boolean | null
           name: string
           product_type_id?: number | null

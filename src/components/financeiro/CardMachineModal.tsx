@@ -56,7 +56,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<MachineFormData>({
     defaultValues: {
       name: "",
-      account_id: "",
+      account_id: "none",
       max_installments: 12,
       is_anticipated: false,
       anticipation_type: "days",
@@ -77,7 +77,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
       } else {
         reset({
           name: "",
-          account_id: "",
+          account_id: "none",
           max_installments: 12,
           is_anticipated: false,
           anticipation_type: "days",
@@ -143,7 +143,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
 
       reset({
         name: machine.name,
-        account_id: machine.account_id?.toString() || "",
+        account_id: machine.account_id?.toString() || "none",
         max_installments: machine.max_installments || 12,
         is_anticipated: machine.is_anticipated || false,
         anticipation_type: (machine.anticipation_type as any) || "days",
@@ -195,7 +195,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
       const machinePayload = {
         company_id: profile.company_id,
         name: data.name,
-        account_id: data.account_id ? parseInt(data.account_id) : null,
+        account_id: (data.account_id && data.account_id !== "none") ? parseInt(data.account_id) : null,
         max_installments: data.max_installments,
         is_anticipated: data.is_anticipated,
         anticipation_type: data.is_anticipated ? data.anticipation_type : null,
@@ -291,6 +291,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
                     <SelectValue placeholder="Selecione a conta" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">Nenhuma conta vinculada</SelectItem>
                     {accounts.map(acc => (
                       <SelectItem key={acc.id} value={acc.id.toString()}>
                         {acc.name}
