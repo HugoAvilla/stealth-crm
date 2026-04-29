@@ -165,7 +165,7 @@ export function PaymentBlock({
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={cn("grid grid-cols-1 gap-4", isBoleto ? "md:grid-cols-2" : "md:grid-cols-1")}>
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Conta de Destino</Label>
             <Select 
@@ -181,9 +181,9 @@ export function PaymentBlock({
                     <div className="flex items-center gap-2">
                       {acc.bank_code && (
                         <img 
-                          src={`/banks/${acc.bank_code}.svg`} 
+                          src={`/banks/${acc.bank_code}.png`} 
                           alt="" 
-                          className="w-3.5 h-3.5 object-contain"
+                          className="w-3.5 h-3.5 object-contain filter drop-shadow-sm brightness-110"
                           onError={(e) => (e.target as any).style.display = 'none'}
                         />
                       )}
@@ -195,31 +195,33 @@ export function PaymentBlock({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Data / Vencimento</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal h-9 text-sm",
-                    !payment.due_date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {payment.due_date ? format(new Date(payment.due_date), "dd 'de' MMMM", { locale: ptBR }) : <span>Selecione a data</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={new Date(payment.due_date)}
-                  onSelect={(date) => date && onUpdate({ ...payment, due_date: date.toISOString() })}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+          {isBoleto && (
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Data / Vencimento</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal h-9 text-sm",
+                      !payment.due_date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {payment.due_date ? format(new Date(payment.due_date), "dd 'de' MMMM", { locale: ptBR }) : <span>Selecione a data</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={new Date(payment.due_date)}
+                    onSelect={(date) => date && onUpdate({ ...payment, due_date: date.toISOString() })}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
 
         {isCard && (
