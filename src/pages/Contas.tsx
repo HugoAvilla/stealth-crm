@@ -34,6 +34,8 @@ import { AddTransactionModal } from "@/components/financeiro/AddTransactionModal
 import { AddTransferModal } from "@/components/financeiro/AddTransferModal";
 import { NewCategoryModal } from "@/components/financeiro/NewCategoryModal";
 import { ManageCategoriesModal } from "@/components/financeiro/ManageCategoriesModal";
+import { CardMachinesList } from "@/components/financeiro/CardMachinesList";
+import { BoletoManagement } from "@/components/financeiro/BoletoManagement";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -80,7 +82,7 @@ export default function Contas() {
   const [showValues, setShowValues] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [activeTab, setActiveTab] = useState<'extrato' | 'maquininhas'>('extrato');
+  const [activeTab, setActiveTab] = useState<'extrato' | 'maquininhas' | 'boletos'>('extrato');
 
   // New states for filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -445,7 +447,7 @@ export default function Contas() {
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+
                 <Dialog open={fabOpen} onOpenChange={setFabOpen}>
                   <DialogTrigger asChild>
                     <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-full px-6">
@@ -514,6 +516,17 @@ export default function Contas() {
                 onClick={() => setActiveTab('maquininhas')}
               >
                 Maquininhas
+              </button>
+              <button
+                className={cn(
+                  "px-4 py-2 text-sm font-medium transition-colors border-b-2 relative top-[1px]",
+                  activeTab === 'boletos'
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                )}
+                onClick={() => setActiveTab('boletos')}
+              >
+                Boletos
               </button>
             </div>
 
@@ -790,27 +803,23 @@ export default function Contas() {
                 )}
               </CardContent>
             </Card>
-            </>
-            ) : (
-              <div className="flex items-center justify-center py-12 text-muted-foreground">
-                <div className="text-center">
-                  <p>Configuração de Maquininhas (Em desenvolvimento)</p>
-                </div>
-              </div>
-            )}
           </>
+        ) : activeTab === 'maquininhas' ? (
+          <CardMachinesList />
         ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <div className="text-center">
-              <p>Selecione ou crie uma conta para visualizar</p>
-              <Button onClick={() => setShowAddModal(true)} className="mt-4">
-                <Plus className="h-4 w-4 mr-2" /> Criar Conta
-              </Button>
-            </div>
-          </div>
+          <BoletoManagement />
         )}
       </div>
-
+    ) : (
+      <div className="flex items-center justify-center h-full text-muted-foreground">
+        <div className="text-center">
+          <p>Selecione ou crie uma conta para visualizar</p>
+          <Button onClick={() => setShowAddModal(true)} className="mt-4">
+            <Plus className="h-4 w-4 mr-2" /> Criar Conta
+          </Button>
+        </div>
+      </div>
+    )}
 
       {/* Modals */}
       <AddAccountModal

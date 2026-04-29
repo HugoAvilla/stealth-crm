@@ -355,33 +355,43 @@ export async function createTransactionFromSale(
   clientName: string,
   paymentMethod: string | null,
   saleDate: string,
-  companyId: number
+  companyId: number,
+  accountId?: number | null,
+  machineId?: number | null,
+  installments?: number,
+  netAmount?: number
 ): Promise<boolean> {
   try {
-    // Find main account
-    const { data: mainAccount, error: accountError } = await supabase
-      .from("accounts")
-      .select("id")
-      .eq("company_id", companyId)
-      .eq("is_main", true)
-      .single();
+    let targetAccountId = accountId;
 
-    if (accountError || !mainAccount) {
-      console.warn("Main account not found, skipping transaction creation");
-      return false;
+    if (!targetAccountId) {
+      // Find main account
+      const { data: mainAccount, error: accountError } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("is_main", true)
+        .single();
+
+      if (accountError || !mainAccount) {
+        console.warn("Main account not found, skipping transaction creation");
+        return false;
+      }
+      targetAccountId = mainAccount.id;
     }
 
     // Create transaction
     const { error: txError } = await supabase.from("transactions").insert({
       name: `Venda #${saleId} - ${clientName}`,
-      amount: saleTotal,
+      amount: netAmount || saleTotal,
       type: "Entrada",
       transaction_date: saleDate,
-      account_id: mainAccount.id,
+      account_id: targetAccountId,
       payment_method: paymentMethod,
       is_paid: true,
       sale_id: saleId,
       company_id: companyId,
+      description: installments && installments > 1 ? `Venda em ${installments}x` : null
     });
 
     if (txError) {

@@ -60,6 +60,8 @@ import NewClientModal from "@/components/vendas/NewClientModal";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
 import CommissionSelectors from "@/components/vendas/CommissionSelectors";
+import { AccountSelectCard } from "@/components/vendas/AccountSelectCard";
+import { PaymentBlock, SalePayment } from "@/components/vendas/PaymentBlock";
 import { toast } from "sonner";
 
 interface Client {
@@ -145,6 +147,19 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
   const [selectedInstallerIds, setSelectedInstallerIds] = useState<number[]>([]);
+  
+  const [payments, setPayments] = useState<SalePayment[]>([
+    {
+      tempId: Math.random().toString(36).substr(2, 9),
+      payment_method: "Pix",
+      amount: 0,
+      account_id: null,
+      machine_id: null,
+      installments: 1,
+      due_date: new Date().toISOString(),
+      status: 'received'
+    }
+  ]);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -354,6 +369,13 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const total = subtotal - discount;
   const paid = isOpen ? 0 : total;
 
+  // Sync first payment amount with total if there's only one payment
+  useEffect(() => {
+    if (payments.length === 1) {
+      setPayments(prev => [{ ...prev[0], amount: total }]);
+    }
+  }, [total]);
+
   // Update service price when calculated subtotal changes (only if not manually set)
   useEffect(() => {
     if (calculatedSubtotal > 0 && !servicePrice) {
@@ -475,6 +497,19 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
     if (!selectedClientId || !selectedVehicleId || detailedItems.length === 0 || !companyId) {
       toast.error("Preencha cliente, veículo e pelo menos um serviço.");
       return;
+    }
+
+    if (!isOpen) {
+      const paymentsTotal = payments.reduce((acc, p) => acc + p.amount, 0);
+      if (Math.abs(paymentsTotal - total) > 0.01) {
+        toast.error(`A soma dos pagamentos (R$ ${paymentsTotal.toFixed(2)}) deve ser igual ao total da venda (R$ ${total.toFixed(2)})`);
+        return;
+      }
+
+      if (payments.some(p => !p.account_id)) {
+        toast.error("Por favor, selecione a conta de destino para todos os pagamentos.");
+        return;
+      }
     }
 
     // Validate items - customized items don't need regionId/productTypeId at item level
@@ -617,16 +652,88 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         );
       }
 
-      // Create financial transaction if sale is closed
+      // Create financial transactions and sale payments if sale is closed
       if (!isOpen) {
-        await createTransactionFromSale(
-          sale.id,
-          total,
-          selectedClient?.name || 'Cliente',
-          paymentMethod,
-          format(saleDate, 'yyyy-MM-dd'),
-          companyId
-        );
+        for (const p of payments) {
+          // Calculate net amount if card
+          let finalNetAmount = p.amount;
+          if ((p.payment_method === "Crédito" || p.payment_method === "Débito") && p.machine_id) {
+            const { data: rateData } = await supabase
+              .from("card_machine_rates")
+              .select("rate")
+              .eq("machine_id", p.machine_id)
+              .eq("installments", p.installments)
+              .single();
+            
+            if (rateData) {
+              finalNetAmount = p.amount * (1 - rateData.rate / 100);
+            }
+          }
+
+          // Insert sale payment
+          await supabase.from("sale_payments").insert({
+            sale_id: sale.id,
+            payment_method: p.payment_method,
+            amount: p.amount,
+            account_id: p.account_id,
+            machine_id: p.machine_id,
+            installments: p.installments,
+            net_amount: finalNetAmount,
+            due_date: p.due_date,
+            status: p.status,
+            company_id: companyId
+          });
+
+          // Create transaction
+          await createTransactionFromSale(
+            sale.id,
+            p.amount,
+            selectedClient?.name || 'Cliente',
+            p.payment_method,
+            format(saleDate, 'yyyy-MM-dd'),
+            companyId,
+            p.account_id,
+            p.machine_id,
+            p.installments,
+            finalNetAmount
+          );
+
+          // If Boleto, register installments
+          if (p.payment_method === "Boleto") {
+            const { data: boletoData, error: boletoError } = await supabase
+              .from("boletos")
+              .insert({
+                sale_id: sale.id,
+                total_amount: p.amount,
+                installments_count: p.installments || 1,
+                status: 'pending',
+                company_id: companyId
+              })
+              .select()
+              .single();
+
+            if (!boletoError && boletoData) {
+              const installmentsToInsert = [];
+              const installmentAmount = p.amount / (p.installments || 1);
+              
+              for (let i = 1; i <= (p.installments || 1); i++) {
+                const dueDate = new Date(saleDate);
+                dueDate.setMonth(dueDate.getMonth() + i); // 30 days interval roughly
+                
+                installmentsToInsert.push({
+                  boleto_id: boletoData.id,
+                  installment_number: i,
+                  amount: installmentAmount,
+                  due_date: dueDate.toISOString(),
+                  status: 'pending',
+                  company_id: companyId
+                });
+              }
+              
+              await supabase.from("boleto_installments").insert(installmentsToInsert);
+            }
+          }
+        }
       }
 
       toast.success(`Venda de R$ ${total.toFixed(2)} cadastrada com sucesso!`);
@@ -947,23 +1054,60 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
 
               <Separator />
 
-              {/* Payment Method */}
-              <div className="space-y-2">
-                <Label>Forma de Pagamento</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pix">Pix</SelectItem>
-                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                    <SelectItem value="Débito">Débito</SelectItem>
-                    <SelectItem value="Crédito">Crédito</SelectItem>
-                    <SelectItem value="Boleto">Boleto</SelectItem>
-                    <SelectItem value="Transferência">Transferência</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Separator />
+
+              {/* Multi-Payment Section */}
+              {!isOpen && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">Pagamentos</Label>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 gap-1"
+                      onClick={() => setPayments([...payments, {
+                        tempId: Math.random().toString(36).substr(2, 9),
+                        payment_method: "Pix",
+                        amount: 0,
+                        account_id: payments[0]?.account_id || null,
+                        machine_id: null,
+                        installments: 1,
+                        due_date: new Date().toISOString(),
+                        status: 'received'
+                      }])}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Adicionar Forma
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {payments.map((p, index) => (
+                      <PaymentBlock
+                        key={p.tempId}
+                        payment={p}
+                        isFirst={index === 0}
+                        companyId={companyId || 0}
+                        totalRemaining={total - payments.reduce((acc, curr, i) => i < index ? acc + curr.amount : acc, 0)}
+                        onUpdate={(updated) => setPayments(payments.map(item => item.tempId === p.tempId ? updated : item))}
+                        onRemove={() => setPayments(payments.filter(item => item.tempId !== p.tempId))}
+                      />
+                    ))}
+                  </div>
+
+                  {payments.length > 1 && (
+                    <div className={cn(
+                      "p-3 rounded-lg text-sm font-medium flex justify-between items-center",
+                      Math.abs(payments.reduce((acc, p) => acc + p.amount, 0) - total) < 0.01 
+                        ? "bg-green-500/10 text-green-600 border border-green-500/20"
+                        : "bg-red-500/10 text-red-600 border border-red-500/20"
+                    )}>
+                      <span>Total Pago: R$ {payments.reduce((acc, p) => acc + p.amount, 0).toFixed(2)}</span>
+                      <span>Total Venda: R$ {total.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Service Price - NEW FIELD */}
               <div className="space-y-2">
