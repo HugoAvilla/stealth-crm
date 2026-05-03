@@ -27,6 +27,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { CardMachineModal } from "./CardMachineModal";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -130,7 +131,7 @@ export function CardMachinesList() {
   };
 
   const filteredMachines = machines.filter(m => 
-    m.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (m.name || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

@@ -427,7 +427,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
                     <div className="relative">
                       <Input 
                         className="pr-6 text-sm"
-                        value={rate.rate.toString().replace(".", ",")}
+                        value={(rate.rate ?? 0).toString().replace(".", ",")}
                         onChange={(e) => handleRateChange(rate.installments, e.target.value)}
                         placeholder="0,00"
                       />

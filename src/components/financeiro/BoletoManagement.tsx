@@ -165,10 +165,13 @@ export function BoletoManagement() {
     }
   };
 
-  const filteredBoletos = boletos.filter(b => 
-    b.sales?.clients?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.sale_id.toString().includes(searchTerm)
-  );
+  const filteredBoletos = boletos.filter(b => {
+    const clientName = b.sales?.clients?.name || "";
+    const saleId = b.sale_id?.toString() || "";
+    const search = searchTerm.toLowerCase();
+    
+    return clientName.toLowerCase().includes(search) || saleId.includes(searchTerm);
+  });
 
   if (loading) {
     return (
