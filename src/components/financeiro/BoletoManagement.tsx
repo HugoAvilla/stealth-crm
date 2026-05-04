@@ -37,6 +37,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { settleTransaction, reverseTransaction } from "@/lib/financialTransactions";
 
 interface BoletoManagementProps {
   accountId?: number | null;
@@ -64,6 +65,7 @@ interface Installment {
   status: string;
   paid_amount: number | null;
   payment_date: string | null;
+  transaction_id: number | null;
 }
 
 export function BoletoManagement({ accountId }: BoletoManagementProps) {
@@ -203,6 +205,20 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
         .eq("id", inst.id);
 
       if (error) throw error;
+
+      // === Liquidar/reverter transação vinculada ===
+      if (inst.transaction_id) {
+        if (newStatus === 'paid') {
+          await settleTransaction({
+            transactionId: inst.transaction_id,
+            paymentDate: format(new Date(), 'yyyy-MM-dd'),
+            paidAmount: inst.amount,
+          });
+        } else {
+          // Reverter: marcar transação como não-paga
+          await reverseTransaction(inst.transaction_id, 'unpay');
+        }
+      }
       
       toast.success("Status atualizado");
       fetchInstallments(inst.boleto_id);

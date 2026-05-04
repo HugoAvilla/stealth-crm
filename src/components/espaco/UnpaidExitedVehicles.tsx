@@ -20,6 +20,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { createSaleTransaction } from "@/lib/financialTransactions";
 
 interface UnpaidExitedVehicle {
   id: number;
@@ -97,6 +98,11 @@ const UnpaidExitedVehicles = ({ refreshTrigger }: UnpaidExitedVehiclesProps) => 
   };
 
   const handleMarkAsPaid = async (spaceId: number, saleId: number | null) => {
+    if (!saleId) {
+      toast.error("Vaga sem venda vinculada. Abra os detalhes e exporte-a para uma venda antes de receber.");
+      return;
+    }
+
     setMarkingPaidId(spaceId);
     try {
       // Update space payment status
@@ -108,16 +114,34 @@ const UnpaidExitedVehicles = ({ refreshTrigger }: UnpaidExitedVehiclesProps) => 
       if (spaceError) throw spaceError;
 
       // Close linked sale
-      if (saleId) {
-        const { error: saleError } = await supabase
-          .from("sales")
-          .update({ is_open: false, status: "Fechada" })
-          .eq("id", saleId);
+      const { error: saleError } = await supabase
+        .from("sales")
+        .update({ is_open: false, status: "Fechada" })
+        .eq("id", saleId);
 
-        if (saleError) throw saleError;
+      if (saleError) throw saleError;
+
+      // Fetch required data for transaction
+      const { data: saleData } = await supabase.from('sales').select('id, total, payment_method, sale_date, client_id, company_id').eq('id', saleId).single();
+      let clientName = 'Cliente';
+      if (saleData?.client_id) {
+        const { data: clientData } = await supabase.from('clients').select('name').eq('id', saleData.client_id).single();
+        if (clientData) clientName = clientData.name;
       }
 
-      toast.success("Pagamento confirmado! Veículo movido para aba de pagos.");
+      if (saleData && companyId) {
+        await createSaleTransaction({
+          saleId: saleData.id,
+          saleTotal: saleData.total,
+          clientName: clientName,
+          paymentMethod: saleData.payment_method || 'Pix',
+          saleDate: saleData.sale_date,
+          companyId: companyId,
+          isPaid: true
+        });
+      }
+
+      toast.success("Pagamento confirmado e transação criada! Veículo movido para aba de pagos.");
       fetchUnpaidExitedVehicles();
     } catch (error) {
       console.error("Erro ao marcar como pago:", error);

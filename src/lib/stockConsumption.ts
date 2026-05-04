@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createSaleTransaction } from "@/lib/financialTransactions";
 
 interface ConsumptionResult {
   success: boolean;
@@ -347,7 +348,9 @@ export async function consumeStockForDetailedSale(
 }
 
 /**
- * Creates an automatic financial transaction when a sale is closed
+ * Creates an automatic financial transaction when a sale is closed.
+ * Delegates to the centralized financialTransactions service.
+ * @param isPaid - Defaults to true for backward compatibility. Set to false for boleto.
  */
 export async function createTransactionFromSale(
   saleId: number,
@@ -359,49 +362,29 @@ export async function createTransactionFromSale(
   accountId?: number | null,
   machineId?: number | null,
   installments?: number,
-  netAmount?: number
+  netAmount?: number,
+  isPaid: boolean = true,
+  salePaymentId?: number | null
 ): Promise<boolean> {
   try {
-    let targetAccountId = accountId;
-
-    if (!targetAccountId) {
-      // Find main account
-      const { data: mainAccount, error: accountError } = await supabase
-        .from("accounts")
-        .select("id")
-        .eq("company_id", companyId)
-        .eq("is_main", true)
-        .single();
-
-      if (accountError || !mainAccount) {
-        console.warn("Main account not found, skipping transaction creation");
-        return false;
-      }
-      targetAccountId = mainAccount.id;
-    }
-
-    // Create transaction
-    const { error: txError } = await supabase.from("transactions").insert({
-      name: `Venda #${saleId} - ${clientName}`,
-      amount: netAmount || saleTotal,
-      type: "Entrada",
-      transaction_date: saleDate,
-      account_id: targetAccountId,
-      payment_method: paymentMethod,
-      is_paid: true,
-      sale_id: saleId,
-      company_id: companyId,
-      description: installments && installments > 1 ? `Venda em ${installments}x` : null
+    const result = await createSaleTransaction({
+      saleId,
+      saleTotal,
+      clientName,
+      paymentMethod,
+      saleDate,
+      companyId,
+      accountId,
+      isPaid,
+      salePaymentId: salePaymentId ?? undefined,
+      installments,
+      netAmount,
     });
 
-    if (txError) {
-      console.error("Error creating transaction:", txError);
-      return false;
-    }
-
-    return true;
+    return result !== null;
   } catch (error) {
     console.error("Error in createTransactionFromSale:", error);
     return false;
   }
 }
+

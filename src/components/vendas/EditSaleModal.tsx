@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { consumeStockForDetailedSale, createTransactionFromSale } from "@/lib/stockConsumption";
+import { reverseAllSaleTransactions } from "@/lib/financialTransactions";
 import NewClientModal from "@/components/vendas/NewClientModal";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
@@ -481,7 +482,8 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       }
       
       await supabase.from('service_items_detailed').delete().eq('sale_id', sale.id);
-      await supabase.from('transactions').delete().eq('sale_id', sale.id);
+      // RF-08: Reverter transações antigas via serviço financeiro (trigger reverte saldo)
+      await reverseAllSaleTransactions(sale.id, "delete");
       await supabase.from('sale_commissions').delete().eq('sale_id', sale.id);
 
       // Create service_items_detailed
@@ -553,7 +555,12 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
           selectedClient?.name || 'Cliente',
           paymentMethod,
           format(saleDate, 'yyyy-MM-dd'),
-          companyId
+          companyId,
+          undefined, // accountId — usa conta principal
+          undefined, // machineId
+          undefined, // installments
+          undefined, // netAmount
+          true       // isPaid
         );
       }
 

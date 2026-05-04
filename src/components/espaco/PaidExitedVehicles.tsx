@@ -21,6 +21,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { reverseAllSaleTransactions } from "@/lib/financialTransactions";
 
 interface PaidExitedVehicle {
   id: number;
@@ -140,12 +141,12 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
           .eq("sale_id", space.sale_id);
         if (scError) console.error("Erro ao deletar sale_commissions:", scError);
 
-        // Delete transactions linked to the sale
-        const { error: txError } = await supabase
-          .from("transactions")
-          .delete()
-          .eq("sale_id", space.sale_id);
-        if (txError) console.error("Erro ao deletar transactions:", txError);
+        // Delete transactions linked to the sale via centralized service
+        // The trigger handles balance correction on DELETE
+        const { count: reversedTxs } = await reverseAllSaleTransactions(space.sale_id, "delete");
+        if (reversedTxs > 0) {
+          console.log(`[PaidExited] Reversed ${reversedTxs} transactions for sale ${space.sale_id}`);
+        }
 
         // Delete warranties linked to the sale
         const { error: wError } = await supabase

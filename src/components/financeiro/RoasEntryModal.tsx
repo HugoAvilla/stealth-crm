@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, TrendingUp } from "lucide-react";
 import { CAC_ORIGIN_OPTIONS } from "@/constants/origins";
+import { createExpenseTransaction } from "@/lib/financialTransactions";
 
 interface RoasEntryModalProps {
   open: boolean;
@@ -55,23 +56,41 @@ export function RoasEntryModal({ open, onOpenChange, onSuccess }: RoasEntryModal
     setIsLoading(true);
 
     try {
-      const dbDate = new Date(`${entryDate}T12:00:00Z`).toISOString();
+      // Buscar conta principal da empresa
+      const { data: mainAccount } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("company_id", user.companyId)
+        .eq("is_main", true)
+        .single();
 
-      const { error } = await supabase.from("transactions").insert({
-        company_id: user.companyId,
-        type: "expense",
-        amount: valorInvestido,
-        // Description indicates it was a fast ROAS entry mapping
+      if (!mainAccount) {
+        toast({ title: "Conta principal não encontrada", variant: "destructive" });
+        return;
+      }
+
+      const result = await createExpenseTransaction({
         name: description ? `Ads - ${description}` : `Investimento ${origin}`,
-        transaction_date: dbDate,
-        status: "paid", // Auto-confirm as paid for CAC processing
-        category_id: null,
-        include_in_cac: true,
-        cac_bucket: "marketing",
-        cac_origin: origin,
+        amount: valorInvestido,
+        transactionDate: entryDate,
+        companyId: user.companyId,
+        accountId: mainAccount.id,
+        isPaid: true,
+        description: `CAC - ${origin}`,
+        originType: "roas",
       });
 
-      if (error) throw error;
+      if (!result) throw new Error("Falha ao criar transação");
+
+      // Atualizar campos CAC na transação criada
+      await supabase
+        .from("transactions")
+        .update({
+          include_in_cac: true,
+          cac_bucket: "marketing",
+          cac_origin: origin,
+        })
+        .eq("id", result.id);
 
       toast({
         title: "Investimento Registrado!",

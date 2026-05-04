@@ -56,6 +56,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { consumeStockForDetailedSale, createTransactionFromSale } from "@/lib/stockConsumption";
+import { createBoletoInstallmentTransactions } from "@/lib/financialTransactions";
 import NewClientModal from "@/components/vendas/NewClientModal";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
@@ -630,10 +631,13 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       }
 
       // Update space if exported from a slot
+      // RF-07: Só marca como pago se a venda for fechada E sem boleto pendente
       if (prefillData?.spaceId) {
+        const hasBoleto = !isOpen && payments.some(p => p.payment_method === "Boleto");
+        const newPaymentStatus = isOpen || hasBoleto ? 'pending' : 'paid';
         const { error: spaceUpdateError } = await supabase
           .from('spaces')
-          .update({ sale_id: sale.id, payment_status: 'paid' })
+          .update({ sale_id: sale.id, payment_status: newPaymentStatus })
           .eq('id', prefillData.spaceId);
           
         if (spaceUpdateError) {
@@ -684,19 +688,23 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
             company_id: companyId
           });
 
-          // Create transaction
-          await createTransactionFromSale(
-            sale.id,
-            p.amount,
-            selectedClient?.name || 'Cliente',
-            p.payment_method,
-            format(saleDate, 'yyyy-MM-dd'),
-            companyId,
-            p.account_id,
-            p.machine_id,
-            p.installments,
-            finalNetAmount
-          );
+          // Create transaction — boleto usa is_paid=false, demais is_paid=true
+          const isBoleto = p.payment_method === "Boleto";
+          if (!isBoleto) {
+            await createTransactionFromSale(
+              sale.id,
+              p.amount,
+              selectedClient?.name || 'Cliente',
+              p.payment_method,
+              format(saleDate, 'yyyy-MM-dd'),
+              companyId,
+              p.account_id,
+              p.machine_id,
+              p.installments,
+              finalNetAmount,
+              true // isPaid
+            );
+          }
 
           // If Boleto, register installments
           if (p.payment_method === "Boleto") {
@@ -736,6 +744,29 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
               }
               
               await supabase.from("boleto_installments").insert(installmentsToInsert);
+
+              // RF-02: Buscar IDs das parcelas criadas e gerar transações pendentes
+              const { data: createdInstallments } = await supabase
+                .from("boleto_installments")
+                .select("id, installment_number, amount, due_date")
+                .eq("boleto_id", boletoData.id)
+                .order("installment_number");
+
+              if (createdInstallments && createdInstallments.length > 0) {
+                await createBoletoInstallmentTransactions({
+                  saleId: sale.id,
+                  clientName: selectedClient?.name || 'Cliente',
+                  saleDate: format(saleDate, 'yyyy-MM-dd'),
+                  companyId,
+                  accountId: p.account_id as number,
+                  installments: createdInstallments.map(ci => ({
+                    installmentNumber: ci.installment_number,
+                    amount: ci.amount,
+                    dueDate: ci.due_date,
+                    installmentId: ci.id,
+                  })),
+                });
+              }
             }
           }
         }

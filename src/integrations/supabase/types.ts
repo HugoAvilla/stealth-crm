@@ -81,6 +81,7 @@ export type Database = {
           paid_amount: number | null
           payment_date: string | null
           status: string
+          transaction_id: number | null
           updated_at: string
         }
         Insert: {
@@ -93,6 +94,7 @@ export type Database = {
           paid_amount?: number | null
           payment_date?: string | null
           status?: string
+          transaction_id?: number | null
           updated_at?: string
         }
         Update: {
@@ -105,6 +107,7 @@ export type Database = {
           paid_amount?: number | null
           payment_date?: string | null
           status?: string
+          transaction_id?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -2143,8 +2146,11 @@ export type Database = {
           id: number
           is_paid: boolean | null
           name: string
+          origin_id: number | null
+          origin_type: string | null
           payment_method: string | null
           sale_id: number | null
+          sale_payment_id: number | null
           subcategory_id: number | null
           transaction_date: string
           type: string
@@ -2160,8 +2166,11 @@ export type Database = {
           id?: never
           is_paid?: boolean | null
           name: string
+          origin_id?: number | null
+          origin_type?: string | null
           payment_method?: string | null
           sale_id?: number | null
+          sale_payment_id?: number | null
           subcategory_id?: number | null
           transaction_date: string
           type: string
@@ -2177,8 +2186,11 @@ export type Database = {
           id?: never
           is_paid?: boolean | null
           name?: string
+          origin_id?: number | null
+          origin_type?: string | null
           payment_method?: string | null
           sale_id?: number | null
+          sale_payment_id?: number | null
           subcategory_id?: number | null
           transaction_date?: string
           type?: string

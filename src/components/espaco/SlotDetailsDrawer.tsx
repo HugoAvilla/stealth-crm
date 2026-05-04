@@ -22,6 +22,7 @@ import { generateSpacePDFA4, generateSpacePDFReceipt } from "@/lib/pdfGenerator"
 import { useAuth } from "@/contexts/AuthContext";
 import { EditSlotModal } from "./EditSlotModal";
 import NewSaleModal from "../vendas/NewSaleModal";
+import { createSaleTransaction } from "@/lib/financialTransactions";
 
 interface SpaceDetails {
   id: number;
@@ -264,6 +265,14 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
 
   const handleReleaseWithPayment = async () => {
     if (!space) return;
+    
+    if (!space.sale_id) {
+      toast.error("Vaga sem venda. Clique em 'Exportar Venda' primeiro para garantir o registro financeiro.");
+      setShowUnpaidAlert(false);
+      setIsCompleting(false);
+      return;
+    }
+    
     setIsReleasing(true);
     
     try {
@@ -279,13 +288,31 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
 
       if (spaceError) throw spaceError;
 
-      if (space.sale_id) {
-        const { error: saleError } = await supabase
-          .from('sales')
-          .update({ is_open: false, status: 'Fechada' })
-          .eq('id', space.sale_id);
+      const { error: saleError } = await supabase
+        .from('sales')
+        .update({ is_open: false, status: 'Fechada' })
+        .eq('id', space.sale_id);
 
-        if (saleError) throw saleError;
+      if (saleError) throw saleError;
+
+      // Fetch required data for transaction
+      const { data: saleData } = await supabase.from('sales').select('id, total, payment_method, sale_date, client_id, company_id').eq('id', space.sale_id).single();
+      let clientName = 'Cliente';
+      if (saleData?.client_id) {
+        const { data: clientData } = await supabase.from('clients').select('name').eq('id', saleData.client_id).single();
+        if (clientData) clientName = clientData.name;
+      }
+
+      if (saleData) {
+        await createSaleTransaction({
+          saleId: saleData.id,
+          saleTotal: saleData.total,
+          clientName: clientName,
+          paymentMethod: saleData.payment_method || 'Pix',
+          saleDate: saleData.sale_date,
+          companyId: saleData.company_id,
+          isPaid: true
+        });
       }
 
       // Optimistic upate
