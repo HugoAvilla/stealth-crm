@@ -38,42 +38,45 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface Boleto {
-  id: string;
+interface BoletoManagementProps {
+  accountId?: number | null;
+}
+
+interface BoletoRow {
+  id: number;
   sale_id: number;
-  customer_name: string;
   total_amount: number;
-  installments_count: number;
   status: string;
   created_at: string;
-  sales: {
-    clients: {
-      name: string;
-    }
-  }
+  account_id: number;
+  client_id: number | null;
+  company_id: number;
+  client_name: string;
+  installments_count: number;
 }
 
 interface Installment {
-  id: string;
-  boleto_id: string;
+  id: number;
+  boleto_id: number;
   installment_number: number;
   amount: number;
   due_date: string;
   status: string;
-  paid_at: string | null;
+  paid_amount: number | null;
+  payment_date: string | null;
 }
 
-export function BoletoManagement() {
+export function BoletoManagement({ accountId }: BoletoManagementProps) {
   const { user } = useAuth();
-  const [boletos, setBoletos] = useState<any[]>([]);
+  const [boletos, setBoletos] = useState<BoletoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [expandedBoleto, setExpandedBoleto] = useState<string | null>(null);
-  const [installments, setInstallments] = useState<Record<string, Installment[]>>({});
+  const [expandedBoleto, setExpandedBoleto] = useState<number | null>(null);
+  const [installments, setInstallments] = useState<Record<number, Installment[]>>({});
 
   useEffect(() => {
     if (user?.id) fetchBoletos();
-  }, [user?.id]);
+  }, [user?.id, accountId]);
 
   const fetchBoletos = async () => {
     setLoading(true);
@@ -86,21 +89,66 @@ export function BoletoManagement() {
 
       if (!profile) return;
 
-      const { data, error } = await supabase
+      // Build query - fetch boletos with client info via join
+      let query = supabase
         .from("boletos")
         .select(`
-          *,
-          sales:sale_id (
-            clients:client_id (
-              name
-            )
+          id,
+          sale_id,
+          total_amount,
+          status,
+          created_at,
+          account_id,
+          client_id,
+          company_id,
+          clients:client_id (
+            name
           )
         `)
         .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false });
 
+      // Filter by account if provided
+      if (accountId) {
+        query = query.eq("account_id", accountId);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
-      setBoletos(data || []);
+
+      // Now fetch installment counts for each boleto
+      const boletoIds = (data || []).map(b => b.id);
+      let installmentCounts: Record<number, number> = {};
+
+      if (boletoIds.length > 0) {
+        const { data: installData } = await supabase
+          .from("boleto_installments")
+          .select("boleto_id")
+          .in("boleto_id", boletoIds);
+
+        if (installData) {
+          installData.forEach(inst => {
+            installmentCounts[inst.boleto_id] = (installmentCounts[inst.boleto_id] || 0) + 1;
+          });
+        }
+      }
+
+      // Map to proper structure
+      const mappedBoletos: BoletoRow[] = (data || []).map(b => ({
+        id: b.id,
+        sale_id: b.sale_id,
+        total_amount: b.total_amount,
+        status: b.status,
+        created_at: b.created_at,
+        account_id: b.account_id,
+        client_id: b.client_id,
+        company_id: b.company_id,
+        client_name: (b.clients as any)?.name || 'Cliente N/A',
+        installments_count: installmentCounts[b.id] || 0,
+      }));
+
+      setBoletos(mappedBoletos);
     } catch (error) {
       console.error("Error fetching boletos:", error);
       toast.error("Erro ao carregar boletos");
@@ -109,7 +157,7 @@ export function BoletoManagement() {
     }
   };
 
-  const fetchInstallments = async (boletoId: string) => {
+  const fetchInstallments = async (boletoId: number) => {
     try {
       const { data, error } = await supabase
         .from("boleto_installments")
@@ -124,7 +172,7 @@ export function BoletoManagement() {
     }
   };
 
-  const toggleExpand = (boletoId: string) => {
+  const toggleExpand = (boletoId: number) => {
     if (expandedBoleto === boletoId) {
       setExpandedBoleto(null);
     } else {
@@ -137,20 +185,59 @@ export function BoletoManagement() {
 
   const updateInstallmentStatus = async (inst: Installment, newStatus: string) => {
     try {
+      const updateData: any = { 
+        status: newStatus,
+      };
+
+      if (newStatus === 'paid') {
+        updateData.payment_date = format(new Date(), 'yyyy-MM-dd');
+        updateData.paid_amount = inst.amount;
+      } else {
+        updateData.payment_date = null;
+        updateData.paid_amount = null;
+      }
+
       const { error } = await supabase
         .from("boleto_installments")
-        .update({ 
-          status: newStatus,
-          paid_at: newStatus === 'paid' ? new Date().toISOString() : null
-        })
+        .update(updateData)
         .eq("id", inst.id);
 
       if (error) throw error;
       
       toast.success("Status atualizado");
       fetchInstallments(inst.boleto_id);
-      
-      // Update boleto status if all installments are paid (optional logic)
+
+      // Check if all installments are paid and update boleto status
+      const { data: allInstallments } = await supabase
+        .from("boleto_installments")
+        .select("status")
+        .eq("boleto_id", inst.boleto_id);
+
+      if (allInstallments) {
+        const allPaid = allInstallments.every(i => i.status === 'paid');
+        if (allPaid) {
+          await supabase
+            .from("boletos")
+            .update({ status: 'paid' })
+            .eq("id", inst.boleto_id);
+          fetchBoletos();
+        } else {
+          // If not all paid but status was 'paid', revert to pending
+          const { data: boletoCheck } = await supabase
+            .from("boletos")
+            .select("status")
+            .eq("id", inst.boleto_id)
+            .single();
+          
+          if (boletoCheck?.status === 'paid') {
+            await supabase
+              .from("boletos")
+              .update({ status: 'pending' })
+              .eq("id", inst.boleto_id);
+            fetchBoletos();
+          }
+        }
+      }
     } catch (error) {
       toast.error("Erro ao atualizar status");
     }
@@ -166,7 +253,7 @@ export function BoletoManagement() {
   };
 
   const filteredBoletos = boletos.filter(b => {
-    const clientName = b.sales?.clients?.name || "";
+    const clientName = b.client_name || "";
     const saleId = b.sale_id?.toString() || "";
     const search = searchTerm.toLowerCase();
     
@@ -230,8 +317,8 @@ export function BoletoManagement() {
                       {expandedBoleto === boleto.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </TableCell>
                     <TableCell className="font-medium">#{boleto.sale_id}</TableCell>
-                    <TableCell>{boleto.sales?.clients?.name || 'Cliente N/A'}</TableCell>
-                    <TableCell>R$ {boleto.total_amount.toFixed(2)}</TableCell>
+                    <TableCell>{boleto.client_name}</TableCell>
+                    <TableCell>R$ {Number(boleto.total_amount).toFixed(2)}</TableCell>
                     <TableCell>{boleto.installments_count}x</TableCell>
                     <TableCell>{getStatusBadge(boleto.status)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
@@ -258,6 +345,8 @@ export function BoletoManagement() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                             {!installments[boleto.id] ? (
                               <div className="col-span-4 py-4 text-center text-xs text-muted-foreground">Carregando parcelas...</div>
+                            ) : installments[boleto.id].length === 0 ? (
+                              <div className="col-span-4 py-4 text-center text-xs text-muted-foreground">Nenhuma parcela registrada</div>
                             ) : (
                               installments[boleto.id].map(inst => (
                                 <Card key={inst.id} className="bg-background border-border/40">
@@ -266,10 +355,10 @@ export function BoletoManagement() {
                                       <span className="text-[10px] font-bold text-muted-foreground uppercase">Parcela {inst.installment_number}</span>
                                       {getStatusBadge(inst.status)}
                                     </div>
-                                    <div className="text-lg font-bold">R$ {inst.amount.toFixed(2)}</div>
+                                    <div className="text-lg font-bold">R$ {Number(inst.amount).toFixed(2)}</div>
                                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                       <Calendar className="h-3 w-3" />
-                                      Venc: {format(new Date(inst.due_date), "dd/MM/yyyy")}
+                                      Venc: {format(new Date(inst.due_date + 'T12:00:00'), "dd/MM/yyyy")}
                                     </div>
                                     
                                     {inst.status !== 'paid' ? (
@@ -283,7 +372,7 @@ export function BoletoManagement() {
                                       </Button>
                                     ) : (
                                       <div className="text-[10px] text-green-600 flex items-center gap-1 mt-1 italic">
-                                        <CheckCircle2 className="h-3 w-3" /> Pago em {inst.paid_at ? format(new Date(inst.paid_at), "dd/MM/yy") : ''}
+                                        <CheckCircle2 className="h-3 w-3" /> Pago em {inst.payment_date ? format(new Date(inst.payment_date + 'T12:00:00'), "dd/MM/yy") : ''}
                                       </div>
                                     )}
                                   </CardContent>

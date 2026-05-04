@@ -675,14 +675,12 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
           // Insert sale payment
           await supabase.from("sale_payments").insert({
             sale_id: sale.id,
-            payment_method: p.payment_method,
+            method: p.payment_method,
             amount: p.amount,
             account_id: p.account_id,
             machine_id: p.machine_id,
             installments: p.installments,
-            net_amount: finalNetAmount,
-            due_date: p.due_date,
-            status: p.status,
+            status: p.status || 'received',
             company_id: companyId
           });
 
@@ -707,28 +705,33 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
               .insert({
                 sale_id: sale.id,
                 total_amount: p.amount,
-                installments_count: p.installments || 1,
                 status: 'pending',
-                company_id: companyId
+                company_id: companyId,
+                account_id: p.account_id as number,
+                client_id: parseInt(selectedClientId)
               })
               .select()
               .single();
 
-            if (!boletoError && boletoData) {
+            if (boletoError) {
+              console.error('Error creating boleto:', boletoError);
+              throw boletoError;
+            }
+
+            if (boletoData) {
               const installmentsToInsert = [];
               const installmentAmount = p.amount / (p.installments || 1);
               
               for (let i = 1; i <= (p.installments || 1); i++) {
                 const dueDate = new Date(saleDate);
-                dueDate.setMonth(dueDate.getMonth() + i); // 30 days interval roughly
+                dueDate.setMonth(dueDate.getMonth() + i);
                 
                 installmentsToInsert.push({
                   boleto_id: boletoData.id,
                   installment_number: i,
                   amount: installmentAmount,
-                  due_date: dueDate.toISOString(),
-                  status: 'pending',
-                  company_id: companyId
+                  due_date: format(dueDate, 'yyyy-MM-dd'),
+                  status: 'pending'
                 });
               }
               

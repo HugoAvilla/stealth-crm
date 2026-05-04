@@ -806,7 +806,7 @@ export default function Contas() {
           ) : activeTab === 'maquininhas' ? (
             <CardMachinesList />
           ) : (
-            <BoletoManagement />
+            <BoletoManagement accountId={selectedAccountId} />
           )}
         </>
       ) : (
