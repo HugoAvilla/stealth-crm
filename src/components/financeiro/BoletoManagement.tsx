@@ -50,6 +50,7 @@ interface BoletoRow {
   status: string;
   created_at: string;
   account_id: number;
+  account_name: string;
   client_id: number | null;
   company_id: number;
   client_name: string;
@@ -103,17 +104,20 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
           account_id,
           client_id,
           company_id,
-          clients:client_id (
+          clients (
+            name
+          ),
+          accounts (
             name
           )
         `)
         .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false });
 
-      // Filter by account if provided
-      if (accountId) {
-        query = query.eq("account_id", accountId);
-      }
+      // We removed the accountId filter so the user can see ALL boletos across all accounts
+      // if (accountId) {
+      //   query = query.eq("account_id", accountId);
+      // }
 
       const { data, error } = await query;
 
@@ -144,6 +148,7 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
         status: b.status,
         created_at: b.created_at,
         account_id: b.account_id,
+        account_name: (b.accounts as any)?.name || 'Conta N/A',
         client_id: b.client_id,
         company_id: b.company_id,
         client_name: (b.clients as any)?.name || 'Cliente N/A',
@@ -311,6 +316,7 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
               <TableHead className="w-10"></TableHead>
               <TableHead>Venda</TableHead>
               <TableHead>Cliente</TableHead>
+              <TableHead>Conta</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Parcelas</TableHead>
               <TableHead>Status</TableHead>
@@ -321,7 +327,7 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
           <TableBody>
             {filteredBoletos.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                   Nenhum boleto encontrado
                 </TableCell>
               </TableRow>
@@ -334,6 +340,7 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
                     </TableCell>
                     <TableCell className="font-medium">#{boleto.sale_id}</TableCell>
                     <TableCell>{boleto.client_name}</TableCell>
+                    <TableCell className="text-muted-foreground">{boleto.account_name}</TableCell>
                     <TableCell>R$ {Number(boleto.total_amount).toFixed(2)}</TableCell>
                     <TableCell>{boleto.installments_count}x</TableCell>
                     <TableCell>{getStatusBadge(boleto.status)}</TableCell>
@@ -356,7 +363,7 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
                   
                   {expandedBoleto === boleto.id && (
                     <TableRow className="bg-muted/10 border-b">
-                      <TableCell colSpan={8} className="p-0">
+                      <TableCell colSpan={9} className="p-0">
                         <div className="p-4 bg-muted/5 animate-in slide-in-from-top-2 duration-200">
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                             {!installments[boleto.id] ? (

@@ -435,15 +435,15 @@ export default function Espaco() {
                         )}
                       </div>
                       {(inProgress > 0 || completed > 0) && (
-                        <div className="mt-auto flex flex-col sm:flex-row gap-0.5 items-center w-full">
+                        <div className="mt-auto flex flex-col gap-1 items-center w-full">
                           {inProgress > 0 && (
-                            <Badge variant="outline" className="text-[9px] sm:text-xs px-0.5 sm:px-1 py-0 bg-yellow-500/20 text-yellow-400 border-yellow-500/30 truncate flex justify-center w-full sm:w-auto">
-                              {inProgress}
+                            <Badge variant="default" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 bg-yellow-500 text-yellow-950 hover:bg-yellow-600 truncate flex justify-center w-full font-bold shadow-sm">
+                              {inProgress} {inProgress === 1 ? 'vaga' : 'vagas'}
                             </Badge>
                           )}
                           {completed > 0 && (
-                            <Badge variant="outline" className="text-[9px] sm:text-xs px-0.5 sm:px-1 py-0 bg-green-500/20 text-green-400 border-green-500/30 truncate flex justify-center w-full sm:w-auto">
-                              {completed}
+                            <Badge variant="default" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 bg-green-500 text-white hover:bg-green-600 truncate flex justify-center w-full font-bold shadow-sm">
+                              {completed} {completed === 1 ? 'vaga' : 'vagas'}
                             </Badge>
                           )}
                         </div>
@@ -452,13 +452,13 @@ export default function Espaco() {
                   );
                 })}
               </div>
-              <div className="flex gap-4 mt-4 text-sm text-muted-foreground">
+              <div className="flex gap-4 mt-4 text-sm text-muted-foreground font-medium">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded bg-yellow-500/20 border border-yellow-500/30" />
+                  <div className="w-3 h-3 rounded bg-yellow-500 shadow-sm" />
                   <span>Em andamento</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded bg-green-500/20 border border-green-500/30" />
+                  <div className="w-3 h-3 rounded bg-green-500 shadow-sm" />
                   <span>Finalizados</span>
                 </div>
               </div>

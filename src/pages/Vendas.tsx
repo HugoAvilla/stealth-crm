@@ -363,7 +363,7 @@ const Vendas = () => {
 
                           {daySales.length > 0 && (
                             <div className="space-y-1 flex flex-col items-center">
-                              <Badge className="w-full justify-center text-[10px] sm:text-xs bg-success/20 text-success border-success/30 hover:bg-success/30 px-0 sm:px-2 py-0 sm:py-0.5 max-w-full">
+                              <Badge variant="default" className="w-full justify-center text-[10px] sm:text-xs bg-green-500 text-white hover:bg-green-600 px-0 sm:px-2 py-0 sm:py-0.5 max-w-full font-bold shadow-sm">
                                 <span className="truncate">{daySales.length} <span className="hidden sm:inline">venda{daySales.length > 1 ? "s" : ""}</span></span>
                               </Badge>
                               <Badge variant="outline" className="w-full justify-center text-[10px] sm:text-xs px-0 sm:px-2 py-0 sm:py-0.5 max-w-full">
