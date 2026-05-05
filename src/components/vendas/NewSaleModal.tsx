@@ -1131,17 +1131,41 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                     ))}
                   </div>
 
-                  {payments.length > 1 && (
-                    <div className={cn(
-                      "p-3 rounded-lg text-sm font-medium flex justify-between items-center",
-                      Math.abs(payments.reduce((acc, p) => acc + p.amount, 0) - total) < 0.01 
-                        ? "bg-green-500/10 text-green-600 border border-green-500/20"
-                        : "bg-red-500/10 text-red-600 border border-red-500/20"
-                    )}>
-                      <span>Total Pago: R$ {payments.reduce((acc, p) => acc + p.amount, 0).toFixed(2)}</span>
-                      <span>Total Venda: R$ {total.toFixed(2)}</span>
-                    </div>
-                  )}
+                  {payments.length > 1 && (() => {
+                    const paidTotal = payments.reduce((acc, p) => acc + p.amount, 0);
+                    const diff = paidTotal - total;
+                    const isBalanced = Math.abs(diff) < 0.01;
+                    const isExcess = diff > 0.01;
+                    const isShort = diff < -0.01;
+
+                    return (
+                      <div className={cn(
+                        "p-3 rounded-lg text-sm font-medium space-y-1",
+                        isBalanced
+                          ? "bg-green-500/10 text-green-600 border border-green-500/20"
+                          : isExcess
+                            ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                            : "bg-red-500/10 text-red-600 border border-red-500/20"
+                      )}>
+                        <div className="flex justify-between items-center">
+                          <span>Total Pago: R$ {paidTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          <span>Total Venda: R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        {!isBalanced && (
+                          <div className={cn(
+                            "text-xs pt-1 border-t flex items-center gap-1.5",
+                            isExcess ? "border-amber-500/20" : "border-red-500/20"
+                          )}>
+                            {isExcess ? (
+                              <span>⚠ Valor superior em <strong>R$ {Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+                            ) : (
+                              <span>⚠ Restam <strong>R$ {Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong> para concluir</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   CreditCard, 
   Landmark, 
@@ -56,6 +56,70 @@ const PAYMENT_METHODS = [
   { id: "Boleto", label: "Boleto", icon: Receipt },
   { id: "Transferência", label: "Transferência", icon: Landmark },
 ];
+
+/** Masked currency input — Brazilian Real (R$) format: 1.234,56 */
+function CurrencyInput({ value, onChange }: { value: number; onChange: (val: number) => void }) {
+  const formatCurrency = (cents: number): string => {
+    const reais = (cents / 100).toFixed(2);
+    const [intPart, decPart] = reais.split(".");
+    // Add thousand separators
+    const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return `${formattedInt},${decPart}`;
+  };
+
+  const [display, setDisplay] = useState(() => {
+    if (value === 0) return "";
+    return formatCurrency(Math.round(value * 100));
+  });
+
+  // Sync display when value changes externally (e.g., auto-fill from total)
+  useEffect(() => {
+    const currentCents = parseCurrencyToCents(display);
+    const externalCents = Math.round(value * 100);
+    if (currentCents !== externalCents) {
+      if (value === 0) {
+        setDisplay("");
+      } else {
+        setDisplay(formatCurrency(externalCents));
+      }
+    }
+  }, [value]);
+
+  const parseCurrencyToCents = (str: string): number => {
+    const digits = str.replace(/\D/g, "");
+    return parseInt(digits || "0", 10);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    const digits = raw.replace(/\D/g, "");
+
+    if (digits === "" || digits === "0" || digits === "00") {
+      setDisplay("");
+      onChange(0);
+      return;
+    }
+
+    const cents = parseInt(digits, 10);
+    const formatted = formatCurrency(cents);
+    setDisplay(formatted);
+    onChange(cents / 100);
+  };
+
+  return (
+    <div className="relative">
+      <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+      <Input
+        type="text"
+        inputMode="numeric"
+        placeholder="0,00"
+        value={display}
+        onChange={handleChange}
+        className="pl-8 h-10 font-semibold"
+      />
+    </div>
+  );
+}
 
 export function PaymentBlock({ 
   payment, 
@@ -139,18 +203,12 @@ export function PaymentBlock({
             </Select>
           </div>
 
-          <div className="w-32 sm:w-40 space-y-2">
+          <div className="w-36 sm:w-44 space-y-2">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Valor</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input 
-                type="number" 
-                step="0.01"
-                value={payment.amount}
-                onChange={(e) => onUpdate({ ...payment, amount: parseFloat(e.target.value) || 0 })}
-                className="pl-8 h-10 font-semibold"
-              />
-            </div>
+            <CurrencyInput
+              value={payment.amount}
+              onChange={(val) => onUpdate({ ...payment, amount: val })}
+            />
           </div>
 
           {!isFirst && (
