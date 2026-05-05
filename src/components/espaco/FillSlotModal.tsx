@@ -876,7 +876,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             <p className="text-sm text-muted-foreground">Opcional: Adicione fotos para referenciar a avaria ou condição de recebimento do veículo.</p>
             
             {photos.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2">
                 {photos.map((photo, index) => (
                   <div key={index} className="relative min-w-[80px] h-[80px] rounded border overflow-hidden shrink-0">
                     <img src={URL.createObjectURL(photo)} alt={`Foto ${index+1}`} className="w-full h-full object-cover" />

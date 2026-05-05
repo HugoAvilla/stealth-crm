@@ -349,7 +349,7 @@ export default function Estoque() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 max-w-[100vw] overflow-x-hidden">
       <HelpOverlay
         tabId="estoque"
         title="Guia de Estoque"

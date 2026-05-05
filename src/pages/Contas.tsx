@@ -306,7 +306,7 @@ export default function Contas() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] overflow-x-hidden">
       <HelpOverlay
         tabId="contas"
         title="Guia de Contas"
@@ -335,7 +335,7 @@ export default function Contas() {
       />
 
       {/* Left sidebar - Account selection */}
-      <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-border/50 p-4 space-y-4 overflow-x-auto md:overflow-y-auto">
+      <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-border/50 p-4 space-y-4 overflow-x-hidden overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Contas</h2>
           <div className="flex gap-1">

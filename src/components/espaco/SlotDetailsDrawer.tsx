@@ -642,7 +642,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <div className="flex gap-2 overflow-x-auto pb-2">
+                <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2">
                   {checklistPhotos.map((photo, index) => (
                     <a 
                       key={index} 

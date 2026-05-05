@@ -75,7 +75,7 @@ export default function Perfil() {
   const roleBadge = getRoleBadge(user?.role || 'NENHUM');
 
   return (
-    <div className="space-y-6 p-6 max-w-3xl mx-auto">
+    <div className="space-y-6 p-6 max-w-3xl mx-auto overflow-x-hidden">
       <HelpOverlay
         tabId="perfil"
         title="Guia do Perfil"

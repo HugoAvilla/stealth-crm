@@ -39,7 +39,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <TopNavigation />
-      <main className="pt-16">
+      <main className="pt-16 overflow-x-hidden">
         <PullToRefresh onRefresh={async () => {
           // Pequeno delay para a animação de refresh aparecer
           await new Promise(resolve => setTimeout(resolve, 500));

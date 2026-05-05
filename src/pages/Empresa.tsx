@@ -139,7 +139,7 @@ export default function Empresa() {
   }
 
   return (
-    <div className="space-y-6 p-6 max-w-4xl mx-auto">
+    <div className="space-y-6 p-6 max-w-4xl mx-auto overflow-x-hidden">
       <HelpOverlay
         tabId="empresa"
         title="Guia da Empresa"

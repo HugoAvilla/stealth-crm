@@ -220,7 +220,7 @@ export default function Garantias() {
   const activeCount = warranties.filter(w => getStatus(w.expiry_date).label === 'Ativa').length;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 max-w-[100vw] overflow-x-hidden">
       <HelpOverlay
         tabId="garantias"
         title="Guia de Garantias"

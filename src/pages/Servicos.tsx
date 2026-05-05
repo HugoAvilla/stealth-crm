@@ -12,7 +12,7 @@ export default function Servicos() {
   const companyId = user?.companyId || null;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 max-w-[100vw] overflow-x-hidden">
       <HelpOverlay
         tabId="servicos"
         title="Guia de Serviços"

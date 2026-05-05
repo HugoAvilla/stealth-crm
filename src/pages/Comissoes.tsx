@@ -89,7 +89,7 @@ export default function Comissoes() {
   };
 
   return (
-    <div className="space-y-6 p-6 pb-20">
+    <div className="space-y-6 p-6 pb-20 max-w-[100vw] overflow-x-hidden">
       <HelpOverlay
         tabId="comissoes"
         title="Guia de Comissões"
