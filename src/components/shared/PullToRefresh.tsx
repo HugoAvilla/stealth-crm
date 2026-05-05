@@ -11,6 +11,7 @@ interface PullToRefreshProps {
 export function PullToRefresh({ onRefresh, children, className }: PullToRefreshProps) {
   const [currentY, setCurrentY] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
@@ -20,9 +21,9 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
   const lastScrollYRef = useRef(0);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const maxPullDistance = 100;
-  const refreshThreshold = 70; // Higher threshold = more intentional pull needed
-  const deadZone = 15; // Minimum px before pull-to-refresh activates
+  const maxPullDistance = 80;
+  const refreshThreshold = 60;
+  const deadZone = 12; // Minimum px before pull-to-refresh activates
   const scrollSettleTime = 150; // ms the page must be at top before allowing PTR
 
   // Track scroll state to detect if user was scrolling
@@ -65,7 +66,8 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
 
     startYRef.current = e.touches[0].clientY;
     pullingRef.current = true;
-    activatedRef.current = false; // Reset activation
+    activatedRef.current = false;
+    setDragging(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -104,9 +106,8 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
     }
 
     const diff = y - startYRef.current;
-    // Apply resistance curve (gets harder to pull the further you go)
-    const resistance = Math.max(0.3, 1 - diff / 400);
-    const pullDistance = Math.min(diff * resistance * 0.5, maxPullDistance);
+    // Simple resistance
+    const pullDistance = Math.min(diff * 0.4, maxPullDistance);
     setCurrentY(pullDistance);
 
     if (pullDistance > 0 && e.cancelable) {
@@ -119,6 +120,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
 
     pullingRef.current = false;
     activatedRef.current = false;
+    setDragging(false);
 
     if (currentY >= refreshThreshold) {
       setRefreshing(true);
@@ -145,7 +147,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
     >
       {/* Pull indicator */}
       <div
-        className="absolute left-0 right-0 flex justify-center items-center overflow-hidden transition-all duration-200 z-50 pointer-events-none"
+        className="absolute left-0 right-0 flex justify-center items-center overflow-hidden z-50 pointer-events-none"
         style={{
           top: 0,
           height: `${currentY}px`,
@@ -168,10 +170,12 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
         </div>
       </div>
 
-      {/* Content wrapper */}
+      {/* Content wrapper - no transition during drag to prevent trembling */}
       <div
-        className="transition-transform duration-200"
-        style={{ transform: `translateY(${currentY}px)` }}
+        style={{
+          transform: `translateY(${currentY}px)`,
+          transition: dragging ? 'none' : 'transform 0.2s ease-out',
+        }}
       >
         {children}
       </div>
