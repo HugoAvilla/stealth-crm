@@ -8,6 +8,52 @@ interface PullToRefreshProps {
   className?: string;
 }
 
+/**
+ * Checks if an element or any of its ancestors (up to the boundary)
+ * is a scrollable container that hasn't reached its top yet.
+ * This prevents PTR from firing when touching inside scrollable tables/divs.
+ */
+function isTouchInsideScrollableContainer(
+  target: EventTarget | null,
+  boundary: HTMLElement | null
+): boolean {
+  let el = target as HTMLElement | null;
+  while (el && el !== boundary && el !== document.body) {
+    // Check if this element is scrollable vertically
+    const style = window.getComputedStyle(el);
+    const overflowY = style.overflowY;
+    const overflow = style.overflow;
+    const isScrollable =
+      overflowY === "auto" ||
+      overflowY === "scroll" ||
+      overflow === "auto" ||
+      overflow === "scroll";
+
+    if (isScrollable && el.scrollHeight > el.clientHeight) {
+      // This container is scrollable and has content to scroll
+      // If it's NOT at the very top, block PTR
+      if (el.scrollTop > 0) {
+        return true;
+      }
+    }
+
+    // Also check for horizontally scrollable containers (like table wrappers)
+    const overflowX = style.overflowX;
+    const isScrollableX =
+      overflowX === "auto" ||
+      overflowX === "scroll";
+
+    if (isScrollableX && el.scrollWidth > el.clientWidth) {
+      // If the user is inside a horizontally scrollable area,
+      // we should be more cautious about PTR
+      return true;
+    }
+
+    el = el.parentElement;
+  }
+  return false;
+}
+
 export function PullToRefresh({ onRefresh, children, className }: PullToRefreshProps) {
   const [currentY, setCurrentY] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -15,16 +61,19 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
 
   const containerRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
+  const startXRef = useRef(0);
   const pullingRef = useRef(false);
   const activatedRef = useRef(false); // True once dead zone is passed
   const wasScrollingRef = useRef(false); // Tracks if user was scrolling before touch
   const lastScrollYRef = useRef(0);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHorizontalGestureRef = useRef(false); // Tracks if gesture is horizontal
 
   const maxPullDistance = 80;
   const refreshThreshold = 60;
   const deadZone = 12; // Minimum px before pull-to-refresh activates
   const scrollSettleTime = 150; // ms the page must be at top before allowing PTR
+  const horizontalThreshold = 8; // px of horizontal movement to cancel PTR
 
   // Track scroll state to detect if user was scrolling
   const handleScroll = useCallback(() => {
@@ -57,6 +106,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
     // 1. Page is at the very top
     // 2. User was NOT scrolling (arrived at top via scroll momentum)
     // 3. Not currently refreshing
+    // 4. Touch is NOT inside a scrollable sub-container
     const isAtTop = window.scrollY <= 0;
     if (!isAtTop || refreshing || wasScrollingRef.current) {
       pullingRef.current = false;
@@ -64,9 +114,18 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
       return;
     }
 
+    // Check if the touch originated inside a scrollable container (e.g., table wrapper)
+    if (isTouchInsideScrollableContainer(e.target, containerRef.current)) {
+      pullingRef.current = false;
+      activatedRef.current = false;
+      return;
+    }
+
     startYRef.current = e.touches[0].clientY;
+    startXRef.current = e.touches[0].clientX;
     pullingRef.current = true;
     activatedRef.current = false;
+    isHorizontalGestureRef.current = false;
     setDragging(true);
   };
 
@@ -83,10 +142,24 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
     }
 
     const y = e.touches[0].clientY;
-    const rawDiff = y - startYRef.current;
+    const x = e.touches[0].clientX;
+    const rawDiffY = y - startYRef.current;
+    const rawDiffX = Math.abs(x - startXRef.current);
+
+    // Detect horizontal gesture — if user is swiping sideways, cancel PTR
+    if (!activatedRef.current && rawDiffX > horizontalThreshold) {
+      isHorizontalGestureRef.current = true;
+      pullingRef.current = false;
+      activatedRef.current = false;
+      setCurrentY(0);
+      return;
+    }
+
+    // If already detected as horizontal, ignore
+    if (isHorizontalGestureRef.current) return;
 
     // Only track downward movement
-    if (rawDiff <= 0) {
+    if (rawDiffY <= 0) {
       // User is pulling up, cancel pull-to-refresh
       if (activatedRef.current) {
         activatedRef.current = false;
@@ -97,7 +170,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
 
     // Dead zone: don't activate until user pulls past the dead zone
     if (!activatedRef.current) {
-      if (rawDiff < deadZone) {
+      if (rawDiffY < deadZone) {
         return; // Still in dead zone, ignore
       }
       // Activate and recalibrate start point
@@ -120,6 +193,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
 
     pullingRef.current = false;
     activatedRef.current = false;
+    isHorizontalGestureRef.current = false;
     setDragging(false);
 
     if (currentY >= refreshThreshold) {
@@ -182,3 +256,4 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
     </div>
   );
 }
+

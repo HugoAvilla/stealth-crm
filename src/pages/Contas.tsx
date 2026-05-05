@@ -546,7 +546,7 @@ export default function Contas() {
             </Card>
 
             {/* Resumo do Período */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-4">
               <Card className="bg-card/50 border-border/50">
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground mb-1">Entradas recebidas</p>
@@ -691,7 +691,7 @@ export default function Contas() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
+                  <div className="flex flex-wrap gap-2 w-full xl:w-auto">
                     <Select value={filterType} onValueChange={setFilterType}>
                       <SelectTrigger className="w-[110px] bg-background">
                         <SelectValue placeholder="Tipo" />
@@ -735,7 +735,7 @@ export default function Contas() {
                     <p className="text-sm">Nenhuma transação encontrada</p>
                   </div>
                 ) : (
-                  <div className="rounded-md border border-border/50 overflow-x-auto">
+                  <div className="rounded-md border border-border/50 overflow-x-auto overscroll-x-contain">
                     <Table>
                       <TableHeader>
                         <TableRow>
