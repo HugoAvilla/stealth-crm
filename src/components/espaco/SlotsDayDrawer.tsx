@@ -84,8 +84,8 @@ export function SlotsDayDrawer({ open, onOpenChange, date, onAddSlot }: SlotsDay
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md">
-        <SheetHeader>
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <SheetHeader className="sticky top-0 z-10 bg-background pb-2">
           <div className="flex items-center justify-between pr-8">
             <SheetTitle>
               {format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
@@ -99,7 +99,7 @@ export function SlotsDayDrawer({ open, onOpenChange, date, onAddSlot }: SlotsDay
           </div>
         </SheetHeader>
 
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 space-y-4 pb-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />

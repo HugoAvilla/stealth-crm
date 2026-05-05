@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -9,64 +9,121 @@ interface PullToRefreshProps {
 }
 
 export function PullToRefresh({ onRefresh, children, className }: PullToRefreshProps) {
-  const [startY, setStartY] = useState(0);
   const [currentY, setCurrentY] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [pulling, setPulling] = useState(false);
-  const [atTop, setAtTop] = useState(true);
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
-  const maxPullDistance = 80;
-  const refreshThreshold = 60;
+  const startYRef = useRef(0);
+  const pullingRef = useRef(false);
+  const activatedRef = useRef(false); // True once dead zone is passed
+  const wasScrollingRef = useRef(false); // Tracks if user was scrolling before touch
+  const lastScrollYRef = useRef(0);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    const checkScroll = () => {
-      // Check if window is at the very top
-      setAtTop(window.scrollY <= 0);
-    };
+  const maxPullDistance = 100;
+  const refreshThreshold = 70; // Higher threshold = more intentional pull needed
+  const deadZone = 15; // Minimum px before pull-to-refresh activates
+  const scrollSettleTime = 150; // ms the page must be at top before allowing PTR
 
-    window.addEventListener("scroll", checkScroll);
-    return () => window.removeEventListener("scroll", checkScroll);
+  // Track scroll state to detect if user was scrolling
+  const handleScroll = useCallback(() => {
+    lastScrollYRef.current = window.scrollY;
+
+    // Mark as "was scrolling" whenever scrollY > 0
+    if (window.scrollY > 2) {
+      wasScrollingRef.current = true;
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    } else {
+      // When arriving at top, wait for settle time before clearing scroll flag
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+      scrollTimerRef.current = setTimeout(() => {
+        wasScrollingRef.current = false;
+      }, scrollSettleTime);
+    }
   }, []);
 
+  // Attach scroll listener
+  React.useEffect(() => {
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    };
+  }, [handleScroll]);
+
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Only allow pull-to-refresh if:
+    // 1. Page is at the very top
+    // 2. User was NOT scrolling (arrived at top via scroll momentum)
+    // 3. Not currently refreshing
     const isAtTop = window.scrollY <= 0;
-    if (!isAtTop || refreshing) {
-      setPulling(false);
+    if (!isAtTop || refreshing || wasScrollingRef.current) {
+      pullingRef.current = false;
+      activatedRef.current = false;
       return;
     }
-    setStartY(e.touches[0].clientY);
-    setPulling(true);
+
+    startYRef.current = e.touches[0].clientY;
+    pullingRef.current = true;
+    activatedRef.current = false; // Reset activation
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     const isAtTop = window.scrollY <= 0;
-    if (!pulling || !isAtTop || refreshing) return;
-    
-    const y = e.touches[0].clientY;
-    const diff = y - startY;
-    
-    // Only track if pulling downwards
-    if (diff > 0) {
-      // Apply some resistance
-      const pullDistance = Math.min(diff * 0.4, maxPullDistance);
-      setCurrentY(pullDistance);
-      
-      if (pullDistance > 0 && e.cancelable) {
-        e.preventDefault(); // Prevent native scroll while pulling
+    if (!pullingRef.current || !isAtTop || refreshing) {
+      // If page scrolled away from top during drag, cancel
+      if (pullingRef.current && !isAtTop) {
+        pullingRef.current = false;
+        activatedRef.current = false;
+        setCurrentY(0);
       }
+      return;
+    }
+
+    const y = e.touches[0].clientY;
+    const rawDiff = y - startYRef.current;
+
+    // Only track downward movement
+    if (rawDiff <= 0) {
+      // User is pulling up, cancel pull-to-refresh
+      if (activatedRef.current) {
+        activatedRef.current = false;
+        setCurrentY(0);
+      }
+      return;
+    }
+
+    // Dead zone: don't activate until user pulls past the dead zone
+    if (!activatedRef.current) {
+      if (rawDiff < deadZone) {
+        return; // Still in dead zone, ignore
+      }
+      // Activate and recalibrate start point
+      activatedRef.current = true;
+      startYRef.current = y; // Reset start so pull distance starts from 0
+    }
+
+    const diff = y - startYRef.current;
+    // Apply resistance curve (gets harder to pull the further you go)
+    const resistance = Math.max(0.3, 1 - diff / 400);
+    const pullDistance = Math.min(diff * resistance * 0.5, maxPullDistance);
+    setCurrentY(pullDistance);
+
+    if (pullDistance > 0 && e.cancelable) {
+      e.preventDefault(); // Prevent native scroll while pulling
     }
   };
 
   const handleTouchEnd = async () => {
-    if (!pulling || refreshing) return;
-    
-    setPulling(false);
-    
+    if (!pullingRef.current || refreshing) return;
+
+    pullingRef.current = false;
+    activatedRef.current = false;
+
     if (currentY >= refreshThreshold) {
       setRefreshing(true);
       setCurrentY(refreshThreshold); // Hold at threshold
-      
+
       try {
         await onRefresh();
       } finally {
@@ -79,7 +136,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
   };
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className={cn("relative min-h-full", className)}
       onTouchStart={handleTouchStart}
@@ -87,30 +144,32 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
       onTouchEnd={handleTouchEnd}
     >
       {/* Pull indicator */}
-      <div 
+      <div
         className="absolute left-0 right-0 flex justify-center items-center overflow-hidden transition-all duration-200 z-50 pointer-events-none"
-        style={{ 
+        style={{
           top: 0,
           height: `${currentY}px`,
-          opacity: currentY / refreshThreshold
+          opacity: currentY / refreshThreshold,
         }}
       >
-        <div className={cn(
-          "bg-background/80 backdrop-blur shadow-sm rounded-full p-2 flex items-center justify-center border border-border mt-4",
-          refreshing && "animate-spin"
-        )}>
-          <RefreshCw 
-            className="w-5 h-5 text-primary" 
-            style={{ 
+        <div
+          className={cn(
+            "bg-background/80 backdrop-blur shadow-sm rounded-full p-2 flex items-center justify-center border border-border mt-4",
+            refreshing && "animate-spin"
+          )}
+        >
+          <RefreshCw
+            className="w-5 h-5 text-primary"
+            style={{
               transform: `rotate(${currentY * 3}deg)`,
-              transition: refreshing ? "none" : "transform 0.1s" 
+              transition: refreshing ? "none" : "transform 0.1s",
             }}
           />
         </div>
       </div>
 
       {/* Content wrapper */}
-      <div 
+      <div
         className="transition-transform duration-200"
         style={{ transform: `translateY(${currentY}px)` }}
       >
