@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,8 @@ import {
   CalendarIcon,
   Trash2,
   Edit2,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -63,6 +65,9 @@ import { ORIGIN_OPTIONS, ClientOrigin } from "@/constants/origins";
 const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalProps) => {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
+  const [cepFound, setCepFound] = useState(false);
+  const numberInputRef = useRef<HTMLInputElement>(null);
 
   // Required fields
   const [name, setName] = useState("");
@@ -141,20 +146,47 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
     const numbers = value.replace(/\D/g, "").slice(0, 8);
     const formatted = numbers.length > 5 ? `${numbers.slice(0, 5)}-${numbers.slice(5)}` : numbers;
     setCep(formatted);
+    setCepFound(false);
 
-    if (numbers.length === 8) {
-      try {
-        const response = await fetch(`https://viacep.com.br/ws/${numbers}/json/`);
-        const data = await response.json();
-        if (!data.erro) {
-          setState(data.uf || "");
-          setCity(data.localidade || "");
-          setNeighborhood(data.bairro || "");
-          setStreet(data.logradouro || "");
-        }
-      } catch (error) {
-        console.error('Error fetching CEP:', error);
+    // Reset address fields if CEP is cleared
+    if (numbers.length < 8) {
+      return;
+    }
+
+    // Fetch address when CEP is complete (8 digits)
+    setIsFetchingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${numbers}/json/`);
+      const data = await response.json();
+      if (data.erro) {
+        toast.error("CEP não encontrado", {
+          description: "Verifique o CEP digitado e tente novamente.",
+        });
+        setState("");
+        setCity("");
+        setNeighborhood("");
+        setStreet("");
+      } else {
+        setState(data.uf || "");
+        setCity(data.localidade || "");
+        setNeighborhood(data.bairro || "");
+        setStreet(data.logradouro || "");
+        setCepFound(true);
+        toast.success("Endereço encontrado!", {
+          description: `${data.logradouro ? data.logradouro + ", " : ""}${data.bairro || ""} - ${data.localidade}/${data.uf}`,
+        });
+        // Auto-focus on number field after successful fetch
+        setTimeout(() => {
+          numberInputRef.current?.focus();
+        }, 100);
       }
+    } catch (error) {
+      console.error("Error fetching CEP:", error);
+      toast.error("Erro ao buscar CEP", {
+        description: "Verifique sua conexão e tente novamente.",
+      });
+    } finally {
+      setIsFetchingCep(false);
     }
   };
 
@@ -189,6 +221,7 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
     setStreet("");
     setNumber("");
     setComplement("");
+    setCepFound(false);
   };
 
   const handleSubmit = async () => {
@@ -411,27 +444,54 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
               )}
 
               {visibleFields.has("address") && (
-                <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+                <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border/40">
                   <Label className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
                     Endereço
+                    {cepFound && (
+                      <span className="flex items-center gap-1 text-xs text-green-500 font-normal ml-auto">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Preenchido via CEP
+                      </span>
+                    )}
                   </Label>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-sm">CEP</Label>
-                      <Input
-                        placeholder="00000-000"
-                        value={cep}
-                        onChange={(e) => handleCepChange(e.target.value)}
-                      />
+                      <div className="relative">
+                        <Input
+                          placeholder="00000-000"
+                          value={cep}
+                          onChange={(e) => handleCepChange(e.target.value)}
+                          maxLength={9}
+                          className={cepFound ? "border-green-500/50 pr-9" : "pr-9"}
+                        />
+                        {isFetchingCep && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
+                        )}
+                        {cepFound && !isFetchingCep && (
+                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm">Estado</Label>
-                      <Input value={state} onChange={(e) => setState(e.target.value)} />
+                      <Input
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        disabled={isFetchingCep}
+                        placeholder="UF"
+                        maxLength={2}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm">Cidade</Label>
-                      <Input value={city} onChange={(e) => setCity(e.target.value)} />
+                      <Input
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        disabled={isFetchingCep}
+                        placeholder="Cidade"
+                      />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -440,23 +500,36 @@ const NewClientModal = ({ open, onOpenChange, onClientCreated }: NewClientModalP
                       <Input
                         value={neighborhood}
                         onChange={(e) => setNeighborhood(e.target.value)}
+                        disabled={isFetchingCep}
+                        placeholder="Bairro"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm">Rua</Label>
-                      <Input value={street} onChange={(e) => setStreet(e.target.value)} />
+                      <Input
+                        value={street}
+                        onChange={(e) => setStreet(e.target.value)}
+                        disabled={isFetchingCep}
+                        placeholder="Rua"
+                      />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-sm">Número</Label>
-                      <Input value={number} onChange={(e) => setNumber(e.target.value)} />
+                      <Input
+                        ref={numberInputRef}
+                        value={number}
+                        onChange={(e) => setNumber(e.target.value)}
+                        placeholder="Nº"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm">Complemento</Label>
                       <Input
                         value={complement}
                         onChange={(e) => setComplement(e.target.value)}
+                        placeholder="Apto, sala, etc."
                       />
                     </div>
                   </div>
