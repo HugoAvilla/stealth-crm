@@ -165,9 +165,10 @@ export interface ReportType {
 
 // Report types - Only PDF format
 export const reportTypes: ReportType[] = [
-  { id: "dfc", name: "DFC - Demonstração de Fluxo de Caixa", description: "Relatório completo de entradas e saídas", group: "financeiro", formats: ["pdf", "xlsx"] },
+  { id: "dfc", name: "DFC - Demonstração de Fluxo de Caixa", description: "Relatório completo de entradas e saídas com conta bancária, categoria e status", group: "financeiro", formats: ["pdf", "xlsx"] },
+  { id: "saidas_financeiro", name: "Saídas Financeiro (Pagos e Pendentes)", description: "Todas as saídas financeiras com método de pagamento, conta bancária e categoria", group: "financeiro", formats: ["pdf", "xlsx"] },
   { id: "dre", name: "DRE - Demonstração de Resultado", description: "Resultado do exercício por período", group: "financeiro", formats: ["pdf", "xlsx"] },
-  { id: "vendas_periodo", name: "Vendas por Período", description: "Todas as vendas em um intervalo de datas", group: "vendas", formats: ["pdf", "xlsx"] },
+  { id: "vendas_periodo", name: "Vendas por Período (Fechadas)", description: "Vendas fechadas com descrição dos serviços, itens, desconto e veículo", group: "vendas", formats: ["pdf", "xlsx"] },
   { id: "vendas_servico", name: "Vendas por Serviço", description: "Performance de cada serviço", group: "vendas", formats: ["pdf", "xlsx"] },
   { id: "vendas_vendedor", name: "Vendas por Vendedor", description: "Comissões e performance por vendedor", group: "vendas", formats: ["pdf", "xlsx"] },
   { id: "clientes_ativos", name: "Clientes Ativos", description: "Lista de clientes com vendas recentes", group: "clientes", formats: ["pdf", "xlsx"] },

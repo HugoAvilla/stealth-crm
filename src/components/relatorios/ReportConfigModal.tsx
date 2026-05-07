@@ -71,7 +71,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
   const generateDFCReport = async (): Promise<ReportPDFData> => {
     const { data } = await supabase
       .from('transactions')
-      .select('*')
+      .select('*, accounts(name, bank_name), categories(name), subcategories(name)')
       .eq('company_id', companyId)
       .gte('transaction_date', startDate)
       .lte('transaction_date', endDate)
@@ -84,19 +84,65 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
       (i + 1).toString(),
       format(new Date(t.transaction_date), 'dd/MM/yyyy'),
       t.name,
+      t.description || '-',
       t.type,
-      `R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+      t.payment_method || '-',
+      t.is_paid ? 'Pago' : 'Pendente',
+      `R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      (t.accounts as any)?.bank_name || (t.accounts as any)?.name || '-',
+      (t.categories as any)?.name || '-',
+      (t.subcategories as any)?.name || '-'
     ]) || [];
 
     return {
       title: 'DFC - Demonstração de Fluxo de Caixa',
       period: { start: startDate, end: endDate },
-      columns: ['#', 'Data', 'Descrição', 'Tipo', 'Valor'],
+      columns: ['#', 'Data', 'Nome', 'Descrição', 'Tipo', 'Método Pgto', 'Status', 'Valor', 'Conta Bancária', 'Categoria', 'Subcategoria'],
       rows,
       summary: [
         { label: 'Total Entradas', value: `R$ ${entradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
         { label: 'Total Saídas', value: `R$ ${saidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
         { label: 'Saldo do Período', value: `R$ ${(entradas - saidas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+      ],
+    };
+  };
+
+  const generateSaidasFinanceiroReport = async (): Promise<ReportPDFData> => {
+    const { data } = await supabase
+      .from('transactions')
+      .select('*, accounts(name, bank_name), categories(name), subcategories(name)')
+      .eq('company_id', companyId)
+      .eq('type', 'Saida')
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate)
+      .order('transaction_date', { ascending: true });
+
+    const totalPago = data?.filter(t => t.is_paid).reduce((s, t) => s + t.amount, 0) || 0;
+    const totalPendente = data?.filter(t => !t.is_paid).reduce((s, t) => s + t.amount, 0) || 0;
+    const totalGeral = (data?.reduce((s, t) => s + t.amount, 0)) || 0;
+
+    const rows = data?.map((t, i) => [
+      (i + 1).toString(),
+      t.name,
+      t.description || '-',
+      `R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      t.payment_method || '-',
+      format(new Date(t.transaction_date), 'dd/MM/yyyy'),
+      t.is_paid ? 'Pago' : 'Pendente',
+      (t.accounts as any)?.bank_name || (t.accounts as any)?.name || '-',
+      (t.categories as any)?.name || '-',
+      (t.subcategories as any)?.name || '-'
+    ]) || [];
+
+    return {
+      title: 'Relatório de Saídas Financeiro (Pagos e Pendentes)',
+      period: { start: startDate, end: endDate },
+      columns: ['#', 'Nome', 'Descrição', 'Valor', 'Método Pgto', 'Data Pgto', 'Status', 'Conta Bancária', 'Categoria', 'Subcategoria'],
+      rows,
+      summary: [
+        { label: 'Total Pago', value: `R$ ${totalPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+        { label: 'Total Pendente', value: `R$ ${totalPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+        { label: 'Total Geral', value: `R$ ${totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
       ],
     };
   };
@@ -147,28 +193,61 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
       .from('sales')
       .select('*, clients(name), vehicles(brand, model, plate)')
       .eq('company_id', companyId)
+      .eq('status', 'Fechada')
       .gte('sale_date', startDate)
       .lte('sale_date', endDate)
       .order('sale_date', { ascending: false });
 
+    // Fetch service items for all sales
+    const saleIds = data?.map(s => s.id) || [];
+    let serviceItemsMap: Record<number, string[]> = {};
+    let productItemsMap: Record<number, string[]> = {};
+
+    if (saleIds.length > 0) {
+      const { data: serviceItems } = await supabase
+        .from('service_items_detailed')
+        .select('sale_id, display_name, service_name, region_code, product_types(name)')
+        .in('sale_id', saleIds);
+
+      serviceItems?.forEach(item => {
+        if (!serviceItemsMap[item.sale_id]) serviceItemsMap[item.sale_id] = [];
+        if (!productItemsMap[item.sale_id]) productItemsMap[item.sale_id] = [];
+
+        // Build description from region_code + service_name
+        const desc = item.display_name || [item.region_code, item.service_name].filter(Boolean).join(' - ') || '-';
+        serviceItemsMap[item.sale_id].push(desc);
+
+        // Build product/item name
+        const productName = (item.product_types as any)?.name;
+        if (productName && !productItemsMap[item.sale_id].includes(productName)) {
+          productItemsMap[item.sale_id].push(productName);
+        }
+      });
+    }
+
     const total = data?.reduce((s, sale) => s + sale.total, 0) || 0;
+    const totalDesconto = data?.reduce((s, sale) => s + (sale.discount || 0), 0) || 0;
 
     const rows = data?.map((sale, i) => [
-      (i + 1).toString(),
       format(new Date(sale.sale_date), 'dd/MM/yyyy'),
+      sale.id.toString(),
       (sale.clients as any)?.name || '-',
-      (sale.vehicles as any) ? `${(sale.vehicles as any).brand} ${(sale.vehicles as any).model}` : '-',
-      sale.status || 'Aberta',
-      `R$ ${sale.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+      (serviceItemsMap[sale.id] || []).join(', ') || '-',
+      (productItemsMap[sale.id] || []).join(', ') || '-',
+      `R$ ${(sale.subtotal || sale.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      `R$ ${(sale.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      `R$ ${sale.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      (sale.vehicles as any) ? `${(sale.vehicles as any).brand} ${(sale.vehicles as any).model}` : '-'
     ]) || [];
 
     return {
-      title: 'Vendas por Período',
+      title: 'Relatório de Vendas (Somente Fechadas)',
       period: { start: startDate, end: endDate },
-      columns: ['#', 'Data', 'Cliente', 'Veículo', 'Status', 'Total'],
+      columns: ['Data Venda', 'Venda', 'Cliente', 'Descrição', 'Item/Produto', 'Subtotal', 'Desconto', 'Total', 'Veículo'],
       rows,
       summary: [
         { label: 'Total de Vendas', value: (data?.length || 0).toString() },
+        { label: 'Total Descontos', value: `R$ ${totalDesconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
         { label: 'Valor Total', value: `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
       ],
     };
@@ -616,6 +695,9 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
             return;
           }
           reportData = await generateExtratoContaReport();
+          break;
+        case 'saidas_financeiro':
+          reportData = await generateSaidasFinanceiroReport();
           break;
         default:
           toast.error("Relatório não implementado");
