@@ -34,6 +34,7 @@ export default function Subscription() {
   const { toast } = useToast();
 
   const [config, setConfig] = useState<SystemConfig | null>(null);
+  const [subscription, setSubscription] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -56,8 +57,10 @@ export default function Subscription() {
   };
 
   useEffect(() => {
-    fetchConfig();
-  }, []);
+    if (user) {
+      fetchConfig();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user?.subscriptionStatus === 'active') {
@@ -73,6 +76,7 @@ export default function Subscription() {
 
   const fetchConfig = async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('system_config')
         .select('*')
@@ -81,6 +85,18 @@ export default function Subscription() {
 
       if (error) throw error;
       setConfig(data as SystemConfig);
+
+      if (user?.id) {
+        const { data: subData, error: subError } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (!subError && subData) {
+          setSubscription(subData);
+        }
+      }
     } catch (error) {
       console.error('Error fetching config:', error);
       toast({
@@ -127,7 +143,8 @@ export default function Subscription() {
         return;
       }
 
-      const basePrice = config?.monthly_price || 297;
+      // Se final_price é nulo (usuário recém criado), ele puxa o valor global de config
+      const basePrice = subscription?.final_price ?? config?.monthly_price ?? 297;
       let discountAmount = 0;
       if (result.discount_type === 'percentage') {
         discountAmount = (basePrice * result.discount_value) / 100;
@@ -154,7 +171,8 @@ export default function Subscription() {
   };
 
   const getFinalPrice = () => {
-    const basePrice = config?.monthly_price || 297;
+    // Se final_price é nulo (usuário recém criado), ele puxa o valor global de config
+    const basePrice = subscription?.final_price ?? config?.monthly_price ?? 297;
     return Math.max(0, basePrice - discount);
   };
 
