@@ -43,10 +43,12 @@ interface CardMachine {
   id: number;
   name: string;
   account_id: number | null;
+  machine_type: string | null;
   max_installments: number | null;
   is_anticipated: boolean | null;
   anticipation_type: string | null;
   anticipation_value: number | null;
+  debit_rate: number | null;
   is_active: boolean | null;
   accounts?: {
     name: string;
@@ -194,6 +196,14 @@ export function CardMachinesList() {
                       ) : (
                         <Badge variant="outline" className="text-[9px] h-4 bg-red-500/10 text-red-600 border-red-500/20">Inativa</Badge>
                       )}
+                      <Badge variant="outline" className={cn(
+                        "text-[9px] h-4",
+                        machine.machine_type === "debit" 
+                          ? "bg-blue-500/10 text-blue-600 border-blue-500/20" 
+                          : "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                      )}>
+                        {machine.machine_type === "debit" ? "Débito" : "Crédito"}
+                      </Badge>
                     </div>
                   </div>
                 </div>
@@ -226,26 +236,33 @@ export function CardMachinesList() {
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
                       <Settings2 className="h-3 w-3" />
-                      <span>Parcelas máx:</span>
+                      <span>{machine.machine_type === "debit" ? "Taxa débito:" : "Parcelas máx:"}</span>
                     </div>
-                    <span className="font-medium text-foreground">{machine.max_installments}x</span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="h-3 w-3" />
-                      <span>Antecipação:</span>
-                    </div>
-                    <span className={cn(
-                      "font-medium",
-                      machine.is_anticipated ? "text-primary" : "text-foreground"
-                    )}>
-                      {machine.is_anticipated 
-                        ? `${machine.anticipation_value} ${machine.anticipation_type === 'hours' ? 'hora(s)' : 'dia(s)'}`
-                        : "Não"
+                    <span className="font-medium text-foreground">
+                      {machine.machine_type === "debit" 
+                        ? `${machine.debit_rate || 0}%` 
+                        : `${machine.max_installments}x`
                       }
                     </span>
                   </div>
+
+                  {machine.machine_type !== "debit" && (
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3" />
+                        <span>Antecipação:</span>
+                      </div>
+                      <span className={cn(
+                        "font-medium",
+                        machine.is_anticipated ? "text-primary" : "text-foreground"
+                      )}>
+                        {machine.is_anticipated 
+                          ? `${machine.anticipation_value} ${machine.anticipation_type === 'hours' ? 'hora(s)' : 'dia(s)'}`
+                          : "Não"
+                        }
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-border/50">

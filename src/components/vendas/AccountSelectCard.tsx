@@ -29,6 +29,7 @@ interface CardMachine {
   name: string;
   account_id: number | null;
   max_installments: number | null;
+  machine_type: string | null;
 }
 
 interface Rate {
@@ -127,9 +128,17 @@ export function AccountSelectCard({
   };
 
   const isCard = paymentMethod === "Crédito" || paymentMethod === "Débito";
+  const isDebit = paymentMethod === "Débito";
   const currentRate = rates.find(r => r.installments === installments)?.rate || 0;
   const discountAmount = (totalAmount * currentRate) / 100;
   const netAmount = totalAmount - discountAmount;
+
+  // Filter machines by type matching the payment method
+  const filteredMachines = machines.filter(m => {
+    if (isDebit) return m.machine_type === 'debit';
+    if (paymentMethod === "Crédito") return m.machine_type !== 'debit';
+    return true;
+  });
 
   if (loading) {
     return <Skeleton className="h-32 w-full rounded-xl" />;
@@ -185,7 +194,7 @@ export function AccountSelectCard({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sem maquininha</SelectItem>
-                  {machines.map(m => (
+                  {filteredMachines.map(m => (
                     <SelectItem key={m.id} value={m.id.toString()}>
                       <div className="flex items-center gap-2">
                         <CreditCard className="h-3 w-3" />
@@ -202,24 +211,30 @@ export function AccountSelectCard({
         {isCard && selectedMachineId && (
           <div className="pt-2 space-y-4 animate-in fade-in zoom-in-95">
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Número de Parcelas</Label>
-              <div className="flex flex-wrap gap-2">
-                {Array.from({ length: machines.find(m => m.id === selectedMachineId)?.max_installments || 1 }, (_, i) => i + 1).map(n => (
-                  <Button
-                    key={n}
-                    type="button"
-                    variant={installments === n ? "default" : "outline"}
-                    size="sm"
-                    className={cn(
-                      "h-8 w-10 text-xs p-0",
-                      installments === n && "bg-primary text-primary-foreground shadow-md"
-                    )}
-                    onClick={() => onInstallmentsChange(n)}
-                  >
-                    {n}x
-                  </Button>
-                ))}
-              </div>
+              <Label className="text-xs text-muted-foreground">
+                {isDebit ? "Venda no Débito (1x)" : "Número de Parcelas"}
+              </Label>
+              {isDebit ? (
+                <p className="text-sm text-muted-foreground">Toda venda no débito é processada em 1x.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: machines.find(m => m.id === selectedMachineId)?.max_installments || 1 }, (_, i) => i + 1).map(n => (
+                    <Button
+                      key={n}
+                      type="button"
+                      variant={installments === n ? "default" : "outline"}
+                      size="sm"
+                      className={cn(
+                        "h-8 w-10 text-xs p-0",
+                        installments === n && "bg-primary text-primary-foreground shadow-md"
+                      )}
+                      onClick={() => onInstallmentsChange(n)}
+                    >
+                      {n}x
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="bg-primary/5 rounded-lg p-3 border border-primary/10">

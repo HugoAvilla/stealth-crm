@@ -162,15 +162,24 @@ export function PaymentBlock({
   };
 
   const isCard = payment.payment_method === "Crédito" || payment.payment_method === "Débito";
+  const isDebit = payment.payment_method === "Débito";
   const isBoleto = payment.payment_method === "Boleto";
+
+  // Filter machines by type matching the payment method
+  const filteredMachines = machines.filter(m => {
+    if (isDebit) return (m as any).machine_type === 'debit';
+    if (payment.payment_method === "Crédito") return (m as any).machine_type !== 'debit';
+    return true;
+  });
 
   const handleMachineChange = (id: number | null) => {
     const machine = machines.find(m => m.id === id);
+    const isDebitMachine = (machine as any)?.machine_type === 'debit';
     onUpdate({ 
       ...payment, 
       machine_id: id, 
       account_id: machine?.account_id || payment.account_id,
-      installments: 1
+      installments: isDebitMachine ? 1 : 1
     });
   };
 
@@ -185,7 +194,7 @@ export function PaymentBlock({
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Forma</Label>
             <Select 
               value={payment.payment_method} 
-              onValueChange={(val) => onUpdate({ ...payment, payment_method: val, installments: 1 })}
+              onValueChange={(val) => onUpdate({ ...payment, payment_method: val, installments: 1, machine_id: null })}
             >
               <SelectTrigger className="h-10">
                 <SelectValue />
@@ -315,7 +324,7 @@ export function PaymentBlock({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Sem maquininha</SelectItem>
-                    {machines.map(m => (
+                    {filteredMachines.map(m => (
                       <SelectItem key={m.id} value={m.id.toString()}>
                         {m.name}
                       </SelectItem>
@@ -324,7 +333,7 @@ export function PaymentBlock({
                 </Select>
               </div>
 
-              {payment.machine_id && (
+              {payment.machine_id && !isDebit && (
                 <div className="space-y-2">
                   <Label className="text-xs font-medium text-muted-foreground">Parcelas</Label>
                   <Select 

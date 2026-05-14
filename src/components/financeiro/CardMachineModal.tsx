@@ -39,10 +39,12 @@ interface CardMachineModalProps {
 interface MachineFormData {
   name: string;
   account_id: string;
+  machine_type: "credit" | "debit";
   max_installments: number;
   is_anticipated: boolean;
   anticipation_type: "hours" | "days";
   anticipation_value: number;
+  debit_rate: number;
   is_active: boolean;
 }
 
@@ -57,10 +59,12 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
     defaultValues: {
       name: "",
       account_id: "none",
+      machine_type: "credit",
       max_installments: 12,
       is_anticipated: false,
       anticipation_type: "days",
       anticipation_value: 1,
+      debit_rate: 0,
       is_active: true
     }
   });
@@ -68,6 +72,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
   const isAnticipated = watch("is_anticipated");
   const anticipationType = watch("anticipation_type");
   const maxInstallments = watch("max_installments");
+  const machineType = watch("machine_type");
 
   useEffect(() => {
     if (open) {
@@ -78,10 +83,12 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
         reset({
           name: "",
           account_id: "none",
+          machine_type: "credit",
           max_installments: 12,
           is_anticipated: false,
           anticipation_type: "days",
           anticipation_value: 1,
+          debit_rate: 0,
           is_active: true
         });
         // Initialize default rates (0%)
@@ -144,10 +151,12 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
       reset({
         name: machine.name,
         account_id: machine.account_id?.toString() || "none",
+        machine_type: machine.machine_type || "credit",
         max_installments: machine.max_installments || 12,
         is_anticipated: machine.is_anticipated || false,
         anticipation_type: (machine.anticipation_type as any) || "days",
         anticipation_value: machine.anticipation_value || 1,
+        debit_rate: machine.debit_rate || 0,
         is_active: machine.is_active ?? true
       });
 
@@ -192,14 +201,17 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
 
       if (!profile?.company_id) throw new Error("Empresa não encontrada");
 
+      const isDebit = data.machine_type === "debit";
       const machinePayload = {
         company_id: profile.company_id,
         name: data.name,
         account_id: (data.account_id && data.account_id !== "none") ? parseInt(data.account_id) : null,
-        max_installments: data.max_installments,
-        is_anticipated: data.is_anticipated,
-        anticipation_type: data.is_anticipated ? data.anticipation_type : null,
-        anticipation_value: data.is_anticipated ? data.anticipation_value : null,
+        machine_type: data.machine_type,
+        max_installments: isDebit ? 1 : data.max_installments,
+        is_anticipated: isDebit ? false : data.is_anticipated,
+        anticipation_type: isDebit ? null : (data.is_anticipated ? data.anticipation_type : null),
+        anticipation_value: isDebit ? null : (data.is_anticipated ? data.anticipation_value : null),
+        debit_rate: isDebit ? data.debit_rate : 0,
         is_active: data.is_active
       };
 
@@ -230,18 +242,32 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
       
       if (delError) throw delError;
 
-      const ratesPayload = rates.map(r => ({
-        company_id: profile.company_id,
-        machine_id: currentMachineId,
-        installments: r.installments,
-        rate: r.rate
-      }));
+      // For debit machines, insert a single rate (1x) with the debit_rate
+      // For credit machines, insert all per-installment rates
+      if (isDebit) {
+        const { error: ratesError } = await supabase
+          .from("card_machine_rates")
+          .insert({
+            company_id: profile.company_id,
+            machine_id: currentMachineId,
+            installments: 1,
+            rate: data.debit_rate
+          });
+        if (ratesError) throw ratesError;
+      } else {
+        const ratesPayload = rates.map(r => ({
+          company_id: profile.company_id,
+          machine_id: currentMachineId,
+          installments: r.installments,
+          rate: r.rate
+        }));
 
-      const { error: ratesError } = await supabase
-        .from("card_machine_rates")
-        .insert(ratesPayload);
+        const { error: ratesError } = await supabase
+          .from("card_machine_rates")
+          .insert(ratesPayload);
 
-      if (ratesError) throw ratesError;
+        if (ratesError) throw ratesError;
+      }
 
       toast.success(machineId ? "Maquininha atualizada!" : "Maquininha cadastrada!");
       onSuccess();
@@ -302,19 +328,55 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="max_installments">Máximo de Parcelas</Label>
-                <Input 
-                  id="max_installments" 
-                  type="number" 
-                  min={1} 
-                  max={24}
-                  {...register("max_installments", { valueAsNumber: true })}
-                />
+            {/* Tipo de Maquininha: Crédito ou Débito */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Tipo de Maquininha</Label>
+              <div className="flex p-1 bg-muted rounded-lg">
+                <Button
+                  type="button"
+                  variant={machineType === "credit" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex-1 h-9 text-sm gap-2"
+                  onClick={() => setValue("machine_type", "credit")}
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Crédito
+                </Button>
+                <Button
+                  type="button"
+                  variant={machineType === "debit" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex-1 h-9 text-sm gap-2"
+                  onClick={() => {
+                    setValue("machine_type", "debit");
+                    setValue("max_installments", 1);
+                    setValue("is_anticipated", false);
+                  }}
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Débito
+                </Button>
               </div>
+            </div>
 
-              <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {machineType === "credit" && (
+                <div className="space-y-2">
+                  <Label htmlFor="max_installments">Máximo de Parcelas</Label>
+                  <Input 
+                    id="max_installments" 
+                    type="number" 
+                    min={1} 
+                    max={24}
+                    {...register("max_installments", { valueAsNumber: true })}
+                  />
+                </div>
+              )}
+
+              <div className={cn(
+                "flex items-center justify-between p-3 border rounded-lg bg-muted/30",
+                machineType === "debit" && "col-span-full"
+              )}>
                 <div className="space-y-0.5">
                   <Label>Maquininha Ativa</Label>
                   <p className="text-[10px] text-muted-foreground">Disponível para novos pagamentos</p>
@@ -326,117 +388,149 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
               </div>
             </div>
 
-            <div className="space-y-4 p-4 border rounded-xl bg-primary/5">
-              <div className="flex items-center justify-between">
+            {/* --- DÉBITO: apenas taxa única --- */}
+            {machineType === "debit" && (
+              <div className="space-y-4 p-4 border rounded-xl bg-primary/5 animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-primary" />
-                  <Label className="text-base font-semibold">Antecipação Automática</Label>
+                  <Percent className="h-4 w-4 text-primary" />
+                  <Label className="text-base font-semibold">Taxa no Débito</Label>
                 </div>
-                <Switch 
-                  checked={isAnticipated} 
-                  onCheckedChange={(val) => setValue("is_anticipated", val)} 
-                />
+                <p className="text-[10px] text-muted-foreground -mt-2">
+                  Toda venda no débito será em 1x com essa taxa aplicada.
+                </p>
+                <div className="max-w-[200px]">
+                  <div className="relative">
+                    <Input 
+                      className="pr-6 text-sm"
+                      value={(watch("debit_rate") ?? 0).toString().replace(".", ",")}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value.replace(",", ".")) || 0;
+                        setValue("debit_rate", val);
+                      }}
+                      placeholder="0,00"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">%</span>
+                  </div>
+                </div>
               </div>
+            )}
 
-              {isAnticipated ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 animate-in fade-in slide-in-from-top-2">
-                  <div className="space-y-2">
-                    <Label>Tipo de Prazo</Label>
-                    <div className="flex p-1 bg-muted rounded-lg">
-                      <Button
-                        type="button"
-                        variant={anticipationType === "hours" ? "default" : "ghost"}
-                        size="sm"
-                        className="flex-1 h-8 text-xs"
-                        onClick={() => setValue("anticipation_type", "hours")}
-                      >
-                        <Clock className="h-3 w-3 mr-1" /> Horas
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={anticipationType === "days" ? "default" : "ghost"}
-                        size="sm"
-                        className="flex-1 h-8 text-xs"
-                        onClick={() => setValue("anticipation_type", "days")}
-                      >
-                        <CalendarIcon className="h-3 w-3 mr-1" /> Dias
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Valor do Prazo</Label>
-                    {anticipationType === "hours" ? (
-                      <Select 
-                        value={watch("anticipation_value").toString()} 
-                        onValueChange={(val) => setValue("anticipation_value", parseInt(val))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 hora</SelectItem>
-                          <SelectItem value="2">2 horas</SelectItem>
-                          <SelectItem value="24">24 horas</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input 
-                        type="number" 
-                        min={1} 
-                        max={31}
-                        {...register("anticipation_value", { valueAsNumber: true })}
-                        placeholder="Ex: 1 dia"
-                      />
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                  <div className="space-y-2">
-                    <Label>Prazo de Recebimento Padrão (Dias úteis)</Label>
+            {/* --- CRÉDITO: antecipação + taxas por parcela --- */}
+            {machineType === "credit" && (
+              <>
+                <div className="space-y-4 p-4 border rounded-xl bg-primary/5">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Input 
-                        type="number" 
-                        min={0} 
-                        max={60}
-                        {...register("anticipation_value", { valueAsNumber: true })}
-                        placeholder="Ex: 30"
-                        className="max-w-[120px]"
-                      />
-                      <span className="text-sm text-muted-foreground">dias (D+X)</span>
+                      <Clock className="h-4 w-4 text-primary" />
+                      <Label className="text-base font-semibold">Antecipação Automática</Label>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Prazo padrão para recebimento de vendas no débito/crédito sem antecipação.
-                    </p>
+                    <Switch 
+                      checked={isAnticipated} 
+                      onCheckedChange={(val) => setValue("is_anticipated", val)} 
+                    />
+                  </div>
+
+                  {isAnticipated ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 animate-in fade-in slide-in-from-top-2">
+                      <div className="space-y-2">
+                        <Label>Tipo de Prazo</Label>
+                        <div className="flex p-1 bg-muted rounded-lg">
+                          <Button
+                            type="button"
+                            variant={anticipationType === "hours" ? "default" : "ghost"}
+                            size="sm"
+                            className="flex-1 h-8 text-xs"
+                            onClick={() => setValue("anticipation_type", "hours")}
+                          >
+                            <Clock className="h-3 w-3 mr-1" /> Horas
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={anticipationType === "days" ? "default" : "ghost"}
+                            size="sm"
+                            className="flex-1 h-8 text-xs"
+                            onClick={() => setValue("anticipation_type", "days")}
+                          >
+                            <CalendarIcon className="h-3 w-3 mr-1" /> Dias
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Valor do Prazo</Label>
+                        {anticipationType === "hours" ? (
+                          <Select 
+                            value={watch("anticipation_value").toString()} 
+                            onValueChange={(val) => setValue("anticipation_value", parseInt(val))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">1 hora</SelectItem>
+                              <SelectItem value="2">2 horas</SelectItem>
+                              <SelectItem value="24">24 horas</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input 
+                            type="number" 
+                            min={1} 
+                            max={31}
+                            {...register("anticipation_value", { valueAsNumber: true })}
+                            placeholder="Ex: 1 dia"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-2 animate-in fade-in slide-in-from-top-2">
+                      <div className="space-y-2">
+                        <Label>Prazo de Recebimento Padrão (Dias úteis)</Label>
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            type="number" 
+                            min={0} 
+                            max={60}
+                            {...register("anticipation_value", { valueAsNumber: true })}
+                            placeholder="Ex: 30"
+                            className="max-w-[120px]"
+                          />
+                          <span className="text-sm text-muted-foreground">dias (D+X)</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          Prazo padrão para recebimento de vendas no crédito sem antecipação.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <Percent className="h-4 w-4 text-primary" />
+                    <Label className="text-base font-semibold">Taxas por Parcela</Label>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {rates.map((rate) => (
+                      <div key={rate.installments} className="space-y-1.5">
+                        <Label className="text-[10px] text-muted-foreground uppercase">{rate.installments}x</Label>
+                        <div className="relative">
+                          <Input 
+                            className="pr-6 text-sm"
+                            value={(rate.rate ?? 0).toString().replace(".", ",")}
+                            onChange={(e) => handleRateChange(rate.installments, e.target.value)}
+                            placeholder="0,00"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">%</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 border-b pb-2">
-                <Percent className="h-4 w-4 text-primary" />
-                <Label className="text-base font-semibold">Taxas por Parcela</Label>
-              </div>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {rates.map((rate) => (
-                  <div key={rate.installments} className="space-y-1.5">
-                    <Label className="text-[10px] text-muted-foreground uppercase">{rate.installments}x</Label>
-                    <div className="relative">
-                      <Input 
-                        className="pr-6 text-sm"
-                        value={(rate.rate ?? 0).toString().replace(".", ",")}
-                        onChange={(e) => handleRateChange(rate.installments, e.target.value)}
-                        placeholder="0,00"
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+              </>
+            )}
           </form>
         )}
 

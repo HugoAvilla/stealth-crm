@@ -243,9 +243,11 @@ export type Database = {
           anticipation_value: number | null
           company_id: number
           created_at: string
+          debit_rate: number | null
           id: number
           is_active: boolean
           is_anticipated: boolean
+          machine_type: string
           max_installments: number
           name: string
           status: string
@@ -257,9 +259,11 @@ export type Database = {
           anticipation_value?: number | null
           company_id: number
           created_at?: string
+          debit_rate?: number | null
           id?: number
           is_active?: boolean
           is_anticipated?: boolean
+          machine_type?: string
           max_installments?: number
           name: string
           status?: string
@@ -271,9 +275,11 @@ export type Database = {
           anticipation_value?: number | null
           company_id?: number
           created_at?: string
+          debit_rate?: number | null
           id?: number
           is_active?: boolean
           is_anticipated?: boolean
+          machine_type?: string
           max_installments?: number
           name?: string
           status?: string
