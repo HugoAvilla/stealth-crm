@@ -20,7 +20,7 @@ export default function Servicos() {
           {
             title: "Vídeo Aula — Serviços",
             description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de serviços.",
-            videoUrl: "/help/video-aula-servico.mov"
+            videoUrl: "/help/video-aula-servico.mp4"
           },
           {
             title: "Cadastrar Regiões/Serviços",

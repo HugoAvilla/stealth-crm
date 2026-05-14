@@ -269,7 +269,7 @@ export default function TeamRequests() {
           {
             title: "Vídeo Aula — Solicitações",
             description: "Assista ao vídeo tutorial completo para aprender a gerenciar as solicitações de acesso da sua equipe.",
-            videoUrl: "/help/video-aula-solicitacoes.mov"
+            videoUrl: "/help/video-aula-solicitacoes.mp4"
           },
           {
             title: "Aprovar Solicitações",

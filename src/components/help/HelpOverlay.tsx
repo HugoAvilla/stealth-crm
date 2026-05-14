@@ -138,12 +138,13 @@ export function HelpOverlay({ tabId, title, description, imageUrl, steps, sectio
                         {section.videoUrl && (
                           <div className="rounded-lg border border-border overflow-hidden bg-muted/30">
                             <video
-                              src={section.videoUrl}
                               controls
                               preload="metadata"
+                              playsInline
                               className="w-full h-auto"
                               style={{ maxHeight: '360px' }}
                             >
+                              <source src={section.videoUrl} type="video/mp4" />
                               Seu navegador não suporta o elemento de vídeo.
                             </video>
                           </div>

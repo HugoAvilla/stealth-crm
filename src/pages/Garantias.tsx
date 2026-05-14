@@ -228,7 +228,7 @@ export default function Garantias() {
           {
             title: "Vídeo Aula — Garantias",
             description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de garantias.",
-            videoUrl: "/help/video-aula-garantia.mov"
+            videoUrl: "/help/video-aula-garantia.mp4"
           },
           {
             title: "Emitir Garantia",

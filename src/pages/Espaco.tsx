@@ -198,7 +198,7 @@ export default function Espaco() {
           {
             title: "Vídeo Aula — Espaço",
             description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de vagas.",
-            videoUrl: "/help/video-aula-espaco.mov"
+            videoUrl: "/help/video-aula-espaco.mp4"
           },
           {
             title: "Preencher Vaga",

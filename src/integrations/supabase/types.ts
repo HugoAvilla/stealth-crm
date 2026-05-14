@@ -2139,11 +2139,14 @@ export type Database = {
         Row: {
           account_id: number | null
           amount: number
+          cac_bucket: string | null
+          cac_origin: string | null
           category_id: number | null
           company_id: number | null
           created_at: string | null
           description: string | null
           id: number
+          include_in_cac: boolean | null
           is_paid: boolean | null
           name: string
           origin_id: number | null
@@ -2159,11 +2162,14 @@ export type Database = {
         Insert: {
           account_id?: number | null
           amount: number
+          cac_bucket?: string | null
+          cac_origin?: string | null
           category_id?: number | null
           company_id?: number | null
           created_at?: string | null
           description?: string | null
           id?: never
+          include_in_cac?: boolean | null
           is_paid?: boolean | null
           name: string
           origin_id?: number | null
@@ -2179,11 +2185,14 @@ export type Database = {
         Update: {
           account_id?: number | null
           amount?: number
+          cac_bucket?: string | null
+          cac_origin?: string | null
           category_id?: number | null
           company_id?: number | null
           created_at?: string | null
           description?: string | null
           id?: never
+          include_in_cac?: boolean | null
           is_paid?: boolean | null
           name?: string
           origin_id?: number | null

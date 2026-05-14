@@ -195,7 +195,7 @@ const Dashboard = () => {
           {
             title: "Vídeo Aula — Painel",
             description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades do painel de controle.",
-            videoUrl: "/help/video-aula-painel.mov"
+            videoUrl: "/help/video-aula-painel.mp4"
           },
           {
             title: "Indicadores Principais",

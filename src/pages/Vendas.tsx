@@ -159,7 +159,7 @@ const Vendas = () => {
           {
             title: "Vídeo Aula — Vendas",
             description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de vendas.",
-            videoUrl: "/help/video-aula-vendas.mov"
+            videoUrl: "/help/video-aula-vendas.mp4"
           },
           {
             title: "Registrar Nova Venda",

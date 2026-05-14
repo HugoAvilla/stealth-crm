@@ -314,7 +314,7 @@ export default function Contas() {
           {
             title: "Vídeo Aula — Contas",
             description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da guia de contas.",
-            videoUrl: "/help/video-aula-conta.mov"
+            videoUrl: "/help/video-aula-conta.mp4"
           },
           {
             title: "Selecionar Conta",

@@ -86,9 +86,9 @@ export function CacTab() {
         .from('transactions')
         .select('*')
         .eq('company_id', companyId)
-        .eq('include_in_cac' as any, true)
+        .eq('include_in_cac', true)
         .gte('transaction_date', startDate)
-        .lte('transaction_date', endDate) as { data: any[] | null; error: any };
+        .lte('transaction_date', endDate);
 
       if (cacError) throw cacError;
 

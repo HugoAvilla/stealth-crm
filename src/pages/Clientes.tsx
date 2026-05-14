@@ -326,7 +326,7 @@ export default function Clientes() {
           {
             title: "Vídeo Aula — Clientes",
             description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades da gestão de clientes.",
-            videoUrl: "/help/video-aula-clientes.mov"
+            videoUrl: "/help/video-aula-clientes.mp4"
           },
           {
             title: "Cadastrar Novo Cliente",

@@ -83,7 +83,7 @@ export default function Perfil() {
           {
             title: "Vídeo Aula — Perfil",
             description: "Assista ao vídeo tutorial completo para aprender a usar todas as funcionalidades do seu perfil.",
-            videoUrl: "/help/video-aula-perfil.mov"
+            videoUrl: "/help/video-aula-perfil.mp4"
           },
           {
             title: "Editar Informações",
