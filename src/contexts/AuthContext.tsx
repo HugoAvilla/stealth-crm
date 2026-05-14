@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fetch subscription (check owner's subscription if user is in a company)
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('subscriptions')
-        .select('status, company_id')
+        .select('status, company_id, expires_at')
         .eq('user_id', companyOwnerId)
         .maybeSingle();
 
@@ -106,12 +106,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: isMasterResult } = await supabase.rpc('check_is_master');
       const isMaster = isMasterResult === true;
 
+      // Determine subscription status
+      let calculatedStatus: SubscriptionStatus = 'pending_payment';
+      if (subscriptionData) {
+        calculatedStatus = (subscriptionData.status as SubscriptionStatus) || 'pending_payment';
+        
+        // If the plan has a valid future expiration date, it remains active regardless of status
+        if (subscriptionData.expires_at) {
+          const expiresAtDate = new Date(subscriptionData.expires_at);
+          const now = new Date();
+          
+          if (expiresAtDate > now) {
+            calculatedStatus = 'active';
+          }
+        }
+      }
+
       return {
         id: userId,
         email: profile?.email || '',
         profile: profile as Profile | null,
         role: (roleData?.role as AppRole) || 'NENHUM',
-        subscriptionStatus: isMaster ? 'active' : ((subscriptionData?.status as SubscriptionStatus) || 'pending_payment'),
+        subscriptionStatus: isMaster ? 'active' : calculatedStatus,
         companyId: profile?.company_id || subscriptionData?.company_id || null,
         isMaster,
         hasPendingJoinRequest,
