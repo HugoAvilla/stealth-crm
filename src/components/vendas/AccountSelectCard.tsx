@@ -30,6 +30,7 @@ interface CardMachine {
   account_id: number | null;
   max_installments: number | null;
   machine_type: string | null;
+  debit_rate?: number;
 }
 
 interface Rate {
@@ -129,14 +130,16 @@ export function AccountSelectCard({
 
   const isCard = paymentMethod === "Crédito" || paymentMethod === "Débito";
   const isDebit = paymentMethod === "Débito";
-  const currentRate = rates.find(r => r.installments === installments)?.rate || 0;
+  const currentRate = isDebit
+    ? machines.find(m => m.id === selectedMachineId)?.debit_rate || 0
+    : rates.find(r => r.installments === installments)?.rate || 0;
   const discountAmount = (totalAmount * currentRate) / 100;
   const netAmount = totalAmount - discountAmount;
 
   // Filter machines by type matching the payment method
   const filteredMachines = machines.filter(m => {
-    if (isDebit) return m.machine_type === 'debit';
-    if (paymentMethod === "Crédito") return m.machine_type !== 'debit';
+    if (isDebit) return m.machine_type === 'debit' || m.machine_type === 'both';
+    if (paymentMethod === "Crédito") return m.machine_type === 'credit' || m.machine_type === 'both';
     return true;
   });
 

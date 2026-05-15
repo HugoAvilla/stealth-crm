@@ -39,7 +39,7 @@ interface CardMachineModalProps {
 interface MachineFormData {
   name: string;
   account_id: string;
-  machine_type: "credit" | "debit";
+  machine_type: "credit" | "debit" | "both";
   max_installments: number;
   is_anticipated: boolean;
   anticipation_type: "hours" | "days";
@@ -201,16 +201,19 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
 
       if (!profile?.company_id) throw new Error("Empresa não encontrada");
 
-      const isDebit = data.machine_type === "debit";
+      const isDebitOnly = data.machine_type === "debit";
+      const isCredit = data.machine_type === "credit" || data.machine_type === "both";
+      const isDebit = data.machine_type === "debit" || data.machine_type === "both";
+
       const machinePayload = {
         company_id: profile.company_id,
         name: data.name,
         account_id: (data.account_id && data.account_id !== "none") ? parseInt(data.account_id) : null,
         machine_type: data.machine_type,
-        max_installments: isDebit ? 1 : data.max_installments,
-        is_anticipated: isDebit ? false : data.is_anticipated,
-        anticipation_type: isDebit ? null : (data.is_anticipated ? data.anticipation_type : null),
-        anticipation_value: isDebit ? null : (data.is_anticipated ? data.anticipation_value : null),
+        max_installments: isCredit ? data.max_installments : 1,
+        is_anticipated: isCredit ? data.is_anticipated : false,
+        anticipation_type: isCredit && data.is_anticipated ? data.anticipation_type : null,
+        anticipation_value: isCredit && data.is_anticipated ? data.anticipation_value : null,
         debit_rate: isDebit ? data.debit_rate : 0,
         is_active: data.is_active
       };
@@ -242,19 +245,11 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
       
       if (delError) throw delError;
 
-      // For debit machines, insert a single rate (1x) with the debit_rate
-      // For credit machines, insert all per-installment rates
-      if (isDebit) {
-        const { error: ratesError } = await supabase
-          .from("card_machine_rates")
-          .insert({
-            company_id: profile.company_id,
-            machine_id: currentMachineId,
-            installments: 1,
-            rate: data.debit_rate
-          });
-        if (ratesError) throw ratesError;
-      } else {
+      // For debit ONLY machines, we don't need to insert card_machine_rates anymore
+      // We rely on debit_rate column in card_machines.
+      // But for backward compatibility or ease, let's just use the debit_rate column directly
+      // and only insert credit rates into card_machine_rates if it's credit or both.
+      if (isCredit) {
         const ratesPayload = rates.map(r => ({
           company_id: profile.company_id,
           machine_id: currentMachineId,
@@ -356,11 +351,21 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
                   <CreditCard className="h-4 w-4" />
                   Débito
                 </Button>
+                <Button
+                  type="button"
+                  variant={machineType === "both" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex-1 h-9 text-sm gap-2"
+                  onClick={() => setValue("machine_type", "both")}
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Ambos
+                </Button>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {machineType === "credit" && (
+              {(machineType === "credit" || machineType === "both") && (
                 <div className="space-y-2">
                   <Label htmlFor="max_installments">Máximo de Parcelas</Label>
                   <Input 
@@ -389,7 +394,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
             </div>
 
             {/* --- DÉBITO: apenas taxa única --- */}
-            {machineType === "debit" && (
+            {(machineType === "debit" || machineType === "both") && (
               <div className="space-y-4 p-4 border rounded-xl bg-primary/5 animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center gap-2">
                   <Percent className="h-4 w-4 text-primary" />
@@ -416,7 +421,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
             )}
 
             {/* --- CRÉDITO: antecipação + taxas por parcela --- */}
-            {machineType === "credit" && (
+            {(machineType === "credit" || machineType === "both") && (
               <>
                 <div className="space-y-4 p-4 border rounded-xl bg-primary/5">
                   <div className="flex items-center justify-between">

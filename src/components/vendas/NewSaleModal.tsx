@@ -1324,8 +1324,15 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
           )}
 
           {/* Footer */}
-          <Button onClick={handleSubmit} className="w-full" disabled={saving || loading}>
-            {saving ? 'Salvando...' : 'Adicionar'}
+          <Button 
+            onClick={handleSubmit} 
+            className={cn(
+              "w-full",
+              prefillData?.spaceId ? "bg-warning text-warning-foreground hover:bg-warning/90" : ""
+            )} 
+            disabled={saving || loading}
+          >
+            {saving ? 'Salvando...' : prefillData?.spaceId ? 'Confirmar Exportação' : 'Adicionar'}
           </Button>
         </DialogContent>
       </Dialog>

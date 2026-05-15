@@ -167,8 +167,8 @@ export function PaymentBlock({
 
   // Filter machines by type matching the payment method
   const filteredMachines = machines.filter(m => {
-    if (isDebit) return (m as any).machine_type === 'debit';
-    if (payment.payment_method === "Crédito") return (m as any).machine_type !== 'debit';
+    if (isDebit) return (m as any).machine_type === 'debit' || (m as any).machine_type === 'both';
+    if (payment.payment_method === "Crédito") return (m as any).machine_type === 'credit' || (m as any).machine_type === 'both';
     return true;
   });
 
@@ -183,7 +183,9 @@ export function PaymentBlock({
     });
   };
 
-  const currentRate = rates.find(r => r.installments === payment.installments)?.rate || 0;
+  const currentRate = isDebit
+    ? machines.find(m => m.id === payment.machine_id)?.debit_rate || 0
+    : rates.find(r => r.installments === payment.installments)?.rate || 0;
   const netAmount = payment.amount * (1 - currentRate / 100);
 
   return (

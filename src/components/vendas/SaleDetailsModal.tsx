@@ -7,6 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -38,7 +48,7 @@ import {
 } from "lucide-react";
 import { SaleWithDetails, DetailedServiceItemDB } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import PdfA4Modal from "@/components/vendas/PdfA4Modal";
 import PdfNotinhaModal from "@/components/vendas/PdfNotinhaModal";
@@ -55,12 +65,15 @@ interface SaleDetailsModalProps {
 }
 
 const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) => {
+  const queryClient = useQueryClient();
   const [isPdfA4Open, setIsPdfA4Open] = useState(false);
   const [isPdfNotinhaOpen, setIsPdfNotinhaOpen] = useState(false);
   const [pdfNotinhaSize, setPdfNotinhaSize] = useState<"80mm" | "58mm">("80mm");
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isEditSaleOpen, setIsEditSaleOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Client Profile state
   const [profileLoading, setProfileLoading] = useState(false);
@@ -169,6 +182,41 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
        toast({ title: "Erro", description: "Falha ao carregar perfil do cliente", variant: "destructive" });
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const handleDeleteSale = async () => {
+    if (!sale) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('sales')
+        .delete()
+        .eq('id', sale.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Venda excluída",
+        description: "A venda foi excluída com sucesso.",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['sale-detailed-items'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      
+      setIsDeleteDialogOpen(false);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Erro ao excluir venda:", error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Ocorreu um erro ao excluir a venda.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -468,13 +516,40 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
               <Edit className="h-4 w-4" />
               Editar
             </Button>
-            <Button variant="destructive" className="flex-1 gap-2">
+            <Button variant="destructive" className="flex-1 gap-2" onClick={() => setIsDeleteDialogOpen(true)}>
               <Trash2 className="h-4 w-4" />
               Excluir
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta venda? Esta ação não poderá ser desfeita e removerá os dados relacionados a ela.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteSale();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <PdfA4Modal
         open={isPdfA4Open}

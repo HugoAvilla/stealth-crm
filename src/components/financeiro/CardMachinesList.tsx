@@ -198,11 +198,13 @@ export function CardMachinesList() {
                       )}
                       <Badge variant="outline" className={cn(
                         "text-[9px] h-4",
-                        machine.machine_type === "debit" 
-                          ? "bg-blue-500/10 text-blue-600 border-blue-500/20" 
-                          : "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                        machine.machine_type === "both"
+                          ? "bg-indigo-500/10 text-indigo-600 border-indigo-500/20"
+                          : machine.machine_type === "debit" 
+                            ? "bg-blue-500/10 text-blue-600 border-blue-500/20" 
+                            : "bg-purple-500/10 text-purple-600 border-purple-500/20"
                       )}>
-                        {machine.machine_type === "debit" ? "Débito" : "Crédito"}
+                        {machine.machine_type === "both" ? "Crédito e Débito" : machine.machine_type === "debit" ? "Débito" : "Crédito"}
                       </Badge>
                     </div>
                   </div>
