@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Trash2, StopCircle, History } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Trash2, StopCircle, History, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePlanGate } from "@/hooks/usePlanGate";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { NewMaterialModal } from "@/components/estoque/NewMaterialModal";
 import { StockEntryModal } from "@/components/estoque/StockEntryModal";
@@ -46,7 +48,9 @@ interface Material {
 }
 
 export default function Estoque() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const gate = usePlanGate('estoque');
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("materials");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("todos");
@@ -63,7 +67,7 @@ export default function Estoque() {
   const [companyId, setCompanyId] = useState<number | null>(null);
 
   const fetchMaterials = async () => {
-    if (!user?.id) return;
+    if (!user?.id || !gate.hasAccess) return;
 
     try {
       const { data: profile } = await supabase
@@ -98,8 +102,21 @@ export default function Estoque() {
   };
 
   useEffect(() => {
-    fetchMaterials();
-  }, [user?.id]);
+    if (user?.id && gate.hasAccess) {
+      fetchMaterials();
+    }
+  }, [user?.id, gate.hasAccess]);
+
+  useEffect(() => {
+    if (!authLoading && !gate.hasAccess) {
+      if (gate.message) {
+        toast.error(gate.message);
+      }
+      if (gate.redirectTo) {
+        navigate(gate.redirectTo, { replace: true });
+      }
+    }
+  }, [authLoading, gate.hasAccess, gate.redirectTo, gate.message, navigate]);
 
   const getStockStatus = (material: Material) => {
     const currentStock = material.current_stock || 0;
@@ -334,7 +351,7 @@ export default function Estoque() {
     </Card>
   );
 
-  if (loading) {
+  if (loading || authLoading || !gate.hasAccess) {
     return (
       <div className="space-y-6 p-6">
         <Skeleton className="h-10 w-48" />
