@@ -58,8 +58,7 @@ import {
   Power,
   Users,
   Trash2,
-  Tag,
-  Globe,
+  ArrowLeftRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import UpgradesTab from "./UpgradesTab";
@@ -103,8 +102,8 @@ const SubscriptionsManager = () => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showMemberLimitModal, setShowMemberLimitModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showChangePlanModal, setShowChangePlanModal] = useState(false);
 
-  const [showGlobalPriceModal, setShowGlobalPriceModal] = useState(false);
   const [showGlobalExpirationModal, setShowGlobalExpirationModal] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithRelations | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,8 +120,11 @@ const SubscriptionsManager = () => {
   const [memberLimitReason, setMemberLimitReason] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
 
-  const [globalPrice, setGlobalPrice] = useState("");
-  const [globalPriceReason, setGlobalPriceReason] = useState("");
+  // Trocar plano
+  const [newPlanCode, setNewPlanCode] = useState("basic");
+  const [newBillingPeriod, setNewBillingPeriod] = useState("monthly");
+  const [changePlanReason, setChangePlanReason] = useState("");
+
   const [globalExpirationPeriod, setGlobalExpirationPeriod] = useState("1");
   const [globalExpirationReason, setGlobalExpirationReason] = useState("");
 
@@ -333,6 +335,37 @@ const SubscriptionsManager = () => {
     }
   };
 
+  // Limites padrão por plano (dono + adicionais)
+  const getPlanDefaultLimit = (planCode: string | null) => {
+    if (planCode === 'ultra') return 4; // dono + 3
+    return 2; // basic: dono + 1
+  };
+
+  const handleChangePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSub || !changePlanReason) return;
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.rpc("master_change_plan", {
+        p_subscription_id: selectedSub.id,
+        p_new_plan_code: newPlanCode,
+        p_new_billing_period: newBillingPeriod,
+        p_reason: changePlanReason,
+      });
+      if (error) throw error;
+      toast({ title: "Plano alterado com sucesso!", description: `Plano atualizado para ${newPlanCode} (${newBillingPeriod === 'annual' ? 'Anual' : 'Mensal'}).` });
+      setShowChangePlanModal(false);
+      resetForms();
+      fetchSubscriptions();
+    } catch (error: any) {
+      console.error("Error changing plan:", error);
+      toast({ title: "Erro ao alterar plano", description: error?.message || JSON.stringify(error), variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!selectedSub || !deleteReason) return;
 
@@ -369,7 +402,9 @@ const SubscriptionsManager = () => {
     setNewMemberLimit("");
     setMemberLimitReason("");
     setDeleteReason("");
-
+    setNewPlanCode("basic");
+    setNewBillingPeriod("monthly");
+    setChangePlanReason("");
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -451,15 +486,6 @@ const SubscriptionsManager = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowGlobalPriceModal(true)}
-                className="flex items-center gap-2"
-              >
-                <Globe className="h-4 w-4" />
-                Preço Global
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 onClick={() => setShowGlobalExpirationModal(true)}
                 className="flex items-center gap-2"
               >
@@ -524,6 +550,9 @@ const SubscriptionsManager = () => {
                   <TableCell>{getStatusBadge(sub.status)}</TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setNewPlanCode(sub.plan_code || 'basic'); setNewBillingPeriod(sub.billing_period || 'monthly'); setShowChangePlanModal(true); }} title="Trocar plano">
+                        <ArrowLeftRight className="h-4 w-4 text-indigo-500" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setNewPrice((sub.plan_price || 0).toString()); setShowPriceModal(true); }} title="Alterar preço">
                         <DollarSign className="h-4 w-4 text-blue-500" />
                       </Button>
@@ -531,14 +560,13 @@ const SubscriptionsManager = () => {
                         <Calendar className="h-4 w-4 text-purple-500" />
                       </Button>
                       {sub.company && (
-                        <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setNewMemberLimit((sub.company?.max_members || 5).toString()); setShowMemberLimitModal(true); }} title="Limite de membros">
+                        <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setNewMemberLimit((sub.company?.max_members || getPlanDefaultLimit(sub.plan_code)).toString()); setShowMemberLimitModal(true); }} title="Ajustar limite de membros">
                           <Users className="h-4 w-4 text-green-500" />
                         </Button>
                       )}
                       <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setNewStatus(sub.status); setShowStatusModal(true); }} title="Alterar status">
                         <Power className="h-4 w-4 text-orange-500" />
                       </Button>
-
                       <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setShowDeleteModal(true); }} title="Excluir usuário">
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -551,32 +579,58 @@ const SubscriptionsManager = () => {
         </CardContent>
       </Card>
 
-      {/* Modal Preço Global */}
-      <Dialog open={showGlobalPriceModal} onOpenChange={setShowGlobalPriceModal}>
+      {/* Modal Trocar Plano */}
+      <Dialog open={showChangePlanModal} onOpenChange={setShowChangePlanModal}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Alterar Preço Global
+              <ArrowLeftRight className="h-5 w-5" />
+              Trocar Plano do Usuário
             </DialogTitle>
             <DialogDescription>
-              O novo preço será aplicado a TODAS as assinaturas e ao valor padrão do sistema.
+              {selectedSub?.profile?.name} ({selectedSub?.profile?.email})<br />
+              Plano atual: <strong className="capitalize">{selectedSub?.plan_code || 'basic'}</strong> • {selectedSub?.billing_period === 'annual' ? 'Anual' : 'Mensal'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleGlobalPriceChange} className="space-y-4">
+          <form onSubmit={handleChangePlan} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="globalPrice">Novo Preço (R$) *</Label>
-              <Input id="globalPrice" type="number" step="0.01" min="0" value={globalPrice} onChange={(e) => setGlobalPrice(e.target.value)} required />
+              <Label>Novo Plano *</Label>
+              <Select value={newPlanCode} onValueChange={setNewPlanCode}>
+                <SelectTrigger><SelectValue placeholder="Selecione o plano" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="basic">Básico</SelectItem>
+                  <SelectItem value="ultra">Ultra</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="globalPriceReason">Motivo *</Label>
-              <Textarea id="globalPriceReason" value={globalPriceReason} onChange={(e) => setGlobalPriceReason(e.target.value)} placeholder="Ex: Reajuste anual, promoção geral..." required rows={3} />
+              <Label>Nova Periodicidade *</Label>
+              <Select value={newBillingPeriod} onValueChange={setNewBillingPeriod}>
+                <SelectTrigger><SelectValue placeholder="Selecione a periodicidade" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Mensal</SelectItem>
+                  <SelectItem value="annual">Anual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="p-3 bg-muted/50 rounded-lg border text-sm">
+              <p className="font-medium mb-1">Efeitos desta ação:</p>
+              <ul className="text-muted-foreground space-y-1 text-xs list-disc list-inside">
+                <li>Plano e periodicidade serão atualizados imediatamente</li>
+                <li>Preço será ajustado conforme tabela de planos</li>
+                <li>Limite de membros: {newPlanCode === 'ultra' ? '4 (dono + 3 adicionais)' : '2 (dono + 1 adicional)'}</li>
+                <li>Ação registrada em auditoria</li>
+              </ul>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="changePlanReason">Motivo *</Label>
+              <Textarea id="changePlanReason" value={changePlanReason} onChange={(e) => setChangePlanReason(e.target.value)} placeholder="Ex: Upgrade manual solicitado, correção de plano..." required rows={3} />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => { setShowGlobalPriceModal(false); setGlobalPrice(""); setGlobalPriceReason(""); }}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={() => { setShowChangePlanModal(false); resetForms(); }}>Cancelar</Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Aplicar para Todos
+                Confirmar Troca
               </Button>
             </DialogFooter>
           </form>
@@ -731,26 +785,34 @@ const SubscriptionsManager = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Alterar Limite de Membros */}
+      {/* Modal Ajustar Limite de Membros */}
       <Dialog open={showMemberLimitModal} onOpenChange={setShowMemberLimitModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Alterar Limite de Membros</DialogTitle>
-            <DialogDescription>{selectedSub?.company?.company_name} - Limite atual: {selectedSub?.company?.max_members || 5} membros</DialogDescription>
+            <DialogTitle>Ajustar Limite de Membros</DialogTitle>
+            <DialogDescription>
+              {selectedSub?.company?.company_name} — Limite atual: {selectedSub?.company?.max_members || getPlanDefaultLimit(selectedSub?.plan_code || null)} membros
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleChangeMemberLimit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="newMemberLimit">Novo Limite de Membros *</Label>
-              <Input id="newMemberLimit" type="number" min="1" max="50" value={newMemberLimit} onChange={(e) => setNewMemberLimit(e.target.value)} required />
-              <p className="text-xs text-muted-foreground">Mínimo 1, máximo 50 membros</p>
+            <div className="p-3 bg-muted/50 rounded-lg border text-xs text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Limite padrão por plano:</p>
+              <p>• <strong>Básico:</strong> 2 membros (dono + 1 adicional) — padrão automático ao trocar plano</p>
+              <p>• <strong>Ultra:</strong> 4 membros (dono + 3 adicionais) — padrão automático ao trocar plano</p>
+              <p className="mt-1 text-yellow-500">Este campo é para ajustes pontuais. Use "Trocar Plano" para mudanças permanentes.</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="memberLimitReason">Motivo *</Label>
-              <Textarea id="memberLimitReason" value={memberLimitReason} onChange={(e) => setMemberLimitReason(e.target.value)} placeholder="Ex: Solicitação do cliente, upgrade de plano..." required rows={3} />
+              <Label htmlFor="newMemberLimit">Limite de Membros (override manual) *</Label>
+              <Input id="newMemberLimit" type="number" min="1" max="50" value={newMemberLimit} onChange={(e) => setNewMemberLimit(e.target.value)} required />
+              <p className="text-xs text-muted-foreground">Padrão do plano atual ({selectedSub?.plan_code || 'basic'}): {getPlanDefaultLimit(selectedSub?.plan_code || null)} membros</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="memberLimitReason">Motivo do Ajuste *</Label>
+              <Textarea id="memberLimitReason" value={memberLimitReason} onChange={(e) => setMemberLimitReason(e.target.value)} placeholder="Ex: Exceção comercial aprovada, conta especial..." required rows={3} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => { setShowMemberLimitModal(false); resetForms(); }}>Cancelar</Button>
-              <Button type="submit" disabled={isSubmitting || !selectedSub?.company?.id}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Confirmar</Button>
+              <Button type="submit" disabled={isSubmitting || !selectedSub?.company?.id}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Confirmar Override</Button>
             </DialogFooter>
           </form>
         </DialogContent>
