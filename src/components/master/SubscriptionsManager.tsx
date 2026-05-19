@@ -9,6 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   Table,
   TableBody,
   TableCell,
@@ -56,12 +62,15 @@ import {
   Globe,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import UpgradesTab from "./UpgradesTab";
+import PlanPricesTab from "./PlanPricesTab";
 
 interface Subscription {
   id: number;
   user_id: string;
   status: string;
-  plan_name: string | null;
+  plan_code: string | null;
+  billing_period: string | null;
   plan_price: number | null;
   final_price: number | null;
   expires_at: string | null;
@@ -94,7 +103,7 @@ const SubscriptionsManager = () => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showMemberLimitModal, setShowMemberLimitModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showCouponModal, setShowCouponModal] = useState(false);
+
   const [showGlobalPriceModal, setShowGlobalPriceModal] = useState(false);
   const [showGlobalExpirationModal, setShowGlobalExpirationModal] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithRelations | null>(null);
@@ -111,9 +120,7 @@ const SubscriptionsManager = () => {
   const [newMemberLimit, setNewMemberLimit] = useState("");
   const [memberLimitReason, setMemberLimitReason] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
-  const [couponDiscountType, setCouponDiscountType] = useState("percentage");
-  const [couponDiscountValue, setCouponDiscountValue] = useState("");
-  const [couponDescription, setCouponDescription] = useState("");
+
   const [globalPrice, setGlobalPrice] = useState("");
   const [globalPriceReason, setGlobalPriceReason] = useState("");
   const [globalExpirationPeriod, setGlobalExpirationPeriod] = useState("1");
@@ -279,7 +286,7 @@ const SubscriptionsManager = () => {
 
       // If activating, auto-set expiration based on period
       if (newStatus === 'active') {
-        const months = parseInt(expirationPeriod);
+        const months = selectedSub.billing_period === 'annual' ? 12 : 1;
         const expiresAt = addMonths(new Date(), months);
 
         const { error: expiryError } = await supabase.rpc("master_change_expiry_date", {
@@ -348,29 +355,7 @@ const SubscriptionsManager = () => {
     }
   };
 
-  const handleCreateCoupon = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSub || !couponDiscountValue) return;
 
-    setIsSubmitting(true);
-    try {
-      const { data, error } = await supabase.rpc("master_create_individual_coupon", {
-        p_user_id: selectedSub.user_id,
-        p_discount_type: couponDiscountType,
-        p_discount_value: parseFloat(couponDiscountValue),
-        p_description: couponDescription || null,
-      });
-      if (error) throw error;
-      toast({ title: "Cupom criado com sucesso!", description: `Código: ${data}` });
-      setShowCouponModal(false);
-      resetForms();
-    } catch (error: any) {
-      console.error("Error creating coupon:", error);
-      toast({ title: "Erro ao criar cupom", description: error.message || "Tente novamente", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const resetForms = () => {
     setSelectedSub(null);
@@ -384,9 +369,7 @@ const SubscriptionsManager = () => {
     setNewMemberLimit("");
     setMemberLimitReason("");
     setDeleteReason("");
-    setCouponDiscountType("percentage");
-    setCouponDiscountValue("");
-    setCouponDescription("");
+
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -444,8 +427,15 @@ const SubscriptionsManager = () => {
   }
 
   return (
-    <div className="space-y-4">
-      <Card>
+    <Tabs defaultValue="subscriptions" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="subscriptions">Assinaturas</TabsTrigger>
+        <TabsTrigger value="upgrades">Upgrades</TabsTrigger>
+        <TabsTrigger value="prices">Preços dos Planos</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="subscriptions" className="space-y-4">
+        <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -495,6 +485,7 @@ const SubscriptionsManager = () => {
                 <TableHead>Usuário</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Empresa</TableHead>
+                <TableHead>Plano / Ciclo</TableHead>
                 <TableHead>Preço</TableHead>
                 <TableHead>Expira em</TableHead>
                 <TableHead>Status</TableHead>
@@ -521,6 +512,12 @@ const SubscriptionsManager = () => {
                     </div>
                   </TableCell>
                   <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium capitalize">{sub.plan_code || "Básico"}</span>
+                      <span className="text-xs text-muted-foreground capitalize">{sub.billing_period === "annual" ? "Anual" : "Mensal"}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     <span className="font-mono">R$ {(sub.final_price || sub.plan_price || 0).toFixed(2)}</span>
                   </TableCell>
                   <TableCell>{formatDate(sub.expires_at)}</TableCell>
@@ -541,9 +538,7 @@ const SubscriptionsManager = () => {
                       <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setNewStatus(sub.status); setShowStatusModal(true); }} title="Alterar status">
                         <Power className="h-4 w-4 text-orange-500" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setShowCouponModal(true); }} title="Criar cupom individual">
-                        <Tag className="h-4 w-4 text-cyan-500" />
-                      </Button>
+
                       <Button variant="ghost" size="icon" onClick={() => { setSelectedSub(sub); setShowDeleteModal(true); }} title="Excluir usuário">
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -717,19 +712,9 @@ const SubscriptionsManager = () => {
             {/* Período de expiração - só aparece quando ativando */}
             {newStatus === 'active' && (
               <div className="space-y-2 p-3 bg-muted/50 rounded-lg border">
-                <Label htmlFor="expirationPeriod">Período de Expiração *</Label>
-                <Select value={expirationPeriod} onValueChange={setExpirationPeriod}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o período" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Mensal (1 mês)</SelectItem>
-                    <SelectItem value="2">Bimestral (2 meses)</SelectItem>
-                    <SelectItem value="3">Trimestral (3 meses)</SelectItem>
-                    <SelectItem value="6">Semestral (6 meses)</SelectItem>
-                    <SelectItem value="12">Anual (12 meses)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <p className="text-sm font-medium">Ativação de Assinatura</p>
                 <p className="text-xs text-muted-foreground">
-                  A expiração será calculada automaticamente a partir de agora: {format(addMonths(new Date(), parseInt(expirationPeriod)), "dd/MM/yyyy", { locale: ptBR })}
+                  A expiração será calculada automaticamente a partir de agora com base na periodicidade ({selectedSub?.billing_period === 'annual' ? 'Anual' : 'Mensal'}): {format(addMonths(new Date(), selectedSub?.billing_period === 'annual' ? 12 : 1), "dd/MM/yyyy", { locale: ptBR })}
                 </p>
               </div>
             )}
@@ -771,39 +756,7 @@ const SubscriptionsManager = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Criar Cupom Individual */}
-      <Dialog open={showCouponModal} onOpenChange={setShowCouponModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Criar Cupom Individual</DialogTitle>
-            <DialogDescription>Criar cupom exclusivo para {selectedSub?.profile?.name} ({selectedSub?.profile?.email})</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateCoupon} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="couponDiscountType">Tipo de Desconto *</Label>
-              <Select value={couponDiscountType} onValueChange={setCouponDiscountType}>
-                <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="percentage">Porcentagem (%)</SelectItem>
-                  <SelectItem value="fixed">Valor Fixo (R$)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="couponDiscountValue">Valor do Desconto * {couponDiscountType === "percentage" ? "(%)" : "(R$)"}</Label>
-              <Input id="couponDiscountValue" type="number" step={couponDiscountType === "percentage" ? "1" : "0.01"} min="0" max={couponDiscountType === "percentage" ? "100" : undefined} value={couponDiscountValue} onChange={(e) => setCouponDiscountValue(e.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="couponDescription">Descrição (opcional)</Label>
-              <Textarea id="couponDescription" value={couponDescription} onChange={(e) => setCouponDescription(e.target.value)} placeholder="Ex: Cupom de fidelidade, desconto especial..." rows={2} />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => { setShowCouponModal(false); resetForms(); }}>Cancelar</Button>
-              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Criar Cupom</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+
 
       {/* Modal Confirmar Exclusão */}
       <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
@@ -834,7 +787,14 @@ const SubscriptionsManager = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </TabsContent>
+      <TabsContent value="upgrades">
+        <UpgradesTab />
+      </TabsContent>
+      <TabsContent value="prices">
+        <PlanPricesTab />
+      </TabsContent>
+    </Tabs>
   );
 };
 
