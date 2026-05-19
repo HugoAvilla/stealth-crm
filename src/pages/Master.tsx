@@ -60,7 +60,7 @@ export default function Master() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [termsAcceptances, setTermsAcceptances] = useState<TermsAcceptance[]>([]);
-
+  const [termsSearch, setTermsSearch] = useState("");
 
   useEffect(() => {
     fetchTermsAcceptances().finally(() => setIsLoading(false));
