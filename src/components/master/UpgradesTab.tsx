@@ -30,16 +30,17 @@ interface UpgradeRequest {
   subscription_id: number;
   user_id: string;
   company_id: number | null;
+  current_plan_code: string | null;
+  current_billing_period: string | null;
   target_plan_code: string;
   target_billing_period: string;
   target_price: number;
-  prorata_credit: number;
+  credit_amount: number;
   amount_due: number;
   status: string;
   created_at: string;
   profile?: { name: string; email: string } | null;
   company?: { company_name: string } | null;
-  subscription?: { plan_code: string; billing_period: string } | null;
 }
 
 export default function UpgradesTab() {
@@ -59,18 +60,38 @@ export default function UpgradesTab() {
   const fetchRequests = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+
+      // Busca upgrade_requests com joins disponíveis (sem FK para profiles)
+      const { data: reqs, error } = await supabase
         .from('upgrade_requests')
         .select(`
           *,
-          profile:profiles!upgrade_requests_user_id_fkey(name, email),
-          company:companies!upgrade_requests_company_id_fkey(company_name),
-          subscription:subscriptions!upgrade_requests_subscription_id_fkey(plan_code, billing_period)
+          company:companies!upgrade_requests_company_id_fkey(company_name)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setRequests(data as any);
+
+      if (!reqs || reqs.length === 0) {
+        setRequests([]);
+        return;
+      }
+
+      // Busca profiles separadamente (não há FK direta)
+      const userIds = [...new Set(reqs.map((r) => r.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, name, email')
+        .in('user_id', userIds);
+
+      const enriched: UpgradeRequest[] = reqs.map((req) => ({
+        ...req,
+        credit_amount: req.credit_amount ?? 0,
+        amount_due: req.amount_due ?? 0,
+        profile: profiles?.find((p) => p.user_id === req.user_id) || null,
+      }));
+
+      setRequests(enriched);
     } catch (error) {
       console.error('Error fetching upgrade requests:', error);
       toast({ title: "Erro ao carregar solicitações", variant: "destructive" });
@@ -163,8 +184,8 @@ export default function UpgradesTab() {
             <TableCell>{req.company?.company_name || "—"}</TableCell>
             <TableCell>
               <div className="flex flex-col">
-                <span className="capitalize">{req.subscription?.plan_code || "Básico"}</span>
-                <span className="text-xs text-muted-foreground capitalize">{req.subscription?.billing_period === "annual" ? "Anual" : "Mensal"}</span>
+                <span className="capitalize">{req.current_plan_code || "basic"}</span>
+                <span className="text-xs text-muted-foreground capitalize">{req.current_billing_period === "annual" ? "Anual" : "Mensal"}</span>
               </div>
             </TableCell>
             <TableCell>
@@ -175,8 +196,8 @@ export default function UpgradesTab() {
             </TableCell>
             <TableCell>
               <div className="flex flex-col">
-                <span className="font-mono">R$ {req.amount_due.toFixed(2)}</span>
-                <span className="text-xs text-green-600">Crédito: R$ {req.prorata_credit.toFixed(2)}</span>
+                <span className="font-mono">R$ {(req.amount_due ?? 0).toFixed(2)}</span>
+                <span className="text-xs text-green-600">Crédito: R$ {(req.credit_amount ?? 0).toFixed(2)}</span>
               </div>
             </TableCell>
             <TableCell>{format(new Date(req.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</TableCell>

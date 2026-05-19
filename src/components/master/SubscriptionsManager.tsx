@@ -336,9 +336,11 @@ const SubscriptionsManager = () => {
   };
 
   // Limites padrão por plano (dono + adicionais)
+  // Basic: dono + 1 vendedor + 1 produção = 3 total
+  // Ultra: dono + 2 vendedores + 2 produção = 5 total
   const getPlanDefaultLimit = (planCode: string | null) => {
-    if (planCode === 'ultra') return 4; // dono + 3
-    return 2; // basic: dono + 1
+    if (planCode === 'ultra') return 5; // dono + 2 vendedores + 2 produção
+    return 3; // basic: dono + 1 vendedor + 1 produção
   };
 
   const handleChangePlan = async (e: React.FormEvent) => {
@@ -618,7 +620,7 @@ const SubscriptionsManager = () => {
               <ul className="text-muted-foreground space-y-1 text-xs list-disc list-inside">
                 <li>Plano e periodicidade serão atualizados imediatamente</li>
                 <li>Preço será ajustado conforme tabela de planos</li>
-                <li>Limite de membros: {newPlanCode === 'ultra' ? '4 (dono + 3 adicionais)' : '2 (dono + 1 adicional)'}</li>
+                <li>Limite de membros: {newPlanCode === 'ultra' ? '5 (dono + 2 vendedores + 2 produção)' : '3 (dono + 1 vendedor + 1 produção)'}</li>
                 <li>Ação registrada em auditoria</li>
               </ul>
             </div>
@@ -797,8 +799,8 @@ const SubscriptionsManager = () => {
           <form onSubmit={handleChangeMemberLimit} className="space-y-4">
             <div className="p-3 bg-muted/50 rounded-lg border text-xs text-muted-foreground">
               <p className="font-medium text-foreground mb-1">Limite padrão por plano:</p>
-              <p>• <strong>Básico:</strong> 2 membros (dono + 1 adicional) — padrão automático ao trocar plano</p>
-              <p>• <strong>Ultra:</strong> 4 membros (dono + 3 adicionais) — padrão automático ao trocar plano</p>
+              <p>• <strong>Básico:</strong> 3 membros (dono + 1 vendedor + 1 produção) — padrão automático ao trocar plano</p>
+              <p>• <strong>Ultra:</strong> 5 membros (dono + 2 vendedores + 2 produção) — padrão automático ao trocar plano</p>
               <p className="mt-1 text-yellow-500">Este campo é para ajustes pontuais. Use "Trocar Plano" para mudanças permanentes.</p>
             </div>
             <div className="space-y-2">
