@@ -17,6 +17,8 @@ interface AuthUser {
   isMaster: boolean;
   hasPendingJoinRequest: boolean;
   isCompanyOwner: boolean;
+  planCode: string | null;
+  billingPeriod: string | null;
 }
 
 interface AuthContextType {
@@ -81,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fetch subscription (check owner's subscription if user is in a company)
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('subscriptions')
-        .select('status, company_id, expires_at')
+        .select('status, company_id, expires_at, plan_code, billing_period')
         .eq('user_id', companyOwnerId)
         .maybeSingle();
 
@@ -131,7 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         companyId: profile?.company_id || subscriptionData?.company_id || null,
         isMaster,
         hasPendingJoinRequest,
-        isCompanyOwner
+        isCompanyOwner,
+        planCode: subscriptionData?.plan_code || null,
+        billingPeriod: subscriptionData?.billing_period || null
       };
     } catch (error) {
       console.error('Error fetching user data:', error);
