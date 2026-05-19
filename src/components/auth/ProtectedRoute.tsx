@@ -57,6 +57,9 @@ export function ProtectedRoute({
     
     if (isSubjectToSubscription) {
       if (user.subscriptionStatus === 'pending_payment') {
+        if (!user.planCode) {
+          return <Navigate to="/planos" replace />;
+        }
         return <Navigate to="/assinatura" replace />;
       }
       
@@ -65,7 +68,7 @@ export function ProtectedRoute({
       }
       
       if (user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'blocked') {
-        return <Navigate to="/assinatura" replace />;
+        return <Navigate to="/planos" replace />;
       }
     }
   }

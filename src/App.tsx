@@ -14,7 +14,9 @@ import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import PlanSelection from "./pages/PlanSelection";
 import Subscription from "./pages/Subscription";
+import Upgrade from "./pages/Upgrade";
 import WaitingApproval from "./pages/WaitingApproval";
 import CompanySetup from "./pages/CompanySetup";
 import CompanyJoin from "./pages/CompanyJoin";
@@ -89,6 +91,18 @@ function AppRoutes() {
 
       {/* Subscription Flow Routes (authenticated but no company yet) */}
       <Route 
+        path="/planos" 
+        element={
+          !isAuthenticated ? (
+            <Navigate to="/login" replace />
+          ) : user?.subscriptionStatus === 'active' && user?.companyId ? (
+            <Navigate to="/" replace />
+          ) : (
+            <PlanSelection />
+          )
+        } 
+      />
+      <Route 
         path="/assinatura" 
         element={
           !isAuthenticated ? (
@@ -97,6 +111,18 @@ function AppRoutes() {
             <Navigate to="/" replace />
           ) : (
             <Subscription />
+          )
+        } 
+      />
+      <Route 
+        path="/upgrade" 
+        element={
+          !isAuthenticated ? (
+            <Navigate to="/login" replace />
+          ) : user?.planCode === 'ultra' ? (
+             <Navigate to="/" replace />
+          ) : (
+            <Upgrade />
           )
         } 
       />
