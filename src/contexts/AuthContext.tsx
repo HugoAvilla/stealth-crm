@@ -241,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: new Error('Telefone inválido') };
       }
 
-      const redirectUrl = `${window.location.origin}/assinatura`;
+      const redirectUrl = `${window.location.origin}/planos`;
 
       const { error } = await supabase.auth.signUp({
         email: trimmedEmail,

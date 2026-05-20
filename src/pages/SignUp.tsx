@@ -81,10 +81,10 @@ export default function SignUp() {
 
     toast({
       title: 'Conta criada!',
-      description: 'Redirecionando para pagamento...',
+      description: 'Escolha o plano ideal para você.',
     });
     
-    navigate('/assinatura');
+    navigate('/planos');
   };
 
   return (

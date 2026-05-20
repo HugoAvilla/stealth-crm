@@ -134,7 +134,7 @@ function AppRoutes() {
           ) : user?.subscriptionStatus === 'active' ? (
             user?.companyId ? <Navigate to="/" replace /> : <Navigate to="/empresa/cadastro" replace />
           ) : user?.subscriptionStatus !== 'payment_submitted' ? (
-            <Navigate to="/assinatura" replace />
+            user?.planCode ? <Navigate to="/assinatura" replace /> : <Navigate to="/planos" replace />
           ) : (
             <WaitingApproval />
           )
@@ -146,7 +146,7 @@ function AppRoutes() {
           !isAuthenticated ? (
             <Navigate to="/login" replace />
           ) : user?.subscriptionStatus !== 'active' ? (
-            <Navigate to="/assinatura" replace />
+            user?.planCode ? <Navigate to="/assinatura" replace /> : <Navigate to="/planos" replace />
           ) : user?.companyId ? (
             <Navigate to="/" replace />
           ) : (

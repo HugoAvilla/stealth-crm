@@ -80,9 +80,11 @@ export default function Subscription() {
         }
       } else if (user?.subscriptionStatus === 'payment_submitted') {
         navigate('/aguardando-liberacao');
+      } else if (!searchParams.get('plan') || !searchParams.get('period')) {
+        navigate('/planos');
       }
     }
-  }, [user, navigate, mode]);
+  }, [user, navigate, mode, searchParams]);
 
   const fetchConfigAndData = async () => {
     try {

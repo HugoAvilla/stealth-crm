@@ -41,7 +41,11 @@ export default function CompanySetup() {
     // Redirect if subscription not active
     if (user?.subscriptionStatus !== 'active') {
       if (user?.subscriptionStatus === 'pending_payment') {
-        navigate('/assinatura');
+        if (!user?.planCode) {
+          navigate('/planos');
+        } else {
+          navigate('/assinatura');
+        }
       } else if (user?.subscriptionStatus === 'payment_submitted') {
         navigate('/aguardando-liberacao');
       }

@@ -21,7 +21,11 @@ export default function WaitingApproval() {
     }
 
     if (user?.subscriptionStatus === 'pending_payment') {
-      navigate('/assinatura');
+      if (!user?.planCode) {
+        navigate('/planos');
+      } else {
+        navigate('/assinatura');
+      }
       return;
     }
 
