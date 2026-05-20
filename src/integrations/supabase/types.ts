@@ -81,7 +81,6 @@ export type Database = {
           paid_amount: number | null
           payment_date: string | null
           status: string
-          transaction_id: number | null
           updated_at: string
         }
         Insert: {
@@ -94,7 +93,6 @@ export type Database = {
           paid_amount?: number | null
           payment_date?: string | null
           status?: string
-          transaction_id?: number | null
           updated_at?: string
         }
         Update: {
@@ -107,7 +105,6 @@ export type Database = {
           paid_amount?: number | null
           payment_date?: string | null
           status?: string
-          transaction_id?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -187,36 +184,36 @@ export type Database = {
       }
       card_machine_rates: {
         Row: {
-          brand: string
+          brand: string | null
           company_id: number | null
           created_at: string
           id: number
           installments: number | null
           machine_id: number
-          rate_percent: number
-          type: string
+          rate: number
+          type: string | null
           updated_at: string
         }
         Insert: {
-          brand: string
+          brand?: string | null
           company_id?: number | null
           created_at?: string
           id?: number
           installments?: number | null
           machine_id: number
-          rate_percent?: number
-          type: string
+          rate?: number
+          type?: string | null
           updated_at?: string
         }
         Update: {
-          brand?: string
+          brand?: string | null
           company_id?: number | null
           created_at?: string
           id?: number
           installments?: number | null
           machine_id?: number
-          rate_percent?: number
-          type?: string
+          rate?: number
+          type?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -238,7 +235,7 @@ export type Database = {
       }
       card_machines: {
         Row: {
-          account_id: number
+          account_id: number | null
           anticipation_type: string | null
           anticipation_value: number | null
           company_id: number
@@ -254,7 +251,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          account_id: number
+          account_id?: number | null
           anticipation_type?: string | null
           anticipation_value?: number | null
           company_id: number
@@ -270,7 +267,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          account_id?: number
+          account_id?: number | null
           anticipation_type?: string | null
           anticipation_value?: number | null
           company_id?: number
@@ -862,6 +859,130 @@ export type Database = {
           },
         ]
       }
+      material_loss_limits: {
+        Row: {
+          category: string
+          company_id: number
+          id: number
+          limit_type: string
+          limit_value: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          category: string
+          company_id: number
+          id?: never
+          limit_type: string
+          limit_value: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string
+          company_id?: number
+          id?: never
+          limit_type?: string
+          limit_value?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_loss_limits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_losses: {
+        Row: {
+          category: string
+          company_id: number
+          cost: number
+          created_at: string | null
+          created_by: string | null
+          id: number
+          installer_id: string
+          lost_m2: number
+          lost_meters: number
+          material_id: number
+          reason: string
+          reason_details: string | null
+          sale_id: number | null
+          space_id: number
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          company_id: number
+          cost: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: never
+          installer_id: string
+          lost_m2: number
+          lost_meters: number
+          material_id: number
+          reason: string
+          reason_details?: string | null
+          sale_id?: number | null
+          space_id: number
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          company_id?: number
+          cost?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: never
+          installer_id?: string
+          lost_m2?: number
+          lost_meters?: number
+          material_id?: number
+          reason?: string
+          reason_details?: string | null
+          sale_id?: number | null
+          space_id?: number
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_losses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_losses_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_losses_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_losses_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       materials: {
         Row: {
           average_cost: number | null
@@ -1246,6 +1367,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plan_prices: {
+        Row: {
+          billing_period: string
+          id: number
+          plan_code: string
+          price: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          billing_period: string
+          id?: never
+          plan_code: string
+          price: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          billing_period?: string
+          id?: never
+          plan_code?: string
+          price?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       product_types: {
         Row: {
@@ -2012,6 +2160,7 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          billing_period: string
           company_id: number | null
           coupon_code: string | null
           created_at: string | null
@@ -2021,6 +2170,7 @@ export type Database = {
           id: number
           payment_confirmed_at: string | null
           payment_method: string | null
+          plan_code: string
           plan_name: string | null
           plan_price: number | null
           status: string
@@ -2028,6 +2178,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          billing_period?: string
           company_id?: number | null
           coupon_code?: string | null
           created_at?: string | null
@@ -2037,6 +2188,7 @@ export type Database = {
           id?: never
           payment_confirmed_at?: string | null
           payment_method?: string | null
+          plan_code?: string
           plan_name?: string | null
           plan_price?: number | null
           status?: string
@@ -2044,6 +2196,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          billing_period?: string
           company_id?: number | null
           coupon_code?: string | null
           created_at?: string | null
@@ -2053,6 +2206,7 @@ export type Database = {
           id?: never
           payment_confirmed_at?: string | null
           payment_method?: string | null
+          plan_code?: string
           plan_name?: string | null
           plan_price?: number | null
           status?: string
@@ -2155,11 +2309,8 @@ export type Database = {
           include_in_cac: boolean | null
           is_paid: boolean | null
           name: string
-          origin_id: number | null
-          origin_type: string | null
           payment_method: string | null
           sale_id: number | null
-          sale_payment_id: number | null
           subcategory_id: number | null
           transaction_date: string
           type: string
@@ -2178,11 +2329,8 @@ export type Database = {
           include_in_cac?: boolean | null
           is_paid?: boolean | null
           name: string
-          origin_id?: number | null
-          origin_type?: string | null
           payment_method?: string | null
           sale_id?: number | null
-          sale_payment_id?: number | null
           subcategory_id?: number | null
           transaction_date: string
           type: string
@@ -2201,11 +2349,8 @@ export type Database = {
           include_in_cac?: boolean | null
           is_paid?: boolean | null
           name?: string
-          origin_id?: number | null
-          origin_type?: string | null
           payment_method?: string | null
           sale_id?: number | null
-          sale_payment_id?: number | null
           subcategory_id?: number | null
           transaction_date?: string
           type?: string
@@ -2304,6 +2449,90 @@ export type Database = {
           },
         ]
       }
+      upgrade_requests: {
+        Row: {
+          amount_due: number
+          company_id: number | null
+          created_at: string | null
+          credit_amount: number
+          current_billing_period: string
+          current_plan_code: string
+          current_price: number
+          days_remaining: number
+          days_total: number
+          id: number
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          subscription_id: number
+          target_billing_period: string
+          target_plan_code: string
+          target_price: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_due: number
+          company_id?: number | null
+          created_at?: string | null
+          credit_amount?: number
+          current_billing_period: string
+          current_plan_code: string
+          current_price: number
+          days_remaining: number
+          days_total: number
+          id?: never
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          subscription_id: number
+          target_billing_period: string
+          target_plan_code: string
+          target_price: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_due?: number
+          company_id?: number | null
+          created_at?: string | null
+          credit_amount?: number
+          current_billing_period?: string
+          current_plan_code?: string
+          current_price?: number
+          days_remaining?: number
+          days_total?: number
+          id?: never
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          subscription_id?: number
+          target_billing_period?: string
+          target_plan_code?: string
+          target_price?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upgrade_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upgrade_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: number
@@ -2340,9 +2569,9 @@ export type Database = {
           category: string
           company_id: number
           created_at?: string | null
-          id?: number
           description?: string | null
           fixed_price?: number | null
+          id?: number
           is_active?: boolean | null
           name: string
           product_type_id?: number | null
@@ -2757,7 +2986,20 @@ export type Database = {
         Args: { request_id_input: number }
         Returns: undefined
       }
+      calculate_upgrade_prorata: {
+        Args: {
+          p_subscription_id: number
+          p_target_period: string
+          p_target_plan: string
+        }
+        Returns: Json
+      }
+      check_company_has_stock_access: {
+        Args: { p_company_id: number }
+        Returns: boolean
+      }
       check_is_master: { Args: never; Returns: boolean }
+      check_team_limit: { Args: { p_company_id: number }; Returns: Json }
       close_open_roll: {
         Args: {
           p_company_id: number
@@ -2810,6 +3052,10 @@ export type Database = {
         Returns: boolean
       }
       is_master_account: { Args: { _user_id: string }; Returns: boolean }
+      master_approve_upgrade: {
+        Args: { p_notes?: string; p_request_id: number }
+        Returns: boolean
+      }
       master_change_expiry_date: {
         Args: {
           new_expiry_input: string
@@ -2834,6 +3080,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      master_change_plan: {
+        Args: {
+          p_new_billing_period: string
+          p_new_plan_code: string
+          p_reason: string
+          p_subscription_id: number
+        }
+        Returns: undefined
+      }
       master_change_subscription_price: {
         Args: {
           new_price_input: number
@@ -2855,6 +3110,10 @@ export type Database = {
         Args: { reason_input: string; user_id_input: string }
         Returns: boolean
       }
+      master_reject_upgrade: {
+        Args: { p_notes?: string; p_request_id: number }
+        Returns: boolean
+      }
       master_toggle_subscription_status: {
         Args: {
           new_status_input: string
@@ -2863,9 +3122,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      master_update_plan_price: {
+        Args: {
+          p_billing_period: string
+          p_new_price: number
+          p_notes?: string
+          p_plan_code: string
+        }
+        Returns: boolean
+      }
       reject_company_join_request: {
         Args: { reason_input?: string; request_id_input: number }
         Returns: undefined
+      }
+      request_plan_upgrade: {
+        Args: {
+          p_subscription_id: number
+          p_target_period: string
+          p_target_plan: string
+        }
+        Returns: number
       }
       unlink_company_member: {
         Args: { target_user_id: string }

@@ -19,7 +19,8 @@ import {
   ChevronLeft,
   LogOut,
   Crown,
-  UserPlus
+  UserPlus,
+  Scissors
 } from 'lucide-react';
 import {
   Tooltip,
@@ -93,6 +94,7 @@ export function Sidebar() {
     { icon: BarChart3, label: 'Relatórios', path: '/relatorios', adminOnly: true },
     { icon: Shield, label: 'Garantias', path: '/garantias' },
     { icon: Package, label: 'Estoque', path: '/estoque', productionOnly: true },
+    { icon: Scissors, label: 'Perdas', path: '/perdas' },
     { icon: User, label: 'Perfil', path: '/perfil' },
     { icon: Building, label: 'Sua Empresa', path: '/empresa' },
     { icon: UserPlus, label: 'Solicitações', path: '/equipe/solicitacoes', adminOnly: true, badge: pendingRequestsCount },
@@ -106,8 +108,8 @@ export function Sidebar() {
     if (item.adminOnly && user?.role !== 'ADMIN') return false;
     // Estoque - only for ADMIN and PRODUCAO
     if (item.productionOnly && user?.role !== 'ADMIN' && user?.role !== 'PRODUCAO') return false;
-    // PRODUCAO can only see Estoque and Perfil
-    if (user?.role === 'PRODUCAO' && !item.productionOnly && item.path !== '/perfil') return false;
+    // PRODUCAO can only see Estoque, Perdas and Perfil
+    if (user?.role === 'PRODUCAO' && !item.productionOnly && item.path !== '/perfil' && item.path !== '/perdas') return false;
     return true;
   });
 

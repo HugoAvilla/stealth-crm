@@ -35,6 +35,7 @@ import Servicos from "./pages/Servicos";
 
 import Perfil from "./pages/Perfil";
 import Empresa from "./pages/Empresa";
+import MaterialLosses from "./pages/MaterialLosses";
 import Master from "./pages/Master";
 import TeamRequests from "./pages/TeamRequests";
 import NotFound from "./pages/NotFound";
@@ -239,6 +240,11 @@ function AppRoutes() {
       <Route path="/estoque" element={
         <ProtectedRoute allowedRoles={['ADMIN', 'PRODUCAO']}>
           <MainLayout><Estoque /></MainLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/perdas" element={
+        <ProtectedRoute allowedRoles={['ADMIN', 'PRODUCAO', 'VENDEDOR']}>
+          <MainLayout><MaterialLosses /></MainLayout>
         </ProtectedRoute>
       } />
 
