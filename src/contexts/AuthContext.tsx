@@ -122,6 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             calculatedStatus = 'active';
           }
         }
+      } else if (profile?.company_id) {
+        // Legacy company grandfathering: owner has no subscription record but company exists
+        calculatedStatus = 'active';
       }
 
       return {
