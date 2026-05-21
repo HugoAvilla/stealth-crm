@@ -21,6 +21,7 @@ import {
   UserPlus,
   Wrench,
   Percent,
+  Scissors,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -98,6 +99,7 @@ export function TopNavigation() {
     { icon: Shield, label: 'Garantias', path: '/garantias' },
     { icon: Wrench, label: 'Serviços', path: '/servicos' },
     { icon: Package, label: 'Estoque', path: '/estoque', productionOnly: true },
+    { icon: Scissors, label: 'Perdas', path: '/perdas' },
     { icon: UserPlus, label: 'Solicitações', path: '/equipe/solicitacoes', adminOnly: true, badge: pendingRequestsCount },
     { icon: Crown, label: 'Master', path: '/master', masterOnly: true },
     { icon: User, label: 'Perfil', path: '/perfil' },
@@ -111,8 +113,8 @@ export function TopNavigation() {
     if (item.adminOnly && user?.role !== 'ADMIN') return false;
     // Estoque - only for ADMIN and PRODUCAO
     if (item.productionOnly && user?.role !== 'ADMIN' && user?.role !== 'PRODUCAO') return false;
-    // PRODUCAO can only see Estoque, Perfil and Serviços
-    if (user?.role === 'PRODUCAO' && !item.productionOnly && item.path !== '/perfil' && item.path !== '/servicos') return false;
+    // PRODUCAO can only see Estoque, Perdas, Perfil and Serviços
+    if (user?.role === 'PRODUCAO' && !item.productionOnly && item.path !== '/perfil' && item.path !== '/servicos' && item.path !== '/perdas') return false;
     return true;
   });
 
