@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -49,10 +49,9 @@ export default function Subscription() {
   const [confirmed, setConfirmed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Price & Pro-rata states
+  // Price states
   const [finalPrice, setFinalPrice] = useState(0);
   const [planPrice, setPlanPrice] = useState(0);
-  const [upgradeData, setUpgradeData] = useState<any>(null);
 
   const handleSignOut = async () => {
     try {
@@ -69,22 +68,34 @@ export default function Subscription() {
     }
   }, [user]);
 
-  // If "new" mode and user already active, redirect out
+  // Redirect logic based on user status and mode
   useEffect(() => {
+    if (!user) return;
+
     if (mode === 'new') {
-      if (user?.subscriptionStatus === 'active') {
+      if (user.subscriptionStatus === 'active') {
         if (user.companyId) {
           navigate('/');
         } else {
           navigate('/empresa/cadastro');
         }
-      } else if (user?.subscriptionStatus === 'payment_submitted') {
+      } else if (user.subscriptionStatus === 'payment_submitted') {
         navigate('/aguardando-liberacao');
       } else if (!searchParams.get('plan') || !searchParams.get('period')) {
         navigate('/planos');
       }
+    } else if (mode === 'upgrade') {
+      // If user is already active with the target plan or higher, redirect out
+      const planHierarchy: Record<string, number> = { basic: 1, ultra: 2, premium: 3 };
+      const currentPlanLevel = planHierarchy[user.planCode || 'basic'] || 0;
+      const targetPlanLevel = planHierarchy[targetPlan] || 0;
+
+      if (user.subscriptionStatus === 'active' && currentPlanLevel >= targetPlanLevel) {
+        // User already has this plan or better, no need for upgrade
+        navigate('/', { replace: true });
+      }
     }
-  }, [user, navigate, mode, searchParams]);
+  }, [user, navigate, mode, searchParams, targetPlan]);
 
   const fetchConfigAndData = async () => {
     try {
@@ -113,19 +124,18 @@ export default function Subscription() {
       }
 
       if (mode === 'upgrade' && currentSub) {
-        // Mode upgrade: compute prorata
-        const targetPeriod = currentSub.billing_period || 'monthly';
-        const { data: prorataData, error: prorataError } = await supabase.rpc('calculate_upgrade_prorata', {
-          p_subscription_id: currentSub.id,
-          p_target_plan: targetPlan,
-          p_target_period: targetPeriod
-        });
+        // Mode upgrade: fetch full target plan price (no pro-rata)
+        const targetPeriod = searchParams.get('period') || currentSub.billing_period || 'monthly';
+        const { data: priceData, error: priceError } = await supabase
+          .from('plan_prices')
+          .select('price')
+          .eq('plan_code', targetPlan)
+          .eq('billing_period', targetPeriod)
+          .single();
         
-        if (prorataError) throw prorataError;
-        
-        setUpgradeData(prorataData);
-        setFinalPrice(prorataData.amount_due);
-        setPlanPrice(prorataData.target_price);
+        if (priceError) throw priceError;
+        setPlanPrice(priceData.price);
+        setFinalPrice(priceData.price);
       } else {
         // Mode new: fetch exact plan price
         const { data: priceData, error: priceError } = await supabase
@@ -169,9 +179,14 @@ export default function Subscription() {
     setIsSubmitting(true);
 
     try {
+      // Abrir WhatsApp com mensagem estruturada
+      const msg = encodeURIComponent(`Olá, realizei o pagamento do WFE Evolution CRM. Segue o comprovante para conferencia.`);
+      const whatsappUrl = `https://wa.me/5517992573141?text=${msg}`;
+      window.open(whatsappUrl, '_blank');
+
       if (mode === 'upgrade' && subscription) {
         // Execute upgrade RPC
-        const targetPeriod = subscription.billing_period || 'monthly';
+        const targetPeriod = searchParams.get('period') || subscription.billing_period || 'monthly';
         const { error: upgradeError } = await supabase.rpc('request_plan_upgrade', {
           p_subscription_id: subscription.id,
           p_target_plan: targetPlan,
@@ -182,7 +197,7 @@ export default function Subscription() {
 
         await refreshUser();
         navigate('/');
-        toast({ title: 'Solicitação de upgrade enviada!' });
+        toast({ title: 'Solicitação de upgrade enviada! Abertura do WhatsApp iniciada.' });
       } else {
         // Mode new: Update subscription
         const { error: subError } = await supabase
@@ -200,6 +215,7 @@ export default function Subscription() {
 
         await refreshUser();
         navigate('/aguardando-liberacao');
+        toast({ title: 'Pagamento enviado para aprovação! Abertura do WhatsApp iniciada.' });
       }
     } catch (error) {
       console.error('Error confirming payment:', error);
@@ -210,6 +226,7 @@ export default function Subscription() {
       });
     } finally {
       setIsSubmitting(false);
+      setShowConfirmModal(false);
     }
   };
 
@@ -223,7 +240,7 @@ export default function Subscription() {
 
   const isUpgrade = mode === 'upgrade';
   const displayPlanName = isUpgrade ? targetPlan : planCode;
-  const displayPeriod = isUpgrade ? (subscription?.billing_period || 'monthly') : billingPeriod;
+  const displayPeriod = isUpgrade ? (searchParams.get('period') || subscription?.billing_period || 'monthly') : billingPeriod;
   
   const planNameFormatted = displayPlanName === 'ultra' ? 'Ultra' : displayPlanName === 'premium' ? 'Premium' : 'Básico';
   const periodFormatted = displayPeriod === 'annual' ? 'Anual' : 'Mensal';
@@ -245,7 +262,7 @@ export default function Subscription() {
             <Button 
               variant="ghost" 
               className="text-muted-foreground hover:text-foreground -ml-4"
-              onClick={() => navigate(isUpgrade ? '/upgrade' : '/planos')}
+              onClick={() => navigate(isUpgrade ? '/planos?mode=upgrade' : '/planos')}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
@@ -276,36 +293,28 @@ export default function Subscription() {
             <CardContent className="space-y-6">
               {/* Price Display */}
               <div className="text-center py-4 bg-primary/10 rounded-lg space-y-1">
-                {isUpgrade && upgradeData && upgradeData.credit_amount > 0 && (
-                  <div className="text-sm text-green-600 font-medium mb-2">
-                    Crédito pro-rata: - R$ {upgradeData.credit_amount.toFixed(2).replace('.', ',')}
-                  </div>
-                )}
                 <span className="text-4xl font-bold text-primary">
                   R$ {finalPrice.toFixed(2).replace('.', ',')}
                 </span>
                 <span className="text-muted-foreground">/{displayPeriod === 'annual' ? 'ano' : 'mês'}</span>
               </div>
 
-              {isUpgrade && upgradeData && (
-                <div className="space-y-2 p-4 border rounded-lg bg-muted/30 text-sm">
+              {isUpgrade && (
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/30 text-sm">
                   <p className="flex justify-between">
-                    <span className="text-muted-foreground">Valor do plano alvo:</span>
-                    <span>R$ {upgradeData.target_price.toFixed(2).replace('.', ',')}</span>
+                    <span className="text-muted-foreground">Valor do plano {planNameFormatted}:</span>
+                    <span className="font-medium">R$ {planPrice.toFixed(2).replace('.', ',')}</span>
                   </p>
-                  <p className="flex justify-between">
-                    <span className="text-muted-foreground">Dias restantes do plano atual:</span>
-                    <span>{upgradeData.days_remaining} dias</span>
-                  </p>
-                  <p className="flex justify-between font-medium text-green-600">
-                    <span className="">Desconto do saldo não utilizado:</span>
-                    <span>- R$ {upgradeData.credit_amount.toFixed(2).replace('.', ',')}</span>
-                  </p>
+                  <div className="pt-2 border-t border-border/50 text-xs text-muted-foreground space-y-1">
+                    <p>• O pagamento realizado hoje cobre o <strong>próximo ciclo</strong> de cobrança.</p>
+                    <p>• Seu plano atual continua ativo até o fim do ciclo vigente.</p>
+                    <p>• Os novos recursos são liberados imediatamente após a aprovação.</p>
+                  </div>
                 </div>
               )}
 
               <div className="pt-4 border-t">
-                <Button variant="outline" className="w-full" onClick={() => navigate(isUpgrade ? '/upgrade' : '/planos')}>
+                <Button variant="outline" className="w-full" onClick={() => navigate(isUpgrade ? '/planos?mode=upgrade' : '/planos')}>
                   Trocar Plano
                 </Button>
               </div>
@@ -376,41 +385,49 @@ export default function Subscription() {
 
       {/* Confirmation Modal */}
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-        <DialogContent>
+        <DialogContent className="border-border">
           <DialogHeader>
-            <DialogTitle>Confirmar Pagamento</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-bold">Confirmar Pagamento</DialogTitle>
+            <DialogDescription className="text-muted-foreground mt-1">
               Você realmente efetuou o pagamento de R$ {finalPrice.toFixed(2).replace('.', ',')} via PIX?
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              Após confirmar, envie o comprovante via WhatsApp para agilizar a liberação.
-            </p>
+          <div className="py-4 space-y-4">
+            {/* Highly Visible Warning Box */}
+            <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 space-y-2">
+              <p className="text-sm font-semibold leading-relaxed">
+                Atenção: A liberação é 100% manual.
+              </p>
+              <p className="text-xs leading-relaxed opacity-90">
+                Para sua assinatura ser liberada, envie o comprovante de pagamento pelo WhatsApp. A liberação é feita manualmente pela equipe Master após a conferência.
+              </p>
+            </div>
 
-            <div className="flex items-start space-x-3">
+            <div className="flex items-start space-x-3 pt-2">
               <Checkbox
                 id="confirm"
                 checked={confirmed}
                 onCheckedChange={(checked) => setConfirmed(checked === true)}
+                className="mt-1 border-muted-foreground/30 data-[state=checked]:bg-[#D8E600] data-[state=checked]:text-black data-[state=checked]:border-[#D8E600]"
               />
               <label
                 htmlFor="confirm"
-                className="text-sm font-medium leading-none cursor-pointer"
+                className="text-sm font-medium leading-relaxed cursor-pointer select-none text-foreground"
               >
-                Confirmo que realizei o pagamento
+                Confirmo que realizei o pagamento e estou ciente de que a liberação é feita manualmente após o envio do comprovante.
               </label>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfirmModal(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowConfirmModal(false)} className="border-input hover:bg-muted">
               Cancelar
             </Button>
             <Button
               onClick={handleConfirmPayment}
               disabled={!confirmed || isSubmitting}
+              className="bg-[#D8E600] hover:bg-[#b8c400] text-black font-semibold shadow-[0_0_15px_rgba(216,230,0,0.15)] disabled:opacity-50 transition-all duration-200"
             >
               {isSubmitting ? (
                 <>
@@ -418,7 +435,7 @@ export default function Subscription() {
                   Processando...
                 </>
               ) : (
-                'Confirmar e Aguardar Liberação'
+                'Enviar comprovante'
               )}
             </Button>
           </DialogFooter>

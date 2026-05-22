@@ -1,5 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlanGate } from '@/hooks/usePlanGate';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useMaterialLosses } from '@/hooks/useMaterialLosses';
 import { useMaterialLossLimits } from '@/hooks/useMaterialLossLimits';
 import { MaterialLossFormModal } from '@/components/material-losses/MaterialLossFormModal';
@@ -16,13 +20,26 @@ import { useDeleteMaterialLoss } from '@/hooks/useMaterialLosses';
 import { generateReportPDF } from '@/lib/pdfGenerator';
 
 export default function MaterialLosses() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const gate = usePlanGate('perdas');
+  const navigate = useNavigate();
   const [showFormModal, setShowFormModal] = useState(false);
   const [showLimitsModal, setShowLimitsModal] = useState(false);
   const [selectedLoss, setSelectedLoss] = useState<any>(null);
   
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'PPF' | 'INSULFILM'>('ALL');
+
+  useEffect(() => {
+    if (!authLoading && !gate.hasAccess) {
+      if (gate.message) {
+        toast.error(gate.message);
+      }
+      if (gate.redirectTo) {
+        navigate(gate.redirectTo, { replace: true });
+      }
+    }
+  }, [authLoading, gate.hasAccess, gate.redirectTo, gate.message, navigate]);
 
   const { data: losses, isLoading } = useMaterialLosses({
     category: categoryFilter !== 'ALL' ? categoryFilter : undefined,
@@ -32,6 +49,20 @@ export default function MaterialLosses() {
   const deleteMutation = useDeleteMaterialLoss();
 
   const isAdmin = user?.role === 'ADMIN';
+
+  if (authLoading || isLoading || !gate.hasAccess) {
+    return (
+      <div className="space-y-6 p-6">
+        <Skeleton className="h-10 w-48" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
 
   // Calculations for cards
   const stats = useMemo(() => {
@@ -99,8 +130,8 @@ export default function MaterialLosses() {
     const rows = losses
       .filter(loss => loss.status !== 'cancelled')
       .map(loss => [
-        format(new Date(loss.created_at!), 'dd/MM/yyyy HH:mm'),
-        `${loss.installer?.first_name || ''} ${loss.installer?.last_name || ''}`,
+        loss.created_at ? format(new Date(loss.created_at), 'dd/MM/yyyy HH:mm') : 'N/A',
+        loss.installer?.name || 'Não identificado',
         loss.material?.name || '',
         loss.category,
         `${loss.lost_meters}m`,
@@ -136,8 +167,8 @@ export default function MaterialLosses() {
     const csvRows = [
       headers.join(';'),
       ...activeLosses.map(loss => [
-        format(new Date(loss.created_at!), 'dd/MM/yyyy HH:mm'),
-        `"${loss.installer?.first_name || ''} ${loss.installer?.last_name || ''}"`,
+        loss.created_at ? format(new Date(loss.created_at), 'dd/MM/yyyy HH:mm') : 'N/A',
+        `"${loss.installer?.name || 'Não identificado'}"`,
         `"${loss.material?.name || ''}"`,
         loss.category,
         loss.lost_meters,
@@ -174,8 +205,8 @@ export default function MaterialLosses() {
     
     activeLosses.forEach(loss => {
       html += `<tr>`;
-      html += `<td>${format(new Date(loss.created_at!), 'dd/MM/yyyy HH:mm')}</td>`;
-      html += `<td>${loss.installer?.first_name || ''} ${loss.installer?.last_name || ''}</td>`;
+      html += `<td>${loss.created_at ? format(new Date(loss.created_at), 'dd/MM/yyyy HH:mm') : 'N/A'}</td>`;
+      html += `<td>${loss.installer?.name || 'Não identificado'}</td>`;
       html += `<td>${loss.material?.name || ''}</td>`;
       html += `<td>${loss.category}</td>`;
       html += `<td>${loss.lost_meters}m</td>`;
@@ -319,8 +350,8 @@ export default function MaterialLosses() {
             <TableBody>
               {losses?.map((loss: any) => (
                 <TableRow key={loss.id} className={loss.status === 'cancelled' ? 'opacity-50 line-through' : ''}>
-                  <TableCell>{format(new Date(loss.created_at!), 'dd/MM/yyyy HH:mm')}</TableCell>
-                  <TableCell>{loss.installer?.first_name} {loss.installer?.last_name}</TableCell>
+                  <TableCell>{loss.created_at ? format(new Date(loss.created_at), 'dd/MM/yyyy HH:mm') : 'N/A'}</TableCell>
+                  <TableCell>{loss.installer?.name || 'Não identificado'}</TableCell>
                   <TableCell>{loss.material?.name}</TableCell>
                   <TableCell>{loss.category}</TableCell>
                   <TableCell>{loss.lost_meters}m</TableCell>

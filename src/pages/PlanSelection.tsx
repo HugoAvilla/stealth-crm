@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -19,24 +19,51 @@ export default function PlanSelection() {
   const [isAnnual, setIsAnnual] = useState(false);
   const [prices, setPrices] = useState<PlanPrice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasPendingUpgrade, setHasPendingUpgrade] = useState(false);
+
+  const [searchParams] = useSearchParams();
+  const isUpgrade = searchParams.get('mode') === 'upgrade';
 
   useEffect(() => {
-    const fetchPrices = async () => {
+    const fetchPricesAndRequests = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch prices
+        const { data: priceData, error: priceError } = await supabase
           .from('plan_prices')
           .select('plan_code, billing_period, price');
         
-        if (error) throw error;
-        if (data) setPrices(data as PlanPrice[]);
+        if (priceError) throw priceError;
+        if (priceData) setPrices(priceData as PlanPrice[]);
+
+        // Fetch pending upgrade requests for the user's subscription
+        if (user?.id && isUpgrade) {
+          const { data: subData } = await supabase
+            .from('subscriptions')
+            .select('id')
+            .eq('user_id', user.id)
+            .single();
+
+          if (subData) {
+            const { data: reqData, error: reqError } = await supabase
+              .from('upgrade_requests')
+              .select('id')
+              .eq('subscription_id', subData.id)
+              .in('status', ['pending_payment', 'payment_submitted'])
+              .maybeSingle();
+
+            if (!reqError && reqData) {
+              setHasPendingUpgrade(true);
+            }
+          }
+        }
       } catch (error) {
-        console.error('Error fetching plan prices:', error);
+        console.error('Error fetching plan prices/requests:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchPrices();
-  }, []);
+    fetchPricesAndRequests();
+  }, [user, isUpgrade]);
 
   const getPrice = (plan: string, period: 'monthly' | 'annual') => {
     const found = prices.find(p => p.plan_code === plan && p.billing_period === period);
@@ -46,7 +73,11 @@ export default function PlanSelection() {
   const handleSelectPlan = (planCode: string) => {
     if (planCode === 'premium') return;
     const period = isAnnual ? 'annual' : 'monthly';
-    navigate(`/assinatura?plan=${planCode}&period=${period}`);
+    if (isUpgrade) {
+      navigate(`/assinatura?mode=upgrade&target=${planCode}&period=${period}`);
+    } else {
+      navigate(`/assinatura?plan=${planCode}&period=${period}`);
+    }
   };
 
   const features = [
@@ -62,13 +93,14 @@ export default function PlanSelection() {
     { name: "Ordem de Serviço", basic: true, ultra: true, premium: true },
     { name: "Relatórios Avançados", basic: true, ultra: true, premium: true },
     { name: "Controle de Estoque", basic: false, ultra: true, premium: true },
+    { name: "Controle de Perdas", basic: false, ultra: true, premium: true },
     { name: "Suporte Prioritário", basic: false, ultra: true, premium: true },
-    { name: "API de Integração", basic: false, ultra: false, premium: true },
+    { name: "Inteligência Artificial", basic: false, ultra: false, premium: true },
   ];
 
   const renderFeatureValue = (val: boolean | string) => {
     if (typeof val === 'string') return <span className="font-medium">{val}</span>;
-    return val ? <Check className="w-5 h-5 text-green-500 mx-auto" /> : <X className="w-5 h-5 text-gray-300 mx-auto" />;
+    return val ? <Check className="w-5 h-5 text-green-500 mx-auto" /> : <X className="w-5 h-5 text-red-500 mx-auto" />;
   };
 
   const formatPrice = (price: number) => {
@@ -86,15 +118,19 @@ export default function PlanSelection() {
   const basicMonthlyEq = basicPrice / 12;
   const ultraMonthlyEq = ultraPrice / 12;
 
+  const currentPlan = user?.planCode || 'basic';
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
-            Escolha o plano ideal para seu negócio
+            {isUpgrade ? "Aprimore seu plano" : "Escolha o plano ideal para seu negócio"}
           </h2>
           <p className="mt-4 text-xl text-gray-600 dark:text-gray-300">
-            Ferramentas poderosas para alavancar suas vendas e gestão.
+            {isUpgrade 
+              ? "O módulo Estoque e Perdas estão disponíveis a partir do plano Ultra." 
+              : "Ferramentas poderosas para alavancar suas vendas e gestão."}
           </p>
         </div>
 
@@ -128,9 +164,10 @@ export default function PlanSelection() {
             <Button 
               className="mt-8 w-full" 
               variant="outline"
+              disabled={isUpgrade && currentPlan === 'basic'}
               onClick={() => handleSelectPlan('basic')}
             >
-              Começar com Básico
+              {isUpgrade && currentPlan === 'basic' ? "Seu Plano Atual" : "Começar com Básico"}
             </Button>
           </div>
 
@@ -152,10 +189,22 @@ export default function PlanSelection() {
             )}
             <Button 
               className="mt-8 w-full" 
+              disabled={hasPendingUpgrade || (isUpgrade && currentPlan === 'ultra')}
               onClick={() => handleSelectPlan('ultra')}
             >
-              Assinar Ultra
+              {hasPendingUpgrade 
+                ? "Upgrade em análise" 
+                : isUpgrade && currentPlan === 'ultra'
+                ? "Seu Plano Atual"
+                : isUpgrade 
+                ? "Fazer Upgrade para Ultra" 
+                : "Assinar Ultra"}
             </Button>
+            {hasPendingUpgrade && (
+              <p className="mt-2 text-xs text-yellow-600 text-center font-medium">
+                Seu upgrade já foi solicitado e está aguardando aprovação.
+              </p>
+            )}
           </div>
 
           {/* Premium Plan */}

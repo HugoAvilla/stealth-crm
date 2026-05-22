@@ -150,9 +150,9 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
       onOpenChange(false);
       resetForm();
       onSuccess?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating material:", error);
-      toast.error("Erro ao cadastrar material");
+      toast.error(`Erro ao cadastrar material: ${error.message || error.details || JSON.stringify(error)}`);
     } finally {
       setLoading(false);
     }

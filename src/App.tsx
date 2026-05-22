@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
@@ -46,6 +46,19 @@ const queryClient = new QueryClient();
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isUpgradeMode = searchParams.get('mode') === 'upgrade';
+
+  // Check if the upgrade is actually needed (user doesn't already have target plan or better)
+  const isUpgradeNeeded = (() => {
+    if (!isUpgradeMode || !user) return false;
+    const planHierarchy: Record<string, number> = { basic: 1, ultra: 2, premium: 3 };
+    const targetPlan = searchParams.get('target') || 'ultra';
+    const currentPlanLevel = planHierarchy[user.planCode || 'basic'] || 0;
+    const targetPlanLevel = planHierarchy[targetPlan] || 0;
+    return user.subscriptionStatus === 'active' && currentPlanLevel >= targetPlanLevel ? false : true;
+  })();
 
   useEffect(() => {
     if (!isLoading) {
@@ -96,7 +109,7 @@ function AppRoutes() {
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
-          ) : user?.subscriptionStatus === 'active' && user?.companyId ? (
+          ) : (user?.subscriptionStatus === 'active' && user?.companyId && (!isUpgradeMode || !isUpgradeNeeded)) ? (
             <Navigate to="/" replace />
           ) : (
             <PlanSelection />
@@ -108,7 +121,7 @@ function AppRoutes() {
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
-          ) : user?.subscriptionStatus === 'active' && user?.companyId ? (
+          ) : (user?.subscriptionStatus === 'active' && user?.companyId && (!isUpgradeMode || !isUpgradeNeeded)) ? (
             <Navigate to="/" replace />
           ) : (
             <Subscription />
@@ -117,15 +130,7 @@ function AppRoutes() {
       />
       <Route 
         path="/upgrade" 
-        element={
-          !isAuthenticated ? (
-            <Navigate to="/login" replace />
-          ) : user?.planCode === 'ultra' ? (
-             <Navigate to="/" replace />
-          ) : (
-            <Upgrade />
-          )
-        } 
+        element={<Navigate to="/planos?mode=upgrade" replace />} 
       />
       <Route 
         path="/aguardando-liberacao" 

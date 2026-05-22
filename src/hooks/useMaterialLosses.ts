@@ -28,8 +28,7 @@ export function useMaterialLosses(filters?: {
         .from('material_losses')
         .select(`
           *,
-          material:materials(id, name, unit),
-          installer:profiles(id, first_name, last_name)
+          material:materials(id, name, unit)
         `)
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
@@ -53,14 +52,35 @@ export function useMaterialLosses(filters?: {
         query = query.eq('installer_id', filters.installerId);
       }
 
-      const { data, error } = await query;
+      const { data: lossesData, error } = await query;
 
       if (error) {
         console.error('Error fetching material losses:', error);
         throw error;
       }
 
-      return data;
+      // Fetch profiles to map installer names manually
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, user_id')
+        .eq('company_id', companyId);
+
+      if (profilesError) {
+        console.error('Error fetching profiles for material losses:', profilesError);
+      }
+
+      const profilesMap = new Map((profilesData || []).map(p => [p.user_id, p]));
+
+      return (lossesData || []).map(loss => {
+        const profile = profilesMap.get(loss.installer_id);
+        return {
+          ...loss,
+          installer: profile ? {
+            id: profile.id,
+            name: profile.name
+          } : null
+        };
+      });
     },
     enabled: !!companyId,
   });

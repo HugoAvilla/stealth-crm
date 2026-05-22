@@ -98,14 +98,38 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
     queryKey: ['company-installers', companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, role')
-        .eq('company_id', companyId)
-        .in('role', ['PRODUCAO', 'ADMIN']);
 
-      if (error) throw error;
-      return data;
+      // Buscar perfis ativos da empresa
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, user_id')
+        .eq('company_id', companyId)
+        .eq('is_active', true);
+
+      if (profilesError) throw profilesError;
+      if (!profilesData || profilesData.length === 0) return [];
+
+      // Buscar roles associadas aos usuários
+      const userIds = profilesData.map(p => p.user_id);
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', userIds);
+
+      if (rolesError) throw rolesError;
+
+      const rolesMap = new Map((rolesData || []).map(r => [r.user_id, r.role]));
+
+      // Filtrar e mapear apenas membros PRODUCAO ou ADMIN
+      return profilesData
+        .filter(p => {
+          const role = rolesMap.get(p.user_id);
+          return role === 'PRODUCAO' || role === 'ADMIN';
+        })
+        .map(p => ({
+          id: p.user_id, // installer_id uuid do auth.users(id)
+          name: p.name
+        }));
     },
     enabled: !!companyId && open,
   });
@@ -261,7 +285,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
                       <SelectContent>
                         {installers?.map((inst) => (
                           <SelectItem key={inst.id} value={inst.id}>
-                            {inst.first_name} {inst.last_name}
+                            {inst.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

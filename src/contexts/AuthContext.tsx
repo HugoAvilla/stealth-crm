@@ -111,15 +111,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Determine subscription status
       let calculatedStatus: SubscriptionStatus = 'pending_payment';
       if (subscriptionData) {
-        calculatedStatus = (subscriptionData.status as SubscriptionStatus) || 'pending_payment';
+        const rawStatus = (subscriptionData.status as SubscriptionStatus) || 'pending_payment';
         
-        // If the plan has a valid future expiration date, it remains active regardless of status
-        if (subscriptionData.expires_at) {
-          const expiresAtDate = new Date(subscriptionData.expires_at);
-          const now = new Date();
+        if (rawStatus === 'blocked') {
+          calculatedStatus = 'blocked';
+        } else if (rawStatus === 'expired') {
+          calculatedStatus = 'expired';
+        } else if (rawStatus === 'payment_submitted') {
+          calculatedStatus = 'payment_submitted';
+        } else if (rawStatus === 'pending_payment') {
+          calculatedStatus = 'pending_payment';
+        } else {
+          // If status is active, check if it has expired
+          calculatedStatus = 'active';
           
-          if (expiresAtDate > now) {
-            calculatedStatus = 'active';
+          if (subscriptionData.expires_at) {
+            const expiresAtDate = new Date(subscriptionData.expires_at);
+            const now = new Date();
+            
+            if (expiresAtDate <= now) {
+              // If the expiration date has passed, force expired status
+              calculatedStatus = 'expired';
+            }
           }
         }
       } else if (profile?.company_id) {
