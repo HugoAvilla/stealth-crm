@@ -81,7 +81,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
       if (!companyId) return [];
       const { data, error } = await supabase
         .from('materials')
-        .select('id, name, current_stock, average_cost, unit, type')
+        .select('id, name, current_stock, average_cost, unit, type, width')
         .eq('company_id', companyId)
         .eq('is_open_roll', false)
         .gt('current_stock', 0)
@@ -174,6 +174,11 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
   const selectedMaterialId = form.watch("material_id");
   const selectedMaterial = materials?.find(m => m.id.toString() === selectedMaterialId);
 
+  const lostMetersVal = form.watch("lost_meters") || 0;
+  const widthVal = selectedMaterial && 'width' in selectedMaterial ? (selectedMaterial.width as number || 1.52) : 1.52;
+  const previewM2 = lostMetersVal * widthVal;
+  const previewCost = lostMetersVal * (selectedMaterial?.average_cost || 0);
+
   const onSubmit = async (values: FormValues) => {
     // Validate stock when creating
     if (selectedMaterial && values.lost_meters > selectedMaterial.current_stock && !isEditing) {
@@ -185,8 +190,11 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
     }
     
     const category = selectedMaterial?.type === 'INSULFILM' ? 'INSULFILM' : 'PPF';
-    const cost = (selectedMaterial?.average_cost || 0) * values.lost_meters;
-    const lost_m2 = values.lost_meters * 1.52; // Exemplo fixo de cálculo
+    
+    // Calcula área e custo proporcional baseados na largura física real da bobina cadastrada no material
+    const width = selectedMaterial && 'width' in selectedMaterial ? (selectedMaterial.width as number || 1.52) : 1.52;
+    const lost_m2 = values.lost_meters * width;
+    const cost = values.lost_meters * (selectedMaterial?.average_cost || 0);
 
     try {
       if (isEditing && lossToEdit) {
@@ -388,6 +396,32 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
                 </FormItem>
               )}
             />
+
+            {selectedMaterial && (
+              <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10 text-xs space-y-1.5 animate-in fade-in duration-300">
+                <p className="font-semibold text-blue-600 flex items-center gap-1.5">
+                  <span>⚡ Resumo Proporcional da Perda:</span>
+                </p>
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Largura</p>
+                    <p className="font-medium text-foreground">{widthVal.toFixed(2)}m</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Área Total</p>
+                    <p className="font-semibold text-blue-600">
+                      {previewM2.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m²
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Custo Proporcional</p>
+                    <p className="font-semibold text-destructive">
+                      R$ {previewCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>

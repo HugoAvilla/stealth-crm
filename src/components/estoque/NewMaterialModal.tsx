@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,8 +32,43 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
   const [minStock, setMinStock] = useState("");
   const [currentStock, setCurrentStock] = useState("");
   const [isOpenRoll, setIsOpenRoll] = useState(false);
+  const [width, setWidth] = useState("");
   const [loading, setLoading] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
+
+  // Fetch existing material to check width
+  const { data: existingMaterial } = useQuery({
+    queryKey: ['existing-material-width', selectedProductTypeId, isOpenRoll, companyId],
+    queryFn: async () => {
+      if (!selectedProductTypeId || !companyId) return null;
+      const { data, error } = await supabase
+        .from("materials")
+        .select("id, width, current_stock")
+        .eq("product_type_id", parseInt(selectedProductTypeId))
+        .eq("company_id", companyId)
+        .eq("is_open_roll", isOpenRoll)
+        .maybeSingle();
+      if (error) {
+        console.error("Error fetching existing material:", error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!selectedProductTypeId && !!companyId && open,
+  });
+
+  // Update width when existing material is loaded
+  useEffect(() => {
+    if (existingMaterial) {
+      if (existingMaterial.width) {
+        setWidth(existingMaterial.width.toString());
+      } else {
+        setWidth("1.52");
+      }
+    } else {
+      setWidth("");
+    }
+  }, [existingMaterial]);
 
   // Fetch company ID
   const { data: profile } = useQuery({
@@ -98,11 +133,20 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
       // Check if material already exists for this product type and roll state (active or inactive)
       const { data: existingMaterial } = await supabase
         .from("materials")
-        .select("id, is_active")
+        .select("id, is_active, width")
         .eq("product_type_id", selectedProduct.id)
         .eq("company_id", companyId)
         .eq("is_open_roll", isOpenRoll)
         .maybeSingle();
+
+      // Validação inteligente de largura: obrigatória apenas no primeiro cadastro de rolo do tipo "Metros"
+      if (unit === "Metros" && !existingMaterial) {
+        if (!width || parseFloat(width) <= 0) {
+          toast.error("A largura da bobina é obrigatória para o primeiro cadastro deste material");
+          setLoading(false);
+          return;
+        }
+      }
 
       const materialNameBase = `${selectedProduct.brand ? selectedProduct.brand + ' ' : ''}${selectedProduct.name}${selectedProduct.model ? ` - ${selectedProduct.model}` : ''}`;
       const materialName = isOpenRoll ? `${materialNameBase} (Aberta)` : materialNameBase;
@@ -110,7 +154,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
       let error;
 
       if (existingMaterial) {
-        // Update the existing material (auto-created or previously inactive) with new values
+        // Update the existing material with new stock values (keeping or adjusting the width)
         const { error: updateError } = await supabase
           .from("materials")
           .update({
@@ -124,6 +168,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
             product_type_id: selectedProduct.id,
             is_active: true,
             is_open_roll: isOpenRoll,
+            width: unit === "Metros" ? (width ? parseFloat(width) : (existingMaterial.width || 1.52)) : null,
           })
           .eq("id", existingMaterial.id);
         error = updateError;
@@ -141,6 +186,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
           product_type_id: selectedProduct.id,
           is_active: true,
           is_open_roll: isOpenRoll,
+          width: unit === "Metros" ? (width ? parseFloat(width) : 1.52) : null,
         });
         error = insertError;
       }
@@ -164,6 +210,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
     setMinStock("");
     setCurrentStock("");
     setIsOpenRoll(false);
+    setWidth("");
   };
 
   const formatProductLabel = (product: ProductType) => {
@@ -269,6 +316,31 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
               />
             </div>
           </div>
+
+          {unit === "Metros" && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1">
+                Largura da Bobina (m)
+                {existingMaterial ? (
+                  <span className="text-[10px] text-muted-foreground font-normal">(Opcional - Já cadastrado)</span>
+                ) : (
+                  <span className="text-[10px] text-red-500 font-semibold">* Obrigatório</span>
+                )}
+              </Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Ex: 1.52, 0.60, 1.00"
+                value={width}
+                onChange={(e) => setWidth(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {existingMaterial 
+                  ? "Bobina já existente. Deixe como está ou altere se for necessário." 
+                  : "Por ser o primeiro rolo deste tipo, informe a largura física real."}
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-2 pt-4">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>

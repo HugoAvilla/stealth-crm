@@ -19,6 +19,18 @@ import { format } from 'date-fns';
 import { useDeleteMaterialLoss } from '@/hooks/useMaterialLosses';
 import { generateReportPDF } from '@/lib/pdfGenerator';
 
+const formatSafeDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return 'N/A';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'N/A';
+    return format(date, 'dd/MM/yyyy HH:mm');
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'N/A';
+  }
+};
+
 export default function MaterialLosses() {
   const { user, isLoading: authLoading } = useAuth();
   const gate = usePlanGate('perdas');
@@ -130,7 +142,7 @@ export default function MaterialLosses() {
     const rows = losses
       .filter(loss => loss.status !== 'cancelled')
       .map(loss => [
-        loss.created_at ? format(new Date(loss.created_at), 'dd/MM/yyyy HH:mm') : 'N/A',
+        formatSafeDate(loss.created_at),
         loss.installer?.name || 'Não identificado',
         loss.material?.name || '',
         loss.category,
@@ -167,7 +179,7 @@ export default function MaterialLosses() {
     const csvRows = [
       headers.join(';'),
       ...activeLosses.map(loss => [
-        loss.created_at ? format(new Date(loss.created_at), 'dd/MM/yyyy HH:mm') : 'N/A',
+        formatSafeDate(loss.created_at),
         `"${loss.installer?.name || 'Não identificado'}"`,
         `"${loss.material?.name || ''}"`,
         loss.category,
@@ -205,7 +217,7 @@ export default function MaterialLosses() {
     
     activeLosses.forEach(loss => {
       html += `<tr>`;
-      html += `<td>${loss.created_at ? format(new Date(loss.created_at), 'dd/MM/yyyy HH:mm') : 'N/A'}</td>`;
+      html += `<td>${formatSafeDate(loss.created_at)}</td>`;
       html += `<td>${loss.installer?.name || 'Não identificado'}</td>`;
       html += `<td>${loss.material?.name || ''}</td>`;
       html += `<td>${loss.category}</td>`;
@@ -350,7 +362,7 @@ export default function MaterialLosses() {
             <TableBody>
               {losses?.map((loss: any) => (
                 <TableRow key={loss.id} className={loss.status === 'cancelled' ? 'opacity-50 line-through' : ''}>
-                  <TableCell>{loss.created_at ? format(new Date(loss.created_at), 'dd/MM/yyyy HH:mm') : 'N/A'}</TableCell>
+                  <TableCell>{formatSafeDate(loss.created_at)}</TableCell>
                   <TableCell>{loss.installer?.name || 'Não identificado'}</TableCell>
                   <TableCell>{loss.material?.name}</TableCell>
                   <TableCell>{loss.category}</TableCell>

@@ -45,6 +45,7 @@ interface Material {
   company_id: number | null;
   product_type_id: number | null;
   product_types: { light_transmission: string | null } | null;
+  width: number | null;
 }
 
 export default function Estoque() {
@@ -280,9 +281,16 @@ export default function Estoque() {
                       title="Ver detalhes e histórico"
                     >
                       <p>{material.name}</p>
-                      {material.brand && (
-                        <p className="text-xs text-muted-foreground hover:no-underline">{material.brand}</p>
-                      )}
+                      <div className="flex flex-col gap-0.5">
+                        {material.brand && (
+                          <p className="text-xs text-muted-foreground hover:no-underline">{material.brand}</p>
+                        )}
+                        {material.unit === "Metros" && (
+                          <p className="text-[11px] font-normal text-blue-500 hover:no-underline">
+                            Bobina: {material.width ? Number(material.width).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : "1,52"}m de largura
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>

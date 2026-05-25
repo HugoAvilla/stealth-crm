@@ -1000,6 +1000,7 @@ export type Database = {
           type: string | null
           unit: string
           updated_at: string | null
+          width: number | null
         }
         Insert: {
           average_cost?: number | null
@@ -1017,6 +1018,7 @@ export type Database = {
           type?: string | null
           unit: string
           updated_at?: string | null
+          width?: number | null
         }
         Update: {
           average_cost?: number | null
@@ -1034,6 +1036,7 @@ export type Database = {
           type?: string | null
           unit?: string
           updated_at?: string | null
+          width?: number | null
         }
         Relationships: [
           {
