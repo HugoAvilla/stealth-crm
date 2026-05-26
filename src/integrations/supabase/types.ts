@@ -908,6 +908,7 @@ export type Database = {
           installer_id: string
           lost_m2: number
           lost_meters: number
+          lost_width: number | null
           material_id: number
           reason: string
           reason_details: string | null
@@ -926,6 +927,7 @@ export type Database = {
           installer_id: string
           lost_m2: number
           lost_meters: number
+          lost_width?: number | null
           material_id: number
           reason: string
           reason_details?: string | null
@@ -944,6 +946,7 @@ export type Database = {
           installer_id?: string
           lost_m2?: number
           lost_meters?: number
+          lost_width?: number | null
           material_id?: number
           reason?: string
           reason_details?: string | null

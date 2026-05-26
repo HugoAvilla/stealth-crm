@@ -21,6 +21,7 @@ const formSchema = z.object({
   space_id: z.string().min(1, "Selecione a vaga em andamento"),
   installer_id: z.string().min(1, "Selecione o instalador"),
   lost_meters: z.number().positive("A quantidade de metros deve ser maior que zero"),
+  lost_width: z.number().positive("A largura deve ser maior que zero").nullable().optional(),
   reason: z.enum(['RETRABALHO', 'DEFEITO_FABRICA', 'DANO_INSTALACAO', 'SOBRA_INUTILIZAVEL', 'OUTRO'], {
     required_error: "Selecione o motivo",
   }),
@@ -141,6 +142,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
       space_id: "",
       installer_id: "",
       lost_meters: 0,
+      lost_width: null,
       reason: "RETRABALHO",
       reason_details: "",
     },
@@ -155,6 +157,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
           space_id: lossToEdit.space_id?.toString() || "",
           installer_id: lossToEdit.installer_id || "",
           lost_meters: Number(lossToEdit.lost_meters),
+          lost_width: lossToEdit.lost_width ? Number(lossToEdit.lost_width) : null,
           reason: lossToEdit.reason as FormValues['reason'],
           reason_details: lossToEdit.reason_details || "",
         });
@@ -164,6 +167,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
           space_id: "",
           installer_id: "",
           lost_meters: 0,
+          lost_width: null,
           reason: "RETRABALHO",
           reason_details: "",
         });
@@ -175,8 +179,12 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
   const selectedMaterial = materials?.find(m => m.id.toString() === selectedMaterialId);
 
   const lostMetersVal = form.watch("lost_meters") || 0;
+  const lostWidthVal = form.watch("lost_width");
+  
   const widthVal = selectedMaterial && 'width' in selectedMaterial ? (selectedMaterial.width as number || 1.52) : 1.52;
-  const previewM2 = lostMetersVal * widthVal;
+  const activeWidth = lostWidthVal !== null && lostWidthVal !== undefined ? lostWidthVal : widthVal;
+  
+  const previewM2 = lostMetersVal * activeWidth;
   const previewCost = lostMetersVal * (selectedMaterial?.average_cost || 0);
 
   const onSubmit = async (values: FormValues) => {
@@ -191,9 +199,10 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
     
     const category = selectedMaterial?.type === 'INSULFILM' ? 'INSULFILM' : 'PPF';
     
-    // Calcula área e custo proporcional baseados na largura física real da bobina cadastrada no material
-    const width = selectedMaterial && 'width' in selectedMaterial ? (selectedMaterial.width as number || 1.52) : 1.52;
-    const lost_m2 = values.lost_meters * width;
+    // Calcula área e custo proporcional baseados na largura física real da bobina cadastrada no material (ou na largura da peça se informada)
+    const bobbinWidth = selectedMaterial && 'width' in selectedMaterial ? (selectedMaterial.width as number || 1.52) : 1.52;
+    const activeWidthSubmit = values.lost_width !== null && values.lost_width !== undefined ? values.lost_width : bobbinWidth;
+    const lost_m2 = values.lost_meters * activeWidthSubmit;
     const cost = values.lost_meters * (selectedMaterial?.average_cost || 0);
 
     try {
@@ -206,6 +215,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
             installer_id: values.installer_id,
             category,
             lost_meters: values.lost_meters,
+            lost_width: values.lost_width,
             lost_m2,
             cost,
             reason: values.reason,
@@ -219,6 +229,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
           installer_id: values.installer_id,
           category,
           lost_meters: values.lost_meters,
+          lost_width: values.lost_width,
           lost_m2,
           cost,
           reason: values.reason,
@@ -353,29 +364,54 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
 
               <FormField
                 control={form.control}
-                name="reason"
+                name="lost_width"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Motivo *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="RETRABALHO">Retrabalho</SelectItem>
-                        <SelectItem value="DEFEITO_FABRICA">Defeito de Fábrica</SelectItem>
-                        <SelectItem value="DANO_INSTALACAO">Dano na Instalação</SelectItem>
-                        <SelectItem value="SOBRA_INUTILIZAVEL">Sobra Inutilizável</SelectItem>
-                        <SelectItem value="OUTRO">Outro</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>
+                      Largura da Peça (m) <span className="text-[10px] text-muted-foreground">(Opcional)</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.01" 
+                        placeholder={selectedMaterial ? `${widthVal.toFixed(2)}m (largura bobina)` : "Ex: 0.90"}
+                        value={field.value ?? ""} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          field.onChange(val === "" ? null : parseFloat(val));
+                        }} 
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="reason"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Motivo *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="RETRABALHO">Retrabalho</SelectItem>
+                      <SelectItem value="DEFEITO_FABRICA">Defeito de Fábrica</SelectItem>
+                      <SelectItem value="DANO_INSTALACAO">Dano na Instalação</SelectItem>
+                      <SelectItem value="SOBRA_INUTILIZAVEL">Sobra Inutilizável</SelectItem>
+                      <SelectItem value="OUTRO">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -404,8 +440,13 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
                 </p>
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Largura</p>
-                    <p className="font-medium text-foreground">{widthVal.toFixed(2)}m</p>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Largura da Peça</p>
+                    <p className="font-medium text-foreground">
+                      {activeWidth.toFixed(2)}m
+                      {lostWidthVal !== null && lostWidthVal !== undefined && (
+                        <span className="text-[9px] text-blue-600 ml-1 font-bold">(personalizada)</span>
+                      )}
+                    </p>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Área Total</p>
