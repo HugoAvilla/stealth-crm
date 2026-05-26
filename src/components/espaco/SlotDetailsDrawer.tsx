@@ -161,9 +161,8 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     },
     onMutate: async (completed: boolean) => {
       await queryClient.cancelQueries({ queryKey: ['spaces'] });
-      const previousSpaces = queryClient.getQueryData(['spaces']);
       
-      queryClient.setQueryData(['spaces', (space as any)?.company_id], (old: any) => {
+      queryClient.setQueriesData({ queryKey: ['spaces'] }, (old: any) => {
         if (!old) return old;
         return old.map((s: any) => s.id === space?.id ? {
           ...s,
@@ -172,7 +171,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           exit_time: completed ? format(new Date(), 'HH:mm') : s.exit_time,
         } : s);
       });
-      return { previousSpaces };
+      return {};
     },
     onSuccess: () => {
       toast.success(isCompleting ? "Vaga liberada!" : "Vaga reaberta!");
@@ -316,7 +315,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
       }
 
       // Optimistic upate
-      queryClient.setQueryData(['spaces', (space as any)?.company_id], (old: any) => {
+      queryClient.setQueriesData({ queryKey: ['spaces'] }, (old: any) => {
         if (!old) return old;
         return old.map((s: any) => s.id === space?.id ? {
           ...s,
@@ -358,7 +357,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
       if (spaceError) throw spaceError;
 
       // Optimistic update
-      queryClient.setQueryData(['spaces', (space as any)?.company_id], (old: any) => {
+      queryClient.setQueriesData({ queryKey: ['spaces'] }, (old: any) => {
         if (!old) return old;
         return old.map((s: any) => s.id === space?.id ? {
           ...s,
@@ -730,6 +729,13 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           <NewSaleModal
             open={showExportSaleModal}
             onOpenChange={setShowExportSaleModal}
+            initialDate={space.entry_date ? new Date(space.entry_date + 'T12:00:00') : undefined}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['spaces'] });
+              queryClient.invalidateQueries({ queryKey: ['spaces-day'] });
+              queryClient.invalidateQueries({ queryKey: ['sales'] });
+              onUpdate?.();
+            }}
             prefillData={{
               clientId: space.client_id,
               vehicleId: space.vehicle_id,

@@ -96,7 +96,7 @@ export default function Espaco() {
 
   // Fetch active spaces from Supabase
   const { data: spaces, isLoading } = useQuery({
-    queryKey: ['spaces', companyId],
+    queryKey: ['spaces', companyId, format(currentDate, 'yyyy-MM')],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('spaces')
@@ -114,7 +114,7 @@ export default function Espaco() {
           )
         `)
         .eq('company_id', companyId)
-        .eq('has_exited', false)
+        .or(`has_exited.eq.false,and(entry_date.gte.${format(monthStart, 'yyyy-MM-dd')},entry_date.lte.${format(monthEnd, 'yyyy-MM-dd')})`)
         .order('entry_date', { ascending: false });
 
       if (error) throw error;
@@ -160,7 +160,7 @@ export default function Espaco() {
 
   // Calculate counts
   const totalSlots = companySettings?.total_slots || 10;
-  const occupiedCount = spaces?.length || 0;
+  const occupiedCount = spaces?.filter(s => !s.has_exited).length || 0;
   const availableCount = totalSlots - occupiedCount;
 
   const handleSlotClick = (space: SpaceData) => {
@@ -168,7 +168,7 @@ export default function Espaco() {
     setShowDetailsDrawer(true);
   };
 
-  const filteredSpaces = spaces?.filter(s => {
+  const filteredSpaces = spaces?.filter(s => !s.has_exited).filter(s => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (

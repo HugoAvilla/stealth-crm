@@ -78,21 +78,13 @@ const Vendas = () => {
   }, [user?.id, currentDate, activeTab]);
 
   const fetchSales = async () => {
-    if (!user?.id) return;
+    if (!user?.id || !user?.companyId) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile?.company_id) {
-        setLoading(false);
-        return;
-      }
-
       const { data, error } = await supabase
         .from('sales')
         .select(`
@@ -104,13 +96,17 @@ const Vendas = () => {
             service:services(id, name, base_price)
           )
         `)
-        .eq('company_id', profile.company_id)
+        .eq('company_id', user.companyId)
         .is('deleted_at', null)
         .gte('sale_date', format(monthStart, 'yyyy-MM-dd'))
         .lte('sale_date', format(monthEnd, 'yyyy-MM-dd'))
         .order('sale_date', { ascending: false });
 
+      if (error) {
+        console.error('SUPABASE SALES ERROR:', error);
+      }
       if (!error && data) {
+        console.log('SUPABASE SALES DATA:', data);
         // Transform data to match SaleWithDetails interface
         const transformedSales: SaleWithDetails[] = data.map((sale: any) => ({
           id: sale.id,
@@ -139,20 +135,12 @@ const Vendas = () => {
   };
 
   const fetchDeletedSales = async () => {
-    if (!user?.id) return;
+    if (!user?.id || !user?.companyId) {
+      setDeletedLoading(false);
+      return;
+    }
     setDeletedLoading(true);
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile?.company_id) {
-        setDeletedLoading(false);
-        return;
-      }
-
       let query = supabase
         .from('sales')
         .select(`
@@ -164,7 +152,7 @@ const Vendas = () => {
             service:services(id, name, base_price)
           )
         `)
-        .eq('company_id', profile.company_id)
+        .eq('company_id', user.companyId)
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false });
 
