@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -66,18 +69,46 @@ interface SaleDetailsModalProps {
 
 const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  
   const [isPdfA4Open, setIsPdfA4Open] = useState(false);
   const [isPdfNotinhaOpen, setIsPdfNotinhaOpen] = useState(false);
   const [pdfNotinhaSize, setPdfNotinhaSize] = useState<"80mm" | "58mm">("80mm");
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isEditSaleOpen, setIsEditSaleOpen] = useState(false);
+  
+  // Soft Delete and Lixeira states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [isPermanentlyDeleting, setIsPermanentlyDeleting] = useState(false);
+  const [isPermanentDeleteDialogOpen, setIsPermanentDeleteDialogOpen] = useState(false);
+  const [permanentConfirmText, setPermanentConfirmText] = useState("");
 
   // Client Profile state
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileClient, setProfileClient] = useState<any>(null);
+
+  // Fetch deleter user profile if sale is deleted
+  const { data: deleterProfile } = useQuery({
+    queryKey: ['profile-deleter', sale?.deleted_by],
+    queryFn: async () => {
+      if (!sale?.deleted_by) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', sale.deleted_by)
+        .maybeSingle();
+      if (error) {
+        console.error('Error fetching deleter profile:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!sale?.deleted_by && open,
+  });
 
   // Fetch detailed service items
   const { data: detailedItems } = useQuery({
@@ -189,34 +220,114 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
     if (!sale) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('sales')
-        .delete()
-        .eq('id', sale.id);
+      const { data, error } = await supabase.rpc('soft_delete_sale', {
+        p_sale_id: sale.id,
+        p_reason: deleteReason.trim() || "Nenhum motivo informado."
+      });
 
       if (error) throw error;
 
       toast({
         title: "Venda excluída",
-        description: "A venda foi excluída com sucesso.",
+        description: "A venda foi enviada para a lixeira operacional com sucesso.",
       });
 
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-deleted'] });
       queryClient.invalidateQueries({ queryKey: ['sale-detailed-items'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       
       setIsDeleteDialogOpen(false);
       onOpenChange(false);
-    } catch (error) {
-      console.error("Erro ao excluir venda:", error);
+      setDeleteReason("");
+    } catch (error: any) {
+      console.error("Erro ao enviar venda para a lixeira:", error);
       toast({
         title: "Erro ao excluir",
-        description: "Ocorreu um erro ao excluir a venda.",
+        description: error.message || "Ocorreu um erro ao excluir a venda.",
         variant: "destructive",
       });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleRestoreSale = async () => {
+    if (!sale) return;
+    setIsRestoring(true);
+    try {
+      const { data, error } = await supabase.rpc('restore_sale', {
+        p_sale_id: sale.id
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Venda restaurada",
+        description: "A venda foi restaurada e retornou à operação ativa com sucesso.",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-deleted'] });
+      queryClient.invalidateQueries({ queryKey: ['sale-detailed-items'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Erro ao restaurar venda:", error);
+      toast({
+        title: "Erro ao restaurar",
+        description: error.message || "Ocorreu um erro ao restaurar a venda.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const handlePermanentDeleteSale = async () => {
+    if (!sale) return;
+    if (permanentConfirmText !== "EXCLUIR") {
+      toast({
+        title: "Confirmação incorreta",
+        description: "Digite exatamente 'EXCLUIR' para confirmar a exclusão.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsPermanentlyDeleting(true);
+    try {
+      const { data, error } = await supabase.rpc('permanently_delete_sale', {
+        p_sale_id: sale.id
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Venda excluída permanentemente",
+        description: "A venda foi excluída definitivamente e todos os dados foram apagados fisicamente.",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-deleted'] });
+      queryClient.invalidateQueries({ queryKey: ['sale-detailed-items'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      
+      setIsPermanentDeleteDialogOpen(false);
+      onOpenChange(false);
+      setPermanentConfirmText("");
+    } catch (error: any) {
+      console.error("Erro na exclusão definitiva:", error);
+      toast({
+        title: "Erro ao excluir definitivamente",
+        description: error.message || "Ocorreu um erro ao excluir a venda permanentemente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPermanentlyDeleting(false);
     }
   };
 
@@ -241,6 +352,28 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
           </DialogHeader>
 
           <div className="space-y-6 py-4">
+            {sale.deleted_at && (
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex flex-col gap-2 shadow-sm animate-pulse-subtle">
+                <div className="font-bold flex items-center gap-2 text-base">
+                  <Trash2 className="h-5 w-5 text-destructive" />
+                  Venda Excluída (Lixeira Operacional)
+                </div>
+                <div className="text-muted-foreground">
+                  Esta venda foi movida para a lixeira operacional em{" "}
+                  <span className="font-semibold text-destructive">
+                    {format(new Date(sale.deleted_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  </span>{" "}
+                  por <span className="font-semibold text-destructive">{deleterProfile?.name || "Carregando..."}</span>.
+                </div>
+                {sale.deleted_reason && (
+                  <div className="mt-1 bg-destructive/5 p-3 rounded border border-destructive/10 text-xs text-muted-foreground">
+                    <span className="font-semibold block text-destructive mb-1">Motivo da Exclusão:</span>
+                    <span className="italic">"{sale.deleted_reason}"</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Client Section */}
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-muted-foreground">Cliente</h3>
@@ -512,28 +645,92 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
 
           {/* Footer */}
           <div className="flex gap-2 pt-4 border-t">
-            <Button variant="default" className="flex-1 gap-2" onClick={() => setIsEditSaleOpen(true)}>
-              <Edit className="h-4 w-4" />
-              Editar
-            </Button>
-            <Button variant="destructive" className="flex-1 gap-2" onClick={() => setIsDeleteDialogOpen(true)}>
-              <Trash2 className="h-4 w-4" />
-              Excluir
-            </Button>
+            {sale.deleted_at ? (
+              <>
+                {/* Visualização de Venda na Lixeira */}
+                {(user?.role === "ADMIN" || (user?.role === "VENDEDOR" && sale.seller_id === user?.id)) ? (
+                  <Button
+                    variant="default"
+                    className="flex-1 gap-2 bg-success hover:bg-success/90 text-white"
+                    onClick={handleRestoreSale}
+                    disabled={isRestoring}
+                  >
+                    {isRestoring ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ArrowRightLeft className="h-4 w-4" />
+                    )}
+                    Restaurar Venda
+                  </Button>
+                ) : (
+                  <div className="flex-1 text-center py-2 text-sm text-muted-foreground italic">
+                    Apenas o autor da venda ou um administrador podem restaurar esta venda.
+                  </div>
+                )}
+
+                {user?.role === "ADMIN" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="gap-2 border-primary text-primary hover:bg-primary/10"
+                      onClick={() => setIsEditSaleOpen(true)}
+                    >
+                      <Edit className="h-4 w-4" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="flex-1 gap-2"
+                      onClick={() => setIsPermanentDeleteDialogOpen(true)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Excluir Permanente
+                    </Button>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Visualização de Venda Ativa Normal */}
+                <Button variant="default" className="flex-1 gap-2" onClick={() => setIsEditSaleOpen(true)}>
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
+                <Button variant="destructive" className="flex-1 gap-2" onClick={() => setIsDeleteDialogOpen(true)}>
+                  <Trash2 className="h-4 w-4" />
+                  Excluir
+                </Button>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Diálogo de Soft Delete */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta venda? Esta ação não poderá ser desfeita e removerá os dados relacionados a ela.
+              Esta venda será movida para a lixeira operacional e todos os KPIs, gráficos e comissões associados serão suspensos. Você poderá restaurá-la a qualquer momento.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <label className="text-sm font-medium text-muted-foreground block">
+              Motivo da exclusão (opcional):
+            </label>
+            <Textarea
+              placeholder="Digite o motivo pelo qual está excluindo esta venda (ex: cliente desistiu, erro de digitação)..."
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              className="resize-none h-20"
+              maxLength={200}
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting} onClick={() => setDeleteReason("")}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={(e) => {
@@ -545,7 +742,56 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
               {isDeleting ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              Excluir
+              Mover para a Lixeira
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo de Hard Delete Permanente */}
+      <AlertDialog open={isPermanentDeleteDialogOpen} onOpenChange={setIsPermanentDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Exclusão Permanente e Irreversível!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-foreground font-medium">
+              Esta ação apagará fisicamente a venda e todas as dependências do banco de dados para sempre.
+              Um snapshot de segurança completo será salvo de forma estruturada nos logs de auditoria.
+            </AlertDialogDescription>
+            <p className="text-xs text-muted-foreground bg-destructive/10 p-3 rounded border border-destructive/20 mt-2">
+              Para confirmar que deseja apagar DEFINITIVAMENTE todos os registros dessa venda, digite <span className="font-bold text-destructive">EXCLUIR</span> no campo abaixo:
+            </p>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Input
+              type="text"
+              placeholder="Digite EXCLUIR para confirmar"
+              value={permanentConfirmText}
+              onChange={(e) => setPermanentConfirmText(e.target.value)}
+              className="border-destructive focus-visible:ring-destructive"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={isPermanentlyDeleting}
+              onClick={() => setPermanentConfirmText("")}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                handlePermanentDeleteSale();
+              }}
+              disabled={isPermanentlyDeleting || permanentConfirmText !== "EXCLUIR"}
+            >
+              {isPermanentlyDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Excluir Permanentemente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

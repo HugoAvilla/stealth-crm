@@ -46,6 +46,11 @@ export interface SaleWithDetails {
   client: SaleClient | null;
   vehicle: SaleVehicle | null;
   sale_items: SaleItem[];
+  deleted_at?: string | null;
+  deleted_by?: string | null;
+  deleted_reason?: string | null;
+  restored_at?: string | null;
+  restored_by?: string | null;
 }
 
 // Types for detailed INSULFILM/PPF service items
