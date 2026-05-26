@@ -62,20 +62,6 @@ export default function MaterialLosses() {
 
   const isAdmin = user?.role === 'ADMIN';
 
-  if (authLoading || isLoading || !gate.hasAccess) {
-    return (
-      <div className="space-y-6 p-6">
-        <Skeleton className="h-10 w-48" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-        <Skeleton className="h-96" />
-      </div>
-    );
-  }
-
   // Calculations for cards
   const stats = useMemo(() => {
     if (!losses) return { meters: 0, m2: 0, count: 0, cost: 0 };
@@ -134,6 +120,20 @@ export default function MaterialLosses() {
 
     return triggered;
   }, [limits, losses]);
+
+  if (authLoading || isLoading || !gate.hasAccess) {
+    return (
+      <div className="space-y-6 p-6">
+        <Skeleton className="h-10 w-48" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
 
   const exportToPDF = async () => {
     if (!losses) return;

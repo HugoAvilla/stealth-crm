@@ -41,6 +41,7 @@ import TeamRequests from "./pages/TeamRequests";
 import NotFound from "./pages/NotFound";
 
 import { MainLayout } from "./components/layout/MainLayout";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -249,7 +250,7 @@ function AppRoutes() {
       } />
       <Route path="/perdas" element={
         <ProtectedRoute allowedRoles={['ADMIN', 'PRODUCAO', 'VENDEDOR']}>
-          <MainLayout><MaterialLosses /></MainLayout>
+          <MainLayout><ErrorBoundary><MaterialLosses /></ErrorBoundary></MainLayout>
         </ProtectedRoute>
       } />
 
