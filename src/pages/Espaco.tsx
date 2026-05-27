@@ -415,38 +415,59 @@ export default function Espaco() {
                         !isSameMonth(day, currentDate) && "opacity-50"
                       )}
                     >
-                      <div className="flex w-full items-start justify-between gap-1">
+                      <div className="flex w-full items-center justify-center relative min-h-[24px]">
                         <span className={cn(
-                          "text-xs sm:text-sm",
-                          isToday(day) && "font-bold text-primary"
+                          "text-sm sm:text-base font-extrabold",
+                          isToday(day) ? "text-primary" : "text-foreground"
                         )}>
                           {format(day, 'd')}
                         </span>
 
-                        {calendarEvent && (
+                        {isToday(day) ? (
+                          <span className="absolute right-1 top-1/2 -translate-y-1/2 rounded bg-red-600 text-white text-[8px] leading-none sm:text-[9px] font-extrabold px-1.5 py-0.5 shadow-sm">
+                            HOJE
+                          </span>
+                        ) : calendarEvent ? (
                           <span
                             className={cn(
-                              "max-w-[65%] truncate rounded px-1 py-0.5 text-[8px] leading-none sm:text-[9px]",
+                              "absolute right-1 top-1/2 -translate-y-1/2 max-w-[65%] truncate rounded px-1 py-0.5 text-[8px] leading-none sm:text-[9px]",
                               BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].chipClass
                             )}
                           >
                             {calendarEvent.shortName}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                       {(inProgress > 0 || completed > 0) && (
-                        <div className="mt-auto flex flex-col gap-1 items-center w-full">
-                          {inProgress > 0 && (
-                            <Badge variant="default" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 bg-yellow-500 text-yellow-950 hover:bg-yellow-600 truncate flex justify-center w-full font-bold shadow-sm">
-                              {inProgress} {inProgress === 1 ? 'vaga' : 'vagas'}
-                            </Badge>
-                          )}
-                          {completed > 0 && (
-                            <Badge variant="default" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 bg-green-500 text-white hover:bg-green-600 truncate flex justify-center w-full font-bold shadow-sm">
-                              {completed} {completed === 1 ? 'vaga' : 'vagas'}
-                            </Badge>
-                          )}
-                        </div>
+                        <>
+                          {/* Visualização Desktop */}
+                          <div className="hidden sm:flex flex-col gap-1 items-center w-full mt-auto">
+                            {inProgress > 0 && (
+                              <Badge variant="default" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 bg-yellow-500 text-yellow-950 hover:bg-yellow-600 truncate flex justify-center w-full font-bold shadow-sm">
+                                {inProgress} {inProgress === 1 ? 'vaga' : 'vagas'}
+                              </Badge>
+                            )}
+                            {completed > 0 && (
+                              <Badge variant="default" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 bg-green-500 text-white hover:bg-green-600 truncate flex justify-center w-full font-bold shadow-sm">
+                                {completed} {completed === 1 ? 'vaga' : 'vagas'}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Visualização Mobile Compacta */}
+                          <div className="flex sm:hidden flex-row items-center justify-center gap-1 mt-auto w-full pb-0.5">
+                            {inProgress > 0 && (
+                              <div className="w-4 h-4 rounded-full bg-yellow-500 text-yellow-950 flex items-center justify-center text-[8px] font-extrabold shadow-sm">
+                                {inProgress}
+                              </div>
+                            )}
+                            {completed > 0 && (
+                              <div className="w-4 h-4 rounded-full bg-green-500 text-white flex items-center justify-center text-[8px] font-extrabold shadow-sm">
+                                {completed}
+                              </div>
+                            )}
+                          </div>
+                        </>
                       )}
                     </button>
                   );

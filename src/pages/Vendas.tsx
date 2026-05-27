@@ -249,7 +249,7 @@ const Vendas = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="h-auto flex-wrap justify-start gap-2 pb-1">
           <TabsTrigger value="vendas" className="gap-2">
             <Calendar className="h-4 w-4" />
             Vendas
@@ -408,35 +408,52 @@ const Vendas = () => {
                             isToday && "ring-2 ring-primary"
                           )}
                         >
-                          <div className="mb-1 flex items-start justify-between gap-1">
+                          <div className="mb-1 flex items-center justify-center relative min-h-[24px]">
                             <div className={cn(
-                              "text-xs sm:text-sm font-medium",
-                              isToday && "text-primary"
+                              "text-sm sm:text-base font-extrabold",
+                              isToday ? "text-primary" : "text-foreground"
                             )}>
                               {format(day, "d")}
                             </div>
 
-                            {calendarEvent && (
+                            {isToday ? (
+                              <span className="absolute right-1 top-1/2 -translate-y-1/2 rounded bg-red-600 text-white text-[9px] leading-none sm:text-[10px] font-extrabold px-1.5 py-0.5 shadow-sm">
+                                HOJE
+                              </span>
+                            ) : calendarEvent ? (
                               <span
                                 className={cn(
-                                  "max-w-[65%] truncate rounded px-1 py-0.5 text-[9px] leading-none sm:text-[10px]",
+                                  "absolute right-1 top-1/2 -translate-y-1/2 max-w-[65%] truncate rounded px-1 py-0.5 text-[9px] leading-none sm:text-[10px]",
                                   BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].chipClass
                                 )}
                               >
                                 {calendarEvent.shortName}
                               </span>
-                            )}
+                            ) : null}
                           </div>
 
                           {daySales.length > 0 && (
-                            <div className="space-y-1 flex flex-col items-center">
-                              <Badge variant="default" className="w-full justify-center text-[10px] sm:text-xs bg-green-500 text-white hover:bg-green-600 px-0 sm:px-2 py-0 sm:py-0.5 max-w-full font-bold shadow-sm">
-                                <span className="truncate">{daySales.length} <span className="hidden sm:inline">venda{daySales.length > 1 ? "s" : ""}</span></span>
-                              </Badge>
-                              <Badge variant="outline" className="w-full justify-center text-[10px] sm:text-xs px-0 sm:px-2 py-0 sm:py-0.5 max-w-full">
-                                <span className="truncate">R$ {dayTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}</span>
-                              </Badge>
-                            </div>
+                            <>
+                              {/* Visualização Desktop */}
+                              <div className="hidden sm:flex flex-col space-y-1 items-center w-full">
+                                <Badge variant="default" className="w-full justify-center text-[10px] sm:text-xs bg-green-500 text-white hover:bg-green-600 px-0 sm:px-2 py-0 sm:py-0.5 max-w-full font-bold shadow-sm">
+                                  <span className="truncate">{daySales.length} <span className="hidden sm:inline">venda{daySales.length > 1 ? "s" : ""}</span></span>
+                                </Badge>
+                                <Badge variant="outline" className="w-full justify-center text-[10px] sm:text-xs px-0 sm:px-2 py-0 sm:py-0.5 max-w-full">
+                                  <span className="truncate">R$ {dayTotal.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}</span>
+                                </Badge>
+                              </div>
+
+                              {/* Visualização Mobile Compacta */}
+                              <div className="flex sm:hidden flex-col items-center justify-center gap-0.5 mt-0.5 w-full">
+                                <div className="w-4 h-4 rounded-full bg-green-500 text-white flex items-center justify-center text-[8px] font-extrabold shadow-sm">
+                                  {daySales.length}
+                                </div>
+                                <span className="text-[8px] font-extrabold text-green-500 truncate max-w-full">
+                                  {dayTotal >= 1000 ? `${(dayTotal / 1000).toFixed(1).replace('.', ',')}k` : dayTotal}
+                                </span>
+                              </div>
+                            </>
                           )}
                         </div>
                       );
