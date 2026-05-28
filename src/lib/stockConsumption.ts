@@ -116,51 +116,41 @@ export async function consumeStockForSale(
         continue;
       }
 
-      if (material.is_open_roll) {
-        // Consume from open roll via RPC
-        const { error: rpcError } = await supabase.rpc("consume_open_roll", {
-          p_material_id: material.id,
-          p_meters: consumeAmount,
-          p_reason: `Consumo automático - Venda #${saleId} (${vehicle.brand} ${vehicle.model} - ${vehicleSize})`,
-          p_user_id: userId,
-          p_company_id: companyId,
-        });
+      const reasonText = `Consumo automático - Venda #${saleId} (${vehicle.brand} ${vehicle.model} - ${vehicleSize})`;
 
-        if (rpcError) {
-          console.error("Error consuming open roll:", rpcError);
-          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
-          continue;
-        }
-      } else {
-        const currentStock = material.current_stock || 0;
+      const { data: rpcData, error: rpcError } = await supabase.rpc("consume_material_rolls", {
+        p_material_id: material.id,
+        p_meters: consumeAmount,
+        p_source: 'venda',
+        p_reason: reasonText,
+        p_user_id: userId,
+        p_company_id: companyId,
+      });
 
-        // Check if we have enough stock
-        if (currentStock < consumeAmount) {
-          result.warnings.push(
-            `Estoque insuficiente de ${material.name}: necessário ${consumeAmount} ${material.unit}, disponível ${currentStock} ${material.unit}`
-          );
-          // Continue with partial consumption if there's any stock
-          if (currentStock <= 0) continue;
-          consumeAmount = currentStock;
-        }
+      if (rpcError) {
+        console.error("Error consuming rolls:", rpcError);
+        result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+        continue;
+      }
 
-        // 5. Register stock movement (trigger will update current_stock)
-        const { error: movementError } = await supabase
-          .from("stock_movements")
-          .insert({
-            material_id: material.id,
-            movement_type: "Saida",
-            quantity: consumeAmount,
-            reason: `Consumo automático - Venda #${saleId} (${vehicle.brand} ${vehicle.model} - ${vehicleSize})`,
-            user_id: userId,
-            company_id: companyId,
+      const response = rpcData as any;
+      if (response && response.warning) {
+        result.warnings.push(
+          `Estoque insuficiente de ${material.name}: necessário ${response.required_meters} ${material.unit}, disponível ${response.available_meters} ${material.unit}`
+        );
+        // Tenta consumir pelo menos o disponível, se houver
+        if (response.available_meters > 0) {
+          consumeAmount = response.available_meters;
+          const { error: retryError } = await supabase.rpc("consume_material_rolls", {
+             p_material_id: material.id,
+             p_meters: consumeAmount,
+             p_source: 'venda',
+             p_reason: reasonText + ' (Consumo parcial)',
+             p_user_id: userId,
+             p_company_id: companyId,
           });
-
-        if (movementError) {
-          console.error("Error registering stock movement:", movementError);
-          result.warnings.push(
-            `Erro ao registrar consumo de ${material.name}`
-          );
+          if (retryError) continue;
+        } else {
           continue;
         }
       }
@@ -273,49 +263,41 @@ export async function consumeStockForDetailedSale(
 
       let consumeAmount = metersToConsume;
 
-      if (material.is_open_roll) {
-        // Consume from open roll via RPC
-        const { error: rpcError } = await supabase.rpc("consume_open_roll", {
-          p_material_id: material.id,
-          p_meters: consumeAmount,
-          p_reason: `Consumo automático - Venda #${saleId} (${vehicleBrand} ${vehicleModel} - ${vehicleSize})`,
-          p_user_id: userId,
-          p_company_id: companyId,
-        });
+      const reasonText = `Consumo automático - Venda #${saleId} (${vehicleBrand} ${vehicleModel} - ${vehicleSize})`;
 
-        if (rpcError) {
-          console.error("Error consuming open roll:", rpcError);
-          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
-          continue;
-        }
-      } else {
-        const currentStock = material.current_stock || 0;
+      const { data: rpcData, error: rpcError } = await supabase.rpc("consume_material_rolls", {
+        p_material_id: material.id,
+        p_meters: consumeAmount,
+        p_source: 'espaco',
+        p_reason: reasonText,
+        p_user_id: userId,
+        p_company_id: companyId,
+      });
 
-        // Check if we have enough stock
-        if (currentStock < metersToConsume) {
-          result.warnings.push(
-            `Estoque insuficiente de ${material.name}: necessário ${metersToConsume.toFixed(2)} ${material.unit}, disponível ${currentStock.toFixed(2)} ${material.unit}`
-          );
-          // Continue with partial consumption if there's any stock
-          if (currentStock <= 0) continue;
-          consumeAmount = currentStock;
-        }
+      if (rpcError) {
+        console.error("Error consuming rolls:", rpcError);
+        result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+        continue;
+      }
 
-        // 4. Register stock movement
-        const { error: movementError } = await supabase
-          .from("stock_movements")
-          .insert({
-            material_id: material.id,
-            movement_type: "Saida",
-            quantity: consumeAmount,
-            reason: `Consumo automático - Venda #${saleId} (${vehicleBrand} ${vehicleModel} - ${vehicleSize})`,
-            user_id: userId,
-            company_id: companyId,
+      const response = rpcData as any;
+      if (response && response.warning) {
+        result.warnings.push(
+          `Estoque insuficiente de ${material.name}: necessário ${response.required_meters?.toFixed(2)} ${material.unit}, disponível ${response.available_meters?.toFixed(2)} ${material.unit}`
+        );
+        // Tenta consumir pelo menos o disponível, se houver
+        if (response.available_meters > 0) {
+          consumeAmount = response.available_meters;
+          const { error: retryError } = await supabase.rpc("consume_material_rolls", {
+             p_material_id: material.id,
+             p_meters: consumeAmount,
+             p_source: 'espaco',
+             p_reason: reasonText + ' (Consumo parcial)',
+             p_user_id: userId,
+             p_company_id: companyId,
           });
-
-        if (movementError) {
-          console.error("Error registering stock movement:", movementError);
-          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+          if (retryError) continue;
+        } else {
           continue;
         }
       }
