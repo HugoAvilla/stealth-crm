@@ -62,24 +62,26 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales, onNewSale 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto max-w-[100vw]">
           <SheetHeader className="space-y-4">
             {/* Date Navigation */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between px-6 sm:px-0 sm:pr-8">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setCurrentDate(subDays(currentDate, 1))}
+                className="h-8 w-8 shrink-0"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <SheetTitle className="text-center">
+              <SheetTitle className="text-center text-sm sm:text-base font-semibold capitalize max-w-[70%] line-clamp-2">
                 {format(currentDate, "EEEE, d 'de' MMMM yyyy", { locale: ptBR })}
               </SheetTitle>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setCurrentDate(addDays(currentDate, 1))}
+                className="h-8 w-8 shrink-0"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>

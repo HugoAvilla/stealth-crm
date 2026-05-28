@@ -20,6 +20,8 @@ import { CAC_ORIGIN_OPTIONS, CacOrigin } from "@/constants/origins";
 import { toast } from "sonner";
 import { Target, TrendingUp, Users, DollarSign, PieChart, Plus, RefreshCw, UserPlus } from "lucide-react";
 import { RoasEntryModal } from "./RoasEntryModal";
+import { createExpenseTransaction } from "@/lib/financialTransactions";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function CacTab() {
   const { user } = useAuth();
@@ -28,6 +30,37 @@ export function CacTab() {
   const [loading, setLoading] = useState(false);
   const [isRoasModalOpen, setIsRoasModalOpen] = useState(false);
   const [targetRoas, setTargetRoas] = useState<number>(4);
+
+  // Seller Expense Card States
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [sellerId, setSellerId] = useState<string>("");
+  const [sellerAmount, setSellerAmount] = useState<string>("");
+  const [sellerDate, setSellerDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [sellerDescription, setSellerDescription] = useState<string>("");
+  const [submittingSellerExpense, setSubmittingSellerExpense] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (user?.companyId) {
+      fetchSellers();
+    }
+  }, [user?.companyId]);
+
+  const fetchSellers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('commission_people')
+        .select('id, name')
+        .eq('company_id', user.companyId)
+        .eq('type', 'VENDEDOR')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      setSellers(data || []);
+    } catch (e) {
+      console.error("Error fetching sellers", e);
+    }
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("@stealth-crm:target-roas");
@@ -249,6 +282,88 @@ export function CacTab() {
     }
   };
 
+  const handleSellerExpenseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.companyId) {
+      toast.error("Empresa não vinculada");
+      return;
+    }
+
+    if (!sellerId) {
+      toast.error("Selecione um vendedor");
+      return;
+    }
+
+    const valorInvestido = parseFloat(sellerAmount.replace(",", "."));
+    if (isNaN(valorInvestido) || valorInvestido <= 0) {
+      toast.error("Digite um valor válido maior que 0");
+      return;
+    }
+
+    setSubmittingSellerExpense(true);
+
+    try {
+      // Find main account
+      const { data: mainAccount } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("company_id", user.companyId)
+        .eq("is_main", true)
+        .single();
+
+      if (!mainAccount) {
+        toast.error("Conta principal não encontrada");
+        setSubmittingSellerExpense(false);
+        return;
+      }
+
+      // Get seller name
+      const selectedSeller = sellers.find(s => s.id.toString() === sellerId);
+      const sellerName = selectedSeller ? selectedSeller.name : "Vendedor";
+
+      const result = await createExpenseTransaction({
+        name: sellerDescription ? `Comissão - ${sellerDescription}` : `Gasto Vendedor - ${sellerName}`,
+        amount: valorInvestido,
+        transactionDate: sellerDate,
+        companyId: user.companyId,
+        accountId: mainAccount.id,
+        isPaid: true,
+        description: `Gasto Vendedor: ${sellerName}${sellerDescription ? ` - ${sellerDescription}` : ''}`,
+        originType: "manual",
+      });
+
+      if (!result) throw new Error("Falha ao criar transação");
+
+      // Update CAC fields in transaction
+      const { error: updateError } = await supabase
+        .from("transactions")
+        .update({
+          include_in_cac: true,
+          cac_bucket: "vendas",
+          cac_origin: "Geral",
+        })
+        .eq("id", result.id);
+
+      if (updateError) throw updateError;
+
+      toast.success(`Gasto com ${sellerName} registrado com sucesso!`);
+      
+      // Reset form
+      setSellerAmount("");
+      setSellerDescription("");
+      setSellerId("");
+      setSellerDate(format(new Date(), "yyyy-MM-dd"));
+      
+      // Refresh CAC data
+      fetchCacData();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(`Erro ao registrar gasto: ${error.message}`);
+    } finally {
+      setSubmittingSellerExpense(false);
+    }
+  };
+
   const avgCac = newPayingClients > 0 ? totalCac / newPayingClients : 0;
   const globalRoas = totalCac > 0 ? cohortRevenue / totalCac : 0;
 
@@ -258,11 +373,31 @@ export function CacTab() {
       {/* Header and Filters */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 p-4 bg-muted/30 rounded-xl border">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-xl font-bold tracking-tight">Custo de Aquisição de Clientes</h2>
-            <Button size="sm" variant="outline" className="h-8 gap-1 bg-background" onClick={() => setIsRoasModalOpen(true)}>
-              <Plus className="h-3.5 w-3.5" /> Registrar Gasto em Ads
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="h-8 gap-1 bg-background" onClick={() => setIsRoasModalOpen(true)}>
+                <Plus className="h-3.5 w-3.5" /> Registrar Gasto em Ads
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-8 gap-1 bg-background border-blue-500/30 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 transition-all" 
+                onClick={() => {
+                  const element = document.getElementById("quick-seller-expense-card");
+                  if (element) {
+                    element.scrollIntoView({ behavior: "smooth", block: "center" });
+                    // Highlight the card temporarily
+                    element.classList.add("ring-2", "ring-blue-500");
+                    setTimeout(() => {
+                      element.classList.remove("ring-2", "ring-blue-500");
+                    }, 1500);
+                  }
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" /> Registrar Gasto com Vendedor
+              </Button>
+            </div>
           </div>
           <p className="text-sm text-muted-foreground mt-1">Analise o retorno dos seus investimentos em marketing e vendas.</p>
         </div>
@@ -371,83 +506,186 @@ export function CacTab() {
         </Card>
       </div>
 
-      {/* New vs Returning Card */}
-      <Card className="p-5 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5">
-          <UserPlus className="w-20 h-20" />
-        </div>
-        <h3 className="font-semibold flex items-center gap-2 mb-4">
-          <UserPlus className="w-4 h-4 text-primary" />
-          Novos vs Retorno
-        </h3>
-        {(newClientSales + returningClientSales) === 0 ? (
-          <p className="text-sm text-muted-foreground">Sem dados de classificação de clientes no período.</p>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* New Clients */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-green-500" />
-                <span className="text-sm font-medium text-muted-foreground">Novos</span>
-              </div>
-              <p className="text-2xl font-bold">{newClientSales}</p>
-              <p className="text-xs text-muted-foreground">
-                {((newClientSales / (newClientSales + returningClientSales)) * 100).toFixed(0)}% das vendas
-              </p>
-            </div>
-            {/* Returning Clients */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-blue-500" />
-                <span className="text-sm font-medium text-muted-foreground">Retorno</span>
-              </div>
-              <p className="text-2xl font-bold">{returningClientSales}</p>
-              <p className="text-xs text-muted-foreground">
-                {((returningClientSales / (newClientSales + returningClientSales)) * 100).toFixed(0)}% das vendas
-              </p>
-            </div>
-            {/* Ticket Médio Novos */}
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Ticket Médio <span className="text-green-500">Novo</span></p>
-              <p className="text-2xl font-bold text-green-500">
-                {newClientSales > 0 
-                  ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(newClientRevenue / newClientSales)
-                  : 'N/A'
-                }
-              </p>
-            </div>
-            {/* Ticket Médio Retorno */}
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Ticket Médio <span className="text-blue-500">Retorno</span></p>
-              <p className="text-2xl font-bold text-blue-500">
-                {returningClientSales > 0 
-                  ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(returningClientRevenue / returningClientSales)
-                  : 'N/A'
-                }
-              </p>
-            </div>
+      {/* Client classification & Seller Gasto row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* New vs Returning Card */}
+        <Card className="lg:col-span-2 p-5 relative overflow-hidden flex flex-col justify-between">
+          <div className="absolute top-0 right-0 p-4 opacity-5">
+            <UserPlus className="w-20 h-20" />
           </div>
-        )}
-        {/* Progress bar */}
-        {(newClientSales + returningClientSales) > 0 && (
-          <div className="mt-4">
-            <div className="flex h-2.5 rounded-full overflow-hidden bg-muted">
-              <div 
-                className="bg-green-500 transition-all duration-500" 
-                style={{ width: `${(newClientSales / (newClientSales + returningClientSales)) * 100}%` }} 
-              />
-              <div 
-                className="bg-blue-500 transition-all duration-500" 
-                style={{ width: `${(returningClientSales / (newClientSales + returningClientSales)) * 100}%` }} 
-              />
-            </div>
-            <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-green-500 font-medium">Novos</span>
-              <span className="text-[10px] text-blue-500 font-medium">Retorno</span>
-            </div>
+          <div>
+            <h3 className="font-semibold flex items-center gap-2 mb-4">
+              <UserPlus className="w-4 h-4 text-primary" />
+              Novos vs Retorno
+            </h3>
+            {(newClientSales + returningClientSales) === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem dados de classificação de clientes no período.</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* New Clients */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-green-500" />
+                    <span className="text-sm font-medium text-muted-foreground">Novos</span>
+                  </div>
+                  <p className="text-2xl font-bold">{newClientSales}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {((newClientSales / (newClientSales + returningClientSales)) * 100).toFixed(0)}% das vendas
+                  </p>
+                </div>
+                {/* Returning Clients */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-blue-500" />
+                    <span className="text-sm font-medium text-muted-foreground">Retorno</span>
+                  </div>
+                  <p className="text-2xl font-bold">{returningClientSales}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {((returningClientSales / (newClientSales + returningClientSales)) * 100).toFixed(0)}% das vendas
+                  </p>
+                </div>
+                {/* Ticket Médio Novos */}
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Ticket Médio <span className="text-green-500">Novo</span></p>
+                  <p className="text-2xl font-bold text-green-500">
+                    {newClientSales > 0 
+                      ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(newClientRevenue / newClientSales)
+                      : 'N/A'
+                    }
+                  </p>
+                </div>
+                {/* Ticket Médio Retorno */}
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Ticket Médio <span className="text-blue-500">Retorno</span></p>
+                  <p className="text-2xl font-bold text-blue-500">
+                    {returningClientSales > 0 
+                      ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(returningClientRevenue / returningClientSales)
+                      : 'N/A'
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </Card>
+          {/* Progress bar */}
+          {(newClientSales + returningClientSales) > 0 && (
+            <div className="mt-4">
+              <div className="flex h-2.5 rounded-full overflow-hidden bg-muted">
+                <div 
+                  className="bg-green-500 transition-all duration-500" 
+                  style={{ width: `${(newClientSales / (newClientSales + returningClientSales)) * 100}%` }} 
+                />
+                <div 
+                  className="bg-blue-500 transition-all duration-500" 
+                  style={{ width: `${(returningClientSales / (newClientSales + returningClientSales)) * 100}%` }} 
+                />
+              </div>
+              <div className="flex justify-between mt-1">
+                <span className="text-[10px] text-green-500 font-medium">Novos</span>
+                <span className="text-[10px] text-blue-500 font-medium">Retorno</span>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        {/* Gasto com Vendedor Card */}
+        <Card id="quick-seller-expense-card" className="lg:col-span-1 p-5 relative overflow-hidden flex flex-col justify-between border-blue-500/15 dark:border-blue-500/30 bg-gradient-to-br from-background via-background to-blue-500/[0.03] dark:to-blue-500/[0.015] shadow-sm transition-all duration-300">
+          <div className="absolute top-0 right-0 p-4 opacity-5">
+            <Users className="w-20 h-20 text-blue-500" />
+          </div>
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold flex items-center gap-2 text-foreground">
+                <Users className="w-4 h-4 text-blue-500" />
+                Registrar Gasto com Vendedor
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Lançamento de comissões/despesas de vendas para cálculo de CAC.</p>
+            </div>
+
+            <form onSubmit={handleSellerExpenseSubmit} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="sellerId" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Vendedor *</Label>
+                  {sellers.length > 0 ? (
+                    <Select value={sellerId} onValueChange={setSellerId}>
+                      <SelectTrigger id="sellerId" className="h-9 text-xs bg-background">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sellers.map((s) => (
+                          <SelectItem key={s.id} value={s.id.toString()} className="text-xs">
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input 
+                      placeholder="Sem vendedores..." 
+                      disabled 
+                      className="h-9 text-xs bg-background"
+                    />
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="sellerAmount" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Valor (R$) *</Label>
+                  <Input
+                    id="sellerAmount"
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="Ex: 150.00"
+                    value={sellerAmount}
+                    onChange={(e) => setSellerAmount(e.target.value)}
+                    className="h-9 text-xs bg-background"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="sellerDate" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Data *</Label>
+                  <Input
+                    id="sellerDate"
+                    type="date"
+                    required
+                    value={sellerDate}
+                    onChange={(e) => setSellerDate(e.target.value)}
+                    className="h-9 text-xs bg-background"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="sellerDescription" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Descrição Opcional</Label>
+                  <Input
+                    id="sellerDescription"
+                    placeholder="Ex: Comissão, Bônus..."
+                    value={sellerDescription}
+                    onChange={(e) => setSellerDescription(e.target.value)}
+                    className="h-9 text-xs bg-background"
+                  />
+                </div>
+              </div>
+
+              <Button 
+                type="submit" 
+                size="sm" 
+                className="w-full h-9 mt-2 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all"
+                disabled={submittingSellerExpense || sellers.length === 0}
+              >
+                {submittingSellerExpense ? "Registrando..." : "Registrar Gasto"}
+              </Button>
+
+              {sellers.length === 0 && (
+                <p className="text-[10px] text-amber-500 font-medium text-center mt-1">
+                  ⚠️ Cadastre vendedores na aba de Comissões para habilitar.
+                </p>
+              )}
+            </form>
+          </div>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         

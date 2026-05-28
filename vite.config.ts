@@ -30,6 +30,10 @@ export default defineConfig(({ mode }) => ({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB limit
         runtimeCaching: [
           {
+            urlPattern: /\.(?:mp4|webm|ogg|mp3|wav)$/i,
+            handler: "NetworkOnly",
+          },
+          {
             urlPattern: /^https:\/\/.*supabase\.co\/.*/i,
             handler: "NetworkFirst",
             options: {

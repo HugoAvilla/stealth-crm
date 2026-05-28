@@ -84,14 +84,14 @@ export function SlotsDayDrawer({ open, onOpenChange, date, onAddSlot }: SlotsDay
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <SheetHeader className="sticky top-0 z-10 bg-background pb-2">
-          <div className="flex items-center justify-between pr-8">
-            <SheetTitle>
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto overscroll-contain max-w-[100vw]" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <SheetHeader className="sticky top-0 z-10 bg-background pb-3 border-b">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:pr-8">
+            <SheetTitle className="text-left">
               {format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </SheetTitle>
             {onAddSlot && (
-              <Button size="sm" onClick={onAddSlot}>
+              <Button size="sm" onClick={onAddSlot} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Cadastrar Vaga
               </Button>
