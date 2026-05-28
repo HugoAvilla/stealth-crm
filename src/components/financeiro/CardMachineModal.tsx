@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 
 interface Rate {
   installments: number;
-  rate: number;
+  rate: number | string;
 }
 
 interface CardMachineModalProps {
@@ -54,6 +54,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
   const [fetching, setFetching] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [rates, setRates] = useState<Rate[]>([]);
+  const [debitRateInput, setDebitRateInput] = useState("0");
   
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<MachineFormData>({
     defaultValues: {
@@ -91,10 +92,11 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
           debit_rate: 0,
           is_active: true
         });
+        setDebitRateInput("0");
         // Initialize default rates (0%)
         const initialRates = Array.from({ length: 12 }, (_, i) => ({
           installments: i + 1,
-          rate: 0
+          rate: "0"
         }));
         setRates(initialRates);
       }
@@ -107,7 +109,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
     if (maxInstallments > currentMax) {
       const newRates = [...rates];
       for (let i = currentMax + 1; i <= maxInstallments; i++) {
-        newRates.push({ installments: i, rate: 0 });
+        newRates.push({ installments: i, rate: "0" });
       }
       setRates(newRates);
     } else if (maxInstallments < currentMax) {
@@ -160,6 +162,8 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
         is_active: machine.is_active ?? true
       });
 
+      setDebitRateInput(machine.debit_rate?.toString().replace(".", ",") || "0");
+
       const { data: ratesData, error: rError } = await supabase
         .from("card_machine_rates")
         .select("installments, rate")
@@ -171,7 +175,10 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
       // Ensure we have rates for all installments up to max_installments
       const fullRates = Array.from({ length: machine.max_installments || 12 }, (_, i) => {
         const existing = ratesData?.find(r => r.installments === i + 1);
-        return existing || { installments: i + 1, rate: 0 };
+        return {
+          installments: i + 1,
+          rate: existing ? existing.rate.toString().replace(".", ",") : "0"
+        };
       });
       
       setRates(fullRates);
@@ -184,9 +191,9 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
   };
 
   const handleRateChange = (installments: number, value: string) => {
-    const numValue = parseFloat(value.replace(",", ".")) || 0;
+    const cleanValue = value.replace(/[^0-9.,]/g, "").replace(".", ",");
     setRates(prev => prev.map(r => 
-      r.installments === installments ? { ...r, rate: numValue } : r
+      r.installments === installments ? { ...r, rate: cleanValue } : r
     ));
   };
 
@@ -254,7 +261,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
           company_id: profile.company_id,
           machine_id: currentMachineId,
           installments: r.installments,
-          rate: r.rate
+          rate: parseFloat(r.rate.toString().replace(",", ".")) || 0
         }));
 
         const { error: ratesError } = await supabase
@@ -407,9 +414,11 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
                   <div className="relative">
                     <Input 
                       className="pr-6 text-sm"
-                      value={(watch("debit_rate") ?? 0).toString().replace(".", ",")}
+                      value={debitRateInput}
                       onChange={(e) => {
-                        const val = parseFloat(e.target.value.replace(",", ".")) || 0;
+                        const cleanValue = e.target.value.replace(/[^0-9.,]/g, "").replace(".", ",");
+                        setDebitRateInput(cleanValue);
+                        const val = parseFloat(cleanValue.replace(",", ".")) || 0;
                         setValue("debit_rate", val);
                       }}
                       placeholder="0,00"
@@ -524,7 +533,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
                         <div className="relative">
                           <Input 
                             className="pr-6 text-sm"
-                            value={(rate.rate ?? 0).toString().replace(".", ",")}
+                            value={(rate.rate ?? "").toString().replace(".", ",")}
                             onChange={(e) => handleRateChange(rate.installments, e.target.value)}
                             placeholder="0,00"
                           />
