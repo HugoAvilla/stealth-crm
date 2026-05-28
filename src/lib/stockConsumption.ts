@@ -370,3 +370,35 @@ export async function createTransactionFromSale(
   }
 }
 
+/**
+ * Reverses a previous stock consumption by calling the reverse_material_roll_consumption RPC
+ */
+export async function reverseStockForSale(
+  materialId: number,
+  meters: number,
+  reason: string,
+  userId: string,
+  companyId: number
+): Promise<boolean> {
+  try {
+    const { error } = await supabase.rpc("reverse_material_roll_consumption", {
+      p_material_id: materialId,
+      p_meters: meters,
+      p_source: 'venda',
+      p_reason: reason,
+      p_user_id: userId,
+      p_company_id: companyId
+    });
+
+    if (error) {
+      console.error("Error reversing stock:", error);
+      toast.error("Erro ao estornar estoque");
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Unexpected error in reverseStockForSale:", err);
+    return false;
+  }
+}
