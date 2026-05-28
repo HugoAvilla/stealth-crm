@@ -215,20 +215,24 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
 
       setCompanyId(profile.company_id);
 
-      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes] = await Promise.all([
+      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes, rollsRes] = await Promise.all([
         supabase.from('clients').select('id, name, phone, email').eq('company_id', profile.company_id).order('name'),
         supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
         supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
         supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
-        supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true)
+        supabase.from('materials').select('id, product_type_id, current_stock').eq('company_id', profile.company_id).eq('is_active', true),
+        supabase.from('material_rolls').select('material_id, status').in('status', ['aberta', 'fechada']).eq('company_id', profile.company_id)
       ]);
 
       const regionsList = regionsRes.data || [];
       const materialsList = materialsRes.data || [];
+      const rollsList = rollsRes.data || [];
       const productsList = (productTypesRes.data || []).map(pt => {
         const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
-        const openRolls = ptMaterials.filter(m => m.is_open_roll);
-        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
+        const materialIds = ptMaterials.map(m => m.id);
+        const ptRolls = rollsList.filter(r => materialIds.includes(r.material_id));
+        const openRolls = ptRolls.filter(r => r.status === "aberta");
+        const closedRolls = ptRolls.filter(r => r.status === "fechada");
         return {
           ...pt,
           openRollsCount: openRolls.length,

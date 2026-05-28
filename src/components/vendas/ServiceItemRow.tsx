@@ -168,17 +168,16 @@ const ServiceItemRow = ({
       );
     }
 
-    const openRolls = filteredProducts.filter((p) => p.openRollsCount && p.openRollsCount > 0);
-    const closedRollsOnly = filteredProducts.filter((p) => p.hasClosedRoll && (!p.openRollsCount || p.openRollsCount === 0));
+    const availableProducts = filteredProducts.filter((p) => (p.openRollsCount && p.openRollsCount > 0) || p.hasClosedRoll);
     const outOfStock = filteredProducts.filter((p) => !p.openRollsCount && !p.hasClosedRoll);
 
     const renderProduct = (product: ProductType) => {
       let stockDisplay = "";
       if (product.openRollsCount && product.openRollsCount > 0) {
-         stockDisplay += `${product.openRollsCount} Aberta${product.openRollsCount === 1 ? '' : 's'}`;
+         stockDisplay += `${product.openRollsCount} aberta${product.openRollsCount === 1 ? '' : 's'}`;
       }
       if (product.hasClosedRoll) {
-         stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
+         stockDisplay += (stockDisplay ? " + " : "") + "fechada";
       }
 
       return (
@@ -192,16 +191,10 @@ const ServiceItemRow = ({
 
     return (
       <>
-        {openRolls.length > 0 && (
+        {availableProducts.length > 0 && (
           <SelectGroup>
-            <SelectLabel className="text-xs font-semibold text-primary">Estoque Aberto</SelectLabel>
-            {openRolls.map(renderProduct)}
-          </SelectGroup>
-        )}
-        {closedRollsOnly.length > 0 && (
-          <SelectGroup>
-            <SelectLabel className="text-xs font-semibold text-muted-foreground">Estoque Fechado</SelectLabel>
-            {closedRollsOnly.map(renderProduct)}
+            <SelectLabel className="text-xs font-semibold text-primary">Disponível</SelectLabel>
+            {availableProducts.map(renderProduct)}
           </SelectGroup>
         )}
         {outOfStock.length > 0 && (

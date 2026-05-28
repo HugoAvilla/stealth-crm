@@ -122,14 +122,22 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const { data: productTypes } = useQuery({
     queryKey: ['product-types', companyId],
     queryFn: async () => {
-      // 1. Fetch materials (bobinas) from stock
-      const { data: materialsData, error: materialsError } = await supabase
-        .from('materials')
-        .select('product_type_id, is_open_roll')
-        .eq('company_id', companyId)
-        .eq('is_active', true);
+      // 1. Fetch materials and rolls
+      const [materialsRes, rollsRes] = await Promise.all([
+        supabase
+          .from('materials')
+          .select('id, product_type_id')
+          .eq('company_id', companyId)
+          .eq('is_active', true),
+        supabase
+          .from('material_rolls')
+          .select('material_id, status')
+          .in('status', ['aberta', 'fechada'])
+          .eq('company_id', companyId)
+      ]);
 
-      if (materialsError) throw materialsError;
+      if (materialsRes.error) throw materialsRes.error;
+      if (rollsRes.error) throw rollsRes.error;
 
       // 2. Fetch product types
       const { data: productsData, error: productsError } = await supabase
@@ -141,11 +149,14 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       if (productsError) throw productsError;
 
       // 3. Map stock to products
-      const materialsList = materialsData || [];
+      const materialsList = materialsRes.data || [];
+      const rollsList = rollsRes.data || [];
       const enrichedProducts = (productsData || []).map(pt => {
         const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
-        const openRolls = ptMaterials.filter(m => m.is_open_roll);
-        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
+        const materialIds = ptMaterials.map(m => m.id);
+        const ptRolls = rollsList.filter(r => materialIds.includes(r.material_id));
+        const openRolls = ptRolls.filter(r => r.status === "aberta");
+        const closedRolls = ptRolls.filter(r => r.status === "fechada");
         return {
           ...pt,
           openRollsCount: openRolls.length,
