@@ -408,29 +408,25 @@ export default function Espaco() {
                       onClick={() => setSelectedDay(day)}
                       title={eventTitle}
                       className={cn(
-                        "aspect-square min-h-[50px] sm:min-h-[80px] p-0.5 sm:p-1 md:p-2 rounded-lg border transition-colors flex flex-col items-center justify-start gap-0.5 hover:bg-accent cursor-pointer overflow-hidden",
+                        "aspect-square min-h-[70px] sm:min-h-[100px] p-2 rounded-xl border transition-all flex flex-col items-center justify-between hover:bg-accent/80 hover:scale-[1.02] cursor-pointer overflow-hidden relative shadow-sm",
                         calendarEvent &&
                           BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
-                        isToday(day) && "border-primary",
-                        !isSameMonth(day, currentDate) && "opacity-50"
+                        isToday(day) && "border-primary ring-1 ring-primary/20",
+                        !isSameMonth(day, currentDate) && "opacity-40"
                       )}
                     >
-                      <div className="flex w-full items-center justify-center relative min-h-[24px]">
-                        <span className={cn(
-                          "text-sm sm:text-base font-extrabold",
-                          isToday(day) ? "text-primary" : "text-foreground"
-                        )}>
-                          {format(day, 'd')}
-                        </span>
-
+                      {/* Top Badges (Today and Holiday) */}
+                      <div className="absolute top-1.5 left-1.5 right-1.5 flex justify-between items-center pointer-events-none">
                         {isToday(day) ? (
-                          <span className="absolute right-1 top-1/2 -translate-y-1/2 rounded bg-red-600 text-white text-[8px] leading-none sm:text-[9px] font-extrabold px-1.5 py-0.5 shadow-sm">
-                            HOJE
+                          <span className="rounded bg-red-600 text-white text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 shadow-[0_0_8px_rgba(239,68,68,0.7)] border border-red-500 uppercase tracking-widest leading-none z-10">
+                            Hoje
                           </span>
-                        ) : calendarEvent ? (
+                        ) : <div />}
+                        
+                        {calendarEvent ? (
                           <span
                             className={cn(
-                              "absolute right-1 top-1/2 -translate-y-1/2 max-w-[65%] truncate rounded px-1 py-0.5 text-[8px] leading-none sm:text-[9px]",
+                              "max-w-[65%] truncate rounded px-1.5 py-0.5 text-[7px] font-bold leading-none scale-90 sm:scale-100 origin-right",
                               BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].chipClass
                             )}
                           >
@@ -438,7 +434,21 @@ export default function Espaco() {
                           </span>
                         ) : null}
                       </div>
-                      {(inProgress > 0 || completed > 0) && (
+
+                      {/* Huge Centered Day Number & Slots fraction */}
+                      <div className="flex flex-col items-center justify-center my-auto">
+                        <span className={cn(
+                          "text-2xl sm:text-4xl font-extrabold tracking-tight leading-none",
+                          isToday(day) ? "text-primary" : "text-foreground"
+                        )}>
+                          {format(day, 'd')}
+                        </span>
+                        <span className="text-[10px] sm:text-[11px] font-bold text-muted-foreground/60 mt-1.5 leading-none">
+                          {totalSlots}/{inProgress}
+                        </span>
+                      </div>
+
+                      {(inProgress > 0 || completed > 0) ? (
                         <>
                           {/* Visualização Desktop */}
                           <div className="hidden sm:flex flex-col gap-1 items-center w-full mt-auto">
@@ -468,6 +478,9 @@ export default function Espaco() {
                             )}
                           </div>
                         </>
+                      ) : (
+                        // Espaçador invisível para manter o número centralizado perfeitamente
+                        <div className="h-4 sm:h-8 w-full pointer-events-none opacity-0 mt-auto" />
                       )}
                     </button>
                   );

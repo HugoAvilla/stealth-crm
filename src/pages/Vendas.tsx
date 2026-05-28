@@ -401,29 +401,25 @@ const Vendas = () => {
                           onClick={() => setSelectedDay(day)}
                           title={eventTitle}
                           className={cn(
-                            "min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border border-border rounded-lg transition-colors overflow-hidden cursor-pointer hover:bg-muted/50",
-                            isCurrentMonth ? "bg-card" : "bg-background opacity-50",
+                            "aspect-square min-h-[70px] sm:min-h-[100px] p-2 border border-border rounded-xl transition-all flex flex-col items-center justify-between cursor-pointer hover:bg-accent/80 hover:scale-[1.02] overflow-hidden relative shadow-sm",
+                            isCurrentMonth ? "bg-card" : "bg-background opacity-40",
                             calendarEvent &&
                               BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
-                            isToday && "ring-2 ring-primary"
+                            isToday && "border-primary ring-1 ring-primary/20"
                           )}
                         >
-                          <div className="mb-1 flex items-center justify-center relative min-h-[24px]">
-                            <div className={cn(
-                              "text-sm sm:text-base font-extrabold",
-                              isToday ? "text-primary" : "text-foreground"
-                            )}>
-                              {format(day, "d")}
-                            </div>
-
+                          {/* Top Badges (Today and Holiday) */}
+                          <div className="absolute top-1.5 left-1.5 right-1.5 flex justify-between items-center pointer-events-none">
                             {isToday ? (
-                              <span className="absolute right-1 top-1/2 -translate-y-1/2 rounded bg-red-600 text-white text-[9px] leading-none sm:text-[10px] font-extrabold px-1.5 py-0.5 shadow-sm">
-                                HOJE
+                              <span className="rounded bg-red-600 text-white text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 shadow-[0_0_8px_rgba(239,68,68,0.7)] border border-red-500 uppercase tracking-widest leading-none z-10">
+                                Hoje
                               </span>
-                            ) : calendarEvent ? (
+                            ) : <div />}
+
+                            {calendarEvent ? (
                               <span
                                 className={cn(
-                                  "absolute right-1 top-1/2 -translate-y-1/2 max-w-[65%] truncate rounded px-1 py-0.5 text-[9px] leading-none sm:text-[10px]",
+                                  "max-w-[65%] truncate rounded px-1.5 py-0.5 text-[7px] font-bold leading-none scale-90 sm:scale-100 origin-right",
                                   BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].chipClass
                                 )}
                               >
@@ -432,10 +428,18 @@ const Vendas = () => {
                             ) : null}
                           </div>
 
-                          {daySales.length > 0 && (
+                          {/* Huge Centered Day Number */}
+                          <span className={cn(
+                            "text-2xl sm:text-4xl font-extrabold tracking-tight my-auto",
+                            isToday ? "text-primary" : "text-foreground"
+                          )}>
+                            {format(day, "d")}
+                          </span>
+
+                          {daySales.length > 0 ? (
                             <>
                               {/* Visualização Desktop */}
-                              <div className="hidden sm:flex flex-col space-y-1 items-center w-full">
+                              <div className="hidden sm:flex flex-col space-y-1 items-center w-full mt-auto">
                                 <Badge variant="default" className="w-full justify-center text-[10px] sm:text-xs bg-green-500 text-white hover:bg-green-600 px-0 sm:px-2 py-0 sm:py-0.5 max-w-full font-bold shadow-sm">
                                   <span className="truncate">{daySales.length} <span className="hidden sm:inline">venda{daySales.length > 1 ? "s" : ""}</span></span>
                                 </Badge>
@@ -445,7 +449,7 @@ const Vendas = () => {
                               </div>
 
                               {/* Visualização Mobile Compacta */}
-                              <div className="flex sm:hidden flex-col items-center justify-center gap-0.5 mt-0.5 w-full">
+                              <div className="flex sm:hidden flex-col items-center justify-center gap-0.5 mt-auto w-full">
                                 <div className="w-4 h-4 rounded-full bg-green-500 text-white flex items-center justify-center text-[8px] font-extrabold shadow-sm">
                                   {daySales.length}
                                 </div>
@@ -454,6 +458,9 @@ const Vendas = () => {
                                 </span>
                               </div>
                             </>
+                          ) : (
+                            // Espaçador invisível para manter o número centralizado perfeitamente
+                            <div className="h-6 sm:h-10 w-full pointer-events-none opacity-0 mt-auto" />
                           )}
                         </div>
                       );
