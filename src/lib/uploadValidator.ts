@@ -7,7 +7,7 @@
  */
 
 export interface UploadContext {
-  type: 'logo' | 'checklist-photo';
+  type: 'logo' | 'checklist-photo' | 'purchase-image' | 'purchase-pdf';
   maxFiles?: number;
   currentFiles?: number;
 }
@@ -21,24 +21,32 @@ export interface ValidationResult {
 const ALLOWED_MIME: Record<UploadContext['type'], string[]> = {
   'logo': ['image/png', 'image/jpeg', 'image/webp'],
   'checklist-photo': ['image/png', 'image/jpeg', 'image/webp', 'image/heic'],
+  'purchase-image': ['image/png', 'image/jpeg', 'image/webp'],
+  'purchase-pdf': ['application/pdf'],
 };
 
 /** Accepted extensions by context */
 const ALLOWED_EXTENSIONS: Record<UploadContext['type'], string[]> = {
   'logo': ['png', 'jpg', 'jpeg', 'webp'],
   'checklist-photo': ['png', 'jpg', 'jpeg', 'webp', 'heic'],
+  'purchase-image': ['png', 'jpg', 'jpeg', 'webp'],
+  'purchase-pdf': ['pdf'],
 };
 
 /** Max file sizes in bytes by context */
 const MAX_SIZE_BYTES: Record<UploadContext['type'], number> = {
   'logo': 2 * 1024 * 1024,       // 2 MB
   'checklist-photo': 5 * 1024 * 1024, // 5 MB
+  'purchase-image': 5 * 1024 * 1024, // 5 MB
+  'purchase-pdf': 10 * 1024 * 1024, // 10 MB
 };
 
 /** Human-readable size labels */
 const SIZE_LABELS: Record<UploadContext['type'], string> = {
   'logo': '2 MB',
   'checklist-photo': '5 MB',
+  'purchase-image': '5 MB',
+  'purchase-pdf': '10 MB',
 };
 
 /** Default max files for checklist */
@@ -62,6 +70,7 @@ function mimeMatchesExtension(mime: string, extension: string): boolean {
     'image/jpeg': ['jpg', 'jpeg'],
     'image/webp': ['webp'],
     'image/heic': ['heic'],
+    'application/pdf': ['pdf'],
   };
   const validExtensions = mimeToExtensions[mime];
   if (!validExtensions) return false;
@@ -84,9 +93,14 @@ export function validateUpload(file: File, context: UploadContext): ValidationRe
   // 2. Check MIME type
   const allowedMimes = ALLOWED_MIME[context.type];
   if (!allowedMimes.includes(file.type)) {
-    const formatsLabel = context.type === 'logo'
-      ? 'PNG, JPG ou WebP'
-      : 'PNG, JPG, WebP ou HEIC';
+    let formatsLabel = 'arquivos';
+    if (context.type === 'logo' || context.type === 'purchase-image') {
+      formatsLabel = 'PNG, JPG ou WebP';
+    } else if (context.type === 'checklist-photo') {
+      formatsLabel = 'PNG, JPG, WebP ou HEIC';
+    } else if (context.type === 'purchase-pdf') {
+      formatsLabel = 'PDF';
+    }
     return { valid: false, error: `Formato não aceito. Use ${formatsLabel}.` };
   }
 
@@ -108,12 +122,14 @@ export function validateUpload(file: File, context: UploadContext): ValidationRe
     return { valid: false, error: `Arquivo muito grande. Máximo: ${SIZE_LABELS[context.type]}.` };
   }
 
-  // 6. Check max file count (checklist only)
-  if (context.type === 'checklist-photo') {
-    const maxFiles = context.maxFiles ?? DEFAULT_MAX_FILES;
+  // 6. Check max file count
+  if (context.type === 'checklist-photo' || context.type === 'purchase-image' || context.type === 'purchase-pdf') {
+    const defaultMax = context.type === 'checklist-photo' ? DEFAULT_MAX_FILES : 2;
+    const maxFiles = context.maxFiles ?? defaultMax;
     const currentFiles = context.currentFiles ?? 0;
     if (currentFiles >= maxFiles) {
-      return { valid: false, error: `Limite de ${maxFiles} fotos atingido.` };
+      const typeLabel = context.type === 'checklist-photo' ? 'fotos' : 'arquivos';
+      return { valid: false, error: `Limite de ${maxFiles} ${typeLabel} atingido.` };
     }
   }
 

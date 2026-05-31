@@ -444,7 +444,7 @@ export default function Espaco() {
                           {format(day, 'd')}
                         </span>
                         <span className="text-[10px] sm:text-[11px] font-bold text-muted-foreground/60 mt-1.5 leading-none">
-                          {totalSlots}/{inProgress}
+                          {daySpaces.length}/{totalSlots}
                         </span>
                       </div>
 

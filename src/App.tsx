@@ -25,6 +25,7 @@ import Vendas from "./pages/Vendas";
 import Clientes from "./pages/Clientes";
 import Espaco from "./pages/Espaco";
 import Financeiro from "./pages/Financeiro";
+import Compras from "./pages/Compras";
 import Contas from "./pages/Contas";
 import Relatorios from "./pages/Relatorios";
 import Comissoes from "./pages/Comissoes";
@@ -202,6 +203,12 @@ function AppRoutes() {
       <Route path="/financeiro" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Financeiro /></MainLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/compras" element={
+        <ProtectedRoute allowedRoles={['ADMIN']}>
+          <MainLayout><Compras /></MainLayout>
         </ProtectedRoute>
       } />
       

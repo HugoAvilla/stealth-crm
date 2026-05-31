@@ -14,7 +14,8 @@ export type TransactionOriginType =
   | "boleto_installment"
   | "space_payment"
   | "roas"
-  | "manual";
+  | "manual"
+  | "purchase_installment";
 
 export interface CreateTransactionParams {
   name: string;

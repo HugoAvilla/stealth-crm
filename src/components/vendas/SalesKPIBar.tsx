@@ -53,7 +53,7 @@ const SalesKPIBar = ({ sales, className }: SalesKPIBarProps) => {
     },
     {
       label: "Ticket médio",
-      value: `R$ ${averageTicket.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      value: `R$ ${averageTicket.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       icon: TrendingUp,
       color: "text-success",
       bgColor: "bg-success/20"
