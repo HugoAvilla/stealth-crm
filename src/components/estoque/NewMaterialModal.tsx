@@ -32,6 +32,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
   const [minStock, setMinStock] = useState("");
   const [currentStock, setCurrentStock] = useState("");
   const [isOpenRoll, setIsOpenRoll] = useState(false);
+  const [origem, setOrigem] = useState<"bobina_nova" | "aproveitamento">("bobina_nova");
   const [width, setWidth] = useState("");
   const [loading, setLoading] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
@@ -207,6 +208,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
   const resetForm = () => {
     setSelectedProductTypeId("");
     setUnit("Metros");
+    setOrigem("bobina_nova");
     setMinStock("");
     setCurrentStock("");
     setIsOpenRoll(false);
@@ -282,17 +284,39 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
           </div>
 
           <div className="space-y-2">
-            <Label>Estado da Bobina</Label>
-            <Select value={isOpenRoll ? "Aberta" : "Nova"} onValueChange={(v) => setIsOpenRoll(v === "Aberta")}>
+            <Label>Origem *</Label>
+            <Select value={origem} onValueChange={(v: "bobina_nova" | "aproveitamento") => {
+              setOrigem(v);
+              if (v === "aproveitamento") {
+                setIsOpenRoll(true);
+              } else {
+                setIsOpenRoll(false);
+              }
+            }}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Nova">Nova</SelectItem>
-                <SelectItem value="Aberta">Aberta</SelectItem>
+                <SelectItem value="bobina_nova">Bobina Nova</SelectItem>
+                <SelectItem value="aproveitamento">Aproveitamento de Estoque (Sobra/Retalho)</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {origem === "bobina_nova" && (
+            <div className="space-y-2">
+              <Label>Estado da Bobina</Label>
+              <Select value={isOpenRoll ? "Aberta" : "Nova"} onValueChange={(v) => setIsOpenRoll(v === "Aberta")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Nova">Nova</SelectItem>
+                  <SelectItem value="Aberta">Aberta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

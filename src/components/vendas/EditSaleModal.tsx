@@ -80,6 +80,7 @@ interface ProductType {
   // unit_price removido - preço vem do serviço
   openRollsCount?: number;
   hasClosedRoll?: boolean;
+  isReuse?: boolean;
 }
 
 interface VehicleRegion {
@@ -227,12 +228,16 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       const materialsList = materialsRes.data || [];
       const productsList = (productTypesRes.data || []).map(pt => {
         const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
-        const openRolls = ptMaterials.filter(m => m.is_open_roll);
-        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
+        // Aproveitamento = materiais marcados como is_open_roll (conceito legado)
+        const reuseMaterials = ptMaterials.filter(m => m.is_open_roll);
+        // Estoque principal = materiais NÃO marcados como is_open_roll
+        const principalMaterials = ptMaterials.filter(m => !m.is_open_roll);
+        const hasStock = principalMaterials.some(m => (m.current_stock || 0) > 0);
         return {
           ...pt,
-          openRollsCount: openRolls.length,
-          hasClosedRoll: closedRolls.length > 0
+          openRollsCount: hasStock ? principalMaterials.filter(m => (m.current_stock || 0) > 0).length : 0,
+          hasClosedRoll: hasStock,
+          isReuse: reuseMaterials.length > 0 && !hasStock,
         };
       });
 

@@ -140,12 +140,16 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       const materialsList = materialsData || [];
       const enrichedProducts = (productsData || []).map(pt => {
         const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
-        const openRolls = ptMaterials.filter(m => m.is_open_roll);
-        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
+        // Aproveitamento = materiais marcados como is_open_roll (conceito legado)
+        const reuseMaterials = ptMaterials.filter(m => m.is_open_roll);
+        // Estoque principal = materiais NÃO marcados como is_open_roll
+        const principalMaterials = ptMaterials.filter(m => !m.is_open_roll);
+        const hasStock = principalMaterials.length > 0;
         return {
           ...pt,
-          openRollsCount: openRolls.length,
-          hasClosedRoll: closedRolls.length > 0
+          openRollsCount: hasStock ? principalMaterials.length : 0,
+          hasClosedRoll: hasStock,
+          isReuse: reuseMaterials.length > 0 && !hasStock,
         };
       });
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Trash2, StopCircle, History, Loader2 } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, Tag, Trash2, StopCircle, History, Loader2, Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,6 +57,7 @@ export default function Estoque() {
   const [typeFilter, setTypeFilter] = useState("todos");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [reuseItems, setReuseItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewMaterial, setShowNewMaterial] = useState(false);
   const [showEntry, setShowEntry] = useState(false);
@@ -93,7 +94,22 @@ export default function Estoque() {
 
       if (error) throw error;
 
+      // Buscar aproveitamentos (retalhos) - não falhar se a tabela ainda não existir
+      let reuseData = [];
+      try {
+        const { data: reuse, error: reuseErr } = await supabase
+          .from("stock_reuse_items")
+          .select("*, materials(name, brand, type, unit, width, product_types(light_transmission))")
+          .eq("company_id", profile.company_id)
+          .eq("status", "disponivel")
+          .order("created_at", { ascending: false });
+        if (!reuseErr && reuse) reuseData = reuse;
+      } catch (e) {
+        console.log("stock_reuse_items table might not exist yet", e);
+      }
+
       setMaterials(data || []);
+      setReuseItems(reuseData);
     } catch (error) {
       console.error("Error fetching materials:", error);
       toast.error("Erro ao carregar materiais");
@@ -359,6 +375,76 @@ export default function Estoque() {
     </Card>
   );
 
+  const renderReuseTable = (items: any[]) => (
+    <Card className="bg-card/50 border-border/50">
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Material Original</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead className="text-center">Transmissão</TableHead>
+              <TableHead className="text-center">Tamanho (Retalho)</TableHead>
+              <TableHead className="text-center">Motivo/Origem</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="w-[100px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => {
+              const mat = item.materials || {};
+              return (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">
+                    <p>{mat.name || "Material Excluído"}</p>
+                    <div className="flex flex-col gap-0.5">
+                      {mat.brand && <p className="text-xs text-muted-foreground">{mat.brand}</p>}
+                      <p className="text-[11px] font-normal text-amber-500">
+                        {item.width_meters ? `${item.width_meters}m` : (mat.width ? `${Number(mat.width).toLocaleString('pt-BR')}m` : "1,52m")} de largura
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{mat.type || "-"}</Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {mat.product_types?.light_transmission || "-"}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="outline" className="border-amber-500 text-amber-500">
+                      {item.length_meters} metros
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-center text-muted-foreground text-sm">
+                    {item.reason || "-"}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge className="bg-amber-500/10 text-amber-500 border-0">Disponível</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1 justify-end">
+                       <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                             toast.error("Exclusão/uso manual de retalho será implementada em breve.");
+                          }}
+                          title="Remover"
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   if (loading || authLoading || !gate.hasAccess) {
     return (
       <div className="space-y-6 p-6">
@@ -585,7 +671,17 @@ export default function Estoque() {
                 </div>
               )}
 
-              {openRolls.length === 0 && regularMaterials.length === 0 && (
+              {reuseItems.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium flex items-center gap-2">
+                    <Scissors className="h-5 w-5 text-amber-500" />
+                    Aproveitamento de Retalhos
+                  </h3>
+                  {renderReuseTable(reuseItems)}
+                </div>
+              )}
+
+              {openRolls.length === 0 && regularMaterials.length === 0 && reuseItems.length === 0 && (
                 <Card className="bg-card/50 border-border/50">
                   <CardContent className="p-12 text-center">
                     <p className="text-muted-foreground">

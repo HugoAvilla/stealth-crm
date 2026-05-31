@@ -54,6 +54,8 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
   const [fetching, setFetching] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [rates, setRates] = useState<Rate[]>([]);
+  // Texto digitado em cada input de taxa (evita que o React apague a vírgula durante a digitação)
+  const [rateInputs, setRateInputs] = useState<Map<number, string>>(new Map());
   
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<MachineFormData>({
     defaultValues: {
@@ -97,6 +99,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
           rate: 0
         }));
         setRates(initialRates);
+        setRateInputs(new Map(initialRates.map(r => [r.installments, "0"])));
       }
     }
   }, [open, machineId]);
@@ -175,6 +178,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
       });
       
       setRates(fullRates);
+      setRateInputs(new Map(fullRates.map(r => [r.installments, r.rate.toString().replace(".", ",")])));
     } catch (error) {
       console.error("Error fetching machine data:", error);
       toast.error("Erro ao carregar dados da maquininha");
@@ -183,11 +187,22 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
     }
   };
 
-  const handleRateChange = (installments: number, value: string) => {
-    const numValue = parseFloat(value.replace(",", ".")) || 0;
-    setRates(prev => prev.map(r => 
+  const handleRateInputChange = (installments: number, value: string) => {
+    // Aceita apenas dígitos, vírgula e ponto
+    const sanitized = value.replace(/[^0-9.,]/g, "");
+    setRateInputs(prev => new Map(prev).set(installments, sanitized));
+    const numValue = parseFloat(sanitized.replace(",", ".")) || 0;
+    setRates(prev => prev.map(r =>
       r.installments === installments ? { ...r, rate: numValue } : r
     ));
+  };
+
+  const handleRateInputBlur = (installments: number) => {
+    // Ao sair do campo, normaliza o texto para o valor numérico armazenado
+    const rate = rates.find(r => r.installments === installments);
+    if (rate !== undefined) {
+      setRateInputs(prev => new Map(prev).set(installments, rate.rate.toString().replace(".", ",")));
+    }
   };
 
   const onSubmit = async (data: MachineFormData) => {
@@ -524,9 +539,11 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
                         <div className="relative">
                           <Input 
                             className="pr-6 text-sm"
-                            value={(rate.rate ?? 0).toString().replace(".", ",")}
-                            onChange={(e) => handleRateChange(rate.installments, e.target.value)}
+                            value={rateInputs.get(rate.installments) ?? (rate.rate ?? 0).toString().replace(".", ",")}
+                            onChange={(e) => handleRateInputChange(rate.installments, e.target.value)}
+                            onBlur={() => handleRateInputBlur(rate.installments)}
                             placeholder="0,00"
+                            inputMode="decimal"
                           />
                           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">%</span>
                         </div>
