@@ -71,6 +71,7 @@ export interface PurchaseMetrics {
   monthBillsCount: number;
   totalOpenPurchases: number;
   totalOverduePurchases: number;
+  chartData: { name: string; valor: number }[];
 }
 
 export interface CreatePurchaseParams {
@@ -506,11 +507,32 @@ export async function fetchPurchaseMetrics(companyId: number): Promise<PurchaseM
     // E também recalculamos para garantir consistência
     const totalOverduePurchases = purchasesList.filter(p => p.status === "atrasada").length;
 
+    // 3. Gerar dados do gráfico (Previsão de 6 meses)
+    const chartData = Array.from({ length: 6 }).map((_, i) => {
+      const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
+      const targetYear = targetDate.getFullYear();
+      const targetMonth = targetDate.getMonth() + 1;
+      
+      const monthLabel = targetDate.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '');
+
+      const amount = pendingInstallments.reduce((sum, inst) => {
+        if (!inst.due_date) return sum;
+        const [y, m] = inst.due_date.split("-");
+        if (parseInt(y) === targetYear && parseInt(m) === targetMonth) {
+          return sum + Number(inst.amount);
+        }
+        return sum;
+      }, 0);
+
+      return { name: monthLabel, valor: amount };
+    });
+
     return {
       totalMonthDue,
       monthBillsCount,
       totalOpenPurchases,
       totalOverduePurchases,
+      chartData,
     };
   } catch (error) {
     console.error("[PurchaseService] Exception in fetchPurchaseMetrics:", error);
@@ -519,6 +541,7 @@ export async function fetchPurchaseMetrics(companyId: number): Promise<PurchaseM
       monthBillsCount: 0,
       totalOpenPurchases: 0,
       totalOverduePurchases: 0,
+      chartData: [],
     };
   }
 }

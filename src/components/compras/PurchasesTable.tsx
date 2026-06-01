@@ -1,18 +1,22 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { 
-  Search, Filter, Trash2, Eye, MoreVertical 
+  Search, Filter, Trash2, Eye, MoreVertical, X
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
 import { Purchase } from "@/lib/database.types";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -24,6 +28,8 @@ export interface PurchaseFilters {
   search: string;
   status: string;
   paymentMethod: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 interface PurchasesTableProps {
@@ -52,7 +58,18 @@ export function PurchasesTable({
     const searchMatch = p.supplier_name_snapshot.toLowerCase().includes(filters.search.toLowerCase());
     const statusMatch = filters.status === "all" || p.status === filters.status;
     const paymentMatch = filters.paymentMethod === "all" || p.payment_method === filters.paymentMethod;
-    return searchMatch && statusMatch && paymentMatch;
+    
+    // Filtro por data
+    let dateMatch = true;
+    if (filters.startDate && filters.endDate) {
+      dateMatch = p.purchase_date >= filters.startDate && p.purchase_date <= filters.endDate;
+    } else if (filters.startDate) {
+      dateMatch = p.purchase_date >= filters.startDate;
+    } else if (filters.endDate) {
+      dateMatch = p.purchase_date <= filters.endDate;
+    }
+
+    return searchMatch && statusMatch && paymentMatch && dateMatch;
   });
 
   if (loading) {
@@ -77,10 +94,56 @@ export function PurchasesTable({
           />
         </div>
         <div className="flex gap-2">
-          {/* Adicionar selects de filtros complexos se necessário futuramente */}
-          <Button variant="outline" size="sm" className="gap-2">
-            <Filter className="h-4 w-4" /> Filtros
-          </Button>
+          {filters.startDate || filters.endDate ? (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => onFiltersChange({ ...filters, startDate: "", endDate: "" })}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4 mr-1" /> Limpar
+            </Button>
+          ) : null}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="h-4 w-4" /> Filtros
+                {(filters.startDate || filters.endDate) && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">Ativo</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-96 border-border/50">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium leading-none">Filtro por Data</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Selecione o período das compras.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Data Inicial</Label>
+                    <Input 
+                      type="date" 
+                      className="[color-scheme:dark] w-full"
+                      value={filters.startDate || ""} 
+                      onChange={(e) => onFiltersChange({ ...filters, startDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data Final</Label>
+                    <Input 
+                      type="date" 
+                      className="[color-scheme:dark] w-full"
+                      value={filters.endDate || ""} 
+                      onChange={(e) => onFiltersChange({ ...filters, endDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 

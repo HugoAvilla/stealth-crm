@@ -17,7 +17,7 @@ import { ptBR } from "date-fns/locale";
 export default function Compras() {
   const { user } = useAuth();
   
-  const [metrics, setMetrics] = useState({ totalMonthDue: 0, monthBillsCount: 0, totalOpenPurchases: 0, totalOverduePurchases: 0 });
+  const [metrics, setMetrics] = useState({ totalMonthDue: 0, monthBillsCount: 0, totalOpenPurchases: 0, totalOverduePurchases: 0, chartData: [] as {name: string, valor: number}[] });
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -28,7 +28,7 @@ export default function Compras() {
   const [isBillsModalOpen, setIsBillsModalOpen] = useState(false);
   const [detailPurchaseId, setDetailPurchaseId] = useState<number | null>(null);
   
-  const [filters, setFilters] = useState<PurchaseFilters>({ search: "", status: "all", paymentMethod: "all" });
+  const [filters, setFilters] = useState<PurchaseFilters>({ search: "", status: "all", paymentMethod: "all", startDate: "", endDate: "" });
 
   useEffect(() => {
     if (user?.companyId) {
@@ -104,10 +104,7 @@ export default function Compras() {
     }
   };
 
-  const mockChartData = Array.from({ length: 6 }).map((_, i) => ({
-    name: format(addMonths(new Date(), i), "MMM/yy", { locale: ptBR }),
-    valor: Math.floor(Math.random() * 5000) + 1000
-  }));
+  // Dados do gráfico agora vêm de metrics.chartData
 
   return (
     <div className="space-y-6">
@@ -127,6 +124,7 @@ export default function Compras() {
       <PurchaseKPIs 
         metrics={metrics} 
         loading={loading} 
+        monthlyAverage={metrics.totalMonthDue || 0}
         onBillsClick={() => setIsBillsModalOpen(true)} 
       />
 
@@ -150,7 +148,7 @@ export default function Compras() {
             <CardContent>
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={mockChartData}>
+                  <BarChart data={metrics.chartData || []}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(value) => `R$${value/1000}k`} />
@@ -183,7 +181,7 @@ export default function Compras() {
         open={isBillsModalOpen} 
         onOpenChange={setIsBillsModalOpen} 
         companyId={user?.companyId || 0}
-        onUpdate={loadData}
+        onSuccess={loadData}
       />
     </div>
   );

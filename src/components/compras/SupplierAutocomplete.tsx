@@ -109,9 +109,9 @@ export function SupplierAutocomplete({
       onChange(createdSupplier);
       // Fecha o popover
       setOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("[SupplierAutocomplete] Error creating supplier:", error);
-      toast.error("Erro ao cadastrar fornecedor");
+      toast.error(error?.message || "Erro ao cadastrar fornecedor");
     } finally {
       setCreating(false);
     }
@@ -161,17 +161,6 @@ export function SupplierAutocomplete({
                 <>
                   <CommandEmpty className="py-4 px-2 text-center text-sm">
                     <p className="text-muted-foreground">Nenhum fornecedor encontrado.</p>
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      className="mt-2 text-primary"
-                      onClick={() => {
-                        setNewSupplierName(searchQuery);
-                        setShowCreateForm(true);
-                      }}
-                    >
-                      <Plus className="w-4 h-4 mr-1" /> Criar "{searchQuery}"
-                    </Button>
                   </CommandEmpty>
 
                   <CommandGroup>
@@ -253,8 +242,19 @@ export function SupplierAutocomplete({
                 <Input
                   id="sup-phone"
                   value={newSupplierPhone}
-                  onChange={(e) => setNewSupplierPhone(e.target.value)}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    let formatted = digits;
+                    if (digits.length > 0) {
+                      if (digits.length <= 2) formatted = `(${digits}`;
+                      else if (digits.length <= 6) formatted = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+                      else if (digits.length <= 10) formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+                      else formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+                    }
+                    setNewSupplierPhone(formatted);
+                  }}
                   placeholder="Ex: (11) 99999-9999"
+                  maxLength={15}
                   className="h-9 text-sm"
                 />
               </div>

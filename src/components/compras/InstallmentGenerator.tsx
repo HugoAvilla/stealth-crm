@@ -170,7 +170,7 @@ export function InstallmentGenerator({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-3 mt-1">
               <div className="space-y-1">
                 <span className="text-[10px] font-medium text-muted-foreground">Vencimento</span>
                 <div className="relative">
@@ -178,7 +178,7 @@ export function InstallmentGenerator({
                     type="date"
                     value={inst.dueDate}
                     onChange={(e) => handleDateChange(index, e.target.value)}
-                    className="h-8 text-xs px-2 pr-1"
+                    className="h-8 text-xs px-2 [color-scheme:dark] w-full"
                   />
                 </div>
               </div>
@@ -190,7 +190,7 @@ export function InstallmentGenerator({
                   value={inst.amount}
                   onChange={(e) => handleAmountChange(index, e.target.value)}
                   placeholder="0,00"
-                  className="h-8 text-xs font-mono font-medium"
+                  className="h-8 text-xs font-mono font-medium px-2 w-full"
                 />
               </div>
             </div>

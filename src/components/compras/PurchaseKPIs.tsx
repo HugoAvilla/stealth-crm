@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DollarSign, Calendar, AlertTriangle, TrendingUp, Info } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface PurchaseKPIsProps {
   metrics: {
@@ -11,9 +12,10 @@ interface PurchaseKPIsProps {
   };
   monthlyAverage: number;
   loading?: boolean;
+  onBillsClick?: () => void;
 }
 
-export function PurchaseKPIs({ metrics, monthlyAverage, loading }: PurchaseKPIsProps) {
+export function PurchaseKPIs({ metrics, monthlyAverage, loading, onBillsClick }: PurchaseKPIsProps) {
   const formatCurrency = (value: number) => {
     return `R$ ${value.toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
@@ -49,12 +51,12 @@ export function PurchaseKPIs({ metrics, monthlyAverage, loading }: PurchaseKPIsP
               Compromissos do Mês
             </p>
             <p className="text-2xl font-bold mt-1 text-foreground">
-              {formatCurrency(metrics.totalMonthDue)}
+              {formatCurrency(metrics.totalMonthDue || 0)}
             </p>
           </div>
-          <div className="mt-3">
+          <div className="mt-3 cursor-pointer hover:opacity-80 transition-opacity" onClick={onBillsClick}>
             <span className="inline-flex items-center bg-background/50 backdrop-blur-sm px-2 py-0.5 rounded-full text-[10px] font-medium text-foreground border border-border/50">
-              {metrics.monthBillsCount} {metrics.monthBillsCount === 1 ? "título pendente" : "títulos pendentes"}
+              {metrics.monthBillsCount || 0} {metrics.monthBillsCount === 1 ? "título pendente" : "títulos pendentes"}
             </span>
           </div>
         </CardContent>
@@ -139,5 +141,3 @@ export function PurchaseKPIs({ metrics, monthlyAverage, loading }: PurchaseKPIsP
     </div>
   );
 }
-
-import { cn } from "@/lib/utils";

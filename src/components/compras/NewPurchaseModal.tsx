@@ -141,7 +141,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
             <div className="space-y-2">
               <Label>Fornecedor *</Label>
               <SupplierAutocomplete 
-                companyId={accounts[0]?.company_id || 0} 
+                companyId={user?.companyId || accounts[0]?.company_id || 0} 
                 value={supplier} 
                 onChange={setSupplier} 
                 onCreateNew={() => {}} // Internamente ele mesmo já cria e seta
@@ -149,7 +149,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
             </div>
             <div className="space-y-2">
               <Label>Data da Compra *</Label>
-              <Input type="date" required value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} />
+              <Input type="date" required value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} className="[color-scheme:dark]" />
             </div>
           </div>
 
@@ -213,7 +213,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
                 </div>
                 <div className="space-y-2">
                   <Label>1º Vencimento</Label>
-                  <Input type="date" value={firstDueDate} onChange={e => setFirstDueDate(e.target.value)} />
+                  <Input type="date" value={firstDueDate} onChange={e => setFirstDueDate(e.target.value)} className="[color-scheme:dark]" />
                 </div>
               </div>
               <InstallmentGenerator 

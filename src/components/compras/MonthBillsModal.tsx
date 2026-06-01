@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -259,5 +260,3 @@ export function MonthBillsModal({
     </Dialog>
   );
 }
-
-import { cn } from "@/lib/utils";
