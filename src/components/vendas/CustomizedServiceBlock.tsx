@@ -201,9 +201,9 @@ export default function CustomizedServiceBlock({
                     );
                   }
 
-                  const openRolls = filteredProducts.filter((p: any) => p.openRollsCount && p.openRollsCount > 0);
-                  const closedRollsOnly = filteredProducts.filter((p: any) => p.hasClosedRoll && (!p.openRollsCount || p.openRollsCount === 0));
-                  const outOfStock = filteredProducts.filter((p: any) => !p.openRollsCount && !p.hasClosedRoll);
+                  const estoquePrincipal = filteredProducts.filter((p: any) => p.hasClosedRoll || (p.openRollsCount && p.openRollsCount > 0 && !p.isReuse));
+                  const aproveitamento = filteredProducts.filter((p: any) => p.isReuse);
+                  const semEstoque = filteredProducts.filter((p: any) => !p.hasClosedRoll && !p.openRollsCount && !p.isReuse);
 
                   const renderProduct = (product: any) => {
                     let stockDisplay = "";
@@ -212,6 +212,9 @@ export default function CustomizedServiceBlock({
                     }
                     if (product.hasClosedRoll) {
                        stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
+                    }
+                    if (product.isReuse) {
+                       stockDisplay = "Aproveitamento";
                     }
 
                     return (
@@ -225,22 +228,22 @@ export default function CustomizedServiceBlock({
 
                   return (
                     <>
-                      {openRolls.length > 0 && (
+                      {estoquePrincipal.length > 0 && (
                         <SelectGroup>
-                          <SelectLabel className="text-xs font-semibold text-primary">Estoque Aberto</SelectLabel>
-                          {openRolls.map(renderProduct)}
+                          <SelectLabel className="text-xs font-semibold text-primary">Estoque Principal</SelectLabel>
+                          {estoquePrincipal.map(renderProduct)}
                         </SelectGroup>
                       )}
-                      {closedRollsOnly.length > 0 && (
+                      {aproveitamento.length > 0 && (
                         <SelectGroup>
-                          <SelectLabel className="text-xs font-semibold text-muted-foreground">Estoque Fechado</SelectLabel>
-                          {closedRollsOnly.map(renderProduct)}
+                          <SelectLabel className="text-xs font-semibold text-blue-500">Aproveitamento de Estoque</SelectLabel>
+                          {aproveitamento.map(renderProduct)}
                         </SelectGroup>
                       )}
-                      {outOfStock.length > 0 && (
+                      {semEstoque.length > 0 && (
                         <SelectGroup>
                           <SelectLabel className="text-xs text-destructive/70">Sem Estoque</SelectLabel>
-                          {outOfStock.map(renderProduct)}
+                          {semEstoque.map(renderProduct)}
                         </SelectGroup>
                       )}
                     </>

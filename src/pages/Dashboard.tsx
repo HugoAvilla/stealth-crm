@@ -267,7 +267,7 @@ const Dashboard = () => {
             />
             <StatsCard
               title="Ticket Médio"
-              value={`R$ ${stats.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              value={`R$ ${stats.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               subtitle="Valor médio por venda"
               icon={<TrendingUp className="w-5 h-5" />}
               variant="info"

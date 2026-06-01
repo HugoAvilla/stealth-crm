@@ -346,3 +346,72 @@ export interface TransactionWithRelations extends Transaction {
   category: Category | null;
   subcategory: Subcategory | null;
 }
+
+// ---------------------------------------------------------
+// COMPRAS MODULE TYPES
+// ---------------------------------------------------------
+
+export interface Supplier {
+  id: number;
+  company_id: number;
+  name: string;
+  phone: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Purchase {
+  id: number;
+  company_id: number;
+  supplier_id: number;
+  supplier_name_snapshot: string;
+  supplier_phone_snapshot: string | null;
+  purchase_date: string;
+  total_amount: number;
+  remaining_amount: number;
+  payment_method: string;
+  installments_count: number;
+  account_id: number;
+  category_id: number;
+  status: 'em_aberto' | 'paga' | 'atrasada';
+  notes: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PurchaseInstallment {
+  id: number;
+  purchase_id: number;
+  installment_number: number;
+  amount: number;
+  due_date: string;
+  status: 'pendente' | 'paga';
+  paid_at: string | null;
+  transaction_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PurchaseItem {
+  id: number;
+  purchase_id: number;
+  material_id: number | null;
+  description: string | null;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  total_price: number;
+  created_at: string;
+}
+
+export interface PurchaseAttachment {
+  id: number;
+  purchase_id: number;
+  file_name: string;
+  file_path: string;
+  file_type: 'image' | 'pdf';
+  file_size: number;
+  created_at: string;
+}

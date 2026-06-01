@@ -20,7 +20,8 @@ import {
   LogOut,
   Crown,
   UserPlus,
-  Scissors
+  Scissors,
+  ShoppingCart
 } from 'lucide-react';
 import {
   Tooltip,
@@ -89,6 +90,7 @@ export function Sidebar() {
     { icon: DollarSign, label: 'Vendas', path: '/vendas' },
     { icon: Building2, label: 'Espaço', path: '/espaco' },
     { icon: CreditCard, label: 'Financeiro', path: '/financeiro', adminOnly: true },
+    { icon: ShoppingCart, label: 'Compras', path: '/compras', adminOnly: true },
     { icon: Landmark, label: 'Contas', path: '/contas', adminOnly: true },
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: BarChart3, label: 'Relatórios', path: '/relatorios', adminOnly: true },

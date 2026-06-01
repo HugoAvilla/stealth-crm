@@ -22,6 +22,7 @@ import {
   Wrench,
   Percent,
   Scissors,
+  ShoppingCart,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -92,6 +93,7 @@ export function TopNavigation() {
     { icon: DollarSign, label: 'Vendas', path: '/vendas' },
     { icon: Building2, label: 'Espaço', path: '/espaco' },
     { icon: CreditCard, label: 'Financeiro', path: '/financeiro' },
+    { icon: ShoppingCart, label: 'Compras', path: '/compras', adminOnly: true },
     { icon: Landmark, label: 'Contas', path: '/contas' },
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
