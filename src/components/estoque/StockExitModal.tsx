@@ -38,13 +38,20 @@ export function StockExitModal({ open, onOpenChange, material, onSuccess }: Stoc
     queryKey: ['material-rolls-for-exit', material?.id],
     queryFn: async () => {
       if (!material?.id) return [];
-      const { data, error } = await supabase
-        .from("material_rolls")
-        .select("id, status, remaining_length_meters")
-        .eq("material_id", material.id)
-        .in("status", ["aberta", "fechada"]);
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("material_rolls" as any)
+          .select("id, status, remaining_length_meters")
+          .eq("material_id", material.id)
+          .in("status", ["aberta", "fechada"]);
+        if (error) {
+          console.warn("material_rolls table not available:", error.message);
+          return [];
+        }
+        return data as any[];
+      } catch {
+        return [];
+      }
     },
     enabled: !!material?.id && open,
   });

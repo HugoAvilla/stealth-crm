@@ -26,6 +26,7 @@ import { ConsumptionRulesModal } from "@/components/estoque/ConsumptionRulesModa
 import { MaterialDetailsModal } from "@/components/estoque/MaterialDetailsModal";
 import { ProductTypesTab } from "@/components/estoque/ProductTypesTab";
 import { MaterialHistoryTab } from "@/components/estoque/MaterialHistoryTab";
+import { CloseRollModal } from "@/components/estoque/CloseRollModal";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { toast } from "sonner";
 
@@ -40,6 +41,7 @@ interface Material {
   average_cost: number | null;
   is_active: boolean | null;
   is_open_roll: boolean | null;
+  open_roll_accumulated?: number | null;
   company_id: number | null;
   product_type_id: number | null;
   product_types: { light_transmission: string | null } | null;
@@ -85,6 +87,7 @@ export default function Estoque() {
   const [showExit, setShowExit] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showCloseRoll, setShowCloseRoll] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [companyId, setCompanyId] = useState<number | null>(null);
 
@@ -115,28 +118,46 @@ export default function Estoque() {
 
       if (materialsError) throw materialsError;
 
-      // 2. Fetch rolls ativas
-      const { data: rollsData, error: rollsError } = await supabase
-        .from("material_rolls")
-        .select("id, material_id, status")
-        .in("status", ["aberta", "fechada"])
-        .eq("company_id", profile.company_id);
+      // 2. Fetch rolls ativas (tabela pode não existir ainda)
+      let rollsData: Roll[] = [];
+      try {
+        const { data, error: rollsError } = await supabase
+          .from("material_rolls" as any)
+          .select("id, material_id, status")
+          .in("status", ["aberta", "fechada"])
+          .eq("company_id", profile.company_id);
 
-      if (rollsError) throw rollsError;
+        if (!rollsError) {
+          rollsData = (data as any) || [];
+        } else {
+          console.warn("material_rolls table not available:", rollsError.message);
+        }
+      } catch {
+        console.warn("material_rolls query failed, skipping.");
+      }
 
-      // 3. Fetch aproveitamentos
-      const { data: reuseData, error: reuseError } = await supabase
-        .from("stock_reuse_items")
-        .select("*, materials(name, unit)")
-        .eq("company_id", profile.company_id)
-        .eq("status", "disponivel")
-        .order("created_at", { ascending: false });
+      // 3. Fetch aproveitamentos (tabela pode não existir ainda)
+      let reuseData: ReuseItem[] = [];
+      try {
+        const { data, error: reuseError } = await supabase
+          .from("stock_reuse_items" as any)
+          .select("*, materials(name, unit)")
+          .eq("company_id", profile.company_id)
+          .eq("status", "disponivel")
+          .order("created_at", { ascending: false });
 
-      if (reuseError) throw reuseError;
+        if (!reuseError) {
+          reuseData = (data as any) || [];
+        } else {
+          console.warn("stock_reuse_items table not available:", reuseError.message);
+        }
+      } catch {
+        console.warn("stock_reuse_items query failed, skipping.");
+      }
 
       setMaterials(materialsData || []);
-      setRolls(rollsData || []);
-      setReuseItems((reuseData as any) || []);
+      setRolls(rollsData);
+      setReuseItems(reuseData);
     } catch (error) {
       console.error("Error fetching materials:", error);
       toast.error("Erro ao carregar materiais");
@@ -172,7 +193,10 @@ export default function Estoque() {
     return { status: "ok", label: "OK", color: "text-green-500", bg: "bg-green-500/10" };
   };
 
-  const filteredMaterials = materials.filter(m => {
+  const principalMaterials = materials.filter(m => !m.is_open_roll);
+  const aproveitamentoMaterials = materials.filter(m => m.is_open_roll);
+
+  const filteredMaterials = principalMaterials.filter(m => {
     let pass = true;
 
     if (search) {
@@ -193,6 +217,13 @@ export default function Estoque() {
     }
 
     return pass;
+  });
+
+  const filteredAproveitamentos = aproveitamentoMaterials.filter(m => {
+    if (!search) return true;
+    const lowerSearch = search.toLowerCase();
+    return m.name.toLowerCase().includes(lowerSearch) || 
+           (m.type?.toLowerCase() || "").includes(lowerSearch);
   });
 
   const criticalCount = materials.filter(m => {
@@ -402,52 +433,59 @@ export default function Estoque() {
     </Card>
   );
 
-  const renderReuseTable = (items: ReuseItem[]) => (
+  const renderAproveitamentoTable = (items: Material[]) => (
     <Card className="bg-card/50 border-border/50">
       <CardContent className="p-0">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Material Relacionado</TableHead>
-              <TableHead className="text-center">Comprimento Sobra</TableHead>
-              <TableHead className="text-center">Largura Sobra</TableHead>
-              <TableHead className="text-center">Motivo</TableHead>
-              <TableHead className="text-center">Data Cadastro</TableHead>
-              <TableHead className="text-center">Observações</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead className="text-center">Largura</TableHead>
+              <TableHead className="text-center">Consumo Acumulado</TableHead>
+              <TableHead className="w-[180px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">
-                  {item.materials?.name || "Material Desconhecido"}
-                </TableCell>
-                <TableCell className="text-center font-semibold text-blue-500">
-                  {item.length_meters}m
-                </TableCell>
-                <TableCell className="text-center text-muted-foreground">
-                  {item.width_meters ? `${item.width_meters}m` : "-"}
-                </TableCell>
-                <TableCell className="text-center">
-                  <Badge variant="outline" className="bg-blue-500/5 text-blue-500 border-blue-500/20">{item.reason || "Retalho útil"}</Badge>
-                </TableCell>
-                <TableCell className="text-center text-muted-foreground">
-                  {new Date(item.created_at).toLocaleDateString("pt-BR")}
-                </TableCell>
-                <TableCell className="text-center text-sm text-muted-foreground italic">
-                  {item.notes || "-"}
+                  {item.name}
+                  {item.brand && <div className="text-xs text-muted-foreground">{item.brand}</div>}
                 </TableCell>
                 <TableCell>
-                  <div className="flex justify-end">
+                  <Badge variant="outline" className="bg-indigo-500/5 text-indigo-500 border-indigo-500/20">
+                    {item.type || "Diversos"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center text-muted-foreground">
+                  {item.width ? `${item.width}m` : "-"}
+                </TableCell>
+                <TableCell className="text-center font-semibold text-blue-500">
+                  {item.open_roll_accumulated || 0}m consumidos
+                </TableCell>
+                <TableCell>
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedMaterial(item);
+                        setShowCloseRoll(true);
+                      }}
+                      className="h-8 gap-1 border-blue-200 text-blue-600 hover:bg-blue-50"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      <span className="hidden sm:inline">Finalizar</span>
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleCloseReuseItem(item.id)}
-                      title="Encerrar Aproveitamento"
+                      onClick={() => handleDelete(item)}
+                      title="Excluir"
                       className="text-muted-foreground hover:text-destructive"
                     >
-                      <StopCircle className="h-4 w-4 text-red-500" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </TableCell>
@@ -455,8 +493,8 @@ export default function Estoque() {
             ))}
             {items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                  Nenhum item em aproveitamento de estoque disponível. Sobras de cortes de bobinas aparecerão aqui.
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                  Nenhum material de aproveitamento cadastrado.
                 </TableCell>
               </TableRow>
             )}
@@ -589,7 +627,7 @@ export default function Estoque() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Aproveitamentos</p>
-                <p className="text-xl font-bold text-indigo-500">{reuseItems.length} <span className="text-xs text-muted-foreground font-normal">sobras</span></p>
+                <p className="text-xl font-bold text-indigo-500">{aproveitamentoMaterials.length} <span className="text-xs text-muted-foreground font-normal">materiais</span></p>
               </div>
             </div>
           </CardContent>
@@ -620,10 +658,10 @@ export default function Estoque() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-2">
               <TabsList className="bg-muted/80">
                 <TabsTrigger value="principal">Estoque Principal</TabsTrigger>
-                <TabsTrigger value="aproveitamento">Aproveitamento de Estoque ({reuseItems.length})</TabsTrigger>
+                <TabsTrigger value="aproveitamento">Aproveitamento de Estoque ({aproveitamentoMaterials.length})</TabsTrigger>
               </TabsList>
 
-              {activeSubTab === "principal" && (
+              {(activeSubTab === "principal" || activeSubTab === "aproveitamento") && (
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -684,7 +722,7 @@ export default function Estoque() {
             </TabsContent>
 
             <TabsContent value="aproveitamento" className="space-y-4 pt-2">
-              {renderReuseTable(reuseItems)}
+              {renderAproveitamentoTable(filteredAproveitamentos)}
             </TabsContent>
           </Tabs>
         </TabsContent>
@@ -723,6 +761,12 @@ export default function Estoque() {
         open={showDetails} 
         onOpenChange={setShowDetails} 
         material={selectedMaterial} 
+      />
+      <CloseRollModal
+        open={showCloseRoll}
+        onOpenChange={setShowCloseRoll}
+        material={selectedMaterial}
+        onSuccess={handleMovementCompleted}
       />
     </div>
   );

@@ -118,40 +118,58 @@ export async function consumeStockForSale(
 
       const reasonText = `Consumo automático - Venda #${saleId} (${vehicle.brand} ${vehicle.model} - ${vehicleSize})`;
 
-      const { data: rpcData, error: rpcError } = await supabase.rpc("consume_material_rolls", {
-        p_material_id: material.id,
-        p_meters: consumeAmount,
-        p_source: 'venda',
-        p_reason: reasonText,
-        p_user_id: userId,
-        p_company_id: companyId,
-      });
+      if (material.is_open_roll) {
+        // Aproveitamento: acumula o consumo em open_roll_accumulated
+        const { error: rpcError } = await supabase.rpc("consume_open_roll", {
+          p_material_id: material.id,
+          p_meters: consumeAmount,
+          p_reason: reasonText,
+          p_user_id: userId,
+          p_company_id: companyId,
+        });
 
-      if (rpcError) {
-        console.error("Error consuming rolls:", rpcError);
-        result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
-        continue;
-      }
-
-      const response = rpcData as any;
-      if (response && response.warning) {
-        result.warnings.push(
-          `Estoque insuficiente de ${material.name}: necessário ${response.required_meters} ${material.unit}, disponível ${response.available_meters} ${material.unit}`
-        );
-        // Tenta consumir pelo menos o disponível, se houver
-        if (response.available_meters > 0) {
-          consumeAmount = response.available_meters;
-          const { error: retryError } = await supabase.rpc("consume_material_rolls", {
-             p_material_id: material.id,
-             p_meters: consumeAmount,
-             p_source: 'venda',
-             p_reason: reasonText + ' (Consumo parcial)',
-             p_user_id: userId,
-             p_company_id: companyId,
-          });
-          if (retryError) continue;
-        } else {
+        if (rpcError) {
+          console.error("Error consuming open roll:", rpcError);
+          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
           continue;
+        }
+      } else {
+        // Estoque Principal: consome das bobinas
+        const { data: rpcData, error: rpcError } = await supabase.rpc("consume_material_rolls", {
+          p_material_id: material.id,
+          p_meters: consumeAmount,
+          p_source: 'venda',
+          p_reason: reasonText,
+          p_user_id: userId,
+          p_company_id: companyId,
+        });
+
+        if (rpcError) {
+          console.error("Error consuming rolls:", rpcError);
+          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+          continue;
+        }
+
+        const response = rpcData as any;
+        if (response && response.warning) {
+          result.warnings.push(
+            `Estoque insuficiente de ${material.name}: necessário ${response.required_meters} ${material.unit}, disponível ${response.available_meters} ${material.unit}`
+          );
+          // Tenta consumir pelo menos o disponível, se houver
+          if (response.available_meters > 0) {
+            consumeAmount = response.available_meters;
+            const { error: retryError } = await supabase.rpc("consume_material_rolls", {
+               p_material_id: material.id,
+               p_meters: consumeAmount,
+               p_source: 'venda',
+               p_reason: reasonText + ' (Consumo parcial)',
+               p_user_id: userId,
+               p_company_id: companyId,
+            });
+            if (retryError) continue;
+          } else {
+            continue;
+          }
         }
       }
 
@@ -265,40 +283,58 @@ export async function consumeStockForDetailedSale(
 
       const reasonText = `Consumo automático - Venda #${saleId} (${vehicleBrand} ${vehicleModel} - ${vehicleSize})`;
 
-      const { data: rpcData, error: rpcError } = await supabase.rpc("consume_material_rolls", {
-        p_material_id: material.id,
-        p_meters: consumeAmount,
-        p_source: 'espaco',
-        p_reason: reasonText,
-        p_user_id: userId,
-        p_company_id: companyId,
-      });
+      if (material.is_open_roll) {
+        // Aproveitamento: acumula o consumo em open_roll_accumulated
+        const { error: rpcError } = await supabase.rpc("consume_open_roll", {
+          p_material_id: material.id,
+          p_meters: consumeAmount,
+          p_reason: reasonText,
+          p_user_id: userId,
+          p_company_id: companyId,
+        });
 
-      if (rpcError) {
-        console.error("Error consuming rolls:", rpcError);
-        result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
-        continue;
-      }
-
-      const response = rpcData as any;
-      if (response && response.warning) {
-        result.warnings.push(
-          `Estoque insuficiente de ${material.name}: necessário ${response.required_meters?.toFixed(2)} ${material.unit}, disponível ${response.available_meters?.toFixed(2)} ${material.unit}`
-        );
-        // Tenta consumir pelo menos o disponível, se houver
-        if (response.available_meters > 0) {
-          consumeAmount = response.available_meters;
-          const { error: retryError } = await supabase.rpc("consume_material_rolls", {
-             p_material_id: material.id,
-             p_meters: consumeAmount,
-             p_source: 'espaco',
-             p_reason: reasonText + ' (Consumo parcial)',
-             p_user_id: userId,
-             p_company_id: companyId,
-          });
-          if (retryError) continue;
-        } else {
+        if (rpcError) {
+          console.error("Error consuming open roll:", rpcError);
+          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
           continue;
+        }
+      } else {
+        // Estoque Principal: consome das bobinas
+        const { data: rpcData, error: rpcError } = await supabase.rpc("consume_material_rolls", {
+          p_material_id: material.id,
+          p_meters: consumeAmount,
+          p_source: 'espaco',
+          p_reason: reasonText,
+          p_user_id: userId,
+          p_company_id: companyId,
+        });
+
+        if (rpcError) {
+          console.error("Error consuming rolls:", rpcError);
+          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+          continue;
+        }
+
+        const response = rpcData as any;
+        if (response && response.warning) {
+          result.warnings.push(
+            `Estoque insuficiente de ${material.name}: necessário ${response.required_meters?.toFixed(2)} ${material.unit}, disponível ${response.available_meters?.toFixed(2)} ${material.unit}`
+          );
+          // Tenta consumir pelo menos o disponível, se houver
+          if (response.available_meters > 0) {
+            consumeAmount = response.available_meters;
+            const { error: retryError } = await supabase.rpc("consume_material_rolls", {
+               p_material_id: material.id,
+               p_meters: consumeAmount,
+               p_source: 'espaco',
+               p_reason: reasonText + ' (Consumo parcial)',
+               p_user_id: userId,
+               p_company_id: companyId,
+            });
+            if (retryError) continue;
+          } else {
+            continue;
+          }
         }
       }
 

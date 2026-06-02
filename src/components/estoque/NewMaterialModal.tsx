@@ -124,12 +124,8 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
     }
 
     const lengthVal = currentStock ? parseFloat(currentStock) : 0;
-    if (lengthVal <= 0) {
-      toast.error(
-        source === "principal" 
-          ? "Informe o comprimento da bobina" 
-          : "Informe o comprimento do aproveitamento"
-      );
+    if (source === "principal" && lengthVal <= 0) {
+      toast.error("Informe o comprimento da bobina");
       return;
     }
 
@@ -179,7 +175,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
         
         if (updateError) throw updateError;
       } else {
-        // Cria novo material (estoque inicial começa em 0 e as RPCs/tabelas filhas gerenciam)
+        // Cria novo material (estoque inicial começa em 0)
         const { data: newMat, error: insertError } = await supabase
           .from("materials")
           .insert({
@@ -189,11 +185,12 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
             unit,
             minimum_stock: minStock ? parseFloat(minStock) : 0,
             current_stock: 0, 
+            open_roll_accumulated: 0, // Inicia acumulador zerado
             average_cost: selectedProduct.cost_per_meter || 0,
             company_id: companyId,
             product_type_id: selectedProduct.id,
             is_active: true,
-            is_open_roll: false,
+            is_open_roll: source === "aproveitamento", // Flag que define se é material de aproveitamento
             width: unit === "Metros" ? (width ? parseFloat(width) : 1.52) : null,
           })
           .select("id")
@@ -204,7 +201,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
       }
 
       if (source === "principal") {
-        // Cadastro na tabela material_rolls usando RPC
+        // Cadastro via RPC add_material_roll (insere bobina + movimento + atualiza estoque atomicamente)
         const { error: rpcError } = await supabase.rpc("add_material_roll", {
           p_material_id: materialId,
           p_length: lengthVal,
@@ -217,21 +214,9 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
         if (rpcError) throw rpcError;
         toast.success("Material e bobina principal cadastrados com sucesso!");
       } else {
-        // Cadastro na tabela stock_reuse_items
-        const { error: reuseError } = await supabase
-          .from("stock_reuse_items")
-          .insert({
-            material_id: materialId,
-            company_id: companyId,
-            length_meters: lengthVal,
-            width_meters: unit === "Metros" ? (width ? parseFloat(width) : null) : null,
-            status: "disponivel",
-            reason: reason || "Retalho útil",
-            notes: notes || "Cadastro inicial de aproveitamento",
-          });
-
-        if (reuseError) throw reuseError;
-        toast.success("Aproveitamento de estoque cadastrado com sucesso!");
+        // Material de Aproveitamento já foi criado com is_open_roll: true
+        // Ele acumulará o consumo com base nas vendas
+        toast.success("Material de Aproveitamento cadastrado com sucesso!");
       }
 
       onOpenChange(false);
@@ -338,7 +323,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
             </Select>
           </div>
 
-          {source === "principal" ? (
+          {source === "principal" && (
             <div className="space-y-2">
               <Label>Estado da Bobina Inicial *</Label>
               <Select value={rollStatus} onValueChange={(v: "fechada" | "aberta") => setRollStatus(v)}>
@@ -351,47 +336,32 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
                 </SelectContent>
               </Select>
             </div>
-          ) : (
-            <div className="space-y-2">
-              <Label>Motivo do Aproveitamento *</Label>
-              <Select value={reason} onValueChange={setReason}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Retalho útil">Retalho Útil</SelectItem>
-                  <SelectItem value="Sobra de instalação">Sobra de Instalação</SelectItem>
-                  <SelectItem value="Ajuste manual">Ajuste de Estoque</SelectItem>
-                  <SelectItem value="Outros">Outros</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>
-                {source === "principal" ? "Comprimento (m) *" : "Comprimento Sobra (m) *"}
-              </Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={currentStock}
-                onChange={(e) => setCurrentStock(e.target.value)}
-              />
-            </div>
+          {source === "principal" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Comprimento (m) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={currentStock}
+                  onChange={(e) => setCurrentStock(e.target.value)}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Estoque Mínimo</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={minStock}
-                onChange={(e) => setMinStock(e.target.value)}
-              />
+              <div className="space-y-2">
+                <Label>Estoque Mínimo</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={minStock}
+                  onChange={(e) => setMinStock(e.target.value)}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {unit === "Metros" && (
             <div className="space-y-2">
