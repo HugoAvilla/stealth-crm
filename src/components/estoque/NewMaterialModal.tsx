@@ -39,24 +39,33 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
   const [loading, setLoading] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
 
-  // Fetch existing material to check width
+  // Fetch existing material to check width — filtro por product_type_id + width
   const { data: existingMaterial } = useQuery({
-    queryKey: ['existing-material-width', selectedProductTypeId, companyId],
+    queryKey: ['existing-material-width', selectedProductTypeId, companyId, width],
     queryFn: async () => {
       if (!selectedProductTypeId || !companyId) return null;
-      const { data, error } = await supabase
+      const parsedWidth = width ? parseFloat(width) : null;
+      
+      // Busca material com mesmo product_type_id e mesma largura
+      let query = supabase
         .from("materials")
-        .select("id, width, current_stock")
+        .select("id, width, current_stock, name")
         .eq("product_type_id", parseInt(selectedProductTypeId))
         .eq("company_id", companyId)
-        .maybeSingle();
+        .eq("is_active", true);
+
+      if (parsedWidth !== null) {
+        query = query.eq("width", parsedWidth);
+      }
+
+      const { data, error } = await query.maybeSingle();
       if (error) {
         console.error("Error fetching existing material:", error);
         return null;
       }
       return data;
     },
-    enabled: !!selectedProductTypeId && !!companyId && open,
+    enabled: !!selectedProductTypeId && !!companyId && open && !!width,
   });
 
   // Update width when existing material is loaded
@@ -143,13 +152,20 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
         return;
       }
 
-      // Check if material already exists for this product type
-      const { data: matchedMaterial } = await supabase
+      // Check if material already exists for this product type + width
+      const parsedWidth = unit === "Metros" ? (width ? parseFloat(width) : 1.52) : null;
+      let matchQuery = supabase
         .from("materials")
         .select("id, is_active, width")
         .eq("product_type_id", selectedProduct.id)
         .eq("company_id", companyId)
-        .maybeSingle();
+        .eq("is_active", true);
+
+      if (parsedWidth !== null) {
+        matchQuery = matchQuery.eq("width", parsedWidth);
+      }
+
+      const { data: matchedMaterial } = await matchQuery.maybeSingle();
 
       const materialName = `${selectedProduct.brand ? selectedProduct.brand + ' ' : ''}${selectedProduct.name}${selectedProduct.model ? ` - ${selectedProduct.model}` : ''}`;
       
@@ -212,12 +228,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
         });
 
         if (rpcError) throw rpcError;
-        toast.success("Material e bobina principal cadastrados com sucesso!");
-      } else {
-        // Material de Aproveitamento já foi criado com is_open_roll: true
-        // Ele acumulará o consumo com base nas vendas
-        toast.success("Material de Aproveitamento cadastrado com sucesso!");
-      }
+        toast.success(matchedMaterial ? "Entrada registrada em material existente!" : "Material e bobina cadastrados com sucesso!");
 
       onOpenChange(false);
       resetForm();
@@ -310,20 +321,8 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Origem *</Label>
-            <Select value={source} onValueChange={(v: "principal" | "aproveitamento") => setSource(v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="principal">Estoque Principal (Nova Bobina)</SelectItem>
-                <SelectItem value="aproveitamento">Aproveitamento de Estoque (Sobra/Retalho)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
-          {source === "principal" && (
+          {(
             <div className="space-y-2">
               <Label>Estado da Bobina Inicial *</Label>
               <Select value={rollStatus} onValueChange={(v: "fechada" | "aberta") => setRollStatus(v)}>
@@ -338,7 +337,14 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
             </div>
           )}
 
-          {source === "principal" && (
+          {/* Feedback visual: material existente detectado */}
+          {existingMaterial && (
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 px-3 py-2 text-sm text-blue-600">
+              ✓ Material já existe no estoque: <strong>{existingMaterial.name}</strong>. A entrada será registrada no material existente.
+            </div>
+          )}
+
+          {(
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Comprimento (m) *</Label>
@@ -393,7 +399,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
               Cancelar
             </Button>
             <Button className="flex-1" onClick={handleSubmit} disabled={loading}>
-              {loading ? "Salvando..." : "Cadastrar"}
+              {loading ? "Salvando..." : (existingMaterial ? "Registrar Entrada" : "Cadastrar")}
             </Button>
           </div>
         </div>
