@@ -154,6 +154,42 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
     enabled: !!companyId,
   });
 
+  // Buscar bobinas encerradas para histórico
+  const { data: finishedRolls } = useQuery({
+    queryKey: ["finished-rolls", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+
+      const { data, error } = await supabase
+        .from("material_rolls")
+        .select(`
+          id,
+          initial_length_meters,
+          created_at,
+          status,
+          material:materials (
+            id,
+            name,
+            brand,
+            type,
+            unit,
+            product_types (
+              category,
+              light_transmission,
+              ppf_material_type
+            )
+          )
+        `)
+        .eq("company_id", companyId)
+        .eq("status", "encerrada")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!companyId,
+  });
+
   const { lastMovementMap, lastEntryMap } = useMemo(() => {
     const movementMap = new Map<number, string>();
     const entryMap = new Map<number, string>();
@@ -478,6 +514,81 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
           </div>
         </div>
       )}
+
+      {/* Histórico de Bobinas Encerradas */}
+      <div className="space-y-4 mt-8">
+        <h3 className="flex items-center gap-2 text-lg font-medium">
+          <StopCircle className="h-5 w-5 text-orange-500" />
+          Bobinas Encerradas (Histórico)
+        </h3>
+        {(!finishedRolls || finishedRolls.length === 0) ? (
+          <Card className="bg-card/50 border-border/50">
+            <CardContent className="p-8 text-center">
+              <p className="text-muted-foreground">Nenhuma bobina foi encerrada no sistema.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="bg-card/50 border-border/50">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Material</TableHead>
+                    {activeCategory === "INSULFILM" && <TableHead>Transmissão</TableHead>}
+                    {activeCategory === "PPF" && <TableHead>Tipo Material</TableHead>}
+                    <TableHead className="text-center">Metragem Original</TableHead>
+                    <TableHead className="text-center">Data Cadastro / Encerramento</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {finishedRolls
+                    .filter(roll => {
+                      // Filtra pelo category atual (via material -> product_types)
+                      const matCategory = roll.material?.product_types?.category || getCategoryFromMaterial(roll.material as any);
+                      return matCategory === activeCategory;
+                    })
+                    .filter(roll => {
+                      if (!searchTerm) return true;
+                      const search = searchTerm.toLowerCase();
+                      const nameMatch = roll.material?.name?.toLowerCase().includes(search);
+                      const brandMatch = roll.material?.brand?.toLowerCase().includes(search);
+                      return nameMatch || brandMatch;
+                    })
+                    .map(roll => {
+                      const mat = roll.material;
+                      if (!mat) return null;
+                      
+                      return (
+                        <TableRow key={roll.id}>
+                          <TableCell className="font-medium">
+                            <p>{mat.name}</p>
+                            {mat.brand && <p className="text-xs text-muted-foreground">{mat.brand}</p>}
+                          </TableCell>
+                          {activeCategory === "INSULFILM" && (
+                            <TableCell>{mat.product_types?.light_transmission || "-"}</TableCell>
+                          )}
+                          {activeCategory === "PPF" && (
+                            <TableCell>
+                              {mat.product_types?.ppf_material_type ? (
+                                <Badge variant="outline">{mat.product_types.ppf_material_type}</Badge>
+                              ) : "-"}
+                            </TableCell>
+                          )}
+                          <TableCell className="text-center font-medium">
+                            {roll.initial_length_meters || 0} {mat.unit}
+                          </TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">
+                            {format(new Date(roll.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <MaterialDetailsModal
         open={showDetails}
