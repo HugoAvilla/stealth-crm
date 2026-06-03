@@ -302,7 +302,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   // Handle adding a new detailed service item
   const handleAddDetailedItem = () => {
     const newItem: DetailedServiceItem = {
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).substr(2, 9),
       category: "INSULFILM" as ProductCategory,
       regionId: null,
       regionName: "",
@@ -324,7 +324,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
     const item = detailedItems.find(i => i.id === itemId);
     if (!item || (item.isCustomized && item.customizationGroup)) return;
 
-    const groupId = crypto.randomUUID();
+    const groupId = Math.random().toString(36).substr(2, 9);
     const initialItems = createInitialCustomItems(
       selectedVehicle?.size || null,
       consumptionRules || [],
@@ -736,7 +736,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Serviços</Label>
-                <Button variant="outline" size="sm" onClick={handleAddDetailedItem}>
+                <Button variant="outline" size="sm" onClick={handleAddDetailedItem} type="button">
                   <Plus className="h-4 w-4 mr-1" /> Adicionar Serviço
                 </Button>
               </div>
