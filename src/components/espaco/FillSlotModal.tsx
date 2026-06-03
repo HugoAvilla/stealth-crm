@@ -122,22 +122,14 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const { data: productTypes } = useQuery({
     queryKey: ['product-types', companyId],
     queryFn: async () => {
-      // 1. Fetch materials and rolls
-      const [materialsRes, rollsRes] = await Promise.all([
-        supabase
-          .from('materials')
-          .select('id, product_type_id')
-          .eq('company_id', companyId)
-          .eq('is_active', true),
-        supabase
-          .from('material_rolls')
-          .select('material_id, status')
-          .in('status', ['aberta', 'fechada'])
-          .eq('company_id', companyId)
-      ]);
+      // 1. Fetch materials (bobinas) from stock
+      const { data: materialsData, error: materialsError } = await supabase
+        .from('materials')
+        .select('product_type_id, is_open_roll')
+        .eq('company_id', companyId)
+        .eq('is_active', true);
 
-      if (materialsRes.error) throw materialsRes.error;
-      if (rollsRes.error) throw rollsRes.error;
+      if (materialsError) throw materialsError;
 
       // 2. Fetch product types
       const { data: productsData, error: productsError } = await supabase
@@ -149,14 +141,11 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       if (productsError) throw productsError;
 
       // 3. Map stock to products
-      const materialsList = materialsRes.data || [];
-      const rollsList = rollsRes.data || [];
+      const materialsList = materialsData || [];
       const enrichedProducts = (productsData || []).map(pt => {
         const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
-        const materialIds = ptMaterials.map(m => m.id);
-        const ptRolls = rollsList.filter(r => materialIds.includes(r.material_id));
-        const openRolls = ptRolls.filter(r => r.status === "aberta");
-        const closedRolls = ptRolls.filter(r => r.status === "fechada");
+        const openRolls = ptMaterials.filter(m => m.is_open_roll);
+        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
         return {
           ...pt,
           openRollsCount: openRolls.length,
@@ -165,20 +154,6 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       });
 
       return enrichedProducts;
-    },
-    enabled: !!companyId && open,
-  });
-
-  const { data: materialsData } = useQuery({
-    queryKey: ['materials-for-service-item', companyId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('materials')
-        .select('id, product_type_id, current_stock')
-        .eq('company_id', companyId)
-        .eq('is_active', true);
-      if (error) throw error;
-      return data;
     },
     enabled: !!companyId && open,
   });
@@ -302,7 +277,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   // Handle adding a new detailed service item
   const handleAddDetailedItem = () => {
     const newItem: DetailedServiceItem = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       category: "INSULFILM" as ProductCategory,
       regionId: null,
       regionName: "",
@@ -324,7 +299,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
     const item = detailedItems.find(i => i.id === itemId);
     if (!item || (item.isCustomized && item.customizationGroup)) return;
 
-    const groupId = Math.random().toString(36).substr(2, 9);
+    const groupId = crypto.randomUUID();
     const initialItems = createInitialCustomItems(
       selectedVehicle?.size || null,
       consumptionRules || [],
@@ -736,7 +711,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Serviços</Label>
-                <Button variant="outline" size="sm" onClick={handleAddDetailedItem} type="button">
+                <Button variant="outline" size="sm" onClick={handleAddDetailedItem}>
                   <Plus className="h-4 w-4 mr-1" /> Adicionar Serviço
                 </Button>
               </div>
@@ -770,7 +745,6 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                               productTypes={productTypes || []}
                               vehicleRegions={vehicleRegions || []}
                               consumptionRules={rulesWithRegionCode}
-                              materials={materialsData || []}
                               onUpdate={handleUpdateDetailedItem}
                               onRemove={handleRemoveDetailedItem}
                             />

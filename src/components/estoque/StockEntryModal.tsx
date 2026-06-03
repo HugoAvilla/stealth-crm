@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,13 +27,12 @@ interface StockEntryModalProps {
 export function StockEntryModal({ open, onOpenChange, material, onSuccess }: StockEntryModalProps) {
   const { user } = useAuth();
   const [quantity, setQuantity] = useState("");
-  const [status, setStatus] = useState<"fechada" | "aberta">("fechada");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
     if (!quantity || parseFloat(quantity) <= 0) {
-      toast.error(material?.unit === "Metros" ? "Informe o comprimento da bobina" : "Informe a quantidade");
+      toast.error("Informe a quantidade");
       return;
     }
 
@@ -57,26 +55,21 @@ export function StockEntryModal({ open, onOpenChange, material, onSuccess }: Sto
         return;
       }
 
-      // Adiciona a nova bobina via RPC add_material_roll
-      const { error } = await supabase.rpc("add_material_roll", {
-        p_material_id: material.id,
-        p_length: parseFloat(quantity),
-        p_status: status,
-        p_notes: notes || `Entrada de nova bobina (${status})`,
-        p_user_id: user.id,
-        p_company_id: profile.company_id,
+      // Insert stock movement (trigger will update current_stock)
+      const { error } = await supabase.from("stock_movements").insert({
+        material_id: material.id,
+        movement_type: "Entrada",
+        quantity: parseFloat(quantity),
+        reason: notes || "Entrada manual",
+        user_id: user.id,
+        company_id: profile.company_id,
       });
 
       if (error) throw error;
 
-      toast.success(
-        material.unit === "Metros"
-          ? `Nova bobina de ${quantity}m (${status}) adicionada!`
-          : `Entrada de ${quantity} ${material.unit} registrada!`
-      );
+      toast.success(`Entrada de ${quantity} ${material.unit} registrada!`);
       onOpenChange(false);
       setQuantity("");
-      setStatus("fechada");
       setNotes("");
       onSuccess?.();
     } catch (error) {
@@ -89,14 +82,12 @@ export function StockEntryModal({ open, onOpenChange, material, onSuccess }: Sto
 
   if (!material) return null;
 
-  const isMeters = material.unit === "Metros";
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-green-500">
-            <ArrowDown className="h-5 w-5" /> {isMeters ? "Entrada de Bobina" : "Entrada de Estoque"}
+            <ArrowDown className="h-5 w-5" /> Entrada de Estoque
           </DialogTitle>
         </DialogHeader>
 
@@ -109,35 +100,19 @@ export function StockEntryModal({ open, onOpenChange, material, onSuccess }: Sto
           </div>
 
           <div className="space-y-2">
-            <Label>{isMeters ? "Comprimento da Bobina (m) *" : "Quantidade *"}</Label>
+            <Label>Quantidade *</Label>
             <Input
               type="number"
-              step="0.01"
-              placeholder={isMeters ? "Ex: 30.00" : `0 ${material.unit}`}
+              placeholder={`0 ${material.unit}`}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
             />
           </div>
 
-          {isMeters && (
-            <div className="space-y-2">
-              <Label>Estado da Bobina *</Label>
-              <Select value={status} onValueChange={(v: "fechada" | "aberta") => setStatus(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="fechada">Bobina Fechada (Nova)</SelectItem>
-                  <SelectItem value="aberta">Bobina Aberta (Em Uso)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
           <div className="space-y-2">
             <Label>Observação</Label>
             <Textarea
-              placeholder={isMeters ? "Ex: Bobina comprada do fornecedor X..." : "Ex: Compra fornecedor X..."}
+              placeholder="Ex: Compra fornecedor X..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />

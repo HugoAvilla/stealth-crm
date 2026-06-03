@@ -27,7 +27,6 @@ interface RollStats {
   sizeP: number;
   sizeM: number;
   sizeG: number;
-  services: string[];
 }
 
 export function CloseRollModal({ open, onOpenChange, material, onSuccess }: CloseRollModalProps) {
@@ -53,7 +52,7 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
   const { data: stats, isLoading } = useQuery({
     queryKey: ["roll-stats", material?.id],
     queryFn: async (): Promise<RollStats> => {
-      if (!material?.id) return { totalCars: 0, sizeP: 0, sizeM: 0, sizeG: 0, services: [] };
+      if (!material?.id) return { totalCars: 0, sizeP: 0, sizeM: 0, sizeG: 0 };
 
       const { data, error } = await supabase
         .from("stock_movements")
@@ -64,14 +63,13 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
 
       if (error) {
         console.error("Error fetching roll stats:", error);
-        return { totalCars: 0, sizeP: 0, sizeM: 0, sizeG: 0, services: [] };
+        return { totalCars: 0, sizeP: 0, sizeM: 0, sizeG: 0 };
       }
 
       let totalCars = 0;
       let sizeP = 0;
       let sizeM = 0;
       let sizeG = 0;
-      const services: string[] = [];
 
       data?.forEach((movement) => {
         if (!movement.reason) return;
@@ -85,11 +83,9 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
           if (size === "M") sizeM++;
           if (size === "G") sizeG++;
         }
-        
-        services.push(movement.reason);
       });
 
-      return { totalCars, sizeP, sizeM, sizeG, services };
+      return { totalCars, sizeP, sizeM, sizeG };
     },
     enabled: !!material?.id && open,
   });
@@ -154,7 +150,7 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
               <CardContent className="p-4 flex flex-col items-center justify-center text-center space-y-2">
                 <Car className="h-8 w-8 text-green-500" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Serviços Realizados</p>
+                  <p className="text-sm text-muted-foreground">Carros Feitos</p>
                   {isLoading ? (
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mt-1" />
                   ) : (
@@ -168,7 +164,7 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
           {!isLoading && stats && stats.totalCars > 0 && (
             <div className="bg-muted/30 rounded-lg p-3 text-sm">
               <p className="text-muted-foreground mb-2 font-medium">Distribuição por tamanho:</p>
-              <div className="flex justify-between px-2 mb-4">
+              <div className="flex justify-between px-2">
                 <div className="text-center">
                   <span className="block font-bold">{stats.sizeP}</span>
                   <span className="text-xs text-muted-foreground">Pequeno (P)</span>
@@ -181,15 +177,6 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
                   <span className="block font-bold">{stats.sizeG}</span>
                   <span className="text-xs text-muted-foreground">Grande (G)</span>
                 </div>
-              </div>
-              
-              <p className="text-muted-foreground mb-2 font-medium border-t border-border/50 pt-2">Serviços Realizados:</p>
-              <div className="max-h-32 overflow-y-auto space-y-2 pr-2">
-                {stats.services.map((service, idx) => (
-                  <div key={idx} className="text-xs text-foreground/80 bg-background rounded p-2 border border-border/50">
-                    {service}
-                  </div>
-                ))}
               </div>
             </div>
           )}

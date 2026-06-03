@@ -170,7 +170,6 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
   const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
   const [companyId, setCompanyId] = useState<number | null>(null);
-  const [materials, setMaterials] = useState<any[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -187,7 +186,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         if (prefillData.services && prefillData.services.length > 0) {
           // Initialize detailed services from prefill
           setDetailedItems(prefillData.services.map((s: any) => ({
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID(),
             category: s.category || "INSULFILM" as ProductCategory,
             regionId: s.regionId || null,
             regionName: s.regionName || "",
@@ -226,23 +225,19 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
 
       setCompanyId(profile.company_id);
 
-      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes, rollsRes] = await Promise.all([
+      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes] = await Promise.all([
         supabase.from('clients').select('id, name, phone, email').eq('company_id', profile.company_id).order('name'),
         supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
         supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
         supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
-        supabase.from('materials').select('id, product_type_id, current_stock').eq('company_id', profile.company_id).eq('is_active', true),
-        supabase.from('material_rolls').select('material_id, status').in('status', ['aberta', 'fechada']).eq('company_id', profile.company_id)
+        supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true)
       ]);
       const regionsList = regionsRes.data || [];
       const materialsList = materialsRes.data || [];
-      const rollsList = rollsRes.data || [];
       const productsList = (productTypesRes.data || []).map(pt => {
         const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
-        const materialIds = ptMaterials.map(m => m.id);
-        const ptRolls = rollsList.filter(r => materialIds.includes(r.material_id));
-        const openRolls = ptRolls.filter(r => r.status === "aberta");
-        const closedRolls = ptRolls.filter(r => r.status === "fechada");
+        const openRolls = ptMaterials.filter(m => m.is_open_roll);
+        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
         return {
           ...pt,
           openRollsCount: openRolls.length,
@@ -253,7 +248,6 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       setClients(clientsRes.data || []);
       setProductTypes(productsList);
       setVehicleRegions(regionsList);
-      setMaterials(materialsList);
       
       const rulesList = (rulesRes.data || []).map((rule: any) => {
         const region = regionsList.find(r => r.id === rule.region_id);
@@ -415,7 +409,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
 
   const handleAddDetailedItem = () => {
     const newItem: DetailedServiceItem = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       category: 'INSULFILM' as ProductCategory,
       regionId: null,
       regionName: "",
@@ -442,7 +436,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       return;
     }
 
-    const groupId = Math.random().toString(36).substr(2, 9);
+    const groupId = crypto.randomUUID();
     const initialItems = createInitialCustomItems(
       selectedVehicle?.size || null,
       consumptionRules,
@@ -1050,7 +1044,6 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                                   productTypes={productTypes}
                                   vehicleRegions={vehicleRegions}
                                   consumptionRules={consumptionRules}
-                                  materials={materials}
                                   onUpdate={handleUpdateDetailedItem}
                                   onRemove={handleRemoveDetailedItem}
                                 />

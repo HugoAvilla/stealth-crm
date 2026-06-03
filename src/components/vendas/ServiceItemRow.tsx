@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
-import { groupByAvailability, type AvailabilityMaterial } from "@/lib/stockAvailability";
 
 export type ProductCategory = 'INSULFILM' | 'PPF';
 
@@ -66,7 +65,6 @@ interface ServiceItemRowProps {
   productTypes: ProductType[];
   vehicleRegions: VehicleRegion[];
   consumptionRules: ConsumptionRule[];
-  materials?: AvailabilityMaterial[];
   onUpdate: (item: DetailedServiceItem) => void;
   onRemove: (id: string) => void;
 }
@@ -77,7 +75,6 @@ const ServiceItemRow = ({
   productTypes,
   vehicleRegions,
   consumptionRules,
-  materials,
   onUpdate,
   onRemove,
 }: ServiceItemRowProps) => {
@@ -171,40 +168,40 @@ const ServiceItemRow = ({
       );
     }
 
-    // Usa current_stock como critério de disponibilidade (via stockAvailability)
-    const { available: availableProducts, outOfStock } = materials && materials.length > 0
-      ? groupByAvailability(filteredProducts, materials)
-      : {
-          // Fallback: usa lógica legada de bobinas quando materials não fornecido
-          available: filteredProducts.filter((p) => (p.openRollsCount && p.openRollsCount > 0) || p.hasClosedRoll),
-          outOfStock: filteredProducts.filter((p) => !p.openRollsCount && !p.hasClosedRoll),
-        };
+    const openRolls = filteredProducts.filter((p) => p.openRollsCount && p.openRollsCount > 0);
+    const closedRollsOnly = filteredProducts.filter((p) => p.hasClosedRoll && (!p.openRollsCount || p.openRollsCount === 0));
+    const outOfStock = filteredProducts.filter((p) => !p.openRollsCount && !p.hasClosedRoll);
 
     const renderProduct = (product: ProductType) => {
-      // Info de bobinas como detalhe adicional (não critério)
-      let stockInfo = "";
+      let stockDisplay = "";
       if (product.openRollsCount && product.openRollsCount > 0) {
-         stockInfo += `${product.openRollsCount} aberta${product.openRollsCount === 1 ? '' : 's'}`;
+         stockDisplay += `${product.openRollsCount} Aberta${product.openRollsCount === 1 ? '' : 's'}`;
       }
       if (product.hasClosedRoll) {
-         stockInfo += (stockInfo ? " + " : "") + "fechada";
+         stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
       }
 
       return (
         <SelectItem key={product.id} value={product.id.toString()}>
           {product.brand} {product.name}
           {product.light_transmission ? ` ${product.light_transmission}` : ""}
-          {stockInfo ? ` [${stockInfo}]` : ""}
+          {stockDisplay ? ` [${stockDisplay}]` : ""}
         </SelectItem>
       );
     };
 
     return (
       <>
-        {availableProducts.length > 0 && (
+        {openRolls.length > 0 && (
           <SelectGroup>
-            <SelectLabel className="text-xs font-semibold text-primary">Disponível</SelectLabel>
-            {availableProducts.map(renderProduct)}
+            <SelectLabel className="text-xs font-semibold text-primary">Estoque Aberto</SelectLabel>
+            {openRolls.map(renderProduct)}
+          </SelectGroup>
+        )}
+        {closedRollsOnly.length > 0 && (
+          <SelectGroup>
+            <SelectLabel className="text-xs font-semibold text-muted-foreground">Estoque Fechado</SelectLabel>
+            {closedRollsOnly.map(renderProduct)}
           </SelectGroup>
         )}
         {outOfStock.length > 0 && (

@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 interface Material {
@@ -32,33 +31,6 @@ export function StockExitModal({ open, onOpenChange, material, onSuccess }: Stoc
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // Fetch active rolls for this material to show the status
-  const { data: rolls, refetch: refetchRolls } = useQuery({
-    queryKey: ['material-rolls-for-exit', material?.id],
-    queryFn: async () => {
-      if (!material?.id) return [];
-      try {
-        const { data, error } = await supabase
-          .from("material_rolls" as any)
-          .select("id, status, remaining_length_meters")
-          .eq("material_id", material.id)
-          .in("status", ["aberta", "fechada"]);
-        if (error) {
-          console.warn("material_rolls table not available:", error.message);
-          return [];
-        }
-        return data as any[];
-      } catch {
-        return [];
-      }
-    },
-    enabled: !!material?.id && open,
-  });
-
-  const openRollsCount = rolls?.filter(r => r.status === "aberta").length || 0;
-  const closedRollsCount = rolls?.filter(r => r.status === "fechada").length || 0;
-  const isMeters = material?.unit === "Metros";
 
   const handleSubmit = async () => {
     if (!quantity || parseFloat(quantity) <= 0) {
@@ -102,52 +74,19 @@ export function StockExitModal({ open, onOpenChange, material, onSuccess }: Stoc
       const reasonText = reason ? reasonTexts[reason] || reason : "Saída manual";
       const fullReason = notes ? `${reasonText}: ${notes}` : reasonText;
 
-      if (isMeters) {
-        // Usa a RPC manual_exit_material_rolls para atualizar de forma atômica
-        const { data: rpcData, error } = await supabase.rpc("manual_exit_material_rolls", {
-          p_material_id: material.id,
-          p_meters: parseFloat(quantity),
-          p_reason: fullReason,
-          p_user_id: user.id,
-          p_company_id: profile.company_id,
-        });
+      // Insert stock movement (trigger will update current_stock)
+      const { error } = await supabase.from("stock_movements").insert({
+        material_id: material.id,
+        movement_type: "Saida",
+        quantity: parseFloat(quantity),
+        reason: fullReason,
+        user_id: user.id,
+        company_id: profile.company_id,
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        const response = rpcData as any;
-        if (response && response.warning) {
-          toast.error(
-            `Estoque insuficiente: necessário ${response.required_meters}m, disponível ${response.available_meters}m`
-          );
-          setLoading(false);
-          return;
-        }
-
-        toast.success(`Saída de ${quantity}m registrada com sucesso!`);
-      } else {
-        // Para outras unidades, insere diretamente em stock_movements (caso ainda exista trigger ou faremos manualmente)
-        const { error } = await supabase.from("stock_movements").insert({
-          material_id: material.id,
-          movement_type: "Saida",
-          quantity: parseFloat(quantity),
-          reason: fullReason,
-          user_id: user.id,
-          company_id: profile.company_id,
-        });
-
-        if (error) throw error;
-
-        // Atualiza materials.current_stock manualmente caso o trigger legado esteja desabilitado
-        await supabase
-          .from("materials")
-          .update({
-            current_stock: Math.max(0, currentStock - parseFloat(quantity)),
-          })
-          .eq("id", material.id);
-
-        toast.success(`Saída de ${quantity} ${material.unit} registrada!`);
-      }
-
+      toast.success(`Saída de ${quantity} ${material.unit} registrada!`);
       onOpenChange(false);
       setQuantity("");
       setReason("");
@@ -173,24 +112,17 @@ export function StockExitModal({ open, onOpenChange, material, onSuccess }: Stoc
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="p-3 rounded-lg bg-muted/50 space-y-1">
-            <p className="font-medium text-foreground">{material.name}</p>
+          <div className="p-3 rounded-lg bg-muted/50">
+            <p className="font-medium">{material.name}</p>
             <p className="text-sm text-muted-foreground">
               Estoque atual: {material.current_stock || 0} {material.unit}
             </p>
-            {isMeters && (
-              <div className="flex gap-4 text-xs text-muted-foreground pt-1 border-t mt-1">
-                <span>🟢 {openRollsCount} bobina(s) aberta(s)</span>
-                <span>🔵 {closedRollsCount} bobina(s) fechada(s)</span>
-              </div>
-            )}
           </div>
 
           <div className="space-y-2">
-            <Label>{isMeters ? "Quantidade a Retirar (m) *" : "Quantidade *"}</Label>
+            <Label>Quantidade *</Label>
             <Input
               type="number"
-              step="0.01"
               placeholder={`0 ${material.unit}`}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
