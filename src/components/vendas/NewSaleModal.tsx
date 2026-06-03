@@ -186,7 +186,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         if (prefillData.services && prefillData.services.length > 0) {
           // Initialize detailed services from prefill
           setDetailedItems(prefillData.services.map((s: any) => ({
-            id: crypto.randomUUID(),
+            id: Math.random().toString(36).substr(2, 9),
             category: s.category || "INSULFILM" as ProductCategory,
             regionId: s.regionId || null,
             regionName: s.regionName || "",
@@ -409,7 +409,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
 
   const handleAddDetailedItem = () => {
     const newItem: DetailedServiceItem = {
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).substr(2, 9),
       category: 'INSULFILM' as ProductCategory,
       regionId: null,
       regionName: "",
@@ -436,7 +436,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       return;
     }
 
-    const groupId = crypto.randomUUID();
+    const groupId = Math.random().toString(36).substr(2, 9);
     const initialItems = createInitialCustomItems(
       selectedVehicle?.size || null,
       consumptionRules,

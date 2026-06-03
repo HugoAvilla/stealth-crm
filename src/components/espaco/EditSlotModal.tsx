@@ -237,7 +237,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
            if (item.isCustomized && item.customizationGroup && item.items) {
              const groupId = item.customizationGroup;
              loadedItems.push({
-               id: crypto.randomUUID(),
+               id: Math.random().toString(36).substr(2, 9),
                category: item.category || 'INSULFILM' as ProductCategory,
                regionId: null,
                regionName: '',
@@ -261,7 +261,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
              })));
            } else {
              loadedItems.push({
-               id: crypto.randomUUID(),
+               id: Math.random().toString(36).substr(2, 9),
                category: item.category || 'INSULFILM' as ProductCategory,
                regionId: item.regionId || null,
                regionName: item.regionName || '',
@@ -299,7 +299,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
   // Handle adding a new detailed service item
   const handleAddDetailedItem = () => {
     const newItem: DetailedServiceItem = {
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).substr(2, 9),
       category: "INSULFILM" as ProductCategory,
       regionId: null,
       regionName: "",
@@ -321,7 +321,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
     const item = detailedItems.find(i => i.id === itemId);
     if (!item || (item.isCustomized && item.customizationGroup)) return;
 
-    const groupId = crypto.randomUUID();
+    const groupId = Math.random().toString(36).substr(2, 9);
     const initialItems = createInitialCustomItems(
       selectedVehicle?.size || null,
       consumptionRules || [],

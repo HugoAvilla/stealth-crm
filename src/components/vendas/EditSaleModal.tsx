@@ -166,7 +166,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
               setDetailedItems(items.map((item) => {
                 const foundRegion = regions?.find(r => r.id === item.region_id);
                 return {
-                  id: crypto.randomUUID(),
+                  id: Math.random().toString(36).substr(2, 9),
                   category: item.category as ProductCategory,
                   regionId: item.region_id,
                   regionName: foundRegion?.name || '', 
@@ -341,7 +341,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
 
   const handleAddDetailedItem = () => {
     const newItem: DetailedServiceItem = {
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).substr(2, 9),
       category: 'INSULFILM' as ProductCategory,
       regionId: null,
       regionName: "",
@@ -363,7 +363,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
     const item = detailedItems.find(i => i.id === itemId);
     if (!item || (item.isCustomized && item.customizationGroup)) return;
 
-    const groupId = crypto.randomUUID();
+    const groupId = Math.random().toString(36).substr(2, 9);
     const initialItems = createInitialCustomItems(
       selectedVehicle?.size || null,
       consumptionRules,
