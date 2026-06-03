@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
+import { groupByAvailability, type AvailabilityMaterial } from "@/lib/stockAvailability";
 
 export type ProductCategory = 'INSULFILM' | 'PPF';
 
@@ -65,6 +66,7 @@ interface ServiceItemRowProps {
   productTypes: ProductType[];
   vehicleRegions: VehicleRegion[];
   consumptionRules: ConsumptionRule[];
+  materials?: AvailabilityMaterial[];
   onUpdate: (item: DetailedServiceItem) => void;
   onRemove: (id: string) => void;
 }
@@ -75,6 +77,7 @@ const ServiceItemRow = ({
   productTypes,
   vehicleRegions,
   consumptionRules,
+  materials,
   onUpdate,
   onRemove,
 }: ServiceItemRowProps) => {
@@ -168,23 +171,30 @@ const ServiceItemRow = ({
       );
     }
 
-    const availableProducts = filteredProducts.filter((p) => (p.openRollsCount && p.openRollsCount > 0) || p.hasClosedRoll);
-    const outOfStock = filteredProducts.filter((p) => !p.openRollsCount && !p.hasClosedRoll);
+    // Usa current_stock como critério de disponibilidade (via stockAvailability)
+    const { available: availableProducts, outOfStock } = materials && materials.length > 0
+      ? groupByAvailability(filteredProducts, materials)
+      : {
+          // Fallback: usa lógica legada de bobinas quando materials não fornecido
+          available: filteredProducts.filter((p) => (p.openRollsCount && p.openRollsCount > 0) || p.hasClosedRoll),
+          outOfStock: filteredProducts.filter((p) => !p.openRollsCount && !p.hasClosedRoll),
+        };
 
     const renderProduct = (product: ProductType) => {
-      let stockDisplay = "";
+      // Info de bobinas como detalhe adicional (não critério)
+      let stockInfo = "";
       if (product.openRollsCount && product.openRollsCount > 0) {
-         stockDisplay += `${product.openRollsCount} aberta${product.openRollsCount === 1 ? '' : 's'}`;
+         stockInfo += `${product.openRollsCount} aberta${product.openRollsCount === 1 ? '' : 's'}`;
       }
       if (product.hasClosedRoll) {
-         stockDisplay += (stockDisplay ? " + " : "") + "fechada";
+         stockInfo += (stockInfo ? " + " : "") + "fechada";
       }
 
       return (
         <SelectItem key={product.id} value={product.id.toString()}>
           {product.brand} {product.name}
           {product.light_transmission ? ` ${product.light_transmission}` : ""}
-          {stockDisplay ? ` [${stockDisplay}]` : ""}
+          {stockInfo ? ` [${stockInfo}]` : ""}
         </SelectItem>
       );
     };
