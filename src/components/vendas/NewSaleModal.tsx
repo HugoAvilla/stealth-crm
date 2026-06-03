@@ -170,6 +170,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
   const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
   const [companyId, setCompanyId] = useState<number | null>(null);
+  const [materials, setMaterials] = useState<any[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -252,6 +253,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       setClients(clientsRes.data || []);
       setProductTypes(productsList);
       setVehicleRegions(regionsList);
+      setMaterials(materialsList);
       
       const rulesList = (rulesRes.data || []).map((rule: any) => {
         const region = regionsList.find(r => r.id === rule.region_id);
@@ -1048,6 +1050,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                                   productTypes={productTypes}
                                   vehicleRegions={vehicleRegions}
                                   consumptionRules={consumptionRules}
+                                  materials={materials}
                                   onUpdate={handleUpdateDetailedItem}
                                   onRemove={handleRemoveDetailedItem}
                                 />

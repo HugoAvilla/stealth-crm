@@ -169,6 +169,20 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
     enabled: !!companyId && open,
   });
 
+  const { data: materialsData } = useQuery({
+    queryKey: ['materials-for-service-item', companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('materials')
+        .select('id, product_type_id, current_stock')
+        .eq('company_id', companyId)
+        .eq('is_active', true);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!companyId && open,
+  });
+
   // Fetch vehicle regions (services) with fixed_price
   const { data: vehicleRegions } = useQuery({
     queryKey: ['vehicle-regions-with-price', companyId],
@@ -756,6 +770,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                               productTypes={productTypes || []}
                               vehicleRegions={vehicleRegions || []}
                               consumptionRules={rulesWithRegionCode}
+                              materials={materialsData || []}
                               onUpdate={handleUpdateDetailedItem}
                               onRemove={handleRemoveDetailedItem}
                             />
