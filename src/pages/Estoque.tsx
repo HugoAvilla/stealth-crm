@@ -330,14 +330,15 @@ export default function Estoque() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Material</TableHead>
+              <TableHead>Nome</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead className="text-center">Transmissão</TableHead>
-              <TableHead className="text-center">Bobinas Ativas</TableHead>
-              <TableHead className="text-center">Estoque Total</TableHead>
+              <TableHead className="text-center">Largura</TableHead>
+              <TableHead className="text-center">Estoque Atual</TableHead>
               <TableHead className="text-center">Mínimo</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead className="text-right">Valor Total</TableHead>
+              <TableHead className="text-center">Bobinas Ativas</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -377,19 +378,8 @@ export default function Estoque() {
                   <TableCell className="text-center">
                     {material.product_types?.light_transmission || "-"}
                   </TableCell>
-                  <TableCell className="text-center">
-                    {material.unit === "Metros" ? (
-                      <div className="flex gap-1.5 justify-center">
-                        <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/15 border-0 text-[10px]">
-                          🟢 {openCount} abertas
-                        </Badge>
-                        <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/15 border-0 text-[10px]">
-                          🔵 {closedCount} fechadas
-                        </Badge>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
+                  <TableCell className="text-center text-muted-foreground">
+                    {material.width ? `${Number(material.width).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}m` : "-"}
                   </TableCell>
                   <TableCell className="text-center font-medium">
                     {material.current_stock || 0} {material.unit}
@@ -404,6 +394,20 @@ export default function Estoque() {
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {material.unit === "Metros" ? (
+                      <div className="flex gap-1.5 justify-center">
+                        <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/15 border-0 text-[10px]">
+                          🟢 {openCount} abertas
+                        </Badge>
+                        <Badge className="bg-blue-500/10 text-blue-600 hover:bg-blue-500/15 border-0 text-[10px]">
+                          🔵 {closedCount} fechadas
+                        </Badge>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1 justify-end">
@@ -439,10 +443,12 @@ export default function Estoque() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Material Relacionado</TableHead>
+              <TableHead>Material</TableHead>
               <TableHead>Tipo</TableHead>
+              <TableHead className="text-center">Transmissão</TableHead>
               <TableHead className="text-center">Largura</TableHead>
-              <TableHead className="text-center">Consumo Acumulado</TableHead>
+              <TableHead className="text-center">Uso/Acumulado</TableHead>
+              <TableHead className="text-center">Status</TableHead>
               <TableHead className="w-[180px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -459,10 +465,16 @@ export default function Estoque() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-center text-muted-foreground">
+                  {item.product_types?.light_transmission || "-"}
+                </TableCell>
+                <TableCell className="text-center text-muted-foreground">
                   {item.width ? `${item.width}m` : "-"}
                 </TableCell>
                 <TableCell className="text-center font-semibold text-blue-500">
                   {item.open_roll_accumulated || 0}m consumidos
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge className="bg-green-500/10 text-green-600 border-0">Aberta</Badge>
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-1">
@@ -493,8 +505,8 @@ export default function Estoque() {
             ))}
             {items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                  Nenhum material de aproveitamento cadastrado.
+                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  Nenhuma bobina aberta cadastrada.
                 </TableCell>
               </TableRow>
             )}
@@ -546,7 +558,7 @@ export default function Estoque() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold">Gestão de Estoque</h1>
-          <p className="text-muted-foreground">Controle de materiais por bobinas físicas e aproveitamento de sobras</p>
+          <p className="text-muted-foreground">Controle de materiais por bobinas</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowNewMaterial(true)}>
@@ -626,7 +638,7 @@ export default function Estoque() {
                 <StopCircle className="h-5 w-5 text-indigo-500" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Aproveitamentos</p>
+                <p className="text-xs text-muted-foreground">Bobinas Abertas</p>
                 <p className="text-xl font-bold text-indigo-500">{aproveitamentoMaterials.length} <span className="text-xs text-muted-foreground font-normal">materiais</span></p>
               </div>
             </div>
@@ -657,8 +669,8 @@ export default function Estoque() {
           <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-2">
               <TabsList className="bg-muted/80">
-                <TabsTrigger value="principal">Estoque Principal</TabsTrigger>
-                <TabsTrigger value="aproveitamento">Aproveitamento de Estoque ({aproveitamentoMaterials.length})</TabsTrigger>
+                <TabsTrigger value="principal">Estoque Padrão (Fechado)</TabsTrigger>
+                <TabsTrigger value="aproveitamento">Bobinas Abertas ({aproveitamentoMaterials.length})</TabsTrigger>
               </TabsList>
 
               {(activeSubTab === "principal" || activeSubTab === "aproveitamento") && (
