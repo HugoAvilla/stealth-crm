@@ -79,11 +79,21 @@ export async function consumeStockForSale(
 
     // Create a map of materials by type, keeping both open rolls and regular ones
     const materialsByType = new Map<string, any[]>();
+    const materialsByProductTypeId = new Map<number, any[]>();
+
     for (const m of materials || []) {
-      const key = m.type?.toLowerCase() || m.name.toLowerCase();
-      const arr = materialsByType.get(key) || [];
-      arr.push(m);
-      materialsByType.set(key, arr);
+      // Indexa por type
+      const typeKey = m.type?.toLowerCase() || m.name.toLowerCase();
+      const typeArr = materialsByType.get(typeKey) || [];
+      typeArr.push(m);
+      materialsByType.set(typeKey, typeArr);
+
+      // Indexa por product_type_id quando existir
+      if (m.product_type_id) {
+        const prodArr = materialsByProductTypeId.get(m.product_type_id) || [];
+        prodArr.push(m);
+        materialsByProductTypeId.set(m.product_type_id, prodArr);
+      }
     }
 
     // 4. Process each consumption rule
@@ -105,9 +115,29 @@ export async function consumeStockForSale(
       if (consumeAmount <= 0) continue;
 
       // Find matching material
-      const productMaterials = materialsByType.get(rule.material_type.toLowerCase()) || [];
-      const openRollMaterial = productMaterials.find(m => m.is_open_roll);
-      const material = openRollMaterial || productMaterials.find(m => !m.is_open_roll);
+      // Tenta usar product_type_id se a rule tiver (fallback para type)
+      const ruleProdId = (rule as any).product_type_id;
+      let productMaterials = ruleProdId
+        ? materialsByProductTypeId.get(ruleProdId) || []
+        : materialsByType.get(rule.material_type.toLowerCase()) || [];
+
+      if (productMaterials.length === 0 && ruleProdId) {
+        productMaterials = materialsByType.get(rule.material_type.toLowerCase()) || [];
+      }
+
+      // Ordena: primeiro os que tem current_stock > 0, depois por largura (maior primeiro)
+      productMaterials.sort((a, b) => {
+        const aStock = (a.current_stock || 0) > 0 ? 1 : 0;
+        const bStock = (b.current_stock || 0) > 0 ? 1 : 0;
+        if (aStock !== bStock) return bStock - aStock;
+
+        const aWidth = a.width || 0;
+        const bWidth = b.width || 0;
+        return bWidth - aWidth;
+      });
+
+      const openRollMaterial = productMaterials.find((m: any) => m.is_open_roll);
+      const material = openRollMaterial || productMaterials.find((m: any) => !m.is_open_roll) || productMaterials[0];
 
       if (!material) {
         result.warnings.push(
@@ -258,8 +288,20 @@ export async function consumeStockForDetailedSale(
       if (metersToConsume <= 0) continue;
 
       const productMaterials = materialsByProductType.get(productTypeId) || [];
-      const openRollMaterial = productMaterials.find(m => m.is_open_roll);
-      const material = openRollMaterial || productMaterials.find(m => !m.is_open_roll);
+      
+      // Ordena: primeiro current_stock > 0, depois por largura (maior primeiro)
+      productMaterials.sort((a, b) => {
+        const aStock = (a.current_stock || 0) > 0 ? 1 : 0;
+        const bStock = (b.current_stock || 0) > 0 ? 1 : 0;
+        if (aStock !== bStock) return bStock - aStock;
+
+        const aWidth = a.width || 0;
+        const bWidth = b.width || 0;
+        return bWidth - aWidth;
+      });
+
+      const openRollMaterial = productMaterials.find((m: any) => m.is_open_roll);
+      const material = openRollMaterial || productMaterials.find((m: any) => !m.is_open_roll) || productMaterials[0];
 
       if (!material) {
         // Get product type name for warning
