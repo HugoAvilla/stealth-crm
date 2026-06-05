@@ -122,6 +122,7 @@ interface NewSaleModalProps {
     discount?: number;
     services: any[];
     spaceId?: number;
+    observations?: string;
   };
   onSuccess?: () => void;
 }
@@ -183,6 +184,10 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         setSelectedClientId(prefillData.clientId.toString());
         setSelectedVehicleId(prefillData.vehicleId.toString());
         if (prefillData.discount) setDiscountValue(prefillData.discount.toString());
+        if (prefillData.observations) {
+          setNotes(prefillData.observations);
+          setShowNotes(true);
+        }
         if (prefillData.services && prefillData.services.length > 0) {
           // Initialize detailed services from prefill
           setDetailedItems(prefillData.services.map((s: any) => ({

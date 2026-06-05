@@ -741,7 +741,8 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
               vehicleId: space.vehicle_id,
               discount: space.discount || 0,
               services: space.services_data || [],
-              spaceId: space.id
+              spaceId: space.id,
+              observations: space.observations || undefined
             }}
           />
         )}
