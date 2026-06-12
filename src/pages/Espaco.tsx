@@ -386,12 +386,12 @@ export default function Espaco() {
               <div className="mb-4">
                 <BrazilCalendarLegend />
               </div>
-              <div className="grid grid-cols-7 gap-1 mb-2">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-2 mb-1">
                 {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                  <div key={day} className="text-center text-xs sm:text-sm text-muted-foreground py-1 sm:py-2 truncate">{day}</div>
+                  <div key={day} className="text-center text-[10px] sm:text-sm font-semibold text-muted-foreground py-1 sm:py-2 truncate">{day}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1 sm:gap-2">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-2">
                 {Array.from({ length: monthStart.getDay() }).map((_, i) => (
                   <div key={`empty-${i}`} className="aspect-square" />
                 ))}
@@ -408,25 +408,25 @@ export default function Espaco() {
                       onClick={() => setSelectedDay(day)}
                       title={eventTitle}
                       className={cn(
-                        "aspect-square min-h-[70px] sm:min-h-[100px] p-2 rounded-xl border transition-all flex flex-col items-center justify-between hover:bg-accent/80 hover:scale-[1.02] cursor-pointer overflow-hidden relative shadow-sm",
+                        "min-h-[52px] sm:min-h-[100px] h-[52px] sm:h-auto sm:aspect-square p-1 sm:p-2 rounded-lg sm:rounded-xl border transition-all flex flex-col items-center cursor-pointer hover:bg-accent/80 hover:scale-[1.02] overflow-hidden relative shadow-sm",
                         calendarEvent &&
                           BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
                         isToday(day) && "border-primary ring-1 ring-primary/20",
                         !isSameMonth(day, currentDate) && "opacity-40"
                       )}
                     >
-                      {/* Top Badges (Today and Holiday) */}
-                      <div className="absolute top-1.5 left-1.5 right-1.5 flex justify-between items-center pointer-events-none">
+                      {/* Top: Today badge OR holiday chip */}
+                      <div className="flex w-full justify-between items-start mb-0.5 sm:mb-0 sm:absolute sm:top-1.5 sm:left-1.5 sm:right-1.5 pointer-events-none">
                         {isToday(day) ? (
-                          <span className="rounded bg-red-600 text-white text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 shadow-[0_0_8px_rgba(239,68,68,0.7)] border border-red-500 uppercase tracking-widest leading-none z-10">
+                          <span className="rounded bg-red-600 text-white text-[7px] sm:text-[10px] font-black px-1 py-px sm:px-1.5 sm:py-0.5 shadow-[0_0_8px_rgba(239,68,68,0.7)] border border-red-500 uppercase tracking-wide leading-none z-10 shrink-0">
                             Hoje
                           </span>
-                        ) : <div />}
+                        ) : <div className="shrink-0" />}
                         
                         {calendarEvent ? (
                           <span
                             className={cn(
-                              "max-w-[65%] truncate rounded px-1.5 py-0.5 text-[7px] font-bold leading-none scale-90 sm:scale-100 origin-right",
+                              "max-w-[55%] truncate rounded px-1 py-px sm:px-1.5 sm:py-0.5 text-[6px] sm:text-[7px] font-bold leading-none origin-right",
                               BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].chipClass
                             )}
                           >
@@ -435,15 +435,15 @@ export default function Espaco() {
                         ) : null}
                       </div>
 
-                      {/* Huge Centered Day Number & Slots fraction */}
+                      {/* Day Number & Slots fraction */}
                       <div className="flex flex-col items-center justify-center my-auto">
                         <span className={cn(
-                          "text-2xl sm:text-4xl font-extrabold tracking-tight leading-none",
+                          "text-base sm:text-4xl font-extrabold tracking-tight leading-none",
                           isToday(day) ? "text-primary" : "text-foreground"
                         )}>
                           {format(day, 'd')}
                         </span>
-                        <span className="text-[10px] sm:text-[11px] font-bold text-muted-foreground/60 mt-1.5 leading-none">
+                        <span className="text-[8px] sm:text-[11px] font-bold text-muted-foreground/60 mt-0.5 sm:mt-1.5 leading-none">
                           {daySpaces.length}/{totalSlots}
                         </span>
                       </div>
@@ -453,34 +453,33 @@ export default function Espaco() {
                           {/* Visualização Desktop */}
                           <div className="hidden sm:flex flex-col gap-1 items-center w-full mt-auto">
                             {inProgress > 0 && (
-                              <Badge variant="default" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 bg-yellow-500 text-yellow-950 hover:bg-yellow-600 truncate flex justify-center w-full font-bold shadow-sm">
+                              <Badge variant="default" className="text-xs px-1.5 py-0 bg-yellow-500 text-yellow-950 hover:bg-yellow-600 truncate flex justify-center w-full font-bold shadow-sm">
                                 {inProgress} {inProgress === 1 ? 'vaga' : 'vagas'}
                               </Badge>
                             )}
                             {completed > 0 && (
-                              <Badge variant="default" className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 bg-green-500 text-white hover:bg-green-600 truncate flex justify-center w-full font-bold shadow-sm">
+                              <Badge variant="default" className="text-xs px-1.5 py-0 bg-green-500 text-white hover:bg-green-600 truncate flex justify-center w-full font-bold shadow-sm">
                                 {completed} {completed === 1 ? 'vaga' : 'vagas'}
                               </Badge>
                             )}
                           </div>
 
                           {/* Visualização Mobile Compacta */}
-                          <div className="flex sm:hidden flex-row items-center justify-center gap-1 mt-auto w-full pb-0.5">
+                          <div className="flex sm:hidden flex-row items-center justify-center gap-0.5 mt-auto w-full pb-0.5">
                             {inProgress > 0 && (
-                              <div className="w-4 h-4 rounded-full bg-yellow-500 text-yellow-950 flex items-center justify-center text-[8px] font-extrabold shadow-sm">
+                              <div className="w-3.5 h-3.5 rounded-full bg-yellow-500 text-yellow-950 flex items-center justify-center text-[7px] font-extrabold shadow-sm">
                                 {inProgress}
                               </div>
                             )}
                             {completed > 0 && (
-                              <div className="w-4 h-4 rounded-full bg-green-500 text-white flex items-center justify-center text-[8px] font-extrabold shadow-sm">
+                              <div className="w-3.5 h-3.5 rounded-full bg-green-500 text-white flex items-center justify-center text-[7px] font-extrabold shadow-sm">
                                 {completed}
                               </div>
                             )}
                           </div>
                         </>
                       ) : (
-                        // Espaçador invisível para manter o número centralizado perfeitamente
-                        <div className="h-4 sm:h-8 w-full pointer-events-none opacity-0 mt-auto" />
+                        <div className="h-3.5 sm:h-8 w-full pointer-events-none opacity-0 mt-auto" />
                       )}
                     </button>
                   );
