@@ -393,7 +393,7 @@ export default function Espaco() {
               </div>
               <div className="grid grid-cols-7 gap-1 sm:gap-2">
                 {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-                  <div key={`empty-${i}`} className="aspect-square" />
+                  <div key={`empty-${i}`} className="h-[72px] sm:h-auto sm:aspect-square" />
                 ))}
                 {days.map(day => {
                   const daySpaces = getSpacesForDay(day);
@@ -408,7 +408,7 @@ export default function Espaco() {
                       onClick={() => setSelectedDay(day)}
                       title={eventTitle}
                       className={cn(
-                        "aspect-square sm:min-h-[100px] p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all flex flex-col items-center cursor-pointer hover:bg-accent/80 hover:scale-[1.02] overflow-hidden relative shadow-sm",
+                        "h-[72px] sm:h-auto sm:aspect-square sm:min-h-[100px] p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all flex flex-col items-center cursor-pointer hover:bg-accent/80 hover:scale-[1.02] overflow-hidden relative shadow-sm",
                         calendarEvent &&
                           BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
                         isToday(day) && "border-primary ring-1 ring-primary/20",

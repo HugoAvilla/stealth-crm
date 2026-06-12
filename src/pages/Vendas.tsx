@@ -401,7 +401,7 @@ const Vendas = () => {
                           onClick={() => setSelectedDay(day)}
                           title={eventTitle}
                           className={cn(
-                            "aspect-square sm:min-h-[100px] p-1.5 sm:p-2 border border-border rounded-lg sm:rounded-xl transition-all flex flex-col items-center cursor-pointer hover:bg-accent/80 hover:scale-[1.02] overflow-hidden relative shadow-sm",
+                            "h-[72px] sm:h-auto sm:aspect-square sm:min-h-[100px] p-1.5 sm:p-2 border border-border rounded-lg sm:rounded-xl transition-all flex flex-col items-center cursor-pointer hover:bg-accent/80 hover:scale-[1.02] overflow-hidden relative shadow-sm",
                             isCurrentMonth ? "bg-card" : "bg-background opacity-40",
                             calendarEvent &&
                               BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
