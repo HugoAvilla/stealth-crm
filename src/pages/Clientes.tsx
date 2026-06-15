@@ -3,25 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -35,12 +21,13 @@ import {
   Search,
   ArrowUpDown,
   MoreVertical,
-  Eye,
-  Pencil,
-  Trash2,
-  MessageCircle,
-  Users
+  Users,
+  CheckCircle,
+  Crown,
+  DollarSign
 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ClientCard } from "@/components/clientes/ClientCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
@@ -308,11 +295,22 @@ export default function Clientes() {
     }
   };
 
+  const totalClients = filteredAndSortedClients.length;
+  const activeClients = filteredAndSortedClients.filter(c => c.status === 'Ativo').length;
+  const vipClients = filteredAndSortedClients.filter(c => c.tier === 'VIP').length;
+  const totalRevenue = filteredAndSortedClients.reduce((sum, c) => sum + c.total_spent, 0);
+
   if (loading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-96" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
@@ -370,20 +368,82 @@ export default function Clientes() {
         </div>
       </div>
 
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total</p>
+                <p className="text-2xl font-bold">{totalClients}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Ativos</p>
+                <p className="text-2xl font-bold text-green-500">{activeClients}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <Crown className="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">VIP</p>
+                <p className="text-2xl font-bold text-amber-500">{vipClients}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <DollarSign className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Receita Total</p>
+                <p className="text-xl font-bold text-emerald-500">
+                  R$ {totalRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar cliente por nome, whatsapp, veículo ou placa..."
+            placeholder="Buscar por nome, whatsapp ou placa..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-card border-border"
+            className="pl-10 bg-card border-border h-10"
           />
         </div>
         
-        {/* Origin Filter */}
-        <div className="w-full sm:w-[150px]">
+        <div className="flex overflow-x-auto gap-2 pb-2 sm:pb-0 hide-scrollbar">
+          {/* Origin Filter */}
+          <div className="w-[140px] flex-shrink-0">
           <Select value={filterOrigem} onValueChange={setFilterOrigem}>
             <SelectTrigger className="bg-card border-border">
               <SelectValue placeholder="Origem" />
@@ -398,7 +458,7 @@ export default function Clientes() {
         </div>
 
         {/* Status Filter */}
-        <div className="w-full sm:w-[130px]">
+        <div className="w-[130px] flex-shrink-0">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="bg-card border-border">
               <SelectValue placeholder="Status" />
@@ -410,27 +470,11 @@ export default function Clientes() {
             </SelectContent>
           </Select>
         </div>
-
-        {/* Tier Filter */}
-        <div className="w-full sm:w-[150px]">
-          <Select value={filterTier} onValueChange={setFilterTier}>
-            <SelectTrigger className="bg-card border-border">
-              <SelectValue placeholder="Tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os tipos</SelectItem>
-              <SelectItem value="vip">⭐ VIP (Frequente)</SelectItem>
-              <SelectItem value="comum">👤 Comum (Padrão)</SelectItem>
-              <SelectItem value="sem compras">⏳ Sem Compras</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="border-border">
-              <ArrowUpDown className="h-4 w-4 mr-2" />
-              {getSortLabel()}
+            <Button variant="outline" className="border-border h-10 flex-shrink-0">
+              <ArrowUpDown className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{getSortLabel()}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-card border-border">
@@ -448,6 +492,7 @@ export default function Clientes() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
 
       {/* Empty State or Table */}
@@ -463,116 +508,20 @@ export default function Clientes() {
           </Button>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <Table className="table-fixed">
-            <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground w-[30%]">Cliente</TableHead>
-                <TableHead className="text-muted-foreground w-[25%]">Contato</TableHead>
-                <TableHead className="text-muted-foreground text-center w-[18%]">Veículos</TableHead>
-                <TableHead className="text-muted-foreground text-right w-[18%]">Qtd Gasto</TableHead>
-                <TableHead className="text-muted-foreground text-center w-[9%] pr-1">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-          <TooltipProvider>
-            <TableBody>
-              {filteredAndSortedClients.map((client) => (
-                <TableRow
-                  key={client.id}
-                  className="border-border cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleViewProfile(client)}
-                >
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium text-foreground">{client.name}</span>
-                      <div className="flex flex-wrap gap-1">
-                        <Tooltip delayDuration={300}>
-                          <TooltipTrigger asChild>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium uppercase tracking-wider cursor-help
-                              ${client.status === 'Ativo' ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}
-                            `}>
-                              {client.status}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {client.status === 'Ativo' 
-                              ? 'Cliente com compra recente ou cadastro novo.' 
-                              : 'Cliente sem compras recentes (inativo).'}
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip delayDuration={300}>
-                          <TooltipTrigger asChild>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium uppercase tracking-wider cursor-help
-                              ${client.tier === 'VIP' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 
-                                client.tier === 'Comum' ? 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400' :
-                                'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}
-                            `}>
-                              {client.tier}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {client.tier === 'VIP' ? 'Frequente (3 ou mais serviços ou +R$ 3 mil)' : 
-                             client.tier === 'Comum' ? 'Cliente padrão com compras' :
-                             'Pendente de vendas'}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="truncate">
-                    <a
-                      href={openWhatsApp(client.phone)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline flex items-center gap-1"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MessageCircle className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{client.phone}</span>
-                    </a>
-                  </TableCell>
-                  <TableCell className="text-center text-muted-foreground">
-                    {client.vehicles.length} veículo(s)
-                  </TableCell>
-                  <TableCell className="text-right font-semibold text-foreground">
-                    R$ {client.total_spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="text-center p-1" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-card border-border">
-                        <DropdownMenuItem onClick={() => handleViewProfile(client)}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Ver perfil
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditClient(client)}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteClient(client)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </TooltipProvider>
-          </Table>
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAndSortedClients.map((client) => (
+            <ClientCard
+              key={client.id}
+              client={client}
+              onViewProfile={handleViewProfile}
+              onEdit={handleEditClient}
+              onDelete={handleDeleteClient}
+              onWhatsApp={(phone) => window.open(openWhatsApp(phone), "_blank")}
+            />
+          ))}
           {filteredAndSortedClients.length === 0 && clients.length > 0 && (
-            <div className="p-8 text-center text-muted-foreground">
-              Nenhum cliente encontrado
+            <div className="col-span-full p-8 text-center text-muted-foreground rounded-xl border border-border bg-card">
+              Nenhum cliente encontrado com os filtros atuais.
             </div>
           )}
         </div>
