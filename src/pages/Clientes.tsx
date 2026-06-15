@@ -318,7 +318,7 @@ export default function Clientes() {
   }
 
   return (
-    <div className="space-y-6 max-w-[100vw] overflow-x-hidden">
+    <div className="space-y-6 max-w-[100vw]">
       <HelpOverlay
         tabId="clientes"
         title="Guia de Clientes"
@@ -464,20 +464,24 @@ export default function Clientes() {
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground">Cliente</TableHead>
-                <TableHead className="text-muted-foreground">Contato</TableHead>
-                <TableHead className="text-muted-foreground text-center">Veículos</TableHead>
-                <TableHead className="text-muted-foreground text-right">Qtd Gasto</TableHead>
-                <TableHead className="text-muted-foreground text-center">Ações</TableHead>
+                <TableHead className="text-muted-foreground w-[30%]">Cliente</TableHead>
+                <TableHead className="text-muted-foreground w-[25%]">Contato</TableHead>
+                <TableHead className="text-muted-foreground text-center w-[18%]">Veículos</TableHead>
+                <TableHead className="text-muted-foreground text-right w-[18%]">Qtd Gasto</TableHead>
+                <TableHead className="text-muted-foreground text-center w-[9%] pr-1">Ações</TableHead>
               </TableRow>
             </TableHeader>
           <TooltipProvider>
             <TableBody>
               {filteredAndSortedClients.map((client) => (
-                <TableRow key={client.id} className="border-border">
+                <TableRow
+                  key={client.id}
+                  className="border-border cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => handleViewProfile(client)}
+                >
                   <TableCell>
                     <div className="flex flex-col gap-1">
                       <span className="font-medium text-foreground">{client.name}</span>
@@ -516,15 +520,16 @@ export default function Clientes() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="truncate">
                     <a
                       href={openWhatsApp(client.phone)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:underline flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <MessageCircle className="h-3 w-3" />
-                      {client.phone}
+                      <MessageCircle className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{client.phone}</span>
                     </a>
                   </TableCell>
                   <TableCell className="text-center text-muted-foreground">
@@ -533,7 +538,7 @@ export default function Clientes() {
                   <TableCell className="text-right font-semibold text-foreground">
                     R$ {client.total_spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="text-center p-1" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">

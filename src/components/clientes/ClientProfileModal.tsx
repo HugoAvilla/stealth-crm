@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   MessageCircle,
   Plus,
@@ -21,19 +22,61 @@ import {
   Pencil,
   Trash2,
   X,
+  Loader2,
 } from "lucide-react";
-import { Client, Vehicle, sales, services, getServiceById } from "@/lib/mockData";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { SaleWithDetails } from "@/types/sales";
+import SaleDetailsModal from "@/components/vendas/SaleDetailsModal";
+
+interface Vehicle {
+  id: number;
+  brand: string;
+  model: string;
+  year: number | null;
+  plate: string | null;
+  size: string | null;
+}
+
+interface ClientData {
+  id: number;
+  name: string;
+  phone: string;
+  email?: string | null;
+  cpf_cnpj?: string | null;
+  origem?: string | null;
+  created_at: string | null;
+  vehicles: Vehicle[];
+  total_spent: number;
+  sales_count: number;
+  last_sale_date?: string | null;
+  status?: string;
+  tier?: string;
+}
+
+interface ProfileSale {
+  id: number;
+  sale_date: string;
+  total: number;
+  is_open: boolean | null;
+  vehicle_id: number | null;
+  payment_method: string | null;
+  sale_items: {
+    id: number;
+    service: { name: string } | null;
+  }[];
+}
 
 interface ClientProfileModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  client: Client;
+  client: ClientData;
   onEdit: () => void;
   onCreateSale?: () => void;
   onAddToSpace?: () => void;
-  onDelete?: (client: Client) => void;
+  onDelete?: (client: ClientData) => void;
 }
 
 export function ClientProfileModal({
@@ -45,13 +88,62 @@ export function ClientProfileModal({
   onAddToSpace,
   onDelete,
 }: ClientProfileModalProps) {
+  const { user } = useAuth();
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [clientSales, setClientSales] = useState<ProfileSale[]>([]);
+  const [selectedSaleDetails, setSelectedSaleDetails] = useState<SaleWithDetails | null>(null);
+  const [loadingSaleId, setLoadingSaleId] = useState<number | null>(null);
+  const [loadingSales, setLoadingSales] = useState(false);
 
-  // Get client's sales
-  const clientSales = useMemo(() => {
-    return sales.filter(sale => sale.client_id === client.id);
-  }, [client.id]);
+  // Fetch real sales from Supabase when modal opens
+  useEffect(() => {
+    if (open && client?.id) {
+      fetchClientSales();
+    }
+    if (!open) {
+      // Reset state when modal closes
+      setClientSales([]);
+      setSelectedVehicle(null);
+      setVehicleSearch("");
+      setLoadingSaleId(null);
+    }
+  }, [open, client?.id]);
+
+  const fetchClientSales = async () => {
+    if (!user?.id) return;
+
+    setLoadingSales(true);
+    try {
+      const { data, error } = await supabase
+        .from("sales")
+        .select(`
+          id,
+          sale_date,
+          total,
+          is_open,
+          vehicle_id,
+          payment_method,
+          sale_items(
+            id,
+            service:services(name)
+          )
+        `)
+        .eq("client_id", client.id)
+        .is("deleted_at", null)
+        .order("sale_date", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching client sales:", error);
+      } else {
+        setClientSales(data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching client sales:", err);
+    } finally {
+      setLoadingSales(false);
+    }
+  };
 
   // Filter sales by vehicle if selected
   const filteredSales = useMemo(() => {
@@ -64,9 +156,9 @@ export function ClientProfileModal({
     if (!vehicleSearch) return client.vehicles;
     const term = vehicleSearch.toLowerCase();
     return client.vehicles.filter(v =>
-      v.brand.toLowerCase().includes(term) ||
-      v.model.toLowerCase().includes(term) ||
-      v.plate.toLowerCase().includes(term)
+      (v.brand?.toLowerCase() || "").includes(term) ||
+      (v.model?.toLowerCase() || "").includes(term) ||
+      (v.plate?.toLowerCase() || "").includes(term)
     );
   }, [client.vehicles, vehicleSearch]);
 
@@ -76,11 +168,64 @@ export function ClientProfileModal({
     window.location.href = url;
   };
 
-  const getServiceNames = (serviceIds: number[]) => {
-    return serviceIds.map(id => getServiceById(id)?.name || 'Serviço').join(', ');
+  const getServiceNames = (saleItems: ProfileSale["sale_items"]) => {
+    if (!saleItems || saleItems.length === 0) return "Serviço";
+    return saleItems
+      .map(item => item.service?.name || "Serviço")
+      .join(", ");
+  };
+
+  const handleOpenSaleDetails = async (saleId: number) => {
+    setLoadingSaleId(saleId);
+    try {
+      const { data, error } = await supabase
+        .from("sales")
+        .select(`
+          *,
+          client:clients(id, name, phone),
+          vehicle:vehicles(id, brand, model, year, plate, size),
+          sale_items(
+            id, service_id, quantity, unit_price, total_price,
+            service:services(id, name, base_price)
+          )
+        `)
+        .eq("id", saleId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching sale details:", error);
+        return;
+      }
+
+      if (data) {
+        const saleDetails: SaleWithDetails = {
+          id: data.id,
+          client_id: data.client_id,
+          vehicle_id: data.vehicle_id,
+          sale_date: data.sale_date,
+          subtotal: data.subtotal,
+          discount: data.discount,
+          total: data.total,
+          payment_method: data.payment_method,
+          status: data.status,
+          is_open: data.is_open,
+          observations: data.observations,
+          created_at: data.created_at,
+          client: data.client,
+          vehicle: data.vehicle,
+          sale_items: data.sale_items || [],
+        };
+        setSelectedSaleDetails(saleDetails);
+      }
+    } catch (err) {
+      console.error("Error fetching sale details:", err);
+    } finally {
+      setLoadingSaleId(null);
+    }
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
@@ -92,7 +237,9 @@ export function ClientProfileModal({
             </div>
             <div>
               <DialogTitle className="text-xl">{client.name}</DialogTitle>
-              <p className="text-sm text-muted-foreground">Cliente desde {format(new Date(client.created_at), "MMM yyyy", { locale: ptBR })}</p>
+              <p className="text-sm text-muted-foreground">
+                Cliente desde {client.created_at ? format(new Date(client.created_at), "MMM yyyy", { locale: ptBR }) : "—"}
+              </p>
             </div>
           </div>
         </DialogHeader>
@@ -132,10 +279,12 @@ export function ClientProfileModal({
                 <Phone className="h-4 w-4 text-blue-500" />
                 <span className="text-foreground">{client.phone}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-blue-500" />
-                <span className="text-foreground">{client.origem}</span>
-              </div>
+              {client.origem && (
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-blue-500" />
+                  <span className="text-foreground">{client.origem}</span>
+                </div>
+              )}
             </div>
 
             {/* Vehicles Section */}
@@ -187,7 +336,7 @@ export function ClientProfileModal({
                         {vehicle.brand} {vehicle.model}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {vehicle.year} • {vehicle.plate} • Porte {vehicle.size}
+                        {vehicle.year} • {vehicle.plate || "S/ Placa"} • Porte {vehicle.size || "—"}
                       </p>
                     </div>
                   </button>
@@ -220,43 +369,55 @@ export function ClientProfileModal({
                 </p>
               )}
 
-              <div className="space-y-2">
-                {filteredSales.map((sale) => (
-                  <div
-                    key={sale.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background hover:border-primary/50 transition-colors cursor-pointer"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                      <DollarSign className="h-5 w-5 text-green-500" />
+              {loadingSales ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredSales.map((sale) => (
+                    <div
+                      key={sale.id}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background hover:border-primary/50 transition-colors cursor-pointer"
+                      onClick={() => handleOpenSaleDetails(sale.id)}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                        {loadingSaleId === sale.id ? (
+                          <Loader2 className="h-5 w-5 text-green-500 animate-spin" />
+                        ) : (
+                          <DollarSign className="h-5 w-5 text-green-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground">
+                          Venda Nº {sale.id}
+                        </p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {format(new Date(sale.sale_date + 'T12:00:00'), "dd/MM/yyyy")} • {getServiceNames(sale.sale_items).slice(0, 40)}{getServiceNames(sale.sale_items).length > 40 ? '...' : ''}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-semibold text-foreground">
+                          R$ {sale.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                        <Badge 
+                          variant={!sale.is_open ? 'default' : 'secondary'}
+                          className={!sale.is_open ? 'bg-green-500/20 text-green-500' : 'bg-orange-500/20 text-orange-500'}
+                        >
+                          {sale.is_open ? 'Aberta' : 'Fechada'}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">
-                        Venda Nº {sale.id}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(sale.date), "dd/MM/yyyy")} • {getServiceNames(sale.services).slice(0, 30)}...
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-foreground">
-                        R$ {sale.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                      <Badge 
-                        variant={sale.status === 'Fechada' ? 'default' : 'secondary'}
-                        className={sale.status === 'Fechada' ? 'bg-green-500/20 text-green-500' : 'bg-orange-500/20 text-orange-500'}
-                      >
-                        {sale.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
+                  ))}
 
-                {filteredSales.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhuma venda encontrada
-                  </p>
-                )}
-              </div>
+                  {filteredSales.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhuma venda encontrada
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Statistics */}
@@ -269,7 +430,7 @@ export function ClientProfileModal({
                   <Calendar className="h-4 w-4 text-blue-500" />
                   <span className="text-muted-foreground">Criado em:</span>
                   <span className="text-foreground">
-                    {format(new Date(client.created_at), "dd/MM/yyyy")}
+                    {client.created_at ? format(new Date(client.created_at), "dd/MM/yyyy") : "—"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -314,5 +475,19 @@ export function ClientProfileModal({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Sale Details Modal */}
+    <SaleDetailsModal
+      open={!!selectedSaleDetails}
+      onOpenChange={(open) => {
+        if (!open) {
+          setSelectedSaleDetails(null);
+          // Refresh sales list in case something was edited
+          fetchClientSales();
+        }
+      }}
+      sale={selectedSaleDetails}
+    />
+    </>
   );
 }
