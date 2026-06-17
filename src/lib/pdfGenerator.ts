@@ -7,6 +7,8 @@ export interface SalePDFData {
   date: string;
   client_name: string;
   client_phone: string;
+  client_email?: string;
+  client_cpf?: string;
   vehicle_brand: string;
   vehicle_model: string;
   vehicle_plate: string;
@@ -17,6 +19,7 @@ export interface SalePDFData {
   total: number;
   payment_method: string;
   company_name?: string;
+  company_cnpj?: string;
 }
 
 export interface WarrantyPDFData {
@@ -93,6 +96,13 @@ export async function generateSalePDFA4(sale: SalePDFData, options: Record<strin
     y += 8;
   }
 
+  if (options.companyCnpj !== false && sale.company_cnpj) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`CNPJ: ${sale.company_cnpj}`, pageWidth / 2, y, { align: 'center' });
+    y += 6;
+  }
+
   if (options.receiptText !== false) {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
@@ -110,36 +120,57 @@ export async function generateSalePDFA4(sale: SalePDFData, options: Record<strin
   doc.line(15, y, pageWidth - 15, y);
   y += 8;
 
-  if (options.clientName !== false || options.clientWhatsApp !== false) {
+  const clientLines = [];
+  if (options.clientName !== false && sale.client_name) {
+    clientLines.push(`Nome: ${sale.client_name}`);
+  }
+  if (options.clientWhatsApp !== false && sale.client_phone) {
+    clientLines.push(`WhatsApp: ${sale.client_phone}`);
+  }
+  if (options.clientCpf !== false && sale.client_cpf) {
+    clientLines.push(`CPF/CNPJ: ${sale.client_cpf}`);
+  }
+  if (options.clientEmail !== false && sale.client_email) {
+    clientLines.push(`Email: ${sale.client_email}`);
+  }
+
+  if (clientLines.length > 0) {
+    const boxHeight = 8 + (clientLines.length * 5) + 3; // header (8) + lines * 5 + padding
     doc.setFillColor(245, 245, 245);
-    doc.rect(15, y - 2, pageWidth - 30, 18, 'F');
+    doc.rect(15, y - 2, pageWidth - 30, boxHeight, 'F');
+    
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.text('Informações do Cliente', 20, y + 4);
-    y += 10;
+    y += 9;
+    
     doc.setFont('helvetica', 'normal');
-    if (options.clientName !== false) {
-      doc.text(`Nome: ${sale.client_name}`, 20, y);
+    doc.setFontSize(10);
+    clientLines.forEach(line => {
+      doc.text(line, 20, y);
       y += 5;
-    }
-    if (options.clientWhatsApp !== false) {
-      doc.text(`WhatsApp: ${sale.client_phone}`, 20, y);
-      y += 8;
-    }
+    });
+    y += 5; // spacing after the box
   }
 
   if (options.vehicle !== false) {
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
     doc.text(`Veículo: ${sale.vehicle_brand} ${sale.vehicle_model} (${sale.vehicle_plate})`, 20, y);
     y += 10;
   }
 
   if (options.serviceName !== false) {
-    const tableData = sale.services.map(s => [
-      s.name,
-      options.serviceDescription !== false && s.description ? s.description : '',
-      options.servicePrice !== false ? `R$ ${s.price.toFixed(2)}` : ''
-    ].filter((_, i) => i === 0 || (i === 1 && options.serviceDescription !== false) || (i === 2 && options.servicePrice !== false)));
+    const tableData = sale.services.map(s => {
+      const row = [s.name];
+      if (options.serviceDescription !== false) {
+        row.push(s.description || '');
+      }
+      if (options.servicePrice !== false) {
+        row.push(`R$ ${s.price.toFixed(2)}`);
+      }
+      return row;
+    });
 
     const columns = ['Serviço'];
     if (options.serviceDescription !== false) columns.push('Descrição');
@@ -157,6 +188,8 @@ export async function generateSalePDFA4(sale: SalePDFData, options: Record<strin
     y = (doc as any).lastAutoTable.finalY + 10;
   }
 
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
   if (options.subtotal !== false) {
     doc.text(`Subtotal: R$ ${sale.subtotal.toFixed(2)}`, pageWidth - 60, y);
     y += 6;
@@ -202,6 +235,13 @@ export async function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '
     y += 6;
   }
 
+  if (options.companyCnpj !== false && sale.company_cnpj) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(`CNPJ: ${sale.company_cnpj}`, width / 2, y, { align: 'center' });
+    y += 4;
+  }
+
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.text(formatDate(sale.date), width / 2, y, { align: 'center' });
@@ -218,8 +258,9 @@ export async function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '
   doc.line(margin, y, width - margin, y);
   y += 4;
 
-  if (options.clientName !== false || options.clientWhatsApp !== false) {
+  if (options.clientName !== false || options.clientWhatsApp !== false || options.clientCpf !== false || options.clientEmail !== false) {
     doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
     doc.text('CLIENTE', margin, y);
     y += 3;
     doc.setFontSize(8);
@@ -229,8 +270,17 @@ export async function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '
     }
     if (options.clientWhatsApp !== false) {
       doc.text(`Tel: ${sale.client_phone}`, margin, y);
-      y += 4;
+      y += 3;
     }
+    if (options.clientCpf !== false && sale.client_cpf) {
+      doc.text(`CPF: ${sale.client_cpf}`, margin, y);
+      y += 3;
+    }
+    if (options.clientEmail !== false && sale.client_email) {
+      doc.text(`Email: ${sale.client_email}`, margin, y);
+      y += 3;
+    }
+    y += 1;
   }
 
   if (options.vehicle !== false) {
@@ -251,14 +301,29 @@ export async function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '
     doc.setFontSize(8);
     sale.services.forEach((s, i) => {
       const priceText = options.servicePrice !== false ? `R$ ${s.price.toFixed(2)}` : '';
+      doc.setFont('helvetica', 'bold');
       doc.text(`${i + 1}. ${s.name}`, margin, y);
       if (priceText) {
         doc.text(priceText, width - margin, y, { align: 'right' });
       }
       y += 4;
+
+      if (s.description) {
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(7);
+        doc.setTextColor(80, 80, 80);
+        const lines = doc.splitTextToSize(s.description, width - (margin * 2) - 2);
+        lines.forEach((line: string) => {
+          doc.text(line, margin + 2, y);
+          y += 3.5;
+        });
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(8);
+      }
     });
   }
 
+  doc.setLineDashPattern([1, 1], 0);
   doc.line(margin, y, width - margin, y);
   y += 4;
 

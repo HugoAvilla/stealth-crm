@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Download, X } from "lucide-react";
-import { SaleWithDetails } from "@/types/sales";
+import { SaleWithDetails, DetailedServiceItemDB } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
 import { generateSalePDFA4, type SalePDFData } from "@/lib/pdfGenerator";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,12 +47,57 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
     },
     enabled: !!user?.companyId && open,
   });
+
+  const { data: clientDetails } = useQuery({
+    queryKey: ['client-details-a4', sale?.client_id],
+    queryFn: async () => {
+      if (!sale?.client_id) return null;
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', sale.client_id)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching client details:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!sale?.client_id && open,
+  });
+
+  const { data: detailedItems } = useQuery({
+    queryKey: ['sale-detailed-items-a4', sale?.id],
+    queryFn: async () => {
+      if (!sale?.id) return [];
+      const { data, error } = await supabase
+        .from('service_items_detailed')
+        .select(`
+          *,
+          product_type:product_types(brand, name, model, category, light_transmission),
+          region:vehicle_regions(name, description)
+        `)
+        .eq('sale_id', sale.id);
+      
+      if (error) {
+        console.error('Error fetching detailed items:', error);
+        return [];
+      }
+      return (data || []) as DetailedServiceItemDB[];
+    },
+    enabled: !!sale?.id && open,
+  });
+
   const [options, setOptions] = useState({
     companyName: true,
+    companyCnpj: true,
     receiptText: true,
     saleNumber: true,
     clientName: true,
     clientWhatsApp: true,
+    clientCpf: true,
+    clientEmail: true,
     vehicle: true,
     serviceName: true,
     serviceDescription: true,
@@ -74,26 +119,53 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const formattedServices = detailedItems && detailedItems.length > 0
+    ? detailedItems.map(item => {
+        const prod = item.product_type;
+        const prodInfo = prod
+          ? `${prod.brand} ${prod.name}${prod.light_transmission ? ` ${prod.light_transmission}` : ''}`
+          : '';
+        const descParts = [];
+        if (prodInfo) descParts.push(`Produto: ${prodInfo}`);
+        if (item.notes) descParts.push(`Obs: ${item.notes}`);
+        
+        return {
+          id: item.id,
+          name: `${item.display_name || item.region?.name || item.service_name || 'Serviço'} (${item.category})`,
+          description: descParts.join(' | '),
+          price: item.total_price,
+        };
+      })
+    : saleItems.map(item => ({
+        id: item.id,
+        name: item.service?.name || `Serviço #${item.service_id}`,
+        description: '',
+        price: item.total_price,
+      }));
+
   const handleGenerate = () => {
     const pdfData: SalePDFData = {
       id: sale.id,
       date: sale.sale_date,
       client_name: client?.name || 'Cliente',
       client_phone: client?.phone || '',
+      client_email: clientDetails?.email || '',
+      client_cpf: clientDetails?.cpf_cnpj || '',
       vehicle_brand: vehicle?.brand || '',
       vehicle_model: vehicle?.model || '',
       vehicle_plate: vehicle?.plate || '',
       vehicle_year: vehicle?.year || undefined,
-      services: saleItems.map(item => ({
-        name: item.service?.name || `Serviço #${item.service_id}`,
-        description: '',
-        price: item.total_price,
+      services: formattedServices.map(item => ({
+        name: item.name,
+        description: item.description,
+        price: item.price,
       })),
       subtotal: sale.subtotal,
       discount: sale.discount || 0,
       total: sale.total,
       payment_method: sale.payment_method || 'Não informado',
       company_name: companyData?.company_name || 'EMPRESA',
+      company_cnpj: companyData?.cnpj || '',
     };
 
     generateSalePDFA4(pdfData, options, user?.companyId || undefined);
@@ -145,6 +217,14 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox
+                    id="companyCnpj"
+                    checked={options.companyCnpj}
+                    onCheckedChange={() => toggleOption("companyCnpj")}
+                  />
+                  <Label htmlFor="companyCnpj">CNPJ empresa</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
                     id="receiptText"
                     checked={options.receiptText}
                     onCheckedChange={() => toggleOption("receiptText")}
@@ -180,6 +260,22 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
                     onCheckedChange={() => toggleOption("clientWhatsApp")}
                   />
                   <Label htmlFor="clientWhatsApp">WhatsApp</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="clientCpf"
+                    checked={options.clientCpf}
+                    onCheckedChange={() => toggleOption("clientCpf")}
+                  />
+                  <Label htmlFor="clientCpf">CPF</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="clientEmail"
+                    checked={options.clientEmail}
+                    onCheckedChange={() => toggleOption("clientEmail")}
+                  />
+                  <Label htmlFor="clientEmail">Email</Label>
                 </div>
               </div>
             </div>
@@ -269,6 +365,9 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
               {options.companyName && (
                 <div className="text-center mb-4">
                   <h1 className="text-xl font-bold">{companyData?.company_name || 'NOME DA EMPRESA'}</h1>
+                  {options.companyCnpj && companyData?.cnpj && (
+                    <p className="text-xs text-gray-500">CNPJ: {companyData.cnpj}</p>
+                  )}
                   {options.receiptText && (
                     <p className="text-sm text-gray-600">Comprovante de Serviço</p>
                   )}
@@ -284,12 +383,18 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
               <Separator className="my-4 bg-gray-300" />
 
               {/* Client Info */}
-              {(options.clientName || options.clientWhatsApp) && (
+              {(options.clientName || options.clientWhatsApp || options.clientCpf || options.clientEmail) && (
                 <div className="bg-gray-100 p-3 rounded mb-4">
                   <h3 className="font-semibold text-sm mb-2">Informações do Cliente</h3>
                   {options.clientName && <p className="text-sm">Nome: {client?.name}</p>}
                   {options.clientWhatsApp && (
                     <p className="text-sm">WhatsApp: {client?.phone}</p>
+                  )}
+                  {options.clientCpf && clientDetails?.cpf_cnpj && (
+                    <p className="text-sm">CPF/CNPJ: {clientDetails.cpf_cnpj}</p>
+                  )}
+                  {options.clientEmail && clientDetails?.email && (
+                    <p className="text-sm">Email: {clientDetails.email}</p>
                   )}
                 </div>
               )}
@@ -303,23 +408,29 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
                 </div>
               )}
 
-              {options.serviceName && saleItems.length > 0 && (
+              {options.serviceName && formattedServices.length > 0 && (
                 <table className="w-full text-sm mb-4">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2">Serviço</th>
+                      {options.serviceDescription && <th className="text-left py-2">Descrição</th>}
                       {options.servicePrice && <th className="text-right py-2">Valor</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {saleItems.map((item) => (
+                    {formattedServices.map((item) => (
                       <tr key={item.id} className="border-b">
                         <td className="py-2">
-                          <p>{item.service?.name || `Serviço #${item.service_id}`}</p>
+                          <p>{item.name}</p>
                         </td>
+                        {options.serviceDescription && (
+                          <td className="py-2 text-gray-600 text-xs">
+                            {item.description}
+                          </td>
+                        )}
                         {options.servicePrice && (
                           <td className="text-right py-2">
-                            R$ {item.total_price.toFixed(2)}
+                            R$ {item.price.toFixed(2)}
                           </td>
                         )}
                       </tr>

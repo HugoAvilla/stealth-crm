@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { FileText, Download, X } from "lucide-react";
-import { SaleWithDetails } from "@/types/sales";
+import { SaleWithDetails, DetailedServiceItemDB } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { generateSalePDFReceipt, type SalePDFData } from "@/lib/pdfGenerator";
@@ -28,9 +28,12 @@ interface PdfNotinhaModalProps {
 
 const OPTIONS_LABELS: Record<string, string> = {
   companyName: "Nome da Empresa",
+  companyCnpj: "CNPJ da Empresa",
   saleNumber: "Número da Venda",
   clientName: "Nome do Cliente",
   clientWhatsApp: "WhatsApp do Cliente",
+  clientCpf: "CPF do Cliente",
+  clientEmail: "Email do Cliente",
   vehicle: "Veículo",
   serviceName: "Nome do Serviço",
   servicePrice: "Preço do Serviço",
@@ -61,11 +64,56 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
     },
     enabled: !!user?.companyId && open,
   });
+
+  const { data: clientDetails } = useQuery({
+    queryKey: ['client-details-notinha', sale?.client_id],
+    queryFn: async () => {
+      if (!sale?.client_id) return null;
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', sale.client_id)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching client details:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!sale?.client_id && open,
+  });
+
+  const { data: detailedItems } = useQuery({
+    queryKey: ['sale-detailed-items-notinha', sale?.id],
+    queryFn: async () => {
+      if (!sale?.id) return [];
+      const { data, error } = await supabase
+        .from('service_items_detailed')
+        .select(`
+          *,
+          product_type:product_types(brand, name, model, category, light_transmission),
+          region:vehicle_regions(name, description)
+        `)
+        .eq('sale_id', sale.id);
+      
+      if (error) {
+        console.error('Error fetching detailed items:', error);
+        return [];
+      }
+      return (data || []) as DetailedServiceItemDB[];
+    },
+    enabled: !!sale?.id && open,
+  });
+
   const [options, setOptions] = useState({
     companyName: true,
+    companyCnpj: true,
     saleNumber: true,
     clientName: true,
     clientWhatsApp: true,
+    clientCpf: true,
+    clientEmail: true,
     vehicle: true,
     serviceName: true,
     servicePrice: true,
@@ -85,26 +133,53 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const formattedServices = detailedItems && detailedItems.length > 0
+    ? detailedItems.map(item => {
+        const prod = item.product_type;
+        const prodInfo = prod
+          ? `${prod.brand} ${prod.name}${prod.light_transmission ? ` ${prod.light_transmission}` : ''}`
+          : '';
+        const descParts = [];
+        if (prodInfo) descParts.push(`Prod: ${prodInfo}`);
+        if (item.notes) descParts.push(`Obs: ${item.notes}`);
+        
+        return {
+          id: item.id,
+          name: `${item.display_name || item.region?.name || item.service_name || 'Serviço'} (${item.category})`,
+          description: descParts.join(' | '),
+          price: item.total_price,
+        };
+      })
+    : saleItems.map(item => ({
+        id: item.id,
+        name: item.service?.name || `Serviço #${item.service_id}`,
+        description: '',
+        price: item.total_price,
+      }));
+
   const handleGenerate = () => {
     const pdfData: SalePDFData = {
       id: sale.id,
       date: sale.sale_date,
       client_name: client?.name || 'Cliente',
       client_phone: client?.phone || '',
+      client_email: clientDetails?.email || '',
+      client_cpf: clientDetails?.cpf_cnpj || '',
       vehicle_brand: vehicle?.brand || '',
       vehicle_model: vehicle?.model || '',
       vehicle_plate: vehicle?.plate || '',
       vehicle_year: vehicle?.year || undefined,
-      services: saleItems.map(item => ({
-        name: item.service?.name || `Serviço #${item.service_id}`,
-        description: '',
-        price: item.total_price,
+      services: formattedServices.map(item => ({
+        name: item.name,
+        description: item.description,
+        price: item.price,
       })),
       subtotal: sale.subtotal,
       discount: sale.discount || 0,
       total: sale.total,
       payment_method: sale.payment_method || 'Não informado',
       company_name: companyData?.company_name || 'EMPRESA',
+      company_cnpj: companyData?.cnpj || '',
     };
 
     generateSalePDFReceipt(pdfData, size, options, user?.companyId || undefined);
@@ -177,6 +252,9 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
                     </span>
                   </div>
                   <p className="font-bold">{companyData?.company_name || 'NOME DA EMPRESA'}</p>
+                  {options.companyCnpj && companyData?.cnpj && (
+                    <p className="text-[10px] text-gray-500">CNPJ: {companyData.cnpj}</p>
+                  )}
                 </div>
               )}
 
@@ -192,13 +270,15 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
               )}
 
               {/* Client */}
-              {(options.clientName || options.clientWhatsApp) && (
+              {(options.clientName || options.clientWhatsApp || options.clientCpf || options.clientEmail) && (
                 <div className="bg-gray-100 p-2 rounded mb-2">
                   <p className="font-bold text-[10px] text-gray-500 mb-1">
                     INFORMAÇÕES DO CLIENTE
                   </p>
                   {options.clientName && <p>Nome: {client?.name}</p>}
                   {options.clientWhatsApp && <p>Tel: {client?.phone}</p>}
+                  {options.clientCpf && clientDetails?.cpf_cnpj && <p>CPF/CNPJ: {clientDetails.cpf_cnpj}</p>}
+                  {options.clientEmail && clientDetails?.email && <p>Email: {clientDetails.email}</p>}
                 </div>
               )}
 
@@ -217,18 +297,25 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
               )}
 
               {/* Services */}
-              {options.serviceName && saleItems.length > 0 && (
+              {options.serviceName && formattedServices.length > 0 && (
                 <div className="bg-gray-100 p-2 rounded mb-2">
                   <p className="font-bold text-[10px] text-gray-500 mb-1">
                     SERVIÇOS REALIZADOS
                   </p>
-                  {saleItems.map((item, idx) => (
-                    <div key={item.id} className="flex justify-between">
-                      <span>
-                        {idx + 1}. {item.service?.name || `Serviço #${item.service_id}`}
-                      </span>
-                      {options.servicePrice && (
-                        <span>R$ {item.total_price.toFixed(2)}</span>
+                  {formattedServices.map((item, idx) => (
+                    <div key={item.id} className="mb-1">
+                      <div className="flex justify-between">
+                        <span>
+                          {idx + 1}. {item.name}
+                        </span>
+                        {options.servicePrice && (
+                          <span>R$ {item.price.toFixed(2)}</span>
+                        )}
+                      </div>
+                      {item.description && (
+                        <p className="text-[9px] text-gray-500 pl-3 leading-tight">
+                          {item.description}
+                        </p>
                       )}
                     </div>
                   ))}
