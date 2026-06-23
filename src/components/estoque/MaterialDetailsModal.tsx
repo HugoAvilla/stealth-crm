@@ -190,7 +190,9 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-muted-foreground whitespace-nowrap">
-                              {mov.movement_type}
+                              {mov.movement_type === 'open_roll_use' ? 'Uso de Rolo Aberto' : 
+                               mov.movement_type === 'open_roll_closure' ? 'Fim de Rolo Aberto' : 
+                               mov.movement_type}
                             </Badge>
                           )}
                         </TableCell>

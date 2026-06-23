@@ -450,11 +450,21 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
       .lte('created_at', endDate)
       .order('created_at', { ascending: false });
 
+    const formatMovementType = (type: string | null) => {
+      if (!type) return '-';
+      switch (type) {
+        case 'open_roll_use': return 'Uso de Rolo Aberto';
+        case 'open_roll_closure': return 'Fim de Rolo Aberto';
+        case 'Saida': return 'Saída';
+        default: return type;
+      }
+    };
+
     const rows = data?.map((mov, i) => [
       (i + 1).toString(),
       format(new Date(mov.created_at!), 'dd/MM/yyyy'),
       (mov.materials as any)?.name || '-',
-      mov.movement_type,
+      formatMovementType(mov.movement_type),
       `${mov.quantity} ${(mov.materials as any)?.unit || 'un'}`,
       mov.reason || '-'
     ]) || [];
