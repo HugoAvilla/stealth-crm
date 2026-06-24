@@ -12,6 +12,19 @@ import { toast } from "sonner";
 import { generateReportPDF, type ReportPDFData } from "@/lib/pdfGenerator";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+/**
+ * Converte string de data "yyyy-MM-dd" para Date local.
+ * new Date("2026-01-01") é interpretado como UTC, causando
+ * deslocamento de -1 dia em fusos negativos (ex.: Brasil UTC-3).
+ * Adicionando T00:00:00, o JS interpreta como horário local.
+ */
+function parseLocalDate(dateStr: string): Date {
+  if (dateStr && !dateStr.includes('T')) {
+    return new Date(dateStr + 'T00:00:00');
+  }
+  return new Date(dateStr);
+}
 import { uploadExcelToStorage, saveExcelRecord } from "@/lib/excelStorage";
 
 interface Account {
@@ -82,7 +95,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
 
     const rows = data?.map((t, i) => [
       (i + 1).toString(),
-      format(new Date(t.transaction_date), 'dd/MM/yyyy'),
+      format(parseLocalDate(t.transaction_date), 'dd/MM/yyyy'),
       t.name,
       t.description || '-',
       t.type,
@@ -127,7 +140,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
       t.description || '-',
       `R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
       t.payment_method || '-',
-      format(new Date(t.transaction_date), 'dd/MM/yyyy'),
+      format(parseLocalDate(t.transaction_date), 'dd/MM/yyyy'),
       t.is_paid ? 'Pago' : 'Pendente',
       (t.accounts as any)?.bank_name || (t.accounts as any)?.name || '-',
       (t.categories as any)?.name || '-',
@@ -148,42 +161,155 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
   };
 
   const generateDREReport = async (): Promise<ReportPDFData> => {
-    const { data } = await supabase
+    const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    const pct = (v: number, base: number) => base !== 0 ? `${((v / base) * 100).toFixed(1)}%` : '-';
+
+    // ─── 1. RECEITA BRUTA DE VENDAS (tabela sales, status Fechada) ───
+    const { data: salesData } = await supabase
+      .from('sales')
+      .select('id, total, subtotal, discount, sale_date')
+      .eq('company_id', companyId)
+      .eq('status', 'Fechada')
+      .gte('sale_date', startDate)
+      .lte('sale_date', endDate);
+
+    const receitaBrutaVendas = salesData?.reduce((s, sale) => s + (sale.subtotal || sale.total + (sale.discount || 0)), 0) || 0;
+    const totalDescontos = salesData?.reduce((s, sale) => s + (sale.discount || 0), 0) || 0;
+    const totalVendas = salesData?.length || 0;
+
+    // ─── 2. RECEITAS FINANCEIRAS (transações tipo Entrada) ───
+    const { data: transactionsData } = await supabase
       .from('transactions')
-      .select('*, categories(name)')
+      .select('*, categories(name), subcategories(name)')
       .eq('company_id', companyId)
       .gte('transaction_date', startDate)
       .lte('transaction_date', endDate);
 
-    const entradas = data?.filter(t => t.type === 'Entrada').reduce((s, t) => s + t.amount, 0) || 0;
-    const saidas = data?.filter(t => t.type === 'Saida').reduce((s, t) => s + t.amount, 0) || 0;
+    const entradasFinanceiras = transactionsData?.filter(t => t.type === 'Entrada') || [];
+    const saidasFinanceiras = transactionsData?.filter(t => t.type === 'Saida') || [];
 
-    // Group by category
-    const categoryTotals: Record<string, { entradas: number; saidas: number }> = {};
-    data?.forEach(t => {
+    const totalEntradasFinanceiras = entradasFinanceiras.reduce((s, t) => s + t.amount, 0);
+
+    // ─── 3. COMISSÕES (sale_commissions) ───
+    const saleIds = salesData?.map(s => s.id) || [];
+    let totalComissoes = 0;
+    if (saleIds.length > 0) {
+      const { data: commissions } = await supabase
+        .from('sale_commissions')
+        .select('commission_amount')
+        .in('sale_id', saleIds);
+      totalComissoes = commissions?.reduce((s, c) => s + c.commission_amount, 0) || 0;
+    }
+
+    // ─── 4. CUSTO DE MATERIAIS (stock_movements de saída no período) ───
+    const { data: stockData } = await supabase
+      .from('stock_movements')
+      .select('quantity, materials(name, average_cost)')
+      .eq('company_id', companyId)
+      .in('movement_type', ['Saida', 'open_roll_use'])
+      .gte('created_at', startDate + 'T00:00:00')
+      .lte('created_at', endDate + 'T23:59:59');
+
+    const custoMateriais = stockData?.reduce((s, mov) => {
+      const avgCost = (mov.materials as any)?.average_cost || 0;
+      return s + (mov.quantity * avgCost);
+    }, 0) || 0;
+
+    // ─── 5. DESPESAS POR CATEGORIA ───
+    const despesasPorCategoria: Record<string, number> = {};
+    saidasFinanceiras.forEach(t => {
       const catName = (t.categories as any)?.name || 'Sem categoria';
-      if (!categoryTotals[catName]) categoryTotals[catName] = { entradas: 0, saidas: 0 };
-      if (t.type === 'Entrada') categoryTotals[catName].entradas += t.amount;
-      else categoryTotals[catName].saidas += t.amount;
+      if (!despesasPorCategoria[catName]) despesasPorCategoria[catName] = 0;
+      despesasPorCategoria[catName] += t.amount;
     });
+    const totalDespesasOperacionais = saidasFinanceiras.reduce((s, t) => s + t.amount, 0);
 
-    const rows = Object.entries(categoryTotals).map(([cat, vals], i) => [
-      (i + 1).toString(),
-      cat,
-      `R$ ${vals.entradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      `R$ ${vals.saidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-      `R$ ${(vals.entradas - vals.saidas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-    ]);
+    // ═══════════════════════════════════════════════
+    // CÁLCULOS DO DRE
+    // ═══════════════════════════════════════════════
+    const receitaBruta = receitaBrutaVendas;
+    const deducoes = totalDescontos;
+    const receitaLiquida = receitaBruta - deducoes;
+    const custoServicos = custoMateriais + totalComissoes; // CSP
+    const lucroBruto = receitaLiquida - custoServicos;
+    const resultadoOperacional = lucroBruto - totalDespesasOperacionais;
+    const resultadoFinanceiro = totalEntradasFinanceiras; // receitas financeiras extras
+    const resultadoLiquido = resultadoOperacional + resultadoFinanceiro;
+
+    // ═══════════════════════════════════════════════
+    // MONTAGEM DA TABELA HIERÁRQUICA
+    // ═══════════════════════════════════════════════
+    const rows: string[][] = [];
+
+    // --- RECEITA BRUTA ---
+    rows.push(['', '(+) RECEITA BRUTA DE SERVIÇOS', fmt(receitaBruta), pct(receitaBruta, receitaBruta)]);
+    rows.push(['', `    Vendas fechadas (${totalVendas})`, fmt(receitaBrutaVendas), '']);
+
+    // --- DEDUÇÕES ---
+    rows.push(['', '(-) DEDUÇÕES SOBRE RECEITA', fmt(deducoes), pct(deducoes, receitaBruta)]);
+    if (totalDescontos > 0) {
+      rows.push(['', '    Descontos concedidos', fmt(totalDescontos), '']);
+    }
+
+    // --- RECEITA LÍQUIDA ---
+    rows.push(['', '(=) RECEITA LÍQUIDA', fmt(receitaLiquida), pct(receitaLiquida, receitaBruta)]);
+
+    // --- CUSTO DOS SERVIÇOS PRESTADOS (CSP) ---
+    rows.push(['', '(-) CUSTO DOS SERVIÇOS PRESTADOS', fmt(custoServicos), pct(custoServicos, receitaBruta)]);
+    if (custoMateriais > 0) {
+      rows.push(['', '    Materiais consumidos', fmt(custoMateriais), '']);
+    }
+    if (totalComissoes > 0) {
+      rows.push(['', '    Comissões sobre vendas', fmt(totalComissoes), '']);
+    }
+
+    // --- LUCRO BRUTO ---
+    rows.push(['', '(=) LUCRO BRUTO', fmt(lucroBruto), pct(lucroBruto, receitaBruta)]);
+
+    // --- DESPESAS OPERACIONAIS ---
+    rows.push(['', '(-) DESPESAS OPERACIONAIS', fmt(totalDespesasOperacionais), pct(totalDespesasOperacionais, receitaBruta)]);
+    Object.entries(despesasPorCategoria)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([cat, val]) => {
+        rows.push(['', `    ${cat}`, fmt(val), pct(val, receitaBruta)]);
+      });
+
+    // --- RESULTADO OPERACIONAL ---
+    rows.push(['', '(=) RESULTADO OPERACIONAL', fmt(resultadoOperacional), pct(resultadoOperacional, receitaBruta)]);
+
+    // --- RESULTADO FINANCEIRO ---
+    if (totalEntradasFinanceiras > 0) {
+      rows.push(['', '(+) RECEITAS FINANCEIRAS', fmt(resultadoFinanceiro), pct(resultadoFinanceiro, receitaBruta)]);
+      const recFinPorCategoria: Record<string, number> = {};
+      entradasFinanceiras.forEach(t => {
+        const catName = (t.categories as any)?.name || 'Sem categoria';
+        if (!recFinPorCategoria[catName]) recFinPorCategoria[catName] = 0;
+        recFinPorCategoria[catName] += t.amount;
+      });
+      Object.entries(recFinPorCategoria)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([cat, val]) => {
+          rows.push(['', `    ${cat}`, fmt(val), '']);
+        });
+    }
+
+    // --- RESULTADO LÍQUIDO ---
+    rows.push(['', '(=) RESULTADO LÍQUIDO DO PERÍODO', fmt(resultadoLiquido), pct(resultadoLiquido, receitaBruta)]);
 
     return {
-      title: 'DRE - Demonstração de Resultado',
+      title: 'DRE - Demonstração de Resultado do Exercício',
       period: { start: startDate, end: endDate },
-      columns: ['#', 'Categoria', 'Receitas', 'Despesas', 'Resultado'],
+      columns: ['', 'Descrição', 'Valor (R$)', 'AV%'],
       rows,
       summary: [
-        { label: 'Receita Bruta', value: `R$ ${entradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
-        { label: 'Despesas Totais', value: `R$ ${saidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
-        { label: 'Resultado Líquido', value: `R$ ${(entradas - saidas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+        { label: 'Receita Bruta', value: fmt(receitaBruta) },
+        { label: 'Receita Líquida', value: fmt(receitaLiquida) },
+        { label: 'Lucro Bruto', value: fmt(lucroBruto) },
+        { label: `Margem Bruta`, value: pct(lucroBruto, receitaBruta) },
+        { label: 'Despesas Operacionais', value: fmt(totalDespesasOperacionais) },
+        { label: 'Resultado Operacional', value: fmt(resultadoOperacional) },
+        { label: 'Resultado Líquido', value: fmt(resultadoLiquido) },
+        { label: 'Margem Líquida', value: pct(resultadoLiquido, receitaBruta) },
       ],
     };
   };
@@ -229,7 +355,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
     const totalDesconto = data?.reduce((s, sale) => s + (sale.discount || 0), 0) || 0;
 
     const rows = data?.map((sale, i) => [
-      format(new Date(sale.sale_date), 'dd/MM/yyyy'),
+      format(parseLocalDate(sale.sale_date), 'dd/MM/yyyy'),
       sale.id.toString(),
       (sale.clients as any)?.name || '-',
       (serviceItemsMap[sale.id] || []).join(', ') || '-',
@@ -425,8 +551,8 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
       space.name,
       (space.clients as any)?.name || '-',
       (space.vehicles as any) ? `${(space.vehicles as any).brand} ${(space.vehicles as any).model}` : '-',
-      space.entry_date ? format(new Date(space.entry_date), 'dd/MM/yyyy') : '-',
-      space.exit_date ? format(new Date(space.exit_date), 'dd/MM/yyyy') : 'Em uso',
+      space.entry_date ? format(parseLocalDate(space.entry_date), 'dd/MM/yyyy') : '-',
+      space.exit_date ? format(parseLocalDate(space.exit_date), 'dd/MM/yyyy') : 'Em uso',
       space.payment_status === 'paid' ? 'Pago' : 'Pendente'
     ]) || [];
 
@@ -462,7 +588,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
 
     const rows = data?.map((mov, i) => [
       (i + 1).toString(),
-      format(new Date(mov.created_at!), 'dd/MM/yyyy'),
+      format(parseLocalDate(mov.created_at!), 'dd/MM/yyyy'),
       (mov.materials as any)?.name || '-',
       formatMovementType(mov.movement_type),
       `${mov.quantity} ${(mov.materials as any)?.unit || 'un'}`,
@@ -552,7 +678,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
         c.cpf_cnpj || '-',
         veics.length > 0 ? veics.join(', ') : '-',
         saleData ? `R$ ${saleData.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00',
-        saleData?.lastDate ? format(new Date(saleData.lastDate), 'dd/MM/yyyy') : '-'
+        saleData?.lastDate ? format(parseLocalDate(saleData.lastDate), 'dd/MM/yyyy') : '-'
       ];
     }) || [];
 
@@ -585,7 +711,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
 
     const rows = data?.map((t, i) => [
       (i + 1).toString(),
-      format(new Date(t.transaction_date), 'dd/MM/yyyy'),
+      format(parseLocalDate(t.transaction_date), 'dd/MM/yyyy'),
       t.name,
       t.type,
       `R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
@@ -609,7 +735,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
     html += '<head><meta charset="utf-8"><style>td,th{border:1px solid #ccc;padding:6px 10px;font-family:Arial;font-size:12px}th{background:#f0f0f0;font-weight:bold}h2{font-family:Arial}</style></head><body>';
     html += `<h2>${data.title}</h2>`;
     if (data.period) {
-      html += `<p>Período: ${format(new Date(data.period.start), 'dd/MM/yyyy')} a ${format(new Date(data.period.end), 'dd/MM/yyyy')}</p>`;
+      html += `<p>Período: ${format(parseLocalDate(data.period.start), 'dd/MM/yyyy')} a ${format(parseLocalDate(data.period.end), 'dd/MM/yyyy')}</p>`;
     }
     html += '<table border="1" cellspacing="0">';
     html += '<tr>' + data.columns.map(c => `<th>${c}</th>`).join('') + '</tr>';
@@ -653,7 +779,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
       filename,
       type: 'Relatório Excel',
       module: 'relatorios',
-      details: data.title + (data.period ? ` (${format(new Date(data.period.start), 'dd/MM/yyyy')} - ${format(new Date(data.period.end), 'dd/MM/yyyy')})` : ''),
+      details: data.title + (data.period ? ` (${format(parseLocalDate(data.period.start), 'dd/MM/yyyy')} - ${format(parseLocalDate(data.period.end), 'dd/MM/yyyy')})` : ''),
       storagePath,
     });
   };

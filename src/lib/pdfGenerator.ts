@@ -2,6 +2,19 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { savePDFRecord, uploadPDFToStorage } from './pdfStorage';
 
+/**
+ * Converte string de data "yyyy-MM-dd" para Date local.
+ * new Date("2026-01-01") é interpretado como UTC, causando
+ * deslocamento de -1 dia em fusos negativos (ex.: Brasil UTC-3).
+ * Adicionando T00:00:00, o JS interpreta como horário local.
+ */
+function parseLocalDate(dateStr: string): Date {
+  if (dateStr && !dateStr.includes('T')) {
+    return new Date(dateStr + 'T00:00:00');
+  }
+  return new Date(dateStr);
+}
+
 export interface SalePDFData {
   id: number;
   date: string;
@@ -640,7 +653,7 @@ export async function generateReportPDF(report: ReportPDFData, companyId?: numbe
 
 function formatDate(dateStr: string): string {
   try {
-    const date = new Date(dateStr);
+    const date = parseLocalDate(dateStr);
     return date.toLocaleDateString('pt-BR');
   } catch {
     return dateStr;
