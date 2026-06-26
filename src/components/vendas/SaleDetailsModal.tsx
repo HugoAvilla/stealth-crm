@@ -427,8 +427,8 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                     <Layers className="h-4 w-4" />
                     Serviços Detalhados
                   </div>
-                  <div className="overflow-x-auto">
-                    <Table className="min-w-[500px]">
+                  <div className="w-full overflow-x-auto border rounded-md">
+                    <Table className="min-w-[650px] w-full">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Região</TableHead>
