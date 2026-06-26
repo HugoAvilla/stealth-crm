@@ -78,52 +78,64 @@ function SortableRegionCard({ region, onEdit, onDelete }: SortableRegionCardProp
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors"
+      className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors"
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab hover:text-primary touch-none"
-      >
-        <GripVertical className="h-5 w-5 text-muted-foreground" />
-      </button>
+      {/* Linha superior no Mobile / Lado esquerdo no Desktop */}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab hover:text-primary touch-none shrink-0"
+        >
+          <GripVertical className="h-5 w-5 text-muted-foreground" />
+        </button>
 
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <p className="font-medium">{region.name}</p>
-          {region.region_code && (
-            <Badge variant="outline" className="text-xs">
-              {SIMPLE_REGION_CODES.find(r => r.code === region.region_code)?.label || region.region_code}
-            </Badge>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="font-medium text-foreground truncate">{region.name}</p>
+            {region.region_code && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                {SIMPLE_REGION_CODES.find(r => r.code === region.region_code)?.label || region.region_code}
+              </Badge>
+            )}
+          </div>
+          {region.description && (
+            <p className="text-xs text-muted-foreground truncate mt-0.5">{region.description}</p>
           )}
         </div>
-        {region.description && (
-          <p className="text-sm text-muted-foreground">{region.description}</p>
-        )}
       </div>
 
-      {/* Price column */}
-      <div className="text-right min-w-[100px]">
-        <p className="text-xs text-muted-foreground">Preço</p>
-        <p className="font-medium text-success">
-          {region.fixed_price && region.fixed_price > 0
-            ? `R$ ${region.fixed_price.toFixed(2)}`
-            : "-"}
-        </p>
-      </div>
+      {/* Linha inferior no Mobile / Lado direito no Desktop */}
+      <div className="flex items-center justify-between sm:justify-end gap-4 pt-2 sm:pt-0 border-t border-border/40 sm:border-0">
+        {/* Preço */}
+        <div className="text-left sm:text-right sm:min-w-[100px]">
+          <p className="text-[10px] sm:text-xs text-muted-foreground">Preço</p>
+          <p className="font-semibold sm:font-medium text-success text-sm sm:text-base">
+            {region.fixed_price && region.fixed_price > 0
+              ? `R$ ${region.fixed_price.toFixed(2)}`
+              : "-"}
+          </p>
+        </div>
 
-      <div className="flex gap-1">
-        <Button variant="ghost" size="icon" onClick={() => onEdit(region)}>
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-destructive hover:text-destructive"
-          onClick={() => onDelete(region)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {/* Ações */}
+        <div className="flex gap-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => onEdit(region)}
+            className="h-8 w-8 sm:h-9 sm:w-9"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:text-destructive h-8 w-8 sm:h-9 sm:w-9"
+            onClick={() => onDelete(region)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

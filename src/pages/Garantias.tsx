@@ -262,11 +262,11 @@ export default function Garantias() {
       </div>
 
       {/* Header Actions */}
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => setShowTemplateModal(true)}>
+      <div className="flex flex-col sm:flex-row justify-end gap-2">
+        <Button variant="outline" onClick={() => setShowTemplateModal(true)} className="w-full sm:w-auto">
           <FilePlus className="h-4 w-4 mr-2" /> Criar Garantia Produto
         </Button>
-        <Button onClick={() => setShowIssueModal(true)}>
+        <Button onClick={() => setShowIssueModal(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" /> Emitir Garantia
         </Button>
       </div>
@@ -373,78 +373,80 @@ export default function Garantias() {
                   {warranties.length === 0 ? 'Nenhuma garantia emitida ainda' : 'Nenhuma garantia encontrada'}
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Veículo</TableHead>
-                      <TableHead className="text-center">Validade</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="w-[80px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredWarranties.map(warranty => {
-                      const status = getStatus(warranty.expiry_date);
+                <div className="w-full overflow-x-auto">
+                  <Table className="min-w-[750px] w-full">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Veículo</TableHead>
+                        <TableHead className="text-center">Validade</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                        <TableHead className="w-[80px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredWarranties.map(warranty => {
+                        const status = getStatus(warranty.expiry_date);
 
-                      return (
-                        <TableRow key={warranty.id}>
-                          <TableCell className="font-medium">
-                            {warranty.warranty_type}
-                          </TableCell>
-                          <TableCell>{warranty.client?.name || '-'}</TableCell>
-                          <TableCell>
-                            {warranty.vehicle ? `${warranty.vehicle.model} - ${warranty.vehicle.plate}` : '-'}
-                          </TableCell>
-                          <TableCell className="text-center text-sm">
-                            {format(new Date(warranty.expiry_date), "dd/MM/yyyy")}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge className={status.color}>{status.label}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleDownload(warranty)}>
-                                  <Download className="h-4 w-4 mr-2" /> Baixar PDF
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <a
-                                    href={getWarrantyWhatsAppUrl(warranty)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center"
-                                    onClick={() => {
-                                      if (!warranty.client?.phone) {
-                                        toast.error('Cliente não possui telefone cadastrado');
-                                      } else {
-                                        toast.success('Abrindo WhatsApp Web!');
-                                      }
-                                    }}
+                        return (
+                          <TableRow key={warranty.id}>
+                            <TableCell className="font-medium">
+                              {warranty.warranty_type}
+                            </TableCell>
+                            <TableCell>{warranty.client?.name || '-'}</TableCell>
+                            <TableCell>
+                              {warranty.vehicle ? `${warranty.vehicle.model} - ${warranty.vehicle.plate}` : '-'}
+                            </TableCell>
+                            <TableCell className="text-center text-sm">
+                              {format(new Date(warranty.expiry_date), "dd/MM/yyyy")}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge className={status.color}>{status.label}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleDownload(warranty)}>
+                                    <Download className="h-4 w-4 mr-2" /> Baixar PDF
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem asChild>
+                                    <a
+                                      href={getWarrantyWhatsAppUrl(warranty)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center"
+                                      onClick={() => {
+                                        if (!warranty.client?.phone) {
+                                          toast.error('Cliente não possui telefone cadastrado');
+                                        } else {
+                                          toast.success('Abrindo WhatsApp Web!');
+                                        }
+                                      }}
+                                    >
+                                      <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
+                                    </a>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDelete(warranty.id)}
+                                    className="text-red-500 focus:text-red-500"
                                   >
-                                    <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
-                                  </a>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => handleDelete(warranty.id)}
-                                  className="text-red-500 focus:text-red-500"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                                    <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
