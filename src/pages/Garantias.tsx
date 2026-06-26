@@ -25,6 +25,7 @@ import { WarrantyTemplatesListModal } from "@/components/garantias/WarrantyTempl
 import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
 import { toast } from "sonner";
 import { generateWarrantyPDF, type WarrantyPDFData } from "@/lib/pdfGenerator";
+import { cn } from "@/lib/utils";
 
 
 interface Warranty {
