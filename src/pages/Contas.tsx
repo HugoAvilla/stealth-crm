@@ -735,69 +735,125 @@ export default function Contas() {
                     <p className="text-sm">Nenhuma transação encontrada</p>
                   </div>
                 ) : (
-                  <div className="rounded-md border border-border/50 overflow-x-auto overscroll-x-contain">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="min-w-[200px]">Transação</TableHead>
-                          <TableHead>Conta</TableHead>
-                          <TableHead className="text-center">Categoria</TableHead>
-                          <TableHead className="text-right whitespace-nowrap">Valor</TableHead>
-                          <TableHead className="text-center">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredTransactions.map(tx => {
-                          const category = tx.category_id ? getCategoryById(tx.category_id) : null;
-                          const isEntry = tx.type === 'Entrada';
+                  <div className="space-y-4">
+                    {/* 🖥️ Visualização Desktop: Tabela Completa */}
+                    <div className="hidden md:block rounded-md border border-border/50 overflow-x-auto overscroll-x-contain">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="min-w-[200px]">Transação</TableHead>
+                            <TableHead>Conta</TableHead>
+                            <TableHead className="text-center">Categoria</TableHead>
+                            <TableHead className="text-right whitespace-nowrap">Valor</TableHead>
+                            <TableHead className="text-center">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredTransactions.map(tx => {
+                            const category = tx.category_id ? getCategoryById(tx.category_id) : null;
+                            const isEntry = tx.type === 'Entrada';
 
-                          return (
-                            <TableRow key={tx.id}>
-                              <TableCell>
-                                <div className="flex items-center gap-3">
-                                  <div className={cn(
-                                    "p-1.5 rounded-full flex-shrink-0",
-                                    isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                            return (
+                              <TableRow key={tx.id}>
+                                <TableCell>
+                                  <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                      "p-1.5 rounded-full flex-shrink-0",
+                                      isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                                    )}>
+                                      {isEntry ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium leading-none mb-1">{tx.name}</p>
+                                      <span className="text-[10px] text-muted-foreground">{format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm">{selectedAccount?.name}</TableCell>
+                                <TableCell className="text-center">
+                                  {category ? (
+                                    <Badge variant="outline" className="text-[10px] whitespace-nowrap" style={{ borderColor: category.color || undefined, color: category.color || undefined }}>
+                                      {category.name}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <span className={cn(
+                                    "font-medium whitespace-nowrap",
+                                    isEntry ? "text-green-500" : "text-red-500"
                                   )}>
-                                    {isEntry ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium leading-none mb-1">{tx.name}</p>
-                                    <span className="text-[10px] text-muted-foreground">{format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
-                                  </div>
+                                    {isEntry ? '+' : '-'}{formatCurrency(tx.amount)}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn(
+                                    "text-[10px]",
+                                    tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : ""
+                                  )}>
+                                    {tx.is_paid ? 'Recebido' : 'Pendente'}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* 📱 Visualização Mobile: Cards Empilhados */}
+                    <div className="grid grid-cols-1 gap-3 md:hidden">
+                      {filteredTransactions.map(tx => {
+                        const category = tx.category_id ? getCategoryById(tx.category_id) : null;
+                        const isEntry = tx.type === 'Entrada';
+
+                        return (
+                          <Card key={tx.id} className="bg-card/50 border-border/50 p-4 space-y-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <div className={cn(
+                                  "p-1.5 rounded-full flex-shrink-0",
+                                  isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                                )}>
+                                  {isEntry ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
                                 </div>
-                              </TableCell>
-                              <TableCell className="text-muted-foreground text-sm">{selectedAccount?.name}</TableCell>
-                              <TableCell className="text-center">
-                                {category ? (
-                                  <Badge variant="outline" className="text-[10px] whitespace-nowrap" style={{ borderColor: category.color || undefined, color: category.color || undefined }}>
+                                <div>
+                                  <p className="text-sm font-semibold text-foreground leading-snug">{tx.name}</p>
+                                  <span className="text-[10px] text-muted-foreground">{format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
+                                </div>
+                              </div>
+                              <span className={cn(
+                                "font-bold text-sm whitespace-nowrap",
+                                isEntry ? "text-green-500" : "text-red-500"
+                              )}>
+                                {isEntry ? '+' : '-'}{formatCurrency(tx.amount)}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
+                              <div className="flex items-center gap-1 text-muted-foreground">
+                                <Landmark className="h-3 w-3" />
+                                <span>{selectedAccount?.name}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                {category && (
+                                  <Badge variant="outline" className="text-[10px] py-0 px-2 font-normal" style={{ borderColor: category.color || undefined, color: category.color || undefined }}>
                                     {category.name}
                                   </Badge>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
                                 )}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <span className={cn(
-                                  "font-medium whitespace-nowrap",
-                                  isEntry ? "text-green-500" : "text-red-500"
-                                )}>
-                                  {isEntry ? '+' : '-'}{formatCurrency(tx.amount)}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-center">
                                 <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn(
-                                  "text-[10px]",
+                                  "text-[10px] py-0 px-2 font-normal",
                                   tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : ""
                                 )}>
-                                  {tx.is_paid ? 'Recebido' : 'Pendente'}
+                                  {tx.is_paid ? 'Confirmado' : 'Pendente'}
                                 </Badge>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                              </div>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </CardContent>

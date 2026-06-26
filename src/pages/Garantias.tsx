@@ -373,79 +373,164 @@ export default function Garantias() {
                   {warranties.length === 0 ? 'Nenhuma garantia emitida ainda' : 'Nenhuma garantia encontrada'}
                 </div>
               ) : (
-                <div className="w-full overflow-x-auto">
-                  <Table className="min-w-[750px] w-full">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Veículo</TableHead>
-                        <TableHead className="text-center">Validade</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="w-[80px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredWarranties.map(warranty => {
-                        const status = getStatus(warranty.expiry_date);
+                <div className="space-y-4">
+                  {/* 🖥️ Visualização Desktop: Tabela Completa */}
+                  <div className="hidden md:block w-full overflow-x-auto">
+                    <Table className="min-w-[750px] w-full">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>Veículo</TableHead>
+                          <TableHead className="text-center">Validade</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredWarranties.map(warranty => {
+                          const status = getStatus(warranty.expiry_date);
 
-                        return (
-                          <TableRow key={warranty.id}>
-                            <TableCell className="font-medium">
-                              {warranty.warranty_type}
-                            </TableCell>
-                            <TableCell>{warranty.client?.name || '-'}</TableCell>
-                            <TableCell>
-                              {warranty.vehicle ? `${warranty.vehicle.model} - ${warranty.vehicle.plate}` : '-'}
-                            </TableCell>
-                            <TableCell className="text-center text-sm">
-                              {format(new Date(warranty.expiry_date), "dd/MM/yyyy")}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge className={status.color}>{status.label}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleDownload(warranty)}>
-                                    <Download className="h-4 w-4 mr-2" /> Baixar PDF
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem asChild>
-                                    <a
-                                      href={getWarrantyWhatsAppUrl(warranty)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center"
-                                      onClick={() => {
-                                        if (!warranty.client?.phone) {
-                                          toast.error('Cliente não possui telefone cadastrado');
-                                        } else {
-                                          toast.success('Abrindo WhatsApp Web!');
-                                        }
-                                      }}
+                          return (
+                            <TableRow key={warranty.id}>
+                              <TableCell className="font-medium">
+                                {warranty.warranty_type}
+                              </TableCell>
+                              <TableCell>{warranty.client?.name || '-'}</TableCell>
+                              <TableCell>
+                                {warranty.vehicle ? `${warranty.vehicle.model} - ${warranty.vehicle.plate}` : '-'}
+                              </TableCell>
+                              <TableCell className="text-center text-sm">
+                                {format(new Date(warranty.expiry_date), "dd/MM/yyyy")}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge className={status.color}>{status.label}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleDownload(warranty)}>
+                                      <Download className="h-4 w-4 mr-2" /> Baixar PDF
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                      <a
+                                        href={getWarrantyWhatsAppUrl(warranty)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center"
+                                        onClick={() => {
+                                          if (!warranty.client?.phone) {
+                                            toast.error('Cliente não possui telefone cadastrado');
+                                          } else {
+                                            toast.success('Abrindo WhatsApp Web!');
+                                          }
+                                        }}
+                                      >
+                                        <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
+                                      </a>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleDelete(warranty.id)}
+                                      className="text-red-500 focus:text-red-500"
                                     >
-                                      <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
-                                    </a>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => handleDelete(warranty.id)}
-                                    className="text-red-500 focus:text-red-500"
+                                      <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* 📱 Visualização Mobile: Cards Empilhados */}
+                  <div className="grid grid-cols-1 gap-3 md:hidden">
+                    {filteredWarranties.map(warranty => {
+                      const status = getStatus(warranty.expiry_date);
+                      const certNumber = `${warranty.id.toString().padStart(4, '0')}`;
+
+                      return (
+                        <Card key={warranty.id} className="bg-card/50 border-border/50 p-4 space-y-3">
+                          {/* Topo: Tipo e Menu de Ações */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="text-[10px] font-mono text-muted-foreground block">CERTIFICADO Nº {certNumber}</span>
+                              <h4 className="font-semibold text-base text-foreground leading-tight">{warranty.warranty_type}</h4>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleDownload(warranty)}>
+                                  <Download className="h-4 w-4 mr-2" /> Baixar PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <a
+                                    href={getWarrantyWhatsAppUrl(warranty)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center"
+                                    onClick={() => {
+                                      if (!warranty.client?.phone) {
+                                        toast.error('Cliente não possui telefone cadastrado');
+                                      } else {
+                                        toast.success('Abrindo WhatsApp Web!');
+                                      }
+                                    }}
                                   >
-                                    <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                                    <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
+                                  </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleDelete(warranty.id)}
+                                  className="text-red-500 focus:text-red-500"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          {/* Informações de Cliente e Veículo */}
+                          <div className="text-xs text-muted-foreground bg-muted/30 p-2.5 rounded space-y-1">
+                            <p className="flex justify-between">
+                              <span className="font-medium text-foreground">Cliente:</span>
+                              <span>{warranty.client?.name || '-'}</span>
+                            </p>
+                            {warranty.vehicle && (
+                              <p className="flex justify-between">
+                                <span className="font-medium text-foreground">Veículo:</span>
+                                <span>{warranty.vehicle.brand} {warranty.vehicle.model} ({warranty.vehicle.plate || 'S/P'})</span>
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Validade e Status */}
+                          <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
+                            <div>
+                              <span className="text-[10px] text-muted-foreground block">Validade</span>
+                              <span className="font-medium text-foreground">
+                                {format(new Date(warranty.expiry_date), "dd/MM/yyyy")}
+                              </span>
+                            </div>
+                            <Badge className={cn(status.color, "border-0 hover:bg-transparent text-[10px] py-0 px-2 font-normal")}>
+                              {status.label}
+                            </Badge>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </CardContent>

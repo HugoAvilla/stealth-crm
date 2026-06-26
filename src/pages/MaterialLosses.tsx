@@ -11,13 +11,16 @@ import { MaterialLossLimitsModal } from '@/components/material-losses/MaterialLo
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Plus, Settings, TrendingDown, DollarSign, Ruler, FileWarning, MoreHorizontal, Pencil, Trash2, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDeleteMaterialLoss } from '@/hooks/useMaterialLosses';
 import { generateReportPDF } from '@/lib/pdfGenerator';
+import { cn } from '@/lib/utils';
 
 const formatSafeDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return 'N/A';
@@ -343,79 +346,162 @@ export default function MaterialLosses() {
               Excel
             </Button>
           </div>
-        </div>
-
-        <div className="rounded-md border bg-card overflow-x-auto">
-          <Table className="min-w-[700px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Instalador</TableHead>
-                <TableHead>Material</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Metros</TableHead>
-                <TableHead>Motivo</TableHead>
-                <TableHead className="text-right">Custo</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {losses?.map((loss: any) => (
-                <TableRow key={loss.id} className={loss.status === 'cancelled' ? 'opacity-50 line-through' : ''}>
-                  <TableCell>{formatSafeDate(loss.created_at)}</TableCell>
-                  <TableCell>{loss.installer?.name || 'Não identificado'}</TableCell>
-                  <TableCell>{loss.material?.name}</TableCell>
-                  <TableCell>{loss.category}</TableCell>
-                  <TableCell>{loss.lost_meters}m</TableCell>
-                  <TableCell>{loss.reason}</TableCell>
-                  <TableCell className="text-right">
-                    R$ {Number(loss.cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell>
-                    {loss.status !== 'cancelled' && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {
-                            setSelectedLoss(loss);
-                            setShowFormModal(true);
-                          }}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          {isAdmin && (
-                            <DropdownMenuItem 
-                              className="text-destructive focus:text-destructive"
-                              onClick={async () => {
-                                if (confirm('Tem certeza que deseja cancelar este registro de perda? O estoque será devolvido.')) {
-                                  await deleteMutation.mutateAsync(loss.id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Cancelar Registro
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!isLoading && (!losses || losses.length === 0) && (
+            <div className="space-y-4">
+          {/* 🖥️ Visualização Desktop: Tabela Completa */}
+          <div className="hidden md:block rounded-md border bg-card overflow-x-auto">
+            <Table className="min-w-[700px]">
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
-                    Nenhum registro de perda encontrado.
-                  </TableCell>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Instalador</TableHead>
+                  <TableHead>Material</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>Metros</TableHead>
+                  <TableHead>Motivo</TableHead>
+                  <TableHead className="text-right">Custo</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {losses?.map((loss: any) => (
+                  <TableRow key={loss.id} className={loss.status === 'cancelled' ? 'opacity-50 line-through' : ''}>
+                    <TableCell>{formatSafeDate(loss.created_at)}</TableCell>
+                    <TableCell>{loss.installer?.name || 'Não identificado'}</TableCell>
+                    <TableCell>{loss.material?.name}</TableCell>
+                    <TableCell>{loss.category}</TableCell>
+                    <TableCell>{loss.lost_meters}m</TableCell>
+                    <TableCell>{loss.reason}</TableCell>
+                    <TableCell className="text-right">
+                      R$ {Number(loss.cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell>
+                      {loss.status !== 'cancelled' && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedLoss(loss);
+                              setShowFormModal(true);
+                            }}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            {isAdmin && (
+                              <DropdownMenuItem 
+                                className="text-destructive focus:text-destructive"
+                                onClick={async () => {
+                                  if (confirm('Tem certeza que deseja cancelar este registro de perda? O estoque será devolvido.')) {
+                                    await deleteMutation.mutateAsync(loss.id);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Cancelar Registro
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!isLoading && (!losses || losses.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
+                      Nenhum registro de perda encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* 📱 Visualização Mobile: Cards Empilhados */}
+          <div className="grid grid-cols-1 gap-3 md:hidden">
+            {losses?.map((loss: any) => (
+              <Card key={loss.id} className={cn("bg-card/50 border-border/50 p-4 space-y-3", loss.status === 'cancelled' ? 'opacity-50' : '')}>
+                {/* Topo: Data, Categoria e Ações */}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">{formatSafeDate(loss.created_at)}</span>
+                    <h4 className="font-semibold text-sm text-foreground leading-tight">{loss.material?.name || 'Material não identificado'}</h4>
+                  </div>
+                  {loss.status !== 'cancelled' && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedLoss(loss);
+                          setShowFormModal(true);
+                        }}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive"
+                            onClick={async () => {
+                              if (confirm('Tem certeza que deseja cancelar este registro de perda? O estoque será devolvido.')) {
+                                await deleteMutation.mutateAsync(loss.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Cancelar Registro
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+
+                {/* Informações do Instalador e Motivo */}
+                <div className="text-xs text-muted-foreground bg-muted/30 p-2.5 rounded space-y-1">
+                  <p className="flex justify-between">
+                    <span className="font-medium text-foreground">Instalador:</span>
+                    <span>{loss.installer?.name || 'Não identificado'}</span>
+                  </p>
+                  <p className="flex flex-col gap-0.5">
+                    <span className="font-medium text-foreground">Motivo:</span>
+                    <span className="text-muted-foreground text-left">{loss.reason}</span>
+                  </p>
+                </div>
+
+                {/* Métricas: Categoria, Metros, Custo */}
+                <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-border/40 text-center text-xs">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-0.5">Categoria</span>
+                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">{loss.category}</Badge>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-0.5">Comprimento</span>
+                    <span className="font-semibold text-foreground">{loss.lost_meters}m</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-0.5">Custo</span>
+                    <span className="font-semibold text-destructive">
+                      R$ {Number(loss.cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            ))}
+            {!isLoading && (!losses || losses.length === 0) && (
+              <div className="text-center py-8 text-muted-foreground bg-card border rounded-md">
+                Nenhum registro de perda encontrado.
+              </div>
+            )}
+          </div>
+        </div>
         </div>
       </div>
 
