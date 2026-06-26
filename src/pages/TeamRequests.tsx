@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface JoinRequest {
   id: number;
@@ -404,47 +405,58 @@ export default function TeamRequests() {
               {processedRequests.map((request) => (
                 <div
                   key={request.id}
-                  className="flex items-center justify-between p-4 border rounded-lg bg-muted/30"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg bg-muted/30 gap-4"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{request.requester_name}</span>
-                      <Badge variant="outline">
-                        {request.requested_role}
-                      </Badge>
-                      <Badge
-                        variant={request.status === 'approved' ? 'default' : 'destructive'}
-                        className={request.status === 'approved' ? 'bg-green-500' : ''}
-                      >
-                        {request.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
-                      </Badge>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm sm:text-base text-foreground truncate max-w-[200px] sm:max-w-xs" title={request.requester_name}>
+                        {request.requester_name}
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge variant="outline" className="text-[10px] sm:text-xs font-normal">
+                          {request.requested_role}
+                        </Badge>
+                        <Badge
+                          variant={request.status === 'approved' ? 'default' : 'destructive'}
+                          className={cn(
+                            "text-[10px] sm:text-xs font-normal",
+                            request.status === 'approved' ? 'bg-green-500 hover:bg-green-600' : ''
+                          )}
+                        >
+                          {request.status === 'approved' ? 'Aprovado' : 'Rejeitado'}
+                        </Badge>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate" title={request.requester_email}>
                       {request.requester_email}
                     </p>
+                    
                     {request.rejected_reason && (
-                      <div className="flex items-start gap-1 mt-2 text-sm text-muted-foreground">
-                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <div className="flex items-start gap-1 mt-1.5 text-xs text-muted-foreground bg-destructive/5 p-1.5 rounded border border-destructive/10">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-destructive" />
                         <span>Motivo: {request.rejected_reason}</span>
                       </div>
                     )}
-                    <p className="text-xs text-muted-foreground mt-1">
+                    
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
                       {request.status === 'approved' && request.approved_at
                         ? `Aprovado em ${format(new Date(request.approved_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
                         : `Processado em ${format(new Date(request.created_at), "dd/MM/yyyy", { locale: ptBR })}`
                       }
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  
+                  <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
                     {/* Unlink button for approved members */}
                     {request.status === 'approved' && (
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs flex-1 sm:flex-none h-8"
                         onClick={() => openUnlinkModal(request)}
                       >
-                        <UserMinus className="h-4 w-4 mr-1" />
+                        <UserMinus className="h-3.5 w-3.5 mr-1" />
                         Desvincular
                       </Button>
                     )}
@@ -453,11 +465,11 @@ export default function TeamRequests() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 px-2.5"
                       onClick={() => openDeleteModal(request)}
                       title="Apagar do histórico"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
