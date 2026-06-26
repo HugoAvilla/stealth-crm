@@ -251,7 +251,7 @@ export default function MaterialLosses() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-[100vw] overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -329,24 +329,24 @@ export default function MaterialLosses() {
             </Select>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={exportToPDF} disabled={!losses || losses.length === 0}>
               <FileText className="w-4 h-4 mr-2" />
-              Exportar PDF
+              PDF
             </Button>
             <Button variant="outline" size="sm" onClick={exportToCSV} disabled={!losses || losses.length === 0}>
               <Download className="w-4 h-4 mr-2" />
-              Exportar CSV
+              CSV
             </Button>
             <Button variant="outline" size="sm" onClick={exportToExcel} disabled={!losses || losses.length === 0}>
               <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Exportar Excel
+              Excel
             </Button>
           </div>
         </div>
 
-        <div className="rounded-md border bg-card overflow-hidden">
-          <Table>
+        <div className="rounded-md border bg-card overflow-x-auto">
+          <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>

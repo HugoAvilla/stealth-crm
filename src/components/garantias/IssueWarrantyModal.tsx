@@ -315,7 +315,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto p-0">
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto overflow-x-hidden p-0">
           <DialogHeader className="px-6 pt-6">
             <DialogTitle>Emitir Garantia</DialogTitle>
           </DialogHeader>
@@ -420,7 +420,7 @@ export function IssueWarrantyModal({ open, onOpenChange }: IssueWarrantyModalPro
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex flex-col sm:flex-row gap-2 pt-4">
                   <Button variant="outline" className="flex-1" onClick={() => handleClose(false)}>
                     {issuedData ? 'Fechar' : 'Cancelar'}
                   </Button>

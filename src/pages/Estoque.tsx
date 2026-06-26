@@ -253,8 +253,8 @@ export default function Estoque() {
 
   const renderMaterialTable = (items: Material[]) => (
     <Card className="bg-card/50 border-border/50">
-      <CardContent className="p-0">
-        <Table>
+      <CardContent className="p-0 overflow-x-auto">
+        <Table className="min-w-[700px]">
           <TableHeader>
             <TableRow>
               <TableHead>Material</TableHead>

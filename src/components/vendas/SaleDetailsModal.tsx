@@ -334,7 +334,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-success/20">
@@ -427,50 +427,52 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                     <Layers className="h-4 w-4" />
                     Serviços Detalhados
                   </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Região</TableHead>
-                        <TableHead>Produto</TableHead>
-                        <TableHead className="text-right">Metros</TableHead>
-                        <TableHead className="text-right">R$/m</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detailedItems.map((item) => (
-                        <TableRow key={item.id} className={(item as any).is_customized ? 'bg-muted/30' : ''}>
-                          <TableCell>
-                            <div>
-                              <span>{(item as any).display_name || item.region?.name || 'Região'}</span>
-                              <Badge variant="outline" className="ml-2 text-xs">
-                                {item.category}
-                              </Badge>
-                              {(item as any).is_customized && (
-                                <Badge variant="secondary" className="ml-1 text-xs">
-                                  Personalizado
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {item.product_type
-                              ? `${item.product_type.brand} ${item.product_type.name}${item.product_type.light_transmission ? ` ${item.product_type.light_transmission}` : ''}`
-                              : 'Produto'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {item.meters_used.toFixed(2)}m
-                          </TableCell>
-                          <TableCell className="text-right">
-                            R$ {item.unit_price.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            R$ {item.total_price.toFixed(2)}
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table className="min-w-[500px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Região</TableHead>
+                          <TableHead>Produto</TableHead>
+                          <TableHead className="text-right">Metros</TableHead>
+                          <TableHead className="text-right">R$/m</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {detailedItems.map((item) => (
+                          <TableRow key={item.id} className={(item as any).is_customized ? 'bg-muted/30' : ''}>
+                            <TableCell>
+                              <div>
+                                <span>{(item as any).display_name || item.region?.name || 'Região'}</span>
+                                <Badge variant="outline" className="ml-2 text-xs">
+                                  {item.category}
+                                </Badge>
+                                {(item as any).is_customized && (
+                                  <Badge variant="secondary" className="ml-1 text-xs">
+                                    Personalizado
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {item.product_type
+                                ? `${item.product_type.brand} ${item.product_type.name}${item.product_type.light_transmission ? ` ${item.product_type.light_transmission}` : ''}`
+                                : 'Produto'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {item.meters_used.toFixed(2)}m
+                            </TableCell>
+                            <TableCell className="text-right">
+                              R$ {item.unit_price.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              R$ {item.total_price.toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                   <div className="flex justify-between text-sm pt-2">
                     <span className="text-muted-foreground">
                       Total de metros: <span className="font-medium">{totalMeters.toFixed(2)}m</span>

@@ -62,18 +62,21 @@ export default function Relatorios() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="relatorios" className="gap-2">
+        <TabsList className="w-full flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="relatorios" className="gap-2 flex-1 min-w-[100px]">
             <FileText className="h-4 w-4" />
-            Relatórios
+            <span className="hidden sm:inline">Relatórios</span>
+            <span className="sm:hidden">Relatórios</span>
           </TabsTrigger>
-          <TabsTrigger value="pdfs" className="gap-2">
+          <TabsTrigger value="pdfs" className="gap-2 flex-1 min-w-[100px]">
             <Download className="h-4 w-4" />
-            PDFs Baixados
+            <span className="hidden sm:inline">PDFs Baixados</span>
+            <span className="sm:hidden">PDFs</span>
           </TabsTrigger>
-          <TabsTrigger value="excel" className="gap-2">
+          <TabsTrigger value="excel" className="gap-2 flex-1 min-w-[100px]">
             <FileSpreadsheet className="h-4 w-4" />
-            Excel Baixados
+            <span className="hidden sm:inline">Excel Baixados</span>
+            <span className="sm:hidden">Excel</span>
           </TabsTrigger>
         </TabsList>
 

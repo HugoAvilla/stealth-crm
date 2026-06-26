@@ -112,21 +112,21 @@ export default function Perfil() {
       {/* Profile Card */}
       <Card className="bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30">
         <CardContent className="p-6">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20 border-2 border-primary/30">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <Avatar className="h-20 w-20 border-2 border-primary/30 shrink-0">
               <AvatarImage src={userAvatar || undefined} />
               <AvatarFallback className="text-xl bg-primary/20">
                 {getInitials(userName)}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold">{userName}</h2>
-              <p className="text-muted-foreground">{user?.email}</p>
+            <div className="flex-1 text-center sm:text-left min-w-0">
+              <h2 className="text-xl font-bold truncate">{userName}</h2>
+              <p className="text-muted-foreground truncate">{user?.email}</p>
               <Badge className="mt-2" variant={roleBadge.variant}>
                 {roleBadge.label}
               </Badge>
             </div>
-            <Button variant="outline" onClick={() => setShowEditModal(true)}>
+            <Button variant="outline" onClick={() => setShowEditModal(true)} className="w-full sm:w-auto shrink-0">
               <Edit className="h-4 w-4 mr-2" /> Editar
             </Button>
           </div>

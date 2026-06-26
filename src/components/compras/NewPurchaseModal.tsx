@@ -131,7 +131,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Nova Compra</DialogTitle>
         </DialogHeader>
@@ -153,7 +153,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Valor Total *</Label>
               <Input 
@@ -206,7 +206,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
 
           {!isImmediate && (
             <div className="border p-4 rounded-md space-y-4 bg-muted/10">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Quantidade de Parcelas</Label>
                   <Input type="number" min="1" max="24" value={installmentsCount} onChange={e => setInstallmentsCount(parseInt(e.target.value) || 1)} />

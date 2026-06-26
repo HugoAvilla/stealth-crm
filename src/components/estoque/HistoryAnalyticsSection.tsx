@@ -23,6 +23,7 @@ interface HistoryAnalyticsSectionProps {
     name: string;
     product_types: {
       ppf_material_type: string | null;
+      light_transmission: string | null;
     } | null;
   }[];
   rangeStart: Date;
@@ -48,7 +49,9 @@ export function HistoryAnalyticsSection({
   const materialNameMap = useMemo(() => {
     const map = new Map<number, string>();
     filteredMaterials.forEach((material) => {
-      map.set(material.id, material.name);
+      const transmission = material.product_types?.light_transmission;
+      const displayName = transmission ? `${material.name} (${transmission})` : material.name;
+      map.set(material.id, displayName);
     });
     return map;
   }, [filteredMaterials]);

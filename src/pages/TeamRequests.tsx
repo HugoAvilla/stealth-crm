@@ -337,30 +337,31 @@ export default function TeamRequests() {
               {pendingRequests.map((request) => (
                 <div
                   key={request.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg gap-3"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{request.requester_name}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium truncate">{request.requester_name}</span>
                       <Badge
                         variant={request.requested_role === 'VENDEDOR' ? 'default' : 'secondary'}
                       >
                         {request.requested_role}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground truncate">
                       {request.requester_email}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Solicitado em {format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <Button
                       size="sm"
                       onClick={() => handleApprove(request.id)}
                       disabled={processingId === request.id || isLimitReached}
                       title={isLimitReached ? 'Limite de membros atingido' : 'Aprovar solicitação'}
+                      className="flex-1 sm:flex-none"
                     >
                       {processingId === request.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -376,6 +377,7 @@ export default function TeamRequests() {
                       variant="destructive"
                       onClick={() => openRejectModal(request)}
                       disabled={processingId === request.id}
+                      className="flex-1 sm:flex-none"
                     >
                       <X className="h-4 w-4 mr-1" />
                       Rejeitar

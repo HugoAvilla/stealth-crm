@@ -51,11 +51,12 @@ export default function Servicos() {
         <TabsList className="grid grid-cols-2 w-full max-w-md">
           <TabsTrigger value="services" className="flex items-center gap-2">
             <Wrench className="h-4 w-4" />
-            <span className="hidden sm:inline">Serviços</span>
+            <span>Serviços</span>
           </TabsTrigger>
           <TabsTrigger value="consumption-rules" className="flex items-center gap-2">
             <Calculator className="h-4 w-4" />
             <span className="hidden sm:inline">Regras de Consumo</span>
+            <span className="sm:hidden">Regras</span>
           </TabsTrigger>
         </TabsList>
 

@@ -178,7 +178,7 @@ export function ConsumptionRulesTab({ companyId }: ConsumptionRulesTabProps) {
   return (
     <div className="space-y-4">
       {/* Header com sub-tabs e botão salvar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as ProductCategory)}>
           <TabsList>
             <TabsTrigger value="INSULFILM">INSULFILM</TabsTrigger>
@@ -186,7 +186,7 @@ export function ConsumptionRulesTab({ companyId }: ConsumptionRulesTabProps) {
           </TabsList>
         </Tabs>
 
-        <Button onClick={handleSaveAllRules} disabled={!isDirty || isSaving}>
+        <Button onClick={handleSaveAllRules} disabled={!isDirty || isSaving} className="w-full sm:w-auto">
           {isSaving ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -216,8 +216,8 @@ export function ConsumptionRulesTab({ companyId }: ConsumptionRulesTabProps) {
         </Card>
       ) : (
         <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[500px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[250px]">Região</TableHead>
