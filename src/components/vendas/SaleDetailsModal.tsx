@@ -427,8 +427,9 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                     <Layers className="h-4 w-4" />
                     Serviços Detalhados
                   </div>
-                  <div className="w-full overflow-x-auto border rounded-md">
-                    <Table className="min-w-[650px] w-full">
+                   {/* Tabela para Desktop */}
+                  <div className="hidden sm:block w-full overflow-x-auto border rounded-md">
+                    <Table className="w-full">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Região</TableHead>
@@ -472,6 +473,59 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+
+                  {/* Cards para Mobile */}
+                  <div className="block sm:hidden space-y-3">
+                    {detailedItems.map((item) => (
+                      <div 
+                        key={item.id} 
+                        className={`p-3 rounded-lg border text-sm space-y-2 bg-card ${
+                          (item as any).is_customized ? 'border-primary/30 bg-primary/5' : 'border-border'
+                        }`}
+                      >
+                        {/* Região e Badges */}
+                        <div className="flex flex-wrap items-center gap-1.5 justify-between">
+                          <span className="font-semibold text-foreground">
+                            {(item as any).display_name || item.region?.name || 'Região'}
+                          </span>
+                          <div className="flex gap-1">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              {item.category}
+                            </Badge>
+                            {(item as any).is_customized && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20">
+                                Personalizado
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Produto */}
+                        <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                          <span className="font-medium text-foreground block mb-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Produto:</span>
+                          {item.product_type
+                            ? `${item.product_type.brand} ${item.product_type.name}${item.product_type.light_transmission ? ` ${item.product_type.light_transmission}` : ''}`
+                            : 'Produto'}
+                        </div>
+
+                        {/* Métricas */}
+                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/40 text-center">
+                          <div>
+                            <span className="text-[10px] text-muted-foreground block">Metragem</span>
+                            <span className="font-medium text-xs">{item.meters_used.toFixed(2)}m</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-muted-foreground block">Valor/m</span>
+                            <span className="font-medium text-xs">R$ {item.unit_price.toFixed(2)}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-muted-foreground block text-success">Total</span>
+                            <span className="font-semibold text-xs text-success">R$ {item.total_price.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   <div className="flex justify-between text-sm pt-2">
                     <span className="text-muted-foreground">
