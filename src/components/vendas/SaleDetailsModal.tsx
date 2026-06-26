@@ -334,7 +334,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="max-w-2xl w-[92vw] sm:w-full overflow-x-hidden">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-success/20">
@@ -377,7 +377,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
             {/* Client Section */}
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-muted-foreground">Cliente</h3>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-info" />
                   <span className="font-medium">{client?.name || "Cliente"}</span>
@@ -387,7 +387,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                     href={`https://wa.me/${client.phone.replace(/\D/g, "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-success hover:underline"
+                    className="flex items-center gap-2 text-success hover:underline w-fit"
                   >
                     <Phone className="h-4 w-4" />
                     {client.phone}
@@ -511,7 +511,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
             </Card>
 
             {/* Financial Summary */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
                 <Settings className="h-4 w-4 text-info" />
                 <span className="text-sm text-muted-foreground">
