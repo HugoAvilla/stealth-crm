@@ -3,7 +3,6 @@ import { Plus, Search, AlertTriangle, CheckCircle, Package, ArrowDown, ArrowUp, 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -252,126 +251,18 @@ export default function Estoque() {
   };
 
   const renderMaterialTable = (items: Material[]) => (
-    <div className="space-y-4">
-      {/* 🖥️ Visualização Desktop: Tabela Completa */}
-      <Card className="hidden md:block bg-card/50 border-border/50">
-        <CardContent className="p-0 overflow-x-auto">
-          <Table className="min-w-[700px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Material</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-center">Transmissão</TableHead>
-                <TableHead className="text-center">Estoque Atual</TableHead>
-                <TableHead className="text-center">Mínimo</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Valor Total</TableHead>
-                <TableHead className="w-[100px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((material) => {
-                const stockStatus = getStockStatus(material);
-                const totalVal = (material.current_stock || 0) * (material.average_cost || 0);
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {items.map((material) => {
+        const stockStatus = getStockStatus(material);
+        const totalVal = (material.current_stock || 0) * (material.average_cost || 0);
 
-                return (
-                  <TableRow key={material.id}>
-                    <TableCell className="font-medium">
-                      <div 
-                        className="cursor-pointer hover:text-primary hover:underline transition-colors"
-                        onClick={() => handleDetails(material)}
-                        title="Ver detalhes e histórico"
-                      >
-                        <p>{material.name}</p>
-                        <div className="flex flex-col gap-0.5">
-                          {material.brand && (
-                            <p className="text-xs text-muted-foreground hover:no-underline">{material.brand}</p>
-                          )}
-                          {material.unit === "Metros" && (
-                            <p className="text-[11px] font-normal text-blue-500 hover:no-underline">
-                              Bobina: {material.width ? Number(material.width).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : "1,52"}m de largura
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{material.type || "-"}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {material.product_types?.light_transmission || "-"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {material.is_open_roll ? (
-                        <Badge variant="outline" className="border-blue-500 text-blue-500">
-                          Aberta (Usado: {material.open_roll_accumulated || 0}m)
-                        </Badge>
-                      ) : (
-                        `${material.current_stock || 0} ${material.unit}`
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center text-muted-foreground">
-                      {material.is_open_roll ? "-" : `${material.minimum_stock || 0} ${material.unit}`}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {material.is_open_roll ? (
-                        <Badge className="bg-blue-500/10 text-blue-500 border-0">Em Uso</Badge>
-                      ) : (
-                        <Badge className={cn(stockStatus.bg, stockStatus.color, "border-0")}>
-                          {stockStatus.label}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 justify-end">
-                        {!material.is_open_roll ? (
-                          <>
-                            <Button variant="ghost" size="icon" onClick={() => handleEntry(material)} title="Entrada">
-                              <ArrowDown className="h-4 w-4 text-green-500" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleExit(material)} title="Saída">
-                              <ArrowUp className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </>
-                        ) : (
-                          <Button variant="ghost" size="icon" onClick={() => handleCloseOpenRoll(material)} title="Encerrar Bobina">
-                            <StopCircle className="h-4 w-4 text-blue-500" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(material)}
-                          title="Excluir"
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* 📱 Visualização Mobile: Cards Empilhados */}
-      <div className="grid grid-cols-1 gap-3 md:hidden">
-        {items.map((material) => {
-          const stockStatus = getStockStatus(material);
-          const totalVal = (material.current_stock || 0) * (material.average_cost || 0);
-
-          return (
-            <Card key={material.id} className="bg-card/50 border-border/50 p-4 space-y-3">
+        return (
+          <Card key={material.id} className="bg-card/50 border-border/50 p-4 flex flex-col justify-between space-y-3 hover:border-primary/30 transition-all duration-300">
+            <div className="space-y-3">
               {/* Topo: Nome e Ações Rápidas (Excluir e Detalhes) */}
               <div className="flex items-start justify-between gap-2">
                 <div 
-                  className="cursor-pointer hover:text-primary hover:underline transition-colors"
+                  className="cursor-pointer hover:text-primary hover:underline transition-colors flex-1"
                   onClick={() => handleDetails(material)}
                 >
                   <h4 className="font-semibold text-base text-foreground leading-tight">{material.name}</h4>
@@ -384,7 +275,7 @@ export default function Estoque() {
                   size="icon"
                   onClick={() => handleDelete(material)}
                   title="Excluir"
-                  className="text-muted-foreground hover:text-destructive h-8 w-8 -mt-1 -mr-1"
+                  className="text-muted-foreground hover:text-destructive h-8 w-8 -mt-1 -mr-1 shrink-0"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -415,7 +306,7 @@ export default function Estoque() {
               <div className="grid grid-cols-3 gap-2 py-2.5 border-y border-border/40 text-center">
                 <div>
                   <span className="text-[10px] text-muted-foreground block mb-0.5">Estoque</span>
-                  <span className="font-semibold text-xs text-foreground">
+                  <span className="font-semibold text-xs text-foreground block truncate">
                     {material.is_open_roll ? (
                       <span className="text-blue-500 font-semibold" title={`Aberta. Usado: ${material.open_roll_accumulated || 0}m`}>
                         Aberta
@@ -439,48 +330,48 @@ export default function Estoque() {
                 </div>
                 <div>
                   <span className="text-[10px] text-muted-foreground block mb-0.5">Valor Total</span>
-                  <span className="font-semibold text-xs text-foreground">
+                  <span className="font-semibold text-xs text-foreground block truncate" title={`R$ ${totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}>
                     R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
+            </div>
 
-              {/* Botões de Ações de Transação */}
-              <div className="flex gap-2">
-                {!material.is_open_roll ? (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleEntry(material)} 
-                      className="flex-1 h-9 text-xs border-green-500/20 hover:bg-green-500/5 hover:text-green-600"
-                    >
-                      <ArrowDown className="mr-1 h-3.5 w-3.5 text-green-500" /> Entrada
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleExit(material)} 
-                      className="flex-1 h-9 text-xs border-red-500/20 hover:bg-red-500/5 hover:text-red-600"
-                    >
-                      <ArrowUp className="mr-1 h-3.5 w-3.5 text-red-500" /> Saída
-                    </Button>
-                  </>
-                ) : (
+            {/* Botões de Ações de Transação */}
+            <div className="flex gap-2 pt-2">
+              {!material.is_open_roll ? (
+                <>
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => handleCloseOpenRoll(material)} 
-                    className="w-full h-9 text-xs border-blue-500/20 text-blue-600 hover:bg-blue-500/5"
+                    onClick={() => handleEntry(material)} 
+                    className="flex-1 h-9 text-xs border-green-500/20 hover:bg-green-500/5 hover:text-green-600"
                   >
-                    <StopCircle className="mr-1 h-3.5 w-3.5 text-blue-500" /> Encerrar Bobina
+                    <ArrowDown className="mr-1 h-3.5 w-3.5 text-green-500" /> Entrada
                   </Button>
-                )}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleExit(material)} 
+                    className="flex-1 h-9 text-xs border-red-500/20 hover:bg-red-500/5 hover:text-red-600"
+                  >
+                    <ArrowUp className="mr-1 h-3.5 w-3.5 text-red-500" /> Saída
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleCloseOpenRoll(material)} 
+                  className="w-full h-9 text-xs border-blue-500/20 text-blue-600 hover:bg-blue-500/5"
+                >
+                  <StopCircle className="mr-1 h-3.5 w-3.5 text-blue-500" /> Encerrar Bobina
+                </Button>
+              )}
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 

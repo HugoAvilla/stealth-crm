@@ -68,12 +68,19 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
   const lastScrollYRef = useRef(0);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHorizontalGestureRef = useRef(false); // Tracks if gesture is horizontal
+  const currentYRef = useRef(0); // Mirror of currentY state to avoid stale closures
 
   const maxPullDistance = 80;
   const refreshThreshold = 60;
   const deadZone = 12; // Minimum px before pull-to-refresh activates
-  const scrollSettleTime = 150; // ms the page must be at top before allowing PTR
+  const scrollSettleTime = 300; // ms the page must be at top before allowing PTR
   const horizontalThreshold = 8; // px of horizontal movement to cancel PTR
+
+  // Keep ref in sync with state
+  const updateCurrentY = useCallback((value: number) => {
+    currentYRef.current = value;
+    setCurrentY(value);
+  }, []);
 
   // Track scroll state to detect if user was scrolling
   const handleScroll = useCallback(() => {
@@ -136,7 +143,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
       if (pullingRef.current && !isAtTop) {
         pullingRef.current = false;
         activatedRef.current = false;
-        setCurrentY(0);
+        updateCurrentY(0);
       }
       return;
     }
@@ -151,7 +158,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
       isHorizontalGestureRef.current = true;
       pullingRef.current = false;
       activatedRef.current = false;
-      setCurrentY(0);
+      updateCurrentY(0);
       return;
     }
 
@@ -163,7 +170,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
       // User is pulling up, cancel pull-to-refresh
       if (activatedRef.current) {
         activatedRef.current = false;
-        setCurrentY(0);
+        updateCurrentY(0);
       }
       return;
     }
@@ -181,7 +188,7 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
     const diff = y - startYRef.current;
     // Simple resistance
     const pullDistance = Math.min(diff * 0.4, maxPullDistance);
-    setCurrentY(pullDistance);
+    updateCurrentY(pullDistance);
 
     if (pullDistance > 0 && e.cancelable) {
       e.preventDefault(); // Prevent native scroll while pulling
@@ -196,20 +203,36 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
     isHorizontalGestureRef.current = false;
     setDragging(false);
 
-    if (currentY >= refreshThreshold) {
+    // Use ref value to avoid stale closure issue
+    const finalY = currentYRef.current;
+
+    if (finalY >= refreshThreshold) {
       setRefreshing(true);
-      setCurrentY(refreshThreshold); // Hold at threshold
+      updateCurrentY(refreshThreshold); // Hold at threshold
+
+      // Haptic feedback if available
+      try {
+        if (navigator.vibrate) {
+          navigator.vibrate(15);
+        }
+      } catch {
+        // Silently ignore — vibration not supported
+      }
 
       try {
         await onRefresh();
       } finally {
         setRefreshing(false);
-        setCurrentY(0);
+        updateCurrentY(0);
       }
     } else {
-      setCurrentY(0);
+      updateCurrentY(0);
     }
   };
+
+  // Determine pull status text
+  const isPastThreshold = currentY >= refreshThreshold;
+  const showIndicator = currentY > 0 || refreshing;
 
   return (
     <div
@@ -221,26 +244,44 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
     >
       {/* Pull indicator */}
       <div
-        className="absolute left-0 right-0 flex justify-center items-center overflow-hidden z-50 pointer-events-none"
+        className="absolute left-0 right-0 flex flex-col justify-center items-center overflow-hidden z-50 pointer-events-none"
         style={{
           top: 0,
           height: `${currentY}px`,
-          opacity: currentY / refreshThreshold,
+          opacity: showIndicator ? Math.max(currentY / refreshThreshold, refreshing ? 1 : 0) : 0,
         }}
       >
         <div
           className={cn(
-            "bg-background/80 backdrop-blur shadow-sm rounded-full p-2 flex items-center justify-center border border-border mt-4",
-            refreshing && "animate-spin"
+            "bg-background/80 backdrop-blur shadow-sm rounded-full px-4 py-2 flex items-center justify-center gap-2 border border-border mt-4",
+            isPastThreshold && !refreshing && "border-primary/50 bg-primary/10",
+            refreshing && "border-primary/50 bg-primary/10"
           )}
         >
           <RefreshCw
-            className="w-5 h-5 text-primary"
+            className={cn(
+              "w-4 h-4 text-muted-foreground transition-colors",
+              isPastThreshold && "text-primary",
+              refreshing && "text-primary animate-spin"
+            )}
             style={{
-              transform: `rotate(${currentY * 3}deg)`,
+              transform: refreshing ? undefined : `rotate(${currentY * 3}deg)`,
               transition: refreshing ? "none" : "transform 0.1s",
             }}
           />
+          <span
+            className={cn(
+              "text-xs font-medium text-muted-foreground transition-colors",
+              isPastThreshold && "text-primary",
+              refreshing && "text-primary"
+            )}
+          >
+            {refreshing
+              ? "Atualizando..."
+              : isPastThreshold
+                ? "Solte para atualizar"
+                : "Puxe para atualizar"}
+          </span>
         </div>
       </div>
 
@@ -256,4 +297,3 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
     </div>
   );
 }
-

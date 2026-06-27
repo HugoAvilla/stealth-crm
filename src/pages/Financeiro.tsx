@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag, ShoppingCart, Receipt, FileText, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -33,6 +33,17 @@ interface Transaction {
   type: string;
   amount: number;
   transaction_date: string;
+  sale_id: number | null;
+  origin_type: string | null;
+  name: string;
+  is_paid: boolean | null;
+}
+
+interface Sale {
+  id: number;
+  total: number;
+  sale_date: string;
+  status: string | null;
 }
 
 interface Transfer {
@@ -48,6 +59,7 @@ export default function Financeiro() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [monthSales, setMonthSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [showValues, setShowValues] = useState(true);
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
@@ -87,11 +99,19 @@ export default function Financeiro() {
 
       const { data: transactionsData } = await supabase
         .from("transactions")
-        .select("*")
+        .select("id, type, amount, transaction_date, sale_id, origin_type, name, is_paid")
         .eq("company_id", profile.company_id)
         .gte("transaction_date", monthStart)
         .lte("transaction_date", futureEnd)
         .order("transaction_date", { ascending: false });
+
+      // Fetch sales for the month
+      const { data: salesData } = await supabase
+        .from("sales")
+        .select("id, total, sale_date, status")
+        .eq("company_id", profile.company_id)
+        .gte("sale_date", monthStart)
+        .lte("sale_date", format(endOfMonth(new Date()), "yyyy-MM-dd"));
 
       // Fetch transfers for the last 7 days and future 7 days
       const pastStart = format(subDays(new Date(), 7), "yyyy-MM-dd");
@@ -106,6 +126,7 @@ export default function Financeiro() {
       setAccounts(accountsData || []);
       setTransactions(transactionsData || []);
       setTransfers(transfersData || []);
+      setMonthSales(salesData || []);
     } catch (error) {
       console.error("Error fetching financial data:", error);
       toast.error("Erro ao carregar dados financeiros");
@@ -128,12 +149,36 @@ export default function Financeiro() {
   const monthTransactions = transactions.filter(t => t.transaction_date >= monthStartStr && t.transaction_date <= monthEndStr);
   const futureTransactions = transactions.filter(t => t.transaction_date > todayStr && t.transaction_date <= futureEndStr);
 
-  const totalEntradas = monthTransactions
-    .filter(t => t.type === 'Entrada')
+  // === ENTRADAS ===
+  const entradasTransactions = monthTransactions.filter(t => t.type === 'Entrada');
+  const totalEntradas = entradasTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+  // Vendas do mês (from sales table, para garantir contagem correta)
+  const totalVendasMes = monthSales.reduce((sum, s) => sum + s.total, 0);
+  const qtdVendasMes = monthSales.length;
+
+  // Entradas que vieram de vendas (transações com sale_id)
+  const entradasDeVendas = entradasTransactions
+    .filter(t => t.sale_id !== null)
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalSaidas = monthTransactions
-    .filter(t => t.type === 'Saida')
+  // Outras entradas manuais (transações sem sale_id)
+  const outrasEntradas = entradasTransactions
+    .filter(t => t.sale_id === null)
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // === SAÍDAS ===
+  const saidasTransactions = monthTransactions.filter(t => t.type === 'Saida');
+  const totalSaidas = saidasTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+  // Despesas fixas / recorrentes (transações com "Despesa fixa" ou "recorrente" no nome, ou origin_type de purchase)
+  const saidasCompras = saidasTransactions
+    .filter(t => t.origin_type === 'purchase_installment')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // Outras saídas (manuais, ROAS, etc)
+  const outrasSaidas = saidasTransactions
+    .filter(t => t.origin_type !== 'purchase_installment')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const futureEntradas = futureTransactions
@@ -313,17 +358,35 @@ export default function Financeiro() {
 
         {/* Entradas Card */}
         <Card className="md:col-span-6 lg:col-span-4 bg-card/50 border-border/50 relative overflow-hidden flex flex-col">
-          <div className="p-6 pb-4 flex-1">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-6 pb-3 flex-1">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2 text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
                  <ArrowUpRight className="h-4 w-4" />
                  <span className="text-xs font-semibold uppercase tracking-wider">Entradas</span>
               </div>
             </div>
             
-            <div className="space-y-1">
-               <p className="text-sm text-muted-foreground">Realizado no Mês</p>
+            <div className="space-y-1 mb-4">
+               <p className="text-sm text-muted-foreground">Total no Mês</p>
                <p className="text-3xl font-bold text-foreground">{formatCurrency(totalEntradas)}</p>
+            </div>
+
+            {/* Breakdown */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <ShoppingCart className="h-3.5 w-3.5 text-green-500/70" />
+                  <span>Vendas ({qtdVendasMes})</span>
+                </div>
+                <span className="font-medium text-foreground">{formatCurrency(entradasDeVendas)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <DollarSign className="h-3.5 w-3.5 text-green-500/70" />
+                  <span>Outras entradas</span>
+                </div>
+                <span className="font-medium text-foreground">{formatCurrency(outrasEntradas)}</span>
+              </div>
             </div>
           </div>
           <div className="bg-green-500/5 px-6 py-3 border-t border-green-500/10 flex justify-between items-center">
@@ -334,17 +397,35 @@ export default function Financeiro() {
 
         {/* Saídas Card */}
         <Card className="md:col-span-6 lg:col-span-4 bg-card/50 border-border/50 relative overflow-hidden flex flex-col">
-          <div className="p-6 pb-4 flex-1">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-6 pb-3 flex-1">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2 text-red-500 bg-red-500/10 px-3 py-1 rounded-full">
                  <ArrowDownRight className="h-4 w-4" />
                  <span className="text-xs font-semibold uppercase tracking-wider">Saídas</span>
               </div>
             </div>
             
-            <div className="space-y-1">
-               <p className="text-sm text-muted-foreground">Pago no Mês</p>
+            <div className="space-y-1 mb-4">
+               <p className="text-sm text-muted-foreground">Total no Mês</p>
                <p className="text-3xl font-bold text-foreground">{formatCurrency(totalSaidas)}</p>
+            </div>
+
+            {/* Breakdown */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Receipt className="h-3.5 w-3.5 text-red-500/70" />
+                  <span>Compras / Fornecedores</span>
+                </div>
+                <span className="font-medium text-foreground">{formatCurrency(saidasCompras)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <FileText className="h-3.5 w-3.5 text-red-500/70" />
+                  <span>Despesas / Outros</span>
+                </div>
+                <span className="font-medium text-foreground">{formatCurrency(outrasSaidas)}</span>
+              </div>
             </div>
           </div>
           <div className="bg-red-500/5 px-6 py-3 border-t border-red-500/10 flex justify-between items-center">

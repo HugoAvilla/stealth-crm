@@ -303,7 +303,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
       }
 
       if (saleData) {
-        await createSaleTransaction({
+        const tx = await createSaleTransaction({
           saleId: saleData.id,
           saleTotal: saleData.total,
           clientName: clientName,
@@ -312,6 +312,10 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           companyId: saleData.company_id,
           isPaid: true
         });
+        if (!tx) {
+          console.warn("[SlotDetailsDrawer] Falha ao registrar transação financeira automática no fechamento.");
+          toast.error("Vaga liberada, mas não foi possível gerar o lançamento financeiro automático. Verifique suas contas.");
+        }
       }
 
       // Optimistic upate

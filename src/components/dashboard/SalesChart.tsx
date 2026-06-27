@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, format } from 'date-fns';
 
 const paymentMethodLabels: Record<string, string> = {
   Pix: 'Pix',
@@ -45,15 +45,19 @@ export function SalesChart() {
         }
 
         const now = new Date();
-        const monthStart = startOfMonth(now).toISOString().split('T')[0];
-        const monthEnd = endOfMonth(now).toISOString().split('T')[0];
+        const monthStart = startOfMonth(now);
+        const monthEnd = endOfMonth(now);
+
+        const startDateStr = format(monthStart, 'yyyy-MM-dd');
+        const endDateStr = format(monthEnd, 'yyyy-MM-dd');
 
         const { data: salesData } = await supabase
           .from('sales')
           .select('total, payment_method')
           .eq('company_id', profile.company_id)
-          .gte('sale_date', monthStart)
-          .lte('sale_date', monthEnd);
+          .is('deleted_at', null)
+          .gte('sale_date', startDateStr)
+          .lte('sale_date', endDateStr);
 
         const breakdown: Record<string, number> = {};
         (salesData || []).forEach(sale => {

@@ -134,6 +134,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
   const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
   const [companyId, setCompanyId] = useState<number | null>(null);
+  const [originalAccountId, setOriginalAccountId] = useState<number | null>(null);
 
   useEffect(() => {
     if (open && sale) {
@@ -215,12 +216,13 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
 
       setCompanyId(profile.company_id);
 
-      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes] = await Promise.all([
+      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes, paymentsRes] = await Promise.all([
         supabase.from('clients').select('id, name, phone, email').eq('company_id', profile.company_id).order('name'),
         supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
         supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
         supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
-        supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true)
+        supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true),
+        supabase.from('sale_payments').select('account_id').eq('sale_id', sale.id).limit(1)
       ]);
 
       const regionsList = regionsRes.data || [];
@@ -245,6 +247,20 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
         return { ...rule, region_code: region?.region_code || null };
       });
       setConsumptionRules(rulesList);
+
+      const payData = paymentsRes.data;
+      if (payData && payData.length > 0 && payData[0].account_id) {
+        setOriginalAccountId(payData[0].account_id);
+      } else {
+        const { data: txData } = await supabase
+          .from('transactions')
+          .select('account_id')
+          .eq('sale_id', sale.id)
+          .limit(1);
+        if (txData && txData.length > 0 && txData[0].account_id) {
+          setOriginalAccountId(txData[0].account_id);
+        }
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -549,19 +565,22 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
 
       // Create financial transaction if sale is closed
       if (!isOpen) {
-        await createTransactionFromSale(
+        const txCreated = await createTransactionFromSale(
           sale.id,
           total,
           selectedClient?.name || 'Cliente',
           paymentMethod,
           format(saleDate, 'yyyy-MM-dd'),
           companyId,
-          undefined, // accountId — usa conta principal
+          originalAccountId || undefined, // accountId — usa conta original se houver
           undefined, // machineId
           undefined, // installments
           undefined, // netAmount
           true       // isPaid
         );
+        if (!txCreated) {
+          toast.error("Venda atualizada, mas não foi possível gerar o lançamento financeiro automático. Verifique suas contas.");
+        }
       }
 
       // Re-insert commission snapshots

@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import NewClientModal from '@/components/vendas/NewClientModal';
 import { FillSlotModal } from '@/components/espaco/FillSlotModal';
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, format } from 'date-fns';
 
 interface DashboardStats {
   totalSales: number;
@@ -76,30 +76,35 @@ const Dashboard = () => {
         }
 
         const now = new Date();
-        const monthStart = startOfMonth(now).toISOString();
-        const monthEnd = endOfMonth(now).toISOString();
+        const monthStart = startOfMonth(now);
+        const monthEnd = endOfMonth(now);
+
+        const startDateStr = format(monthStart, 'yyyy-MM-dd');
+        const endDateStr = format(monthEnd, 'yyyy-MM-dd');
 
         // Fetch sales for the current month
         const { data: salesData } = await supabase
           .from('sales')
           .select('total, is_open, sale_date')
           .eq('company_id', profile.company_id)
-          .gte('sale_date', monthStart.split('T')[0])
-          .lte('sale_date', monthEnd.split('T')[0]);
+          .is('deleted_at', null)
+          .gte('sale_date', startDateStr)
+          .lte('sale_date', endDateStr);
 
         // Fetch new clients for the current month
         const { count: newClientsCount } = await supabase
           .from('clients')
           .select('*', { count: 'exact', head: true })
           .eq('company_id', profile.company_id)
-          .gte('created_at', monthStart)
-          .lte('created_at', monthEnd);
+          .gte('created_at', monthStart.toISOString())
+          .lte('created_at', monthEnd.toISOString());
 
         // Fetch open sales (pending contacts)
         const { count: pendingCount } = await supabase
           .from('sales')
           .select('*', { count: 'exact', head: true })
           .eq('company_id', profile.company_id)
+          .is('deleted_at', null)
           .eq('is_open', true);
 
         const sales = salesData || [];
@@ -370,10 +375,10 @@ const Dashboard = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
-                  R$ {stats.monthlyProgress.toLocaleString('pt-BR')}
+                  R$ {stats.monthlyProgress.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
                 <span className="font-medium">
-                  R$ {stats.monthlyGoal.toLocaleString('pt-BR')}
+                  R$ {stats.monthlyGoal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
             </>

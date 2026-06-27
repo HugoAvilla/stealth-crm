@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // ===================================================
 // Serviço centralizado de transações financeiras
@@ -66,21 +67,41 @@ export interface ReverseTransactionResult {
 
 /**
  * Busca a conta principal da empresa.
- * Retorna o ID ou null se não encontrar.
+ * Retorna o ID ou a primeira conta ativa encontrada como fallback.
  */
 async function getMainAccountId(companyId: number): Promise<number | null> {
-  const { data, error } = await supabase
+  // 1. Tenta buscar a conta marcada como principal
+  const { data: mainAccount, error: mainError } = await supabase
     .from("accounts")
     .select("id")
     .eq("company_id", companyId)
     .eq("is_main", true)
-    .single();
+    .eq("is_active", true)
+    .maybeSingle();
 
-  if (error || !data) {
-    console.warn("[FinTx] Main account not found for company", companyId);
-    return null;
+  if (mainAccount) {
+    return mainAccount.id;
   }
-  return data.id;
+
+  // 2. Fallback: se não achar a principal, pega a primeira conta ativa disponível
+  const { data: fallbackAccount, error: fallbackError } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("is_active", true)
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (fallbackAccount) {
+    console.warn(
+      `[FinTx] Conta principal não encontrada para a empresa ${companyId}. Usando conta fallback ID: ${fallbackAccount.id}`
+    );
+    return fallbackAccount.id;
+  }
+
+  console.error("[FinTx] Nenhuma conta ativa encontrada para a empresa", companyId);
+  return null;
 }
 
 // ------- API Pública -------
@@ -116,6 +137,7 @@ export async function createTransaction(
 
   if (error) {
     console.error("[FinTx] Error creating transaction:", error);
+    toast.error(`Erro ao criar lançamento financeiro: ${error.message} (${error.code}) ${error.details || ''}`);
     return null;
   }
 

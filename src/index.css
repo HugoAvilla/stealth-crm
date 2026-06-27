@@ -102,6 +102,10 @@
     @apply border-border;
   }
 
+  html, body {
+    overscroll-behavior-y: none;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;

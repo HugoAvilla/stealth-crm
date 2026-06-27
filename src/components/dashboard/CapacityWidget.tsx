@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Car } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { format } from 'date-fns';
 
 export function CapacityWidget() {
   const { user } = useAuth();
@@ -26,7 +27,9 @@ export function CapacityWidget() {
           return;
         }
 
-        // Obter total_slots configurado e as vagas ativas
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+        // Obter total_slots configurado e as vagas ativas do dia atual
         const [settingsRes, spacesRes] = await Promise.all([
           supabase
             .from('company_settings')
