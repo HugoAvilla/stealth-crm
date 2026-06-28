@@ -139,21 +139,19 @@ const Login = () => {
 
   return <div className="min-h-screen flex">
     {/* Left Panel - Login Form */}
-    <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 md:px-16 lg:px-24 bg-background relative">
+    <div className="w-full lg:w-1/2 flex flex-col px-8 md:px-16 lg:px-24 bg-background py-8 min-h-screen">
       {/* Logo */}
-      <div className="absolute top-8 left-8 md:left-16 lg:left-24">
+      <div className="mb-12 md:mb-16">
         <div className="flex items-center gap-3">
           <Link to="/login">
             <img src={wfeLogo} alt="WFE Evolution" className="h-12 w-auto object-contain cursor-pointer" />
           </Link>
-          <span className="text-xl font-semibold tracking-tight">
-          </span>
         </div>
       </div>
 
       {/* Form Content */}
-      <div className="max-w-md w-full mx-auto animate-fade-in">
-        <div className="space-y-6">
+      <div className="flex-1 flex flex-col justify-center max-w-md w-full mx-auto animate-fade-in">
+        <div className="space-y-6 w-full">
           <div>
             <h1 className="text-4xl md:text-5xl font-light mb-3">
               {showSavedAccounts && savedCredentials.length > 0 ? 'Escolha uma conta.' : 'Bem-vindo.'}
