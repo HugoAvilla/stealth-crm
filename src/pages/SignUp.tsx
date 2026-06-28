@@ -207,7 +207,7 @@ export default function SignUp() {
               <div className="flex justify-center py-2">
                 <HCaptcha
                   ref={captchaRef}
-                  sitekey="34724568-8f44-4a36-adba-60c843d84452"
+                  sitekey="34724568-8f44-4a36-adba-60c843d04452"
                   onVerify={(token) => setCaptchaToken(token)}
                   onExpire={() => setCaptchaToken(null)}
                 />
