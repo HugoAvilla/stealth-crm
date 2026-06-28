@@ -186,9 +186,12 @@ export default function CompanyJoin() {
 
     } catch (error: any) {
       console.error('Error creating join request:', error);
+      const friendlyError = error?.message?.includes('new row violates row-level security policy')
+        ? 'Você já possui uma solicitação ou não tem permissão para esta empresa.'
+        : error.message || 'Tente novamente';
       toast({
         title: 'Erro ao enviar solicitação',
-        description: error.message || 'Tente novamente',
+        description: friendlyError,
         variant: 'destructive',
       });
     } finally {

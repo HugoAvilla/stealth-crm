@@ -12,7 +12,7 @@ export interface PDFRecord {
 
 const STORAGE_KEY = 'wfe_downloaded_pdfs';
 
-const SUPABASE_PROJECT_URL = "https://msdpmhtdjyoqdmjwunkm.supabase.co";
+const SUPABASE_PROJECT_URL = import.meta.env.VITE_SUPABASE_URL;
 
 export async function uploadPDFToStorage(blob: Blob, storagePath: string): Promise<string | null> {
   try {

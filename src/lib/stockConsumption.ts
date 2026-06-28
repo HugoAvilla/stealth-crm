@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createSaleTransaction } from "@/lib/financialTransactions";
+import { logger } from "./logger";
 
 interface ConsumptionResult {
   success: boolean;
@@ -48,7 +49,7 @@ export async function consumeStockForSale(
       .single();
 
     if (vehicleError || !vehicle?.size) {
-      console.warn("Vehicle size not found, skipping stock consumption");
+      logger.warn("Vehicle size not found, skipping stock consumption");
       return result;
     }
 
@@ -61,7 +62,7 @@ export async function consumeStockForSale(
       .eq("company_id", companyId);
 
     if (rulesError || !rules || rules.length === 0) {
-      console.warn("No consumption rules configured");
+      logger.warn("No consumption rules configured");
       return result;
     }
 
@@ -73,7 +74,7 @@ export async function consumeStockForSale(
       .eq("is_active", true);
 
     if (materialsError || !materials) {
-      console.error("Error fetching materials:", materialsError);
+      logger.error("Error fetching materials:", materialsError);
       return result;
     }
 
@@ -127,7 +128,7 @@ export async function consumeStockForSale(
         });
 
         if (rpcError) {
-          console.error("Error consuming open roll:", rpcError);
+          logger.error("Error consuming open roll:", rpcError);
           result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
           continue;
         }
@@ -157,7 +158,7 @@ export async function consumeStockForSale(
           });
 
         if (movementError) {
-          console.error("Error registering stock movement:", movementError);
+          logger.error("Error registering stock movement:", movementError);
           result.warnings.push(
             `Erro ao registrar consumo de ${material.name}`
           );
@@ -186,7 +187,7 @@ export async function consumeStockForSale(
 
     return result;
   } catch (error) {
-    console.error("Error in consumeStockForSale:", error);
+    logger.error("Error in consumeStockForSale:", error);
     result.success = false;
     return result;
   }
@@ -225,7 +226,7 @@ export async function consumeStockForDetailedSale(
       .not("product_type_id", "is", null);
 
     if (materialsError) {
-      console.error("Error fetching materials:", materialsError);
+      logger.error("Error fetching materials:", materialsError);
       result.warnings.push("Erro ao buscar materiais do estoque");
       return result;
     }
@@ -284,7 +285,7 @@ export async function consumeStockForDetailedSale(
         });
 
         if (rpcError) {
-          console.error("Error consuming open roll:", rpcError);
+          logger.error("Error consuming open roll:", rpcError);
           result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
           continue;
         }
@@ -314,7 +315,7 @@ export async function consumeStockForDetailedSale(
           });
 
         if (movementError) {
-          console.error("Error registering stock movement:", movementError);
+          logger.error("Error registering stock movement:", movementError);
           result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
           continue;
         }
@@ -341,7 +342,7 @@ export async function consumeStockForDetailedSale(
 
     return result;
   } catch (error) {
-    console.error("Error in consumeStockForDetailedSale:", error);
+    logger.error("Error in consumeStockForDetailedSale:", error);
     result.success = false;
     return result;
   }
@@ -383,7 +384,7 @@ export async function createTransactionFromSale(
 
     return result !== null;
   } catch (error) {
-    console.error("Error in createTransactionFromSale:", error);
+    logger.error("Error in createTransactionFromSale:", error);
     return false;
   }
 }

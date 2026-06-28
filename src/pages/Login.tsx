@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, X, UserCircle2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 import jetFighterImage from '@/assets/jet-fighter.jpg';
 import wfeLogo from '@/assets/wfe-logo.png';
 
@@ -63,6 +64,8 @@ const Login = () => {
   const {
     toast
   } = useToast();
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HCaptcha>(null);
 
   useEffect(() => {
     const creds = getSavedCredentials();
@@ -83,9 +86,11 @@ const Login = () => {
     setIsLoading(true);
     const {
       error
-    } = await signIn(email, password);
+    } = await signIn(email, password, captchaToken);
     setIsLoading(false);
     if (error) {
+      captchaRef.current?.resetCaptcha();
+      setCaptchaToken(null);
       let errorMessage = "Email ou senha incorretos.";
       if (error.message.includes('Invalid login credentials')) {
         errorMessage = "Email ou senha incorretos.";
@@ -245,8 +250,19 @@ const Login = () => {
                   </button>
                 </div>
 
+                {/* hCaptcha Component */}
+                <div className="flex justify-center py-2">
+                  <HCaptcha
+                    ref={captchaRef}
+                    sitekey="34724568-8f44-4a36-adba-60c843d84452"
+                    onVerify={(token) => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken(null)}
+                    theme="dark"
+                  />
+                </div>
+
                 {/* Submit Button */}
-                <Button type="submit" className="w-full h-14 text-base font-medium uppercase tracking-wider" disabled={isLoading}>
+                <Button type="submit" className="w-full h-14 text-base font-medium uppercase tracking-wider" disabled={isLoading || !captchaToken}>
                   {isLoading ? <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Entrando...

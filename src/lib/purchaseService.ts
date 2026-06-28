@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { createExpenseTransaction, settleTransaction, reverseTransaction } from "./financialTransactions";
+import { logger } from "./logger";
 
 export interface Supplier {
   id: number;
@@ -134,7 +135,7 @@ export async function createPurchase(params: CreatePurchaseParams): Promise<{ id
       .single();
 
     if (purchaseError || !purchase) {
-      console.error("[PurchaseService] Error creating purchase:", purchaseError);
+      logger.error("[PurchaseService] Error creating purchase:", purchaseError);
       return null;
     }
 
@@ -157,7 +158,7 @@ export async function createPurchase(params: CreatePurchaseParams): Promise<{ id
         .insert(itemsToInsert);
 
       if (itemsError) {
-        console.error("[PurchaseService] Error creating purchase items:", itemsError);
+        logger.error("[PurchaseService] Error creating purchase items:", itemsError);
         // Exclusão em cascata cuidará de limpar se deletarmos, mas continuaremos por ser opcional ou tratar erro.
       }
     }
@@ -186,7 +187,7 @@ export async function createPurchase(params: CreatePurchaseParams): Promise<{ id
         .single();
 
       if (instError || !installment) {
-        console.error("[PurchaseService] Error creating purchase installment:", instError);
+        logger.error("[PurchaseService] Error creating purchase installment:", instError);
         continue;
       }
 
@@ -216,7 +217,7 @@ export async function createPurchase(params: CreatePurchaseParams): Promise<{ id
 
     return { id: purchaseId };
   } catch (error) {
-    console.error("[PurchaseService] Exception in createPurchase:", error);
+    logger.error("[PurchaseService] Exception in createPurchase:", error);
     return null;
   }
 }
@@ -233,7 +234,7 @@ export async function recalculatePurchaseStatus(purchaseId: number): Promise<voi
       .eq("purchase_id", purchaseId);
 
     if (error || !installments) {
-      console.error("[PurchaseService] Error fetching installments for status recalculation:", error);
+      logger.error("[PurchaseService] Error fetching installments for status recalculation:", error);
       return;
     }
 
@@ -271,7 +272,7 @@ export async function recalculatePurchaseStatus(purchaseId: number): Promise<voi
       })
       .eq("id", purchaseId);
   } catch (error) {
-    console.error("[PurchaseService] Exception in recalculatePurchaseStatus:", error);
+    logger.error("[PurchaseService] Exception in recalculatePurchaseStatus:", error);
   }
 }
 
@@ -288,7 +289,7 @@ export async function payInstallment(installmentId: number): Promise<boolean> {
       .single();
 
     if (error || !installment) {
-      console.error("[PurchaseService] Error fetching installment for payment:", error);
+      logger.error("[PurchaseService] Error fetching installment for payment:", error);
       return false;
     }
 
@@ -310,7 +311,7 @@ export async function payInstallment(installmentId: number): Promise<boolean> {
       .eq("id", installmentId);
 
     if (updateError) {
-      console.error("[PurchaseService] Error updating installment status:", updateError);
+      logger.error("[PurchaseService] Error updating installment status:", updateError);
       return false;
     }
 
@@ -322,7 +323,7 @@ export async function payInstallment(installmentId: number): Promise<boolean> {
       });
 
       if (!settled) {
-        console.warn("[PurchaseService] Could not settle financial transaction for installment", installmentId);
+        logger.warn("[PurchaseService] Could not settle financial transaction for installment", installmentId);
       }
     }
 
@@ -330,7 +331,7 @@ export async function payInstallment(installmentId: number): Promise<boolean> {
     await recalculatePurchaseStatus(installment.purchase_id);
     return true;
   } catch (error) {
-    console.error("[PurchaseService] Exception in payInstallment:", error);
+    logger.error("[PurchaseService] Exception in payInstallment:", error);
     return false;
   }
 }
@@ -348,7 +349,7 @@ export async function reverseInstallment(installmentId: number): Promise<boolean
       .single();
 
     if (error || !installment) {
-      console.error("[PurchaseService] Error fetching installment for reversal:", error);
+      logger.error("[PurchaseService] Error fetching installment for reversal:", error);
       return false;
     }
 
@@ -367,7 +368,7 @@ export async function reverseInstallment(installmentId: number): Promise<boolean
       .eq("id", installmentId);
 
     if (updateError) {
-      console.error("[PurchaseService] Error reversing installment status:", updateError);
+      logger.error("[PurchaseService] Error reversing installment status:", updateError);
       return false;
     }
 
@@ -375,7 +376,7 @@ export async function reverseInstallment(installmentId: number): Promise<boolean
     if (installment.transaction_id) {
       const reversed = await reverseTransaction(installment.transaction_id, "unpay");
       if (!reversed.success) {
-        console.warn("[PurchaseService] Could not reverse financial transaction:", reversed.error);
+        logger.warn("[PurchaseService] Could not reverse financial transaction:", reversed.error);
       }
     }
 
@@ -383,7 +384,7 @@ export async function reverseInstallment(installmentId: number): Promise<boolean
     await recalculatePurchaseStatus(installment.purchase_id);
     return true;
   } catch (error) {
-    console.error("[PurchaseService] Exception in reverseInstallment:", error);
+    logger.error("[PurchaseService] Exception in reverseInstallment:", error);
     return false;
   }
 }
@@ -401,7 +402,7 @@ export async function deletePurchase(purchaseId: number, companyId: number): Pro
       .eq("purchase_id", purchaseId);
 
     if (instError) {
-      console.error("[PurchaseService] Error fetching installments for delete:", instError);
+      logger.error("[PurchaseService] Error fetching installments for delete:", instError);
       return false;
     }
 
@@ -411,7 +412,7 @@ export async function deletePurchase(purchaseId: number, companyId: number): Pro
         if (inst.transaction_id) {
           const revResult = await reverseTransaction(inst.transaction_id, "delete");
           if (!revResult.success) {
-            console.warn("[PurchaseService] Could not delete financial transaction:", revResult.error);
+            logger.warn("[PurchaseService] Could not delete financial transaction:", revResult.error);
           }
         }
       }
@@ -430,7 +431,7 @@ export async function deletePurchase(purchaseId: number, companyId: number): Pro
         .remove(pathsToDelete);
 
       if (storageError) {
-        console.warn("[PurchaseService] Could not delete physical files from storage:", storageError);
+        logger.warn("[PurchaseService] Could not delete physical files from storage:", storageError);
       }
     }
 
@@ -444,13 +445,13 @@ export async function deletePurchase(purchaseId: number, companyId: number): Pro
       .eq("company_id", companyId);
 
     if (deleteError) {
-      console.error("[PurchaseService] Error deleting purchase:", deleteError);
+      logger.error("[PurchaseService] Error deleting purchase:", deleteError);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error("[PurchaseService] Exception in deletePurchase:", error);
+    logger.error("[PurchaseService] Exception in deletePurchase:", error);
     return false;
   }
 }
@@ -476,7 +477,7 @@ export async function fetchPurchaseMetrics(companyId: number): Promise<PurchaseM
       .eq("purchases.company_id", companyId);
 
     if (pendingError) {
-      console.error("[PurchaseService] Error fetching pending installments for metrics:", pendingError);
+      logger.error("[PurchaseService] Error fetching pending installments for metrics:", pendingError);
     }
 
     const pendingInstallments = allPending || [];
@@ -497,7 +498,7 @@ export async function fetchPurchaseMetrics(companyId: number): Promise<PurchaseM
       .eq("company_id", companyId);
 
     if (purchasesError) {
-      console.error("[PurchaseService] Error fetching purchases for metrics:", purchasesError);
+      logger.error("[PurchaseService] Error fetching purchases for metrics:", purchasesError);
     }
 
     const purchasesList = purchases || [];
@@ -535,7 +536,7 @@ export async function fetchPurchaseMetrics(companyId: number): Promise<PurchaseM
       chartData,
     };
   } catch (error) {
-    console.error("[PurchaseService] Exception in fetchPurchaseMetrics:", error);
+    logger.error("[PurchaseService] Exception in fetchPurchaseMetrics:", error);
     return {
       totalMonthDue: 0,
       monthBillsCount: 0,
@@ -566,7 +567,7 @@ export async function uploadAttachment(
       .upload(filePath, file);
 
     if (uploadError) {
-      console.error("[PurchaseService] Error uploading file to storage:", uploadError);
+      logger.error("[PurchaseService] Error uploading file to storage:", uploadError);
       return null;
     }
 
@@ -585,7 +586,7 @@ export async function uploadAttachment(
       });
 
     if (dbError) {
-      console.error("[PurchaseService] Error saving attachment metadata:", dbError);
+      logger.error("[PurchaseService] Error saving attachment metadata:", dbError);
       // Opcional: remover do storage se falhar
       await supabase.storage.from("purchase-attachments").remove([filePath]);
       return null;
@@ -593,7 +594,7 @@ export async function uploadAttachment(
 
     return filePath;
   } catch (error) {
-    console.error("[PurchaseService] Exception in uploadAttachment:", error);
+    logger.error("[PurchaseService] Exception in uploadAttachment:", error);
     return null;
   }
 }

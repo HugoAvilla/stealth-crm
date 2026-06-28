@@ -21,6 +21,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { logger } from "@/lib/logger";
 import { reverseAllSaleTransactions } from "@/lib/financialTransactions";
 
 interface PaidExitedVehicle {
@@ -77,9 +78,9 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
       const { data, error } = await supabase
         .from("spaces")
         .select(`
-          *,
-          client:clients(*),
-          vehicle:vehicles(*),
+          id, name, client_id, vehicle_id, sale_id, entry_date, entry_time, exit_date, exit_time, payment_status, observations, company_id,
+          client:clients(id, name, phone),
+          vehicle:vehicles(id, brand, model, plate, year),
           sale:sales(id, total)
         `)
         .eq("company_id", companyId)
@@ -90,7 +91,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
 
       setVehicles((data || []) as unknown as PaidExitedVehicle[]);
     } catch (error) {
-      console.error("Erro ao buscar veículos pagos:", error);
+      logger.error("Erro ao buscar veículos pagos:", error);
       toast({
         title: "Erro ao carregar veículos pagos",
         variant: "destructive",
@@ -125,27 +126,27 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
           .from("service_items_detailed")
           .delete()
           .eq("sale_id", space.sale_id);
-        if (sidError) console.error("Erro ao deletar service_items_detailed:", sidError);
+        if (sidError) logger.error("Erro ao deletar service_items_detailed:", sidError);
 
         // Delete sale_items linked to the sale
         const { error: siError } = await supabase
           .from("sale_items")
           .delete()
           .eq("sale_id", space.sale_id);
-        if (siError) console.error("Erro ao deletar sale_items:", siError);
+        if (siError) logger.error("Erro ao deletar sale_items:", siError);
 
         // Delete sale_commissions linked to the sale
         const { error: scError } = await supabase
           .from("sale_commissions")
           .delete()
           .eq("sale_id", space.sale_id);
-        if (scError) console.error("Erro ao deletar sale_commissions:", scError);
+        if (scError) logger.error("Erro ao deletar sale_commissions:", scError);
 
         // Delete transactions linked to the sale via centralized service
         // The trigger handles balance correction on DELETE
         const { count: reversedTxs } = await reverseAllSaleTransactions(space.sale_id, "delete");
         if (reversedTxs > 0) {
-          console.log(`[PaidExited] Reversed ${reversedTxs} transactions for sale ${space.sale_id}`);
+          logger.log(`[PaidExited] Reversed ${reversedTxs} transactions for sale ${space.sale_id}`);
         }
 
         // Delete warranties linked to the sale
@@ -153,7 +154,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
           .from("warranties")
           .delete()
           .eq("sale_id", space.sale_id);
-        if (wError) console.error("Erro ao deletar warranties:", wError);
+        if (wError) logger.error("Erro ao deletar warranties:", wError);
 
         // Finally delete the sale itself
         const { error: saleError } = await supabase
@@ -162,7 +163,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
           .eq("id", space.sale_id);
 
         if (saleError) {
-          console.error("Erro ao deletar venda vinculada:", saleError);
+          logger.error("Erro ao deletar venda vinculada:", saleError);
           // Sale deletion failed but space was already reverted — log but don't throw
         }
       }
@@ -173,7 +174,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
       });
       fetchPaidExitedVehicles();
     } catch (error) {
-      console.error("Erro ao reverter vaga:", error);
+      logger.error("Erro ao reverter vaga:", error);
       toast({
         title: "Erro ao reverter",
         description: "Não foi possível reverter a vaga.",
@@ -198,7 +199,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
       });
       fetchPaidExitedVehicles();
     } catch (error) {
-      console.error("Erro ao excluir registro:", error);
+      logger.error("Erro ao excluir registro:", error);
       toast({
         title: "Erro ao excluir",
         description: "Não foi possível excluir o registro.",

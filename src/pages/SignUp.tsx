@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Loader2, Plane, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import jetFighter from '@/assets/jet-fighter.jpg';
 import PhoneInputWithDDI from '@/components/ui/PhoneInputWithDDI';
 import { supabase } from '@/integrations/supabase/client';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 
 export default function SignUp() {
   const [name, setName] = useState('');
@@ -25,6 +26,8 @@ export default function SignUp() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HCaptcha>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,11 +53,13 @@ export default function SignUp() {
     setIsLoading(true);
     setIsCheckingPassword(true);
     
-    const { error, isPwnedPassword } = await signUp(email, password, name, phone);
+    const { error, isPwnedPassword } = await signUp(email, password, name, phone, captchaToken);
     
     setIsCheckingPassword(false);
     
     if (error) {
+      captchaRef.current?.resetCaptcha();
+      setCaptchaToken(null);
       toast({
         title: isPwnedPassword ? 'Senha comprometida' : 'Erro ao criar conta',
         description: error.message,
@@ -198,7 +203,17 @@ export default function SignUp() {
                 </label>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading || !acceptedTerms}>
+              {/* hCaptcha Component */}
+              <div className="flex justify-center py-2">
+                <HCaptcha
+                  ref={captchaRef}
+                  sitekey="34724568-8f44-4a36-adba-60c843d84452"
+                  onVerify={(token) => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken(null)}
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isLoading || !acceptedTerms || !captchaToken}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

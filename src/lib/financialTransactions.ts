@@ -94,9 +94,6 @@ async function getMainAccountId(companyId: number): Promise<number | null> {
     .maybeSingle();
 
   if (fallbackAccount) {
-    console.warn(
-      `[FinTx] Conta principal não encontrada para a empresa ${companyId}. Usando conta fallback ID: ${fallbackAccount.id}`
-    );
     return fallbackAccount.id;
   }
 
@@ -137,7 +134,7 @@ export async function createTransaction(
 
   if (error) {
     console.error("[FinTx] Error creating transaction:", error);
-    toast.error(`Erro ao criar lançamento financeiro: ${error.message} (${error.code}) ${error.details || ''}`);
+    toast.error("Ocorreu um erro ao criar o lançamento financeiro. Tente novamente.");
     return null;
   }
 

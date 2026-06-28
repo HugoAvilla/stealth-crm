@@ -106,7 +106,6 @@ const Vendas = () => {
         console.error('SUPABASE SALES ERROR:', error);
       }
       if (!error && data) {
-        console.log('SUPABASE SALES DATA:', data);
         // Transform data to match SaleWithDetails interface
         const transformedSales: SaleWithDetails[] = data.map((sale: any) => ({
           id: sale.id,

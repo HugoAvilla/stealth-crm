@@ -36,6 +36,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import { Skeleton } from "@/components/ui/skeleton";
 import { settleTransaction, reverseTransaction } from "@/lib/financialTransactions";
 
@@ -157,7 +158,7 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
 
       setBoletos(mappedBoletos);
     } catch (error) {
-      console.error("Error fetching boletos:", error);
+      logger.error("Error fetching boletos:", error);
       toast.error("Erro ao carregar boletos");
     } finally {
       setLoading(false);
@@ -168,14 +169,14 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
     try {
       const { data, error } = await supabase
         .from("boleto_installments")
-        .select("*")
+        .select("id, boleto_id, installment_number, amount, due_date, status, paid_amount, payment_date, transaction_id")
         .eq("boleto_id", boletoId)
         .order("installment_number");
 
       if (error) throw error;
       setInstallments(prev => ({ ...prev, [boletoId]: data || [] }));
     } catch (error) {
-      console.error("Error fetching installments:", error);
+      logger.error("Error fetching installments:", error);
     }
   };
 

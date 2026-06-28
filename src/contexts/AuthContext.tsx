@@ -26,8 +26,8 @@ interface AuthContextType {
   session: Session | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, name: string, phone?: string) => Promise<{ error: Error | null; isPwnedPassword?: boolean }>;
+  signIn: (email: string, password: string, captchaToken?: string | null) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, name: string, phone?: string, captchaToken?: string | null) => Promise<{ error: Error | null; isPwnedPassword?: boolean }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -196,11 +196,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string): Promise<{ error: Error | null }> => {
+  const signIn = async (email: string, password: string, captchaToken?: string | null): Promise<{ error: Error | null }> => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+          captchaToken: captchaToken || undefined,
+        }
       });
 
       if (error) {
@@ -213,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, name: string, phone?: string): Promise<{ error: Error | null; isPwnedPassword?: boolean }> => {
+  const signUp = async (email: string, password: string, name: string, phone?: string, captchaToken?: string | null): Promise<{ error: Error | null; isPwnedPassword?: boolean }> => {
     try {
       // Validate name before sending to server
       const trimmedName = name.trim();
@@ -264,6 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: {
           emailRedirectTo: redirectUrl,
+          captchaToken: captchaToken || undefined,
           data: {
             name: trimmedName,
             phone: trimmedPhone

@@ -188,9 +188,12 @@ export default function CompanySetup() {
 
     } catch (error: any) {
       console.error('Error creating company:', error);
+      const friendlyError = error?.message?.includes('new row violates row-level security policy')
+        ? 'Erro de permissão ao criar empresa. Verifique sua conta.'
+        : error.message || 'Tente novamente';
       toast({
         title: 'Erro ao cadastrar empresa',
-        description: error.message || 'Tente novamente',
+        description: friendlyError,
         variant: 'destructive'
       });
     } finally {

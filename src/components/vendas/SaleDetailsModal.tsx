@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { SaleWithDetails, DetailedServiceItemDB } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
+import { getFriendlyErrorMessage } from "@/lib/logger";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import PdfA4Modal from "@/components/vendas/PdfA4Modal";
@@ -138,9 +139,9 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
     queryKey: ['sale-commissions', sale?.id],
     queryFn: async () => {
       if (!sale?.id) return [];
-      const { data, error } = await supabase
+      const { data: commissions, error: error } = await supabase
         .from('sale_commissions')
-        .select('*')
+        .select('id, person_name_snapshot, person_type, percentage_snapshot, commission_amount')
         .eq('sale_id', sale.id);
       
       if (error) {
@@ -181,7 +182,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
     try {
       const { data: clientData, error: clientError } = await supabase
         .from("clients")
-        .select("*")
+        .select("id, name, phone, email, cpf_cnpj, birth_date, cep, street, number, complement, neighborhood, city, state, origem, created_at, company_id")
         .eq("id", client.id)
         .single();
       
@@ -189,7 +190,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
 
       const { data: vehiclesData } = await supabase
         .from("vehicles")
-        .select("*")
+        .select("id, brand, model, plate, year, size, client_id, created_at")
         .eq("client_id", client.id);
 
       const { data: salesData } = await supabase
@@ -245,7 +246,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       console.error("Erro ao enviar venda para a lixeira:", error);
       toast({
         title: "Erro ao excluir",
-        description: error.message || "Ocorreu um erro ao excluir a venda.",
+        description: getFriendlyErrorMessage(error, "Ocorreu um erro ao excluir a venda."),
         variant: "destructive",
       });
     } finally {
@@ -279,7 +280,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       console.error("Erro ao restaurar venda:", error);
       toast({
         title: "Erro ao restaurar",
-        description: error.message || "Ocorreu um erro ao restaurar a venda.",
+        description: getFriendlyErrorMessage(error, "Ocorreu um erro ao restaurar a venda."),
         variant: "destructive",
       });
     } finally {
@@ -323,7 +324,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       console.error("Erro na exclusão definitiva:", error);
       toast({
         title: "Erro ao excluir definitivamente",
-        description: error.message || "Ocorreu um erro ao excluir a venda permanentemente.",
+        description: getFriendlyErrorMessage(error, "Ocorreu um erro ao excluir a venda permanentemente."),
         variant: "destructive",
       });
     } finally {

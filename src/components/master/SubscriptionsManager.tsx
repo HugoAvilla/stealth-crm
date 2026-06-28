@@ -61,6 +61,7 @@ import {
   ArrowLeftRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getFriendlyErrorMessage } from "@/lib/logger";
 import UpgradesTab from "./UpgradesTab";
 import PlanPricesTab from "./PlanPricesTab";
 
@@ -193,7 +194,7 @@ const SubscriptionsManager = () => {
       fetchSubscriptions();
     } catch (error: any) {
       console.error("Error changing price:", error);
-      toast({ title: "Erro ao alterar preço", description: error?.message || error?.details || JSON.stringify(error), variant: "destructive" });
+      toast({ title: "Erro ao alterar preço", description: getFriendlyErrorMessage(error, "Não foi possível alterar o preço."), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -217,7 +218,7 @@ const SubscriptionsManager = () => {
       fetchSubscriptions();
     } catch (error: any) {
       console.error("Error changing global price:", error);
-      toast({ title: "Erro ao alterar preço global", description: `[${error?.code || 'UNKNOWN'}] ${error?.message || error?.details || error?.hint || JSON.stringify(error)}`, variant: "destructive" });
+      toast({ title: "Erro ao alterar preço global", description: getFriendlyErrorMessage(error, "Não foi possível alterar o preço global."), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -241,7 +242,7 @@ const SubscriptionsManager = () => {
       fetchSubscriptions();
     } catch (error: any) {
       console.error("Error changing global expiration:", error);
-      toast({ title: "Erro ao alterar expiração global", description: error?.message || error?.details || JSON.stringify(error), variant: "destructive" });
+      toast({ title: "Erro ao alterar expiração global", description: getFriendlyErrorMessage(error, "Não foi possível alterar a expiração global."), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -266,7 +267,7 @@ const SubscriptionsManager = () => {
       fetchSubscriptions();
     } catch (error: any) {
       console.error("Error changing expiry:", error);
-      toast({ title: "Erro ao alterar data de expiração", description: error?.message || error?.details || JSON.stringify(error), variant: "destructive" });
+      toast({ title: "Erro ao alterar data de expiração", description: getFriendlyErrorMessage(error, "Não foi possível alterar a expiração."), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -305,7 +306,7 @@ const SubscriptionsManager = () => {
       fetchSubscriptions();
     } catch (error: any) {
       console.error("Error changing status:", error);
-      toast({ title: "Erro ao alterar status", description: error?.message || error?.details || JSON.stringify(error), variant: "destructive" });
+      toast({ title: "Erro ao alterar status", description: getFriendlyErrorMessage(error, "Não foi possível alterar o status."), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -329,7 +330,7 @@ const SubscriptionsManager = () => {
       fetchSubscriptions();
     } catch (error: any) {
       console.error("Error changing member limit:", error);
-      toast({ title: "Erro ao alterar limite de membros", description: error?.message || error?.details || JSON.stringify(error), variant: "destructive" });
+      toast({ title: "Erro ao alterar limite de membros", description: getFriendlyErrorMessage(error, "Não foi possível alterar o limite de membros."), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -362,7 +363,7 @@ const SubscriptionsManager = () => {
       fetchSubscriptions();
     } catch (error: any) {
       console.error("Error changing plan:", error);
-      toast({ title: "Erro ao alterar plano", description: error?.message || JSON.stringify(error), variant: "destructive" });
+      toast({ title: "Erro ao alterar plano", description: getFriendlyErrorMessage(error, "Não foi possível alterar o plano."), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -384,7 +385,7 @@ const SubscriptionsManager = () => {
       fetchSubscriptions();
     } catch (error: any) {
       console.error("Error deleting user:", error);
-      toast({ title: "Erro ao excluir usuário", description: error.message || "Tente novamente", variant: "destructive" });
+      toast({ title: "Erro ao excluir usuário", description: getFriendlyErrorMessage(error, "Não foi possível excluir o usuário."), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
