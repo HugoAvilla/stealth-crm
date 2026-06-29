@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Check, X } from "lucide-react";
+import { Check, X, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 type PlanPrice = {
@@ -15,7 +15,7 @@ type PlanPrice = {
 
 export default function PlanSelection() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [isAnnual, setIsAnnual] = useState(false);
   const [prices, setPrices] = useState<PlanPrice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,8 +120,24 @@ export default function PlanSelection() {
 
   const currentPlan = user?.planCode || 'basic';
 
+  const handleBack = async () => {
+    if (isUpgrade) {
+      navigate(-1);
+    } else {
+      await signOut();
+      navigate("/login");
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 relative">
+      <button
+        onClick={handleBack}
+        className="absolute top-4 left-4 sm:top-6 sm:left-6 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+        aria-label="Voltar"
+      >
+        <ArrowLeft className="w-6 h-6" />
+      </button>
       <div className="max-w-7xl mx-auto">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
