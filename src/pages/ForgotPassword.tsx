@@ -36,9 +36,7 @@ const ForgotPassword = () => {
         error
       } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
-        options: {
-          captchaToken: captchaToken || undefined
-        }
+        captchaToken: captchaToken || undefined
       });
       if (error) {
         throw error;
