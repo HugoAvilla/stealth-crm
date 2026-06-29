@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import wfeLogo from '@/assets/wfe-logo.png';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
+
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HCaptcha>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const {
@@ -31,7 +35,10 @@ const ForgotPassword = () => {
       const {
         error
       } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl
+        redirectTo: redirectUrl,
+        options: {
+          captchaToken: captchaToken || undefined
+        }
       });
       if (error) {
         throw error;
@@ -43,6 +50,8 @@ const ForgotPassword = () => {
       });
     } catch (error: any) {
       console.error('Error sending reset email:', error);
+      captchaRef.current?.resetCaptcha();
+      setCaptchaToken(null);
       toast({
         title: "Erro ao enviar email",
         description: error.message || "Tente novamente mais tarde.",
@@ -107,7 +116,18 @@ const ForgotPassword = () => {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                {/* hCaptcha Component */}
+                <div className="flex justify-center py-2">
+                  <HCaptcha
+                    ref={captchaRef}
+                    sitekey="34724568-8f44-4a36-adba-60c843d04452"
+                    onVerify={(token) => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken(null)}
+                    theme="dark"
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isLoading || !captchaToken}>
                   {isLoading ? <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Enviando...
