@@ -16,9 +16,10 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
-import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X, Sliders, ChevronsUpDown, CalendarIcon } from "lucide-react";
+import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X, Sliders, ChevronsUpDown, CalendarIcon, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
@@ -31,6 +32,8 @@ interface FillSlotModalProps {
   onOpenChange: (open: boolean) => void;
   onSlotFilled?: () => void;
   preselectedDate?: Date;
+  totalSlots?: number;
+  occupiedCount?: number;
 }
 
 interface ClientVehicle {
@@ -51,7 +54,7 @@ interface VehicleRegion {
   region_code?: string | null;
 }
 
-export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDate }: FillSlotModalProps) {
+export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDate, totalSlots, occupiedCount }: FillSlotModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const companyId = user?.companyId;
@@ -549,6 +552,28 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
         </DialogHeader>
 
         <div className="space-y-6">
+          {totalSlots !== undefined && occupiedCount !== undefined && occupiedCount >= totalSlots && (
+            <Alert 
+              variant={occupiedCount > totalSlots ? "destructive" : "default"} 
+              className={cn(
+                "transition-all duration-300 shadow-md border-2",
+                occupiedCount > totalSlots 
+                  ? "bg-red-500/10 border-red-500/30 text-red-200" 
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-200"
+              )}
+            >
+              <AlertTriangle className={cn(
+                "h-5 w-5 animate-pulse shrink-0",
+                occupiedCount > totalSlots ? "text-red-500" : "text-amber-500"
+              )} />
+              <AlertTitle className="font-bold text-base ml-2">
+                {occupiedCount > totalSlots ? "Limite de Vagas Excedido!" : "Limite de Vagas Atingido!"}
+              </AlertTitle>
+              <AlertDescription className="text-sm opacity-90 mt-1 ml-2">
+                O limite de vagas ({totalSlots}) do seu estabelecimento foi {occupiedCount > totalSlots ? "excedido" : "atingido"}. Para que uma nova vaga fique disponível, outra vaga deve encerrar o serviço.
+              </AlertDescription>
+            </Alert>
+          )}
           {/* Nome da vaga */}
           <div className="space-y-2">
             <Label>Nome da vaga (opcional)</Label>

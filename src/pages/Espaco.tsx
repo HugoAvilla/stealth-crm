@@ -21,6 +21,7 @@ import UnpaidExitedVehicles from "@/components/espaco/UnpaidExitedVehicles";
 import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   BRAZIL_CALENDAR_EVENT_STYLES,
   getBrazilCalendarTitle,
@@ -291,12 +292,33 @@ export default function Espaco() {
             <Card className="bg-card/50 border-border/50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-green-500/10">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    availableCount < 0 
+                      ? "bg-red-500/10" 
+                      : availableCount === 0 
+                        ? "bg-amber-500/10" 
+                        : "bg-green-500/10"
+                  )}>
+                    {availableCount <= 0 ? (
+                      <AlertTriangle className={cn(
+                        "h-5 w-5",
+                        availableCount < 0 ? "text-red-500" : "text-amber-500"
+                      )} />
+                    ) : (
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Disponíveis</p>
-                    <p className="text-2xl font-bold text-green-500">{availableCount}</p>
+                    <p className={cn(
+                      "text-2xl font-bold",
+                      availableCount < 0 
+                        ? "text-red-500" 
+                        : availableCount === 0 
+                          ? "text-amber-500" 
+                          : "text-green-500"
+                    )}>{availableCount}</p>
                   </div>
                 </div>
               </CardContent>
@@ -316,6 +338,29 @@ export default function Espaco() {
               </CardContent>
             </Card>
           </div>
+
+          {occupiedCount >= totalSlots && (
+            <Alert 
+              variant={occupiedCount > totalSlots ? "destructive" : "default"} 
+              className={cn(
+                "transition-all duration-300 shadow-md border-2",
+                occupiedCount > totalSlots 
+                  ? "bg-red-500/10 border-red-500/30 text-red-200" 
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-200"
+              )}
+            >
+              <AlertTriangle className={cn(
+                "h-5 w-5 animate-pulse shrink-0",
+                occupiedCount > totalSlots ? "text-red-500" : "text-amber-500"
+              )} />
+              <AlertTitle className="font-bold text-base ml-2">
+                {occupiedCount > totalSlots ? "Limite de Vagas Excedido!" : "Limite de Vagas Atingido!"}
+              </AlertTitle>
+              <AlertDescription className="text-sm opacity-90 mt-1 ml-2">
+                O limite de vagas ({totalSlots}) do seu estabelecimento foi {occupiedCount > totalSlots ? "excedido" : "atingido"}. Para que uma nova vaga fique disponível, outra vaga deve encerrar o serviço.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Slots Grid */}
           <Card className="bg-card/50 border-border/50">
@@ -518,6 +563,8 @@ export default function Espaco() {
         onOpenChange={setShowFillSlotModal}
         onSlotFilled={handleSlotFilled}
         preselectedDate={selectedDay || undefined}
+        totalSlots={totalSlots}
+        occupiedCount={occupiedCount}
       />
 
       <SlotDetailsDrawer
