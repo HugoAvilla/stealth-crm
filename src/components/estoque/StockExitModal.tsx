@@ -74,15 +74,36 @@ export function StockExitModal({ open, onOpenChange, material, onSuccess }: Stoc
       const reasonText = reason ? reasonTexts[reason] || reason : "Saída manual";
       const fullReason = notes ? `${reasonText}: ${notes}` : reasonText;
 
-      // Insert stock movement (trigger will update current_stock)
-      const { error } = await supabase.from("stock_movements").insert({
-        material_id: material.id,
-        movement_type: "Saida",
-        quantity: parseFloat(quantity),
-        reason: fullReason,
-        user_id: user.id,
-        company_id: profile.company_id,
-      });
+      let error;
+      if (material.unit === "Metros") {
+        // Para materiais medidos em metros, consumir bobinas físicas de forma sequencial usando a RPC manual_exit_material_rolls
+        const { data, error: rpcError } = await supabase.rpc("manual_exit_material_rolls", {
+          p_material_id: material.id,
+          p_meters: parseFloat(quantity),
+          p_reason: fullReason,
+          p_user_id: user.id,
+          p_company_id: profile.company_id,
+        });
+
+        if (rpcError) {
+          error = rpcError;
+        } else if (data && data.warning) {
+          toast.error(`Estoque insuficiente. Disponível: ${data.available_meters}m`);
+          setLoading(false);
+          return;
+        }
+      } else {
+        // Para outras unidades, inserir movimentação e o trigger inteligente atualizará o estoque
+        const { error: insertError } = await supabase.from("stock_movements").insert({
+          material_id: material.id,
+          movement_type: "Saida",
+          quantity: parseFloat(quantity),
+          reason: fullReason,
+          user_id: user.id,
+          company_id: profile.company_id,
+        });
+        error = insertError;
+      }
 
       if (error) throw error;
 

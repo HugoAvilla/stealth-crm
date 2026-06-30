@@ -174,21 +174,44 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
         error = updateError;
       } else {
         // Create new material
-        const { error: insertError } = await supabase.from("materials").insert({
-          name: materialName,
-          type: selectedProduct.category,
-          brand: selectedProduct.brand,
-          unit,
-          minimum_stock: minStock ? parseFloat(minStock) : 0,
-          current_stock: isOpenRoll ? 0 : (currentStock ? parseFloat(currentStock) : 0),
-          average_cost: selectedProduct.cost_per_meter || 0,
-          company_id: companyId,
-          product_type_id: selectedProduct.id,
-          is_active: true,
-          is_open_roll: isOpenRoll,
-          width: unit === "Metros" ? (width ? parseFloat(width) : 1.52) : null,
-        });
-        error = insertError;
+        const initialQty = currentStock && parseFloat(currentStock) > 0 ? parseFloat(currentStock) : 0;
+        
+        // Se for metros e tiver estoque inicial, inserimos com 0 e criamos a bobina via RPC depois para sincronizar com material_rolls
+        const stockToInsert = (unit === "Metros" && initialQty > 0) ? 0 : initialQty;
+
+        const { data: newMaterial, error: insertError } = await supabase
+          .from("materials")
+          .insert({
+            name: materialName,
+            type: selectedProduct.category,
+            brand: selectedProduct.brand,
+            unit,
+            minimum_stock: minStock ? parseFloat(minStock) : 0,
+            current_stock: stockToInsert,
+            average_cost: selectedProduct.cost_per_meter || 0,
+            company_id: companyId,
+            product_type_id: selectedProduct.id,
+            is_active: true,
+            is_open_roll: isOpenRoll,
+            width: unit === "Metros" ? (width ? parseFloat(width) : 1.52) : null,
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          error = insertError;
+        } else if (unit === "Metros" && initialQty > 0 && newMaterial) {
+          // Criar a bobina física correspondente ao estoque inicial
+          const { error: rpcError } = await supabase.rpc("add_material_roll", {
+            p_material_id: newMaterial.id,
+            p_length: initialQty,
+            p_status: "fechada",
+            p_notes: "Estoque inicial (cadastro de material)",
+            p_user_id: user.id,
+            p_company_id: companyId,
+          });
+          error = rpcError;
+        }
       }
 
       if (error) throw error;

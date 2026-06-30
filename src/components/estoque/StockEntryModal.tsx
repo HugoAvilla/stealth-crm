@@ -55,15 +55,30 @@ export function StockEntryModal({ open, onOpenChange, material, onSuccess }: Sto
         return;
       }
 
-      // Insert stock movement (trigger will update current_stock)
-      const { error } = await supabase.from("stock_movements").insert({
-        material_id: material.id,
-        movement_type: "Entrada",
-        quantity: parseFloat(quantity),
-        reason: notes || "Entrada manual",
-        user_id: user.id,
-        company_id: profile.company_id,
-      });
+      let error;
+      if (material.unit === "Metros") {
+        // Para materiais medidos em metros, registrar a entrada como uma nova bobina física
+        const { error: rpcError } = await supabase.rpc("add_material_roll", {
+          p_material_id: material.id,
+          p_length: parseFloat(quantity),
+          p_status: "fechada",
+          p_notes: notes || "Entrada manual",
+          p_user_id: user.id,
+          p_company_id: profile.company_id,
+        });
+        error = rpcError;
+      } else {
+        // Para outras unidades, inserir movimentação e o trigger inteligente atualizará o estoque
+        const { error: insertError } = await supabase.from("stock_movements").insert({
+          material_id: material.id,
+          movement_type: "Entrada",
+          quantity: parseFloat(quantity),
+          reason: notes || "Entrada manual",
+          user_id: user.id,
+          company_id: profile.company_id,
+        });
+        error = insertError;
+      }
 
       if (error) throw error;
 

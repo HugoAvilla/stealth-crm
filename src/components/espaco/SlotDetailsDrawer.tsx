@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Car, Phone, User, Calendar, Clock, DollarSign, Link2, 
   FileText, MessageSquare, Trash2, Edit, 
@@ -40,6 +51,9 @@ interface SpaceDetails {
   tag: string | null;
   discount: number | null;
   services_data?: any[];
+  deleted_at?: string | null;
+  deleted_by?: string | null;
+  deleted_reason?: string | null;
   client?: {
     id: number;
     name: string;
@@ -186,26 +200,96 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
 
 
 
-  // Delete slot mutation
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      if (!space) return;
-      const { error } = await supabase
-        .from('spaces')
-        .delete()
-        .eq('id', space.id);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [isPermanentDeleteDialogOpen, setIsPermanentDeleteDialogOpen] = useState(false);
 
+  // Fetch deleter user profile if space is deleted
+  const { data: deleterProfile } = useQuery({
+    queryKey: ['profile-deleter-space', space?.deleted_by],
+    queryFn: async () => {
+      if (!space?.deleted_by) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', space.deleted_by)
+        .maybeSingle();
+      if (error) {
+        console.error('Error fetching deleter profile:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!space?.deleted_by && open,
+  });
+
+  // Soft Delete space mutation
+  const softDeleteMutation = useMutation({
+    mutationFn: async (reason: string) => {
+      if (!space) return;
+      const { error } = await supabase.rpc('soft_delete_space', {
+        p_space_id: space.id,
+        p_reason: reason.trim() || "Nenhum motivo informado."
+      });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Vaga excluída!");
+      toast.success("Vaga movida para a lixeira!");
       queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['spaces-deleted'] });
+      queryClient.invalidateQueries({ queryKey: ['unpaid-exited-count'] });
       onOpenChange(false);
       onUpdate?.();
     },
     onError: (error) => {
       console.error("Erro ao excluir vaga:", error);
-      toast.error("Erro ao excluir vaga");
+      toast.error("Erro ao enviar vaga para a lixeira");
+    },
+  });
+
+  // Restore space mutation
+  const restoreMutation = useMutation({
+    mutationFn: async () => {
+      if (!space) return;
+      const { error } = await supabase.rpc('restore_space', {
+        p_space_id: space.id
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Vaga restaurada com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['spaces-deleted'] });
+      queryClient.invalidateQueries({ queryKey: ['unpaid-exited-count'] });
+      onOpenChange(false);
+      onUpdate?.();
+    },
+    onError: (error) => {
+      console.error("Erro ao restaurar vaga:", error);
+      toast.error("Erro ao restaurar vaga");
+    },
+  });
+
+  // Permanent delete space mutation
+  const permanentDeleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!space) return;
+      const { error } = await supabase.rpc('permanently_delete_space', {
+        p_space_id: space.id
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Vaga excluída permanentemente!");
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['spaces-deleted'] });
+      queryClient.invalidateQueries({ queryKey: ['unpaid-exited-count'] });
+      onOpenChange(false);
+      onUpdate?.();
+    },
+    onError: (error) => {
+      console.error("Erro ao excluir permanentemente:", error);
+      toast.error("Erro ao excluir vaga permanentemente");
     },
   });
 
@@ -443,18 +527,43 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
-          {/* Toggle para concluir */}
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border">
-            <div className="flex items-center gap-3">
-              <CheckCircle className={space.has_exited ? "h-5 w-5 text-success" : "h-5 w-5 text-muted-foreground"} />
-              <span className="text-sm font-medium">Concluir vaga e liberar espaço</span>
+          {/* Banner de Excluído */}
+          {space.deleted_at && (
+            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex flex-col gap-2 shadow-sm">
+              <div className="font-bold flex items-center gap-2 text-base">
+                <Trash2 className="h-5 w-5 text-destructive" />
+                Vaga Excluída (Lixeira Operacional)
+              </div>
+              <div className="text-muted-foreground">
+                Esta vaga foi movida para a lixeira operacional em{" "}
+                <span className="font-semibold text-destructive">
+                  {format(new Date(space.deleted_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </span>{" "}
+                por <span className="font-semibold text-destructive">{deleterProfile?.name || "Carregando..."}</span>.
+              </div>
+              {space.deleted_reason && (
+                <div className="mt-1 bg-destructive/5 p-3 rounded border border-destructive/10 text-xs text-muted-foreground">
+                  <span className="font-semibold block text-destructive mb-1">Motivo da Exclusão:</span>
+                  <span className="italic">"{space.deleted_reason}"</span>
+                </div>
+              )}
             </div>
-            <Switch 
-              checked={space.has_exited || false}
-              onCheckedChange={handleCompleteToggle}
-              disabled={completeMutation.isPending}
-            />
-          </div>
+          )}
+
+          {/* Toggle para concluir */}
+          {!space.deleted_at && (
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border">
+              <div className="flex items-center gap-3">
+                <CheckCircle className={space.has_exited ? "h-5 w-5 text-success" : "h-5 w-5 text-muted-foreground"} />
+                <span className="text-sm font-medium">Concluir vaga e liberar espaço</span>
+              </div>
+              <Switch 
+                checked={space.has_exited || false}
+                onCheckedChange={handleCompleteToggle}
+                disabled={completeMutation.isPending}
+              />
+            </div>
+          )}
 
           {/* Info do cliente */}
           {space.client && (
@@ -585,53 +694,57 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           </div>
 
           {/* Comprovantes em PDF */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Comprovantes em PDF</h4>
+          {!space.deleted_at && (
             <div className="space-y-2">
-              <Button variant="outline" className="w-full justify-start text-destructive" onClick={() => handlePDF('a4')}>
-                <FileText className="h-4 w-4 mr-2" />
-                Baixar PDF em formato A4
-              </Button>
-              <Button variant="outline" className="w-full justify-start text-destructive" onClick={() => handlePDF('80mm')}>
-                <FileText className="h-4 w-4 mr-2" />
-                Baixar PDF em formato Notinha
-              </Button>
-              <Button variant="outline" className="w-full justify-start text-destructive" onClick={() => handlePDF('58mm')}>
-                <FileText className="h-4 w-4 mr-2" />
-                Baixar PDF em formato Notinha Mini
-              </Button>
+              <h4 className="text-sm font-medium">Comprovantes em PDF</h4>
+              <div className="space-y-2">
+                <Button variant="outline" className="w-full justify-start text-destructive" onClick={() => handlePDF('a4')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Baixar PDF em formato A4
+                </Button>
+                <Button variant="outline" className="w-full justify-start text-destructive" onClick={() => handlePDF('80mm')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Baixar PDF em formato Notinha
+                </Button>
+                <Button variant="outline" className="w-full justify-start text-destructive" onClick={() => handlePDF('58mm')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Baixar PDF em formato Notinha Mini
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Mais opções */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Mais opções</h4>
+          {!space.deleted_at && (
             <div className="space-y-2">
-              <Button variant="outline" className="w-full justify-start text-primary border-primary/20 hover:bg-primary/10" onClick={() => setShowExportSaleModal(true)}>
-                <DollarSign className="h-4 w-4 mr-2" />
-                Exportar para Venda
-              </Button>
-              <Button variant="outline" className="w-full justify-start text-success" onClick={() => handleOpenWhatsApp('entrada')}>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Enviar mensagem de entrada
-              </Button>
-              <Button variant="outline" className="w-full justify-start text-warning" onClick={() => handleOpenWhatsApp('saida')}>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Enviar mensagem de saída
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start" 
-                onClick={() => {
-                  onOpenChange(false);
-                  navigate('/clientes');
-                }}
-              >
-                <User className="h-4 w-4 mr-2" />
-                Ver cliente da vaga
-              </Button>
+              <h4 className="text-sm font-medium">Mais opções</h4>
+              <div className="space-y-2">
+                <Button variant="outline" className="w-full justify-start text-primary border-primary/20 hover:bg-primary/10" onClick={() => setShowExportSaleModal(true)}>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Exportar para Venda
+                </Button>
+                <Button variant="outline" className="w-full justify-start text-success" onClick={() => handleOpenWhatsApp('entrada')}>
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Enviar mensagem de entrada
+                </Button>
+                <Button variant="outline" className="w-full justify-start text-warning" onClick={() => handleOpenWhatsApp('saida')}>
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Enviar mensagem de saída
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start" 
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate('/clientes');
+                  }}
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Ver cliente da vaga
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Fotos do Checklist */}
           {(checklistPhotos.length > 0 || isLoadingPhotos) && (
@@ -673,29 +786,125 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           )}
 
           {/* Botões de ação */}
-          <div className="flex gap-2 pt-4">
-            <Button variant="outline" className="flex-1" onClick={() => setShowEditModal(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
-            </Button>
-            <Button 
-              variant="destructive" 
-              size="icon"
-              onClick={() => {
-                if (confirm("Tem certeza que deseja excluir esta vaga?")) {
-                  deleteMutation.mutate();
-                }
-              }}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </Button>
+          <div className="flex gap-2 pt-4 border-t mt-4">
+            {space.deleted_at ? (
+              <>
+                <Button
+                  variant="default"
+                  className="flex-1 gap-2 bg-success hover:bg-success/90 text-white font-medium"
+                  onClick={() => restoreMutation.mutate()}
+                  disabled={restoreMutation.isPending}
+                >
+                  {restoreMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Undo2 className="h-4 w-4" />
+                  )}
+                  Restaurar Vaga
+                </Button>
+                {user?.role === "ADMIN" && (
+                  <Button
+                    variant="destructive"
+                    className="flex-1 gap-2 font-medium"
+                    onClick={() => setIsPermanentDeleteDialogOpen(true)}
+                    disabled={permanentDeleteMutation.isPending}
+                  >
+                    {permanentDeleteMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Excluir Permanente
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                <Button variant="outline" className="flex-1" onClick={() => setShowEditModal(true)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="icon"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
+
+        {/* Soft Delete Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent className="w-11/12 max-w-md rounded-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Vaga (Lixeira)</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja mover esta vaga para a lixeira operacional?
+                Insira o motivo abaixo:
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-2">
+              <Textarea
+                placeholder="Ex: Cliente desistiu do serviço, duplicado, etc..."
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                className="w-full min-h-[80px]"
+              />
+            </div>
+            <AlertDialogFooter className="flex-row gap-2 justify-end">
+              <AlertDialogCancel onClick={() => {
+                setDeleteReason("");
+                setIsDeleteDialogOpen(false);
+              }}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90 text-white"
+                onClick={() => {
+                  softDeleteMutation.mutate(deleteReason);
+                  setDeleteReason("");
+                  setIsDeleteDialogOpen(false);
+                }}
+                disabled={softDeleteMutation.isPending}
+              >
+                {softDeleteMutation.isPending ? "Excluindo..." : "Mover para Lixeira"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Permanent Delete Dialog */}
+        <AlertDialog open={isPermanentDeleteDialogOpen} onOpenChange={setIsPermanentDeleteDialogOpen}>
+          <AlertDialogContent className="w-11/12 max-w-md rounded-lg border-l-4 border-l-destructive">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-destructive font-bold flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                Exclusão Definitiva
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                ATENÇÃO: Esta ação é irreversível. A vaga será excluída permanentemente do banco de dados, incluindo quaisquer registros de checklists associados.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row gap-2 justify-end">
+              <AlertDialogCancel onClick={() => setIsPermanentDeleteDialogOpen(false)}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90 text-white"
+                onClick={() => {
+                  permanentDeleteMutation.mutate();
+                  setIsPermanentDeleteDialogOpen(false);
+                }}
+                disabled={permanentDeleteMutation.isPending}
+              >
+                {permanentDeleteMutation.isPending ? "Excluindo..." : "Excluir Definitivamente"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Alert Dialog for Unpaid Exit */}
         <UnpaidExitAlertDialog

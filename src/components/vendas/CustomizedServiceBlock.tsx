@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Undo2 } from "lucide-react";
+import { Undo2, Check, Pencil } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -119,6 +119,7 @@ export default function CustomizedServiceBlock({
   onPriceChange,
 }: CustomizedServiceBlockProps) {
   const [showRevertAlert, setShowRevertAlert] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
   const totalMeters = items.reduce((acc, curr) => acc + (curr.metersUsed || 0), 0);
 
@@ -147,15 +148,26 @@ export default function CustomizedServiceBlock({
   };
 
   return (
-    <div className="rounded-lg border-2 border-primary/30 bg-primary/5 overflow-hidden">
+    <div className={`rounded-lg border-2 overflow-hidden transition-all duration-300 ${
+      isConfirmed
+        ? "border-success/40 bg-success/5"
+        : "border-primary/30 bg-primary/5"
+    }`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-primary/10 border-b border-primary/20">
+      <div className={`flex items-center justify-between px-4 py-2 border-b transition-all duration-300 ${
+        isConfirmed
+          ? "bg-success/10 border-success/20"
+          : "bg-primary/10 border-primary/20"
+      }`}>
         <div className="flex items-center gap-2">
-          <Badge variant="default" className="text-xs">
-            Personalizado
+          <Badge
+            variant={isConfirmed ? "outline" : "default"}
+            className={isConfirmed ? "bg-success/20 text-success border-success/30 text-xs" : "text-xs"}
+          >
+            {isConfirmed ? "Confirmado" : "Personalizado"}
           </Badge>
-          <span className="text-sm font-medium text-muted-foreground">
-            3 regiões com películas individuais
+          <span className={`text-sm font-medium transition-colors duration-300 ${isConfirmed ? "text-success" : "text-muted-foreground"}`}>
+            3 regiões com películas individuais {isConfirmed && "(Confirmado)"}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -163,6 +175,7 @@ export default function CustomizedServiceBlock({
             variant="ghost"
             size="sm"
             className="text-xs h-7"
+            disabled={isConfirmed}
             onClick={() => setShowRevertAlert(true)}
           >
             <Undo2 className="h-3 w-3 mr-1" />
@@ -185,6 +198,7 @@ export default function CustomizedServiceBlock({
 
             {/* Película select */}
             <Select
+              disabled={isConfirmed}
               value={item.productTypeId?.toString() || ""}
               onValueChange={(v) => handleProductChange(index, v)}
             >
@@ -254,6 +268,7 @@ export default function CustomizedServiceBlock({
               <Input
                 type="number"
                 step="0.01"
+                disabled={isConfirmed}
                 className="w-[70px] text-center"
                 value={item.metersUsed || ""}
                 onChange={(e) => handleMetersChange(index, e.target.value)}
@@ -266,7 +281,11 @@ export default function CustomizedServiceBlock({
       </div>
 
       {/* Footer com Metros Totais e Ajuste de Preço */}
-      <div className="bg-muted/40 p-3 flex flex-wrap items-center justify-between border-t border-primary/20 gap-4">
+      <div className={`p-3 flex flex-wrap items-center justify-between border-t gap-4 transition-all duration-300 ${
+        isConfirmed
+          ? "bg-success/5 border-success/20"
+          : "bg-muted/40 border-primary/20"
+      }`}>
         {/* Visualização da Distribuição */}
         <div className="flex items-center gap-2 text-xs">
           <span className="font-medium text-muted-foreground mr-2">
@@ -279,20 +298,44 @@ export default function CustomizedServiceBlock({
           ))}
         </div>
 
-        {/* Input de Preço Total do Serviço */}
-        <div className="flex items-center gap-2">
-           <span className="text-sm font-medium text-muted-foreground mr-1">Preço Serviço:</span>
-           <div className="flex items-center gap-1 min-w-[110px]">
-             <span className="text-sm text-muted-foreground">R$</span>
-             <Input
-               type="number"
-               step="0.01"
-               className="w-[90px] text-right font-medium text-success h-8"
-               value={servicePrice || ""}
-               onChange={(e) => onPriceChange?.(parseFloat(e.target.value) || 0)}
-               placeholder="0.00"
-             />
-           </div>
+        {/* Input de Preço Total do Serviço & Botões de Confirmação/Edição */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+             <span className="text-sm font-medium text-muted-foreground mr-1">Preço Serviço:</span>
+             <div className="flex items-center gap-1 min-w-[110px]">
+               <span className="text-sm text-muted-foreground">R$</span>
+               <Input
+                 type="number"
+                 step="0.01"
+                 disabled={isConfirmed}
+                 className="w-[90px] text-right font-medium text-success h-8 disabled:opacity-80"
+                 value={servicePrice || ""}
+                 onChange={(e) => onPriceChange?.(parseFloat(e.target.value) || 0)}
+                 placeholder="0.00"
+               />
+             </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              disabled={isConfirmed}
+              onClick={() => setIsConfirmed(true)}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white h-8 px-3 text-xs font-semibold gap-1 transition-all disabled:opacity-40"
+            >
+              <Check className="h-3.5 w-3.5" />
+              Confirmar
+            </Button>
+            <Button
+              type="button"
+              disabled={!isConfirmed}
+              onClick={() => setIsConfirmed(false)}
+              className="h-8 px-3 text-xs font-semibold gap-1 transition-all border border-blue-500/50 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 disabled:opacity-40 disabled:border-zinc-700 disabled:text-zinc-500"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Editar
+            </Button>
+          </div>
         </div>
       </div>
 

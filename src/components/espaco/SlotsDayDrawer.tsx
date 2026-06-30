@@ -70,6 +70,7 @@ export function SlotsDayDrawer({ open, onOpenChange, date, onAddSlot }: SlotsDay
           )
         `)
         .eq('company_id', companyId)
+        .is('deleted_at', null)
         .eq('entry_date', dayStr)
         .order('entry_time', { ascending: true });
 

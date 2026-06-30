@@ -27,28 +27,94 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+import { AlertTriangle } from "lucide-react";
+
+interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+  confirmClose?: boolean;
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] sm:w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200 overflow-x-hidden overflow-y-auto max-h-[85dvh] sm:max-h-[90vh] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-accent data-[state=open]:text-muted-foreground hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </DialogPortal>
-));
+  DialogContentProps
+>(({ className, children, confirmClose = true, onPointerDownOutside, ...props }, ref) => {
+  const [showConfirm, setShowConfirm] = React.useState(false);
+
+  const handlePointerDownOutside = (e: any) => {
+    if (onPointerDownOutside) {
+      onPointerDownOutside(e);
+    }
+    if (confirmClose && !e.defaultPrevented) {
+      e.preventDefault();
+      setShowConfirm(true);
+    }
+  };
+
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] sm:w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200 overflow-x-hidden overflow-y-auto max-h-[85dvh] sm:max-h-[90vh] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+          className,
+        )}
+        onPointerDownOutside={handlePointerDownOutside}
+        {...props}
+      >
+        {children}
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity data-[state=open]:bg-accent data-[state=open]:text-muted-foreground hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+
+        {showConfirm && (
+          <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div 
+              className="w-full max-w-sm rounded-xl border border-border/80 bg-background p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-500 ring-4 ring-amber-500/5 animate-pulse">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-foreground tracking-tight">Confirmar Saída</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Tem certeza de que deseja sair? Os dados preenchidos serão perdidos.
+                  </p>
+                </div>
+
+                <div className="flex w-full gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm(false)}
+                    className="flex-1 rounded-lg border border-border bg-transparent px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent transition-colors"
+                  >
+                    Ficar na página
+                  </button>
+                  
+                  <DialogPrimitive.Close asChild>
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(false)}
+                      className="flex-1 rounded-lg bg-destructive px-4 py-2.5 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-sm shadow-destructive/20"
+                    >
+                      Sair e descartar
+                    </button>
+                  </DialogPrimitive.Close>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

@@ -335,7 +335,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl w-[92vw] sm:w-full overflow-x-hidden">
+        <DialogContent className="max-w-2xl w-[92vw] sm:w-full overflow-x-hidden" confirmClose={false}>
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-success/20">

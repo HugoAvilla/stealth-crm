@@ -211,13 +211,31 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
     });
   }, [activeCategory, allMaterials, lastMovementMap, rangeStart, searchTerm]);
 
-  const openRolls = useMemo(
-    () => filteredMaterials.filter((material) => material.is_open_roll),
+  const activeMaterials = useMemo(
+    () => filteredMaterials.filter((material) => material.is_active !== false),
     [filteredMaterials]
   );
-  const closedRolls = useMemo(
-    () => filteredMaterials.filter((material) => !material.is_open_roll),
+  const inactiveMaterials = useMemo(
+    () => filteredMaterials.filter((material) => material.is_active === false),
     [filteredMaterials]
+  );
+
+  const activeOpenRolls = useMemo(
+    () => activeMaterials.filter((material) => material.is_open_roll),
+    [activeMaterials]
+  );
+  const activeClosedRolls = useMemo(
+    () => activeMaterials.filter((material) => !material.is_open_roll),
+    [activeMaterials]
+  );
+
+  const inactiveOpenRolls = useMemo(
+    () => inactiveMaterials.filter((material) => material.is_open_roll),
+    [inactiveMaterials]
+  );
+  const inactiveClosedRolls = useMemo(
+    () => inactiveMaterials.filter((material) => !material.is_open_roll),
+    [inactiveMaterials]
   );
 
   const statusCounts = useMemo(() => {
@@ -455,27 +473,77 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
 
       {filteredMaterials.length > 0 && (
         <div className="space-y-8">
-          <div className="space-y-4">
-            <h3 className="flex items-center gap-2 text-lg font-medium">
-              <Package className="h-5 w-5 text-blue-500" />
-              Bobinas Abertas
-            </h3>
-            {renderTable(
-              openRolls,
-              "Bobinas abertas aparecerao aqui quando houver movimentacao no periodo selecionado."
-            )}
-          </div>
+          {/* Materiais / Bobinas Ativas */}
+          {activeMaterials.length > 0 && (
+            <div className="space-y-6 border border-emerald-500/10 bg-emerald-500/5 p-5 rounded-2xl">
+              <h3 className="text-lg font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2 border-b border-emerald-500/20 pb-2">
+                <Package className="h-5 w-5" />
+                Bobinas / Materiais Ativos ({activeMaterials.length})
+              </h3>
+              
+              <div className="space-y-6">
+                {activeOpenRolls.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-blue-500 pl-1">
+                      <StopCircle className="h-4 w-4" /> Bobinas Abertas ({activeOpenRolls.length})
+                    </h4>
+                    {renderTable(
+                      activeOpenRolls,
+                      "Nenhuma bobina aberta ativa no período selecionado."
+                    )}
+                  </div>
+                )}
 
-          <div className="space-y-4">
-            <h3 className="flex items-center gap-2 text-lg font-medium">
-              <Package className="h-5 w-5 text-primary" />
-              Bobinas Fechadas
-            </h3>
-            {renderTable(
-              closedRolls,
-              "Bobinas fechadas aparecerao aqui quando houver movimentacao ou cadastro no periodo selecionado."
-            )}
-          </div>
+                {activeClosedRolls.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-emerald-500 pl-1">
+                      <Package className="h-4 w-4" /> Bobinas Fechadas ({activeClosedRolls.length})
+                    </h4>
+                    {renderTable(
+                      activeClosedRolls,
+                      "Nenhuma bobina fechada ativa no período selecionado."
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Materiais / Bobinas Desativados (Inativos) */}
+          {inactiveMaterials.length > 0 && (
+            <div className="space-y-6 border border-gray-500/10 bg-gray-500/5 p-5 rounded-2xl">
+              <h3 className="text-lg font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2 border-b border-gray-500/20 pb-2">
+                <XCircle className="h-5 w-5" />
+                Bobinas / Materiais Desativados (Excluídos) ({inactiveMaterials.length})
+              </h3>
+              
+              <div className="space-y-6">
+                {inactiveOpenRolls.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-blue-500/70 pl-1">
+                      <StopCircle className="h-4 w-4" /> Bobinas Abertas Desativadas ({inactiveOpenRolls.length})
+                    </h4>
+                    {renderTable(
+                      inactiveOpenRolls,
+                      "Nenhuma bobina aberta desativada no período selecionado."
+                    )}
+                  </div>
+                )}
+
+                {inactiveClosedRolls.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-400 pl-1">
+                      <Package className="h-4 w-4" /> Bobinas Fechadas Desativadas ({inactiveClosedRolls.length})
+                    </h4>
+                    {renderTable(
+                      inactiveClosedRolls,
+                      "Nenhuma bobina fechada desativada no período selecionado."
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

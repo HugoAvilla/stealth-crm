@@ -85,6 +85,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
         `)
         .eq("company_id", companyId)
         .eq("payment_status", "paid")
+        .is("deleted_at", null)
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -184,25 +185,30 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Tem certeza que deseja excluir este registro?")) return;
+    const reason = window.prompt("Tem certeza que deseja mover esta vaga para a lixeira? Digite o motivo:");
+    if (reason === null) return; // cancelado pelo usuário
 
     try {
       const { error } = await supabase
         .from("spaces")
-        .delete()
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.email || "anonymous",
+          deleted_reason: reason || "Nenhum motivo informado."
+        })
         .eq("id", id);
 
       if (error) throw error;
 
       toast({
-        title: "Registro excluído com sucesso!",
+        title: "Vaga movida para a lixeira com sucesso!",
       });
       fetchPaidExitedVehicles();
     } catch (error) {
       logger.error("Erro ao excluir registro:", error);
       toast({
         title: "Erro ao excluir",
-        description: "Não foi possível excluir o registro.",
+        description: "Não foi possível mover o registro para a lixeira.",
         variant: "destructive",
       });
     }

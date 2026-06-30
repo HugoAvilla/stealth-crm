@@ -161,6 +161,9 @@ export default function Estoque() {
 
   const openRolls = filteredMaterials.filter(m => m.is_open_roll);
   const regularMaterials = filteredMaterials.filter(m => !m.is_open_roll);
+  const insulfilmMaterials = filteredMaterials.filter(m => m.type?.toUpperCase() === "INSULFILM");
+  const ppfMaterials = filteredMaterials.filter(m => m.type?.toUpperCase() === "PPF");
+  const otherMaterials = filteredMaterials.filter(m => m.type?.toUpperCase() !== "INSULFILM" && m.type?.toUpperCase() !== "PPF");
 
   const criticalCount = materials.filter(m => {
     if (m.is_open_roll) return false;
@@ -375,6 +378,51 @@ export default function Estoque() {
     </div>
   );
 
+  const renderCategorySections = (categoryName: string, items: Material[]) => {
+    const openRolls = items.filter(m => m.is_open_roll);
+    const regularMaterials = items.filter(m => !m.is_open_roll);
+
+    if (items.length === 0) return null;
+
+    return (
+      <div className="space-y-6 border border-border/30 bg-card/20 p-5 rounded-2xl shadow-sm">
+        {/* Cabeçalho da Categoria */}
+        <div className="flex items-center justify-between pb-2 border-b border-border/40">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-primary" />
+            <h3 className="text-lg font-bold tracking-tight text-foreground">
+              {categoryName}
+            </h3>
+            <Badge variant="secondary" className="ml-2 font-mono text-[10px] py-0 px-2 font-normal border border-border/50">
+              {items.length} {items.length === 1 ? 'item' : 'itens'}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Subseções */}
+        <div className="space-y-6">
+          {openRolls.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-blue-500 dark:text-blue-400 flex items-center gap-1.5 pl-1">
+                <StopCircle className="h-4 w-4 text-blue-500" /> Bobinas Abertas ({openRolls.length})
+              </h4>
+              {renderMaterialTable(openRolls)}
+            </div>
+          )}
+
+          {regularMaterials.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-emerald-500 dark:text-emerald-400 flex items-center gap-1.5 pl-1">
+                <Package className="h-4 w-4 text-emerald-500" /> Estoque Padrão (Fechado) ({regularMaterials.length})
+              </h4>
+              {renderMaterialTable(regularMaterials)}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   if (loading || authLoading || !gate.hasAccess) {
     return (
       <div className="space-y-6 p-6">
@@ -581,27 +629,16 @@ export default function Estoque() {
             </Card>
           ) : (
             <div className="space-y-8">
-              {openRolls.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium flex items-center gap-2">
-                    <Package className="h-5 w-5 text-blue-500" />
-                    Bobinas Abertas
-                  </h3>
-                  {renderMaterialTable(openRolls)}
-                </div>
-              )}
+              {/* Categoria Insulfilm */}
+              {renderCategorySections("Películas INSULFILM", insulfilmMaterials)}
 
-              {regularMaterials.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium flex items-center gap-2">
-                    <Package className="h-5 w-5 text-primary" />
-                    Estoque Padrão (Fechado)
-                  </h3>
-                  {renderMaterialTable(regularMaterials)}
-                </div>
-              )}
+              {/* Categoria PPF */}
+              {renderCategorySections("Películas PPF", ppfMaterials)}
 
-              {openRolls.length === 0 && regularMaterials.length === 0 && (
+              {/* Outros Materiais */}
+              {renderCategorySections("Outros Materiais", otherMaterials)}
+
+              {filteredMaterials.length === 0 && (
                 <Card className="bg-card/50 border-border/50">
                   <CardContent className="p-12 text-center">
                     <p className="text-muted-foreground">

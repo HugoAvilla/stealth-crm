@@ -41,6 +41,7 @@ export function CapacityWidget() {
             .select('id')
             .eq('company_id', profile.company_id)
             .eq('has_exited', false)
+            .is('deleted_at', null)
         ]);
 
         const total = settingsRes.data?.total_slots || 10;

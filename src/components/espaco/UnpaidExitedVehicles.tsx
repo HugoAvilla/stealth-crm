@@ -84,6 +84,7 @@ const UnpaidExitedVehicles = ({ refreshTrigger }: UnpaidExitedVehiclesProps) => 
         `)
         .eq("company_id", companyId)
         .or("payment_status.neq.paid,payment_status.is.null")
+        .is("deleted_at", null)
         .order("updated_at", { ascending: false });
 
       if (error) throw error;

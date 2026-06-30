@@ -132,6 +132,31 @@ export async function consumeStockForSale(
           result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
           continue;
         }
+      } else if (material.unit === "Metros") {
+        // Para metros (bobinas padrão fechadas), consome via RPC para dar baixa nas bobinas físicas
+        const { data, error: rpcError } = await supabase.rpc("consume_material_rolls", {
+          p_material_id: material.id,
+          p_meters: consumeAmount,
+          p_source: "venda",
+          p_reason: `Consumo automático - Venda #${saleId} (${vehicle.brand} ${vehicle.model} - ${vehicleSize})`,
+          p_user_id: userId,
+          p_company_id: companyId,
+        });
+
+        if (rpcError) {
+          logger.error("Error consuming material rolls:", rpcError);
+          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+          continue;
+        }
+
+        if (data && data.warning) {
+          result.warnings.push(
+            `Estoque insuficiente de ${material.name}: necessário ${consumeAmount}m, disponível ${data.available_meters}m`
+          );
+          // O consumo de bobinas não prossegue de forma parcial na RPC se der warning,
+          // mas vamos reportar o warning para o usuário
+          continue;
+        }
       } else {
         const currentStock = material.current_stock || 0;
 
@@ -287,6 +312,29 @@ export async function consumeStockForDetailedSale(
         if (rpcError) {
           logger.error("Error consuming open roll:", rpcError);
           result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+          continue;
+        }
+      } else if (material.unit === "Metros") {
+        // Para metros (bobinas padrão fechadas), consome via RPC para dar baixa nas bobinas físicas
+        const { data, error: rpcError } = await supabase.rpc("consume_material_rolls", {
+          p_material_id: material.id,
+          p_meters: consumeAmount,
+          p_source: "venda",
+          p_reason: `Consumo automático - Venda #${saleId} (${vehicleBrand} ${vehicleModel} - ${vehicleSize})`,
+          p_user_id: userId,
+          p_company_id: companyId,
+        });
+
+        if (rpcError) {
+          logger.error("Error consuming material rolls:", rpcError);
+          result.warnings.push(`Erro ao registrar consumo de ${material.name}`);
+          continue;
+        }
+
+        if (data && data.warning) {
+          result.warnings.push(
+            `Estoque insuficiente de ${material.name}: necessário ${consumeAmount.toFixed(2)}m, disponível ${data.available_meters}m`
+          );
           continue;
         }
       } else {
