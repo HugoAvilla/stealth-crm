@@ -34,6 +34,7 @@ interface FillSlotModalProps {
   preselectedDate?: Date;
   totalSlots?: number;
   occupiedCount?: number;
+  defaultClientId?: number;
 }
 
 interface ClientVehicle {
@@ -54,7 +55,7 @@ interface VehicleRegion {
   region_code?: string | null;
 }
 
-export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDate, totalSlots, occupiedCount }: FillSlotModalProps) {
+export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDate, totalSlots, occupiedCount, defaultClientId }: FillSlotModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const companyId = user?.companyId;
@@ -208,7 +209,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const finalTotal = subtotal - calculatedDiscount;
   const serviceCount = detailedItems.length;
 
-  // Reset form when modal closes
+  // Reset form when modal closes, or prefill client if open
   useEffect(() => {
     if (!open) {
       setSlotName("");
@@ -231,8 +232,10 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       setShowTag(false);
       setIsNewClient(true);
       setPastSalesCount(0);
+    } else if (defaultClientId) {
+      setSelectedClientId(defaultClientId.toString());
     }
-  }, [open]);
+  }, [open, defaultClientId]);
 
   // Update entry date when preselectedDate changes
   useEffect(() => {
@@ -240,6 +243,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
       setEntryDate(preselectedDate);
     }
   }, [preselectedDate]);
+
 
   // Reset vehicle and services when client changes
   useEffect(() => {

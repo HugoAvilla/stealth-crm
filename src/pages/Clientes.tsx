@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,6 +35,7 @@ import NewClientModal from "@/components/vendas/NewClientModal";
 import NewSaleModal from "@/components/vendas/NewSaleModal";
 import { ClientProfileModal } from "@/components/clientes/ClientProfileModal";
 import { EditClientModal } from "@/components/clientes/EditClientModal";
+import { FillSlotModal } from "@/components/espaco/FillSlotModal";
 import { openWhatsApp } from "@/lib/utils";
 import {
   AlertDialog,
@@ -80,7 +81,15 @@ export default function Clientes() {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchParams] = useSearchParams();
+  const searchParamValue = searchParams.get("search") || "";
+  const [searchTerm, setSearchTerm] = useState(searchParamValue);
+
+  useEffect(() => {
+    if (searchParamValue) {
+      setSearchTerm(searchParamValue);
+    }
+  }, [searchParamValue]);
   const [filterOrigem, setFilterOrigem] = useState<string>("todas");
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [filterTier, setFilterTier] = useState<string>("todos");
@@ -91,6 +100,7 @@ export default function Clientes() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [showNewSaleModal, setShowNewSaleModal] = useState(false);
+  const [showNewSlotModal, setShowNewSlotModal] = useState(false);
 
   const fetchClients = async () => {
     if (!user?.id) return;
@@ -561,7 +571,7 @@ export default function Clientes() {
             }}
             onAddToSpace={() => {
               setShowProfileModal(false);
-              navigate('/espaco');
+              setShowNewSlotModal(true);
             }}
             onDelete={(client) => {
               setShowProfileModal(false);
@@ -589,6 +599,13 @@ export default function Clientes() {
           setShowNewSaleModal(open);
           if (!open) fetchClients();
         }}
+        defaultClientId={selectedClient?.id}
+      />
+
+      {/* New Slot Modal */}
+      <FillSlotModal
+        open={showNewSlotModal}
+        onOpenChange={setShowNewSlotModal}
         defaultClientId={selectedClient?.id}
       />
 

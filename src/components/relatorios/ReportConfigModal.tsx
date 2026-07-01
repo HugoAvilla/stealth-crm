@@ -457,6 +457,129 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
     };
   };
 
+  const generateVendasPeliculaReport = async (): Promise<ReportPDFData> => {
+    const { data } = await supabase
+      .from('service_items_detailed')
+      .select('*, product_types(*), sales!inner(sale_date, status)')
+      .eq('company_id', companyId)
+      .eq('sales.status', 'Fechada')
+      .gte('sales.sale_date', startDate)
+      .lte('sales.sale_date', endDate);
+
+    const items = (data || []) as any[];
+    const filmStats: Record<number, {
+      brand: string;
+      name: string;
+      model: string;
+      category: string;
+      salesSet: Set<number>;
+      totalMetersUsed: number;
+      costPerMeter: number;
+      totalRevenue: number;
+    }> = {};
+
+    items.forEach(item => {
+      const pt = item.product_types;
+      if (!pt) return;
+
+      const ptId = pt.id;
+      if (!filmStats[ptId]) {
+        filmStats[ptId] = {
+          brand: pt.brand || '',
+          name: pt.name || '',
+          model: pt.model || '',
+          category: pt.category || '',
+          salesSet: new Set<number>(),
+          totalMetersUsed: 0,
+          costPerMeter: pt.cost_per_meter || 0,
+          totalRevenue: 0
+        };
+      }
+
+      filmStats[ptId].salesSet.add(item.sale_id);
+      filmStats[ptId].totalMetersUsed += item.meters_used || 0;
+      filmStats[ptId].totalRevenue += item.total_price || 0;
+    });
+
+    let totalDistinctSales = new Set<number>();
+    let grandTotalMeters = 0;
+    let grandTotalCost = 0;
+    let grandTotalRevenue = 0;
+
+    const rows = Object.values(filmStats)
+      .map(stat => {
+        const salesCount = stat.salesSet.size;
+        stat.salesSet.forEach(sid => totalDistinctSales.add(sid));
+
+        const meters = stat.totalMetersUsed;
+        const costPerMeter = stat.costPerMeter;
+        const totalCost = meters * costPerMeter;
+        const totalRevenue = stat.totalRevenue;
+        const grossProfit = totalRevenue - totalCost;
+        
+        const avgSalePricePerMeter = meters > 0 ? (totalRevenue / meters) : 0;
+        const margin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
+        grandTotalMeters += meters;
+        grandTotalCost += totalCost;
+        grandTotalRevenue += totalRevenue;
+
+        const fmtBRL = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const fmtMeters = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
+
+        const filmName = [stat.brand, stat.name, stat.model].filter(Boolean).join(' - ');
+
+        return {
+          filmName,
+          category: stat.category,
+          salesCount: salesCount.toString(),
+          metersFormatted: fmtMeters(meters),
+          avgSalePricePerMeterFormatted: fmtBRL(avgSalePricePerMeter),
+          costPerMeterFormatted: fmtBRL(costPerMeter),
+          totalCostFormatted: fmtBRL(totalCost),
+          totalRevenueFormatted: fmtBRL(totalRevenue),
+          grossProfitFormatted: fmtBRL(grossProfit),
+          marginFormatted: `${margin.toFixed(1)}%`,
+          grossProfitValue: grossProfit
+        };
+      })
+      .sort((a, b) => b.grossProfitValue - a.grossProfitValue)
+      .map((item, i) => [
+        (i + 1).toString(),
+        item.filmName,
+        item.category,
+        item.salesCount,
+        item.metersFormatted,
+        item.avgSalePricePerMeterFormatted,
+        item.costPerMeterFormatted,
+        item.totalCostFormatted,
+        item.totalRevenueFormatted,
+        item.grossProfitFormatted,
+        item.marginFormatted
+      ]);
+
+    const grandTotalProfit = grandTotalRevenue - grandTotalCost;
+    const grandAverageMargin = grandTotalRevenue > 0 ? (grandTotalProfit / grandTotalRevenue) * 100 : 0;
+
+    const fmtBRL = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const fmtMeters = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
+
+    return {
+      title: 'Vendas por Película',
+      period: { start: startDate, end: endDate },
+      columns: ['#', 'Película', 'Categoria', 'Vendas', 'Qtd Gasta', 'Média Venda/m', 'Custo/m', 'Custo Total', 'Faturamento', 'Lucro Bruto', 'Margem (%)'],
+      rows,
+      summary: [
+        { label: 'Total de Vendas Únicas', value: totalDistinctSales.size.toString() },
+        { label: 'Metragem Gasta Total', value: fmtMeters(grandTotalMeters) },
+        { label: 'Custo de Aquisição Total', value: fmtBRL(grandTotalCost) },
+        { label: 'Faturamento Total', value: fmtBRL(grandTotalRevenue) },
+        { label: 'Lucro Bruto Total', value: fmtBRL(grandTotalProfit) },
+        { label: 'Margem Média Geral', value: `${grandAverageMargin.toFixed(1)}%` }
+      ]
+    };
+  };
+
   const generateClientesAtivosReport = async (): Promise<ReportPDFData> => {
     const ninetyDaysAgo = format(subDays(new Date(), 90), 'yyyy-MM-dd');
     
@@ -603,6 +726,177 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
       summary: [
         { label: 'Total de Movimentações', value: rows.length.toString() },
       ],
+    };
+  };
+
+  const generatePerdasMaterialReport = async (): Promise<ReportPDFData> => {
+    const { data } = await supabase
+      .from('material_losses')
+      .select('*, material:materials(*)')
+      .eq('company_id', companyId)
+      .eq('status', 'active')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
+
+    const formatReason = (reason: string) => {
+      switch (reason) {
+        case 'RETRABALHO': return 'Retrabalho';
+        case 'DEFEITO_FABRICA': return 'Defeito de Fábrica';
+        case 'DANO_INSTALACAO': return 'Dano na Instalação';
+        case 'SOBRA_INUTILIZAVEL': return 'Sobra Inutilizável';
+        case 'OUTRO': return 'Outro';
+        default: return reason || '-';
+      }
+    };
+
+    const losses = (data || []) as any[];
+    const lossStats: Record<number, {
+      name: string;
+      brand: string;
+      category: string;
+      requestCount: number;
+      totalMeters: number;
+      totalM2: number;
+      totalCost: number;
+      reasonsMap: Record<string, number>;
+    }> = {};
+
+    let globalReasonsMap: Record<string, number> = {};
+
+    losses.forEach(loss => {
+      const mat = loss.material;
+      if (!mat) return;
+
+      const matId = mat.id;
+      if (!lossStats[matId]) {
+        lossStats[matId] = {
+          name: mat.name || '',
+          brand: mat.brand || '',
+          category: loss.category || '',
+          requestCount: 0,
+          totalMeters: 0,
+          totalM2: 0,
+          totalCost: 0,
+          reasonsMap: {}
+        };
+      }
+
+      const stat = lossStats[matId];
+      stat.requestCount += 1;
+      stat.totalMeters += Number(loss.lost_meters) || 0;
+      stat.totalM2 += Number(loss.lost_m2) || 0;
+      stat.totalCost += Number(loss.cost) || 0;
+
+      const reason = loss.reason || 'OUTRO';
+      stat.reasonsMap[reason] = (stat.reasonsMap[reason] || 0) + 1;
+      globalReasonsMap[reason] = (globalReasonsMap[reason] || 0) + 1;
+    });
+
+    let grandTotalRequests = 0;
+    let grandTotalMeters = 0;
+    let grandTotalM2 = 0;
+    let grandTotalCost = 0;
+
+    const rows = Object.values(lossStats)
+      .map(stat => {
+        const reqCount = stat.requestCount;
+        const meters = stat.totalMeters;
+        const m2 = stat.totalM2;
+        const cost = stat.totalCost;
+
+        grandTotalRequests += reqCount;
+        grandTotalMeters += meters;
+        grandTotalM2 += m2;
+        grandTotalCost += cost;
+
+        const avgMeters = reqCount > 0 ? (meters / reqCount) : 0;
+        const avgM2 = reqCount > 0 ? (m2 / reqCount) : 0;
+        const avgCost = reqCount > 0 ? (cost / reqCount) : 0;
+
+        let mostFrequentReason = '-';
+        let maxCount = 0;
+        Object.entries(stat.reasonsMap).forEach(([reason, count]) => {
+          if (count > maxCount) {
+            maxCount = count;
+            mostFrequentReason = formatReason(reason);
+          }
+        });
+
+        const fmtBRL = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const fmtMeters = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
+        const fmtM2 = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`;
+
+        const materialName = [stat.brand, stat.name].filter(Boolean).join(' - ');
+
+        return {
+          materialName,
+          category: stat.category,
+          requestCountFormatted: reqCount.toString(),
+          metersFormatted: fmtMeters(meters),
+          m2Formatted: fmtM2(m2),
+          costFormatted: fmtBRL(cost),
+          avgMetersFormatted: fmtMeters(avgMeters),
+          avgM2Formatted: fmtM2(avgM2),
+          avgCostFormatted: fmtBRL(avgCost),
+          mostFrequentReason,
+          costValue: cost
+        };
+      })
+      .sort((a, b) => b.costValue - a.costValue)
+      .map((item, i) => [
+        (i + 1).toString(),
+        item.materialName,
+        item.category,
+        item.requestCountFormatted,
+        item.metersFormatted,
+        item.m2Formatted,
+        item.costFormatted,
+        item.avgMetersFormatted,
+        item.avgM2Formatted,
+        item.avgCostFormatted,
+        item.mostFrequentReason
+      ]);
+
+    let globalMostFrequentReason = '-';
+    let globalMaxCount = 0;
+    Object.entries(globalReasonsMap).forEach(([reason, count]) => {
+      if (count > globalMaxCount) {
+        globalMaxCount = count;
+        globalMostFrequentReason = formatReason(reason);
+      }
+    });
+
+    const grandAverageCost = grandTotalRequests > 0 ? (grandTotalCost / grandTotalRequests) : 0;
+
+    const fmtBRL = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const fmtMeters = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
+    const fmtM2 = (v: number) => `${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`;
+
+    return {
+      title: 'Relatório de Perdas de Material',
+      period: { start: startDate, end: endDate },
+      columns: [
+        '#', 
+        'Material', 
+        'Categoria', 
+        'Solicit.', 
+        'Metros Perdidos', 
+        'M² Perdidos', 
+        'Custo Total', 
+        'Média m/Solicit.', 
+        'Média m²/Solicit.', 
+        'Média $/Solicit.', 
+        'Motivo Principal'
+      ],
+      rows,
+      summary: [
+        { label: 'Total de Solicitações', value: grandTotalRequests.toString() },
+        { label: 'Metragem Perdida Total', value: fmtMeters(grandTotalMeters) },
+        { label: 'Área Perdida Total', value: fmtM2(grandTotalM2) },
+        { label: 'Custo de Perda Consolidado', value: fmtBRL(grandTotalCost) },
+        { label: 'Custo Médio por Perda', value: fmtBRL(grandAverageCost) },
+        { label: 'Motivo Mais Comum Geral', value: globalMostFrequentReason }
+      ]
     };
   };
 
@@ -807,6 +1101,9 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
         case 'vendas_vendedor':
           reportData = await generateVendasVendedorReport();
           break;
+        case 'vendas_pelicula':
+          reportData = await generateVendasPeliculaReport();
+          break;
         case 'clientes_ativos':
           reportData = await generateClientesAtivosReport();
           break;
@@ -824,6 +1121,9 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
           break;
         case 'estoque_movimento':
           reportData = await generateEstoqueMovimentoReport();
+          break;
+        case 'perdas_material':
+          reportData = await generatePerdasMaterialReport();
           break;
         case 'extrato_conta':
           if (!accountId) {

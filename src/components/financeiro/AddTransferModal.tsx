@@ -8,6 +8,7 @@ import { ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface Account {
   id: number;
@@ -77,7 +78,7 @@ export function AddTransferModal({ open, onOpenChange, onSuccess }: AddTransferM
 
     try {
       const amountValue = parseFloat(amount);
-      const today = new Date().toISOString().split('T')[0];
+      const today = format(new Date(), 'yyyy-MM-dd');
 
       // Create transfer record
       const { error } = await supabase.from("transfers").insert({

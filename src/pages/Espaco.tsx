@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Car, Clock, CheckCircle, AlertTriangle, Plus, Loader2, Download, Search, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,7 +90,15 @@ export default function Espaco() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState("vagas");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchParams] = useSearchParams();
+  const searchParamValue = searchParams.get("search") || "";
+  const [searchTerm, setSearchTerm] = useState(searchParamValue);
+
+  useEffect(() => {
+    if (searchParamValue) {
+      setSearchTerm(searchParamValue);
+    }
+  }, [searchParamValue]);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);

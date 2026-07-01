@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { format } from 'date-fns';
 
 interface Account {
   id: number;
@@ -43,8 +44,8 @@ export function FinancialSummary() {
           .eq('company_id', profile.company_id)
           .eq('is_active', true);
 
-        // Fetch today's transactions
-        const today = new Date().toISOString().split('T')[0];
+        // Fetch today's transactions (local timezone consistent)
+        const today = format(new Date(), 'yyyy-MM-dd');
         const { data: transactionsData } = await supabase
           .from('transactions')
           .select('type, amount')

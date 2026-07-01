@@ -60,6 +60,9 @@ import WhatsAppPreviewModal from "@/components/vendas/WhatsAppPreviewModal";
 import TransferToSpaceModal from "@/components/vendas/TransferToSpaceModal";
 import { ClientProfileModal } from "@/components/clientes/ClientProfileModal";
 import EditSaleModal from "@/components/vendas/EditSaleModal";
+import NewSaleModal from "@/components/vendas/NewSaleModal";
+import { FillSlotModal } from "@/components/espaco/FillSlotModal";
+import { EditClientModal } from "@/components/clientes/EditClientModal";
 import { Loader2 } from "lucide-react";
 
 interface SaleDetailsModalProps {
@@ -91,6 +94,59 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
   // Client Profile state
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileClient, setProfileClient] = useState<any>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showEditClientModal, setShowEditClientModal] = useState(false);
+  const [showNewSaleModal, setShowNewSaleModal] = useState(false);
+  const [showNewSlotModal, setShowNewSlotModal] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<any>(null);
+
+  const confirmDeleteClient = async () => {
+    if (!clientToDelete) return;
+
+    if (clientToDelete.sales_count > 0) {
+      toast({
+        title: "Erro",
+        description: "Cliente possui vendas vinculadas. Não pode ser excluído.",
+        variant: "destructive",
+      });
+      setClientToDelete(null);
+      return;
+    }
+
+    try {
+      await supabase.from("pipeline_stages").delete().eq("client_id", clientToDelete.id);
+      await supabase.from("spaces").delete().eq("client_id", clientToDelete.id);
+      await supabase.from("warranties").delete().eq("client_id", clientToDelete.id);
+
+      const { error: vehiclesError } = await supabase
+        .from("vehicles")
+        .delete()
+        .eq("client_id", clientToDelete.id);
+
+      if (vehiclesError) throw vehiclesError;
+
+      const { error } = await supabase
+        .from("clients")
+        .delete()
+        .eq("id", clientToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: `Cliente "${clientToDelete.name}" excluído com sucesso`,
+      });
+    } catch (error: any) {
+      console.error("Error deleting client:", error);
+      toast({
+        title: "Erro",
+        description: `Erro ao excluir cliente: ${error?.message || "Erro desconhecido"}`,
+        variant: "destructive",
+      });
+    } finally {
+      setClientToDelete(null);
+    }
+  };
 
   // Fetch deleter user profile if sale is deleted
   const { data: deleterProfile } = useQuery({
@@ -209,6 +265,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       };
 
       setProfileClient(fullClient);
+      setShowProfileModal(true);
     } catch (error) {
        console.error(error);
        toast({ title: "Erro", description: "Falha ao carregar perfil do cliente", variant: "destructive" });
@@ -880,13 +937,99 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       />
 
       {profileClient && (
-        <ClientProfileModal
-          open={!!profileClient}
-          onOpenChange={(open) => !open && setProfileClient(null)}
-          client={profileClient}
-          onEdit={() => {}}
-        />
+        <>
+          <ClientProfileModal
+            open={showProfileModal}
+            onOpenChange={(open) => {
+              setShowProfileModal(open);
+              if (!open) {
+                setTimeout(() => setProfileClient(null), 300);
+              }
+            }}
+            client={profileClient}
+            onEdit={() => {
+              setShowProfileModal(false);
+              setShowEditClientModal(true);
+            }}
+            onCreateSale={() => {
+              setShowProfileModal(false);
+              setShowNewSaleModal(true);
+            }}
+            onAddToSpace={() => {
+              setShowProfileModal(false);
+              setShowNewSlotModal(true);
+            }}
+            onDelete={(client) => {
+              setShowProfileModal(false);
+              setClientToDelete(client);
+            }}
+          />
+
+          <EditClientModal
+            open={showEditClientModal}
+            onOpenChange={(open) => {
+              setShowEditClientModal(open);
+              if (!open) {
+                setProfileClient(null);
+              }
+            }}
+            client={profileClient}
+            onSave={() => {
+              setShowEditClientModal(false);
+              setProfileClient(null);
+              toast({
+                title: "Sucesso",
+                description: "Cliente atualizado com sucesso!",
+              });
+              queryClient.invalidateQueries({ queryKey: ['sale-detailed-items'] });
+            }}
+          />
+        </>
       )}
+
+      {/* New Sale Modal */}
+      <NewSaleModal
+        open={showNewSaleModal}
+        onOpenChange={(open) => {
+          setShowNewSaleModal(open);
+          if (!open) setProfileClient(null);
+        }}
+        defaultClientId={profileClient?.id}
+      />
+
+      {/* New Slot Modal */}
+      <FillSlotModal
+        open={showNewSlotModal}
+        onOpenChange={(open) => {
+          setShowNewSlotModal(open);
+          if (!open) setProfileClient(null);
+        }}
+        defaultClientId={profileClient?.id}
+      />
+
+      {/* Client Delete Confirmation */}
+      <AlertDialog open={!!clientToDelete} onOpenChange={(open) => {
+        if (!open) setClientToDelete(null);
+      }}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cliente "{clientToDelete?.name}"?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteClient}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <EditSaleModal
         open={isEditSaleOpen}

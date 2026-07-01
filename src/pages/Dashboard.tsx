@@ -9,7 +9,7 @@ import { SalesChart } from '@/components/dashboard/SalesChart';
 import { CapacityWidget } from '@/components/dashboard/CapacityWidget';
 import { FinancialSummary } from '@/components/dashboard/FinancialSummary';
 import { HelpOverlay } from '@/components/help/HelpOverlay';
-import { Search, DollarSign, TrendingUp, Users, Phone, Settings, Save, X } from 'lucide-react';
+import { Search, DollarSign, TrendingUp, Users, Phone, Settings, Save, X, Car, User, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,111 @@ const Dashboard = () => {
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [loading, setLoading] = useState(true);
   
+  // State for search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchResults, setSearchResults] = useState<{
+    activeSpaces: any[];
+    clients: any[];
+    vehicles: any[];
+  }>({ activeSpaces: [], clients: [], vehicles: [] });
+
+  // Handle click outside of search dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.search-container')) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Search logic with debounce
+  useEffect(() => {
+    const delayDebounce = setTimeout(async () => {
+      const cleanQuery = searchQuery.trim();
+      if (cleanQuery.length < 2) {
+        setSearchResults({ activeSpaces: [], clients: [], vehicles: [] });
+        setIsSearching(false);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('user_id', user?.id)
+          .single();
+
+        if (!profile?.company_id) return;
+
+        const term = `%${cleanQuery}%`;
+
+        // 1. Fetch active spaces
+        const { data: allActiveSpaces } = await supabase
+          .from('spaces')
+          .select(`
+            id, name, entry_date, payment_status,
+            client:clients(name, phone),
+            vehicle:vehicles(brand, model, plate)
+          `)
+          .eq('company_id', profile.company_id)
+          .eq('has_exited', false)
+          .is('deleted_at', null);
+
+        // Filter in-memory to match name, plate, brand, model or space name
+        const cleanTerm = cleanQuery.toLowerCase();
+        const matchedActiveSpaces = (allActiveSpaces || []).filter(space => {
+          const clientName = space.client?.name?.toLowerCase() || '';
+          const clientPhone = space.client?.phone || '';
+          const vehicleBrand = space.vehicle?.brand?.toLowerCase() || '';
+          const vehicleModel = space.vehicle?.model?.toLowerCase() || '';
+          const vehiclePlate = space.vehicle?.plate?.toLowerCase() || '';
+          const spaceName = space.name?.toLowerCase() || '';
+          
+          return clientName.includes(cleanTerm) ||
+                 clientPhone.includes(cleanTerm) ||
+                 vehicleBrand.includes(cleanTerm) ||
+                 vehicleModel.includes(cleanTerm) ||
+                 vehiclePlate.includes(cleanTerm) ||
+                 spaceName.includes(cleanTerm);
+        });
+
+        // 2. Fetch clients
+        const { data: clientsData } = await supabase
+          .from('clients')
+          .select('id, name, phone')
+          .eq('company_id', profile.company_id)
+          .or(`name.ilike.${term},phone.ilike.${term}`)
+          .limit(5);
+
+        // 3. Fetch vehicles
+        const { data: vehiclesData } = await supabase
+          .from('vehicles')
+          .select('id, brand, model, plate, client:clients(name)')
+          .eq('company_id', profile.company_id)
+          .or(`brand.ilike.${term},model.ilike.${term},plate.ilike.${term}`)
+          .limit(5);
+
+        setSearchResults({
+          activeSpaces: matchedActiveSpaces,
+          clients: clientsData || [],
+          vehicles: vehiclesData || []
+        });
+      } catch (err) {
+        console.error("Erro na busca instantânea:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery, user?.id]);
+
   // States para Meta
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [editingGoalValue, setEditingGoalValue] = useState<number>(0);
@@ -234,13 +339,134 @@ const Dashboard = () => {
         </div>
 
         {/* Search Bar */}
-        <div className="relative max-w-md w-full animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Buscar cliente, placa ou serviço..."
-            className="w-full h-12 pl-12 pr-4 rounded-xl bg-card border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-          />
+        <div className="relative max-w-md w-full search-container z-50 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Buscar cliente, placa ou veículo..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowSearchResults(true);
+              }}
+              onFocus={() => setShowSearchResults(true)}
+              className="w-full h-12 pl-12 pr-4 rounded-xl bg-card border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+            />
+            {isSearching && (
+              <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-muted-foreground" />
+            )}
+          </div>
+
+          {showSearchResults && searchQuery.trim().length >= 2 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-2xl overflow-hidden max-h-[400px] overflow-y-auto z-50">
+              {isSearching ? (
+                <div className="p-8 text-center text-muted-foreground flex items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span>Buscando...</span>
+                </div>
+              ) : searchResults.activeSpaces.length === 0 && searchResults.clients.length === 0 && searchResults.vehicles.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Nenhum resultado encontrado
+                </div>
+              ) : (
+                <div className="p-2 space-y-4">
+                  {/* Category: Vagas Ativas */}
+                  {searchResults.activeSpaces.length > 0 && (
+                    <div className="space-y-1">
+                      <h4 className="text-[10px] uppercase font-bold text-muted-foreground px-3 py-1 tracking-wider">
+                        Vagas Ativas (Em Andamento)
+                      </h4>
+                      {searchResults.activeSpaces.map(space => (
+                        <button
+                          key={space.id}
+                          onClick={() => {
+                            setShowSearchResults(false);
+                            navigate(`/espaco?search=${space.vehicle?.plate || space.name}`);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent transition-colors flex items-center gap-3"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-info/20 flex items-center justify-center shrink-0">
+                            <Car className="w-4 h-4 text-info" />
+                          </div>
+                          <div className="truncate">
+                            <p className="text-sm font-semibold">
+                              {space.vehicle ? `${space.vehicle.brand} ${space.vehicle.model}` : space.name}
+                              {space.vehicle?.plate && <span className="ml-2 text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">{space.vehicle.plate}</span>}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              Cliente: {space.client?.name || "Sem Nome"}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Category: Clientes */}
+                  {searchResults.clients.length > 0 && (
+                    <div className="space-y-1">
+                      <h4 className="text-[10px] uppercase font-bold text-muted-foreground px-3 py-1 tracking-wider">
+                        Clientes
+                      </h4>
+                      {searchResults.clients.map(client => (
+                        <button
+                          key={client.id}
+                          onClick={() => {
+                            setShowSearchResults(false);
+                            navigate(`/clientes?search=${client.name}`);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent transition-colors flex items-center gap-3"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+                            <User className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="truncate">
+                            <p className="text-sm font-semibold">{client.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              WhatsApp: {client.phone}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Category: Veículos */}
+                  {searchResults.vehicles.length > 0 && (
+                    <div className="space-y-1">
+                      <h4 className="text-[10px] uppercase font-bold text-muted-foreground px-3 py-1 tracking-wider">
+                        Veículos Cadastrados
+                      </h4>
+                      {searchResults.vehicles.map(vehicle => (
+                        <button
+                          key={vehicle.id}
+                          onClick={() => {
+                            setShowSearchResults(false);
+                            navigate(`/clientes?search=${vehicle.plate || vehicle.model}`);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent transition-colors flex items-center gap-3"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center shrink-0">
+                            <Car className="w-4 h-4 text-success" />
+                          </div>
+                          <div className="truncate">
+                            <p className="text-sm font-semibold">
+                              {vehicle.brand} {vehicle.model}
+                              {vehicle.plate && <span className="ml-2 text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">{vehicle.plate}</span>}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              Proprietário: {vehicle.client?.name || "Sem Proprietário"}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

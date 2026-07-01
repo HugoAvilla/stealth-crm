@@ -459,7 +459,7 @@ export function ClientProfileModal({
         <div className="flex gap-2 pt-4 border-t border-border flex-shrink-0">
           <Button 
             onClick={onEdit}
-            className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="flex-1 bg-[#c6e60b] hover:bg-[#b0cc0a] text-black font-semibold"
           >
             <Pencil className="h-4 w-4 mr-2" />
             Editar

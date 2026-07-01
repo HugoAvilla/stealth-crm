@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -50,22 +50,29 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
   const [template, setTemplate] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  if (!space) return null;
-
-  const vehicleStr = `${space.vehicle?.brand || ''} ${space.vehicle?.model || ''} ${space.vehicle?.plate ? `(${space.vehicle.plate})` : ''}`.trim();
-  const entryDateStr = space.entry_date ? format(new Date(space.entry_date + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR }) : '-';
-  const entryTimeStr = space.entry_time || '';
-  const exitDateStr = space.exit_date ? format(new Date(space.exit_date + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR }) : '-';
-  const exitTimeStr = space.exit_time || '';
-  const servicesStr = space.services.length > 0
+  const vehicleStr = space ? `${space.vehicle?.brand || ''} ${space.vehicle?.model || ''} ${space.vehicle?.plate ? `(${space.vehicle.plate})` : ''}`.trim() : '';
+  const entryDateStr = space?.entry_date ? format(new Date(space.entry_date + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR }) : '-';
+  const entryTimeStr = space?.entry_time || '';
+  const exitDateStr = space?.exit_date ? format(new Date(space.exit_date + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR }) : '-';
+  const exitTimeStr = space?.exit_time || '';
+  const servicesStr = space && space.services && space.services.length > 0
     ? space.services.map((s, i) => `${i + 1}. ${s.name} - R$ ${s.price.toFixed(2)}`).join("\n")
     : 'Nenhum serviço';
 
-  const defaultEntrance = `Olá ${space.client?.name || ''}!\nO seu veículo ${vehicleStr} já está sob os cuidados da nossa equipe. Agradecemos pela confiança em nosso trabalho.\n\n*Entrada:*\n${entryDateStr} ${entryTimeStr && `às ${entryTimeStr}h`}\n\n*Saída prevista:*\n${exitDateStr} ${exitTimeStr && `às ${exitTimeStr}h`}\n\n_Obs.: Uma mensagem será enviada assim que o serviço estiver pronto!_`;
+  const defaultEntrance = space ? `Olá ${space.client?.name || ''}!\nO seu veículo ${vehicleStr} já está sob os cuidados da nossa equipe. Agradecemos pela confiança em nosso trabalho.\n\n*Entrada:*\n${entryDateStr} ${entryTimeStr && `às ${entryTimeStr}h`}\n\n*Saída prevista:*\n${exitDateStr} ${exitTimeStr && `às ${exitTimeStr}h`}\n\n_Obs.: Uma mensagem será enviada assim que o serviço estiver pronto!_` : '';
 
-  const defaultExit = `Olá ${space.client?.name || ''}!\nSeu veículo ${vehicleStr} está pronto para retirada!\n\n*Serviços realizados:*\n${servicesStr}\n\n*Total:* R$ ${space.total.toFixed(2)}\n\nAgradecemos a preferência! Qualquer dúvida estamos à disposição.`;
+  const defaultExit = space ? `Olá ${space.client?.name || ''}!\n\n*Temos uma excelente notícia para você!*\n\nO seu veículo ${vehicleStr} já está pronto. Fique à vontade para vir buscar!\n\nObrigado por confiar em nosso trabalho, até logo!` : '';
 
   const defaultMessage = type === 'entrada' ? defaultEntrance : defaultExit;
+
+  useEffect(() => {
+    if (open && space) {
+      setTemplate(type === 'entrada' ? defaultEntrance : defaultExit);
+      setIsEditing(false);
+    }
+  }, [open, space?.id, type, defaultEntrance, defaultExit]);
+
+  if (!space) return null;
 
   const resolveVariables = (text: string) => {
     return text
@@ -81,7 +88,7 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
       .replace(/\{total\}/g, space.total.toFixed(2));
   };
 
-  const messageToSend = isEditing && template ? resolveVariables(template) : defaultMessage;
+  const messageToSend = template ? resolveVariables(template) : defaultMessage;
 
   const getWhatsAppUrl = () => {
     if (!space.client?.phone) return "#";
@@ -102,9 +109,6 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
   };
 
   const handleEdit = () => {
-    if (!isEditing) {
-      setTemplate(defaultMessage);
-    }
     setIsEditing(true);
   };
 
@@ -166,10 +170,10 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent hideCloseButton className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="hidden sm:flex items-center gap-3">
               <div className="p-2 rounded-lg bg-success/20">
                 <MessageCircle className="h-5 w-5 text-success" />
               </div>
@@ -177,7 +181,7 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
                 {type === 'entrada' ? 'Mensagem de Entrada' : 'Mensagem de Saída'}
               </DialogTitle>
             </div>
-            <div className="flex gap-2">
+            <div className="flex w-full sm:w-auto gap-2">
               {!isEditing ? (
                 <>
                   <a
@@ -185,24 +189,36 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={handleSend}
-                    className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-success text-white hover:bg-success/90 h-9 px-3"
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-success text-white hover:bg-success/90 h-10 sm:h-9 px-3"
                   >
-                    <Send className="h-4 w-4" />
-                    Enviar WhatsApp
+                    <Send className="h-4 w-4 hidden sm:inline" />
+                    <span className="sm:hidden">Enviar whatsapp</span>
+                    <span className="hidden sm:inline">Enviar WhatsApp</span>
                   </a>
-                  <Button variant="outline" onClick={handleEdit} size="sm" className="gap-2">
-                    <Edit className="h-4 w-4" />
-                    Editar mensagem
+                  <Button 
+                    variant="outline" 
+                    onClick={handleEdit} 
+                    size="sm" 
+                    className="flex-1 sm:flex-none gap-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white border-none sm:bg-background sm:text-foreground sm:border sm:border-input sm:hover:bg-accent sm:hover:text-accent-foreground h-10 sm:h-9"
+                  >
+                    <Edit className="h-4 w-4 hidden sm:inline" />
+                    <span>Editar mensagem</span>
                   </Button>
                 </>
               ) : (
-                <Button onClick={handleSave} className="gap-2 bg-success hover:bg-success/90" size="sm">
+                <Button onClick={handleSave} className="flex-1 sm:flex-none gap-2 bg-success hover:bg-success/90 h-10 sm:h-9" size="sm">
                   <Save className="h-4 w-4" />
                   Salvar
                 </Button>
               )}
-              <Button variant="destructive" size="sm" onClick={() => { setIsEditing(false); onOpenChange(false); }}>
-                <X className="h-4 w-4" />
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="flex-1 sm:flex-none gap-2 h-10 sm:h-9" 
+                onClick={() => { setIsEditing(false); onOpenChange(false); }}
+              >
+                <X className="h-4 w-4 hidden sm:inline" />
+                <span className="sm:hidden">Fechar</span>
               </Button>
             </div>
           </div>
@@ -223,7 +239,7 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
                     ref={textareaRef}
                     value={template}
                     onChange={(e) => setTemplate(e.target.value)}
-                    className="min-h-[250px] bg-transparent border-none focus-visible:ring-0 text-sm text-gray-800 font-sans resize-none"
+                    className="min-h-[250px] bg-transparent border-none focus-visible:ring-0 text-sm text-gray-800 font-sans resize-none [word-break:normal] break-words"
                   />
                 </Card>
               </div>
@@ -260,9 +276,8 @@ export function SpaceWhatsAppModal({ open, onOpenChange, space, type, companyNam
                 backgroundColor: "#E5DDD5",
               }}
             >
-              <Card className="bg-[#DCF8C6] p-4 rounded-lg shadow-md max-w-md ml-auto">
+              <Card className="bg-[#DCF8C6] p-4 rounded-lg shadow-md max-w-md ml-auto [word-break:normal] break-words whitespace-pre-wrap text-sm text-gray-800 font-sans">
                 <div
-                  className="whitespace-pre-wrap text-sm text-gray-800 font-sans"
                   dangerouslySetInnerHTML={{ __html: formatWhatsAppPreview(messageToSend) }}
                 />
                 <div className="text-right mt-2">

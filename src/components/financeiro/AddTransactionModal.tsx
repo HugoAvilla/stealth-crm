@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { NewCategoryModal } from "./NewCategoryModal";
 import { CAC_ORIGIN_OPTIONS, CacOrigin } from "@/constants/origins";
+import { format } from "date-fns";
 interface Account {
   id: number;
   name: string;
@@ -38,7 +39,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
   const [categoryId, setCategoryId] = useState("");
   const [accountId, setAccountId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -158,7 +159,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
     setCategoryId("");
     setAccountId("");
     setPaymentMethod("");
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(format(new Date(), 'yyyy-MM-dd'));
     setIsPaid(true);
     setIsRecurring(false);
     setRecurringMonths(1);
