@@ -5,6 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Car,
   CheckCircle,
@@ -65,6 +74,13 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   
+  // Custom dialog states
+  const [revertSpace, setRevertSpace] = useState<PaidExitedVehicle | null>(null);
+  const [isReverting, setIsReverting] = useState(false);
+  const [deleteSpaceId, setDeleteSpaceId] = useState<number | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const companyId = user?.companyId;
 
   useEffect(() => {
@@ -102,8 +118,9 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
     }
   };
 
-  const handleRevert = async (space: PaidExitedVehicle) => {
-    if (!window.confirm("Deseja reverter esta vaga para não paga? Caso esteja vinculada a uma venda, a venda será excluída e os serviços retornarão para a vaga.")) return;
+  const handleRevertConfirm = async () => {
+    if (!revertSpace) return;
+    setIsReverting(true);
 
     try {
       // 1) First update the space — clears sale_id FK and resets status
@@ -116,52 +133,52 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
           exit_date: null,
           exit_time: null
         })
-        .eq("id", space.id);
+        .eq("id", revertSpace.id);
 
       if (spaceError) throw spaceError;
 
       // 2) If there was a linked sale, delete all dependent records then the sale
-      if (space.sale_id) {
+      if (revertSpace.sale_id) {
         // Delete service_items_detailed linked to the sale
         const { error: sidError } = await supabase
           .from("service_items_detailed")
           .delete()
-          .eq("sale_id", space.sale_id);
+          .eq("sale_id", revertSpace.sale_id);
         if (sidError) logger.error("Erro ao deletar service_items_detailed:", sidError);
 
         // Delete sale_items linked to the sale
         const { error: siError } = await supabase
           .from("sale_items")
           .delete()
-          .eq("sale_id", space.sale_id);
+          .eq("sale_id", revertSpace.sale_id);
         if (siError) logger.error("Erro ao deletar sale_items:", siError);
 
         // Delete sale_commissions linked to the sale
         const { error: scError } = await supabase
           .from("sale_commissions")
           .delete()
-          .eq("sale_id", space.sale_id);
+          .eq("sale_id", revertSpace.sale_id);
         if (scError) logger.error("Erro ao deletar sale_commissions:", scError);
 
         // Delete transactions linked to the sale via centralized service
         // The trigger handles balance correction on DELETE
-        const { count: reversedTxs } = await reverseAllSaleTransactions(space.sale_id, "delete");
+        const { count: reversedTxs } = await reverseAllSaleTransactions(revertSpace.sale_id, "delete");
         if (reversedTxs > 0) {
-          logger.log(`[PaidExited] Reversed ${reversedTxs} transactions for sale ${space.sale_id}`);
+          logger.log(`[PaidExited] Reversed ${reversedTxs} transactions for sale ${revertSpace.sale_id}`);
         }
 
         // Delete warranties linked to the sale
         const { error: wError } = await supabase
           .from("warranties")
           .delete()
-          .eq("sale_id", space.sale_id);
+          .eq("sale_id", revertSpace.sale_id);
         if (wError) logger.error("Erro ao deletar warranties:", wError);
 
         // Finally delete the sale itself
         const { error: saleError } = await supabase
           .from("sales")
           .delete()
-          .eq("id", space.sale_id);
+          .eq("id", revertSpace.sale_id);
 
         if (saleError) {
           logger.error("Erro ao deletar venda vinculada:", saleError);
@@ -174,6 +191,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
         description: "A vaga retornou para o status original na aba de espaços ativos.",
       });
       fetchPaidExitedVehicles();
+      setRevertSpace(null);
     } catch (error) {
       logger.error("Erro ao reverter vaga:", error);
       toast({
@@ -181,22 +199,20 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
         description: "Não foi possível reverter a vaga.",
         variant: "destructive",
       });
+    } finally {
+      setIsReverting(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    const reason = window.prompt("Tem certeza que deseja mover esta vaga para a lixeira? Digite o motivo:");
-    if (reason === null) return; // cancelado pelo usuário
+  const handleDeleteConfirm = async () => {
+    if (!deleteSpaceId) return;
+    setIsDeleting(true);
 
     try {
-      const { error } = await supabase
-        .from("spaces")
-        .update({
-          deleted_at: new Date().toISOString(),
-          deleted_by: user?.email || "anonymous",
-          deleted_reason: reason || "Nenhum motivo informado."
-        })
-        .eq("id", id);
+      const { error } = await supabase.rpc('soft_delete_space', {
+        p_space_id: deleteSpaceId,
+        p_reason: deleteReason.trim() || "Nenhum motivo informado."
+      });
 
       if (error) throw error;
 
@@ -204,6 +220,8 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
         title: "Vaga movida para a lixeira com sucesso!",
       });
       fetchPaidExitedVehicles();
+      setDeleteSpaceId(null);
+      setDeleteReason("");
     } catch (error) {
       logger.error("Erro ao excluir registro:", error);
       toast({
@@ -211,6 +229,8 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
         description: "Não foi possível mover o registro para a lixeira.",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -343,7 +363,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
                         variant="ghost"
                         size="sm"
                         className="text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
-                        onClick={() => handleRevert(space)}
+                        onClick={() => setRevertSpace(space)}
                       >
                         <Undo2 className="h-4 w-4 mr-2" />
                         Reverter
@@ -352,7 +372,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
                         variant="ghost"
                         size="sm"
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(space.id)}
+                        onClick={() => setDeleteSpaceId(space.id)}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Excluir
@@ -365,6 +385,83 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
           ))}
         </div>
       )}
+
+      {/* Modal de Confirmação de Reversão */}
+      <Dialog open={!!revertSpace} onOpenChange={(open) => !open && setRevertSpace(null)}>
+        <DialogContent className="w-[95vw] max-w-md rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Undo2 className="h-5 w-5 text-amber-500" />
+              Reverter Vaga
+            </DialogTitle>
+            <DialogDescription>
+              Deseja reverter esta vaga para não paga? Caso esteja vinculada a uma venda, a venda será excluída e os serviços retornarão para a vaga.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex-row gap-2 justify-end sm:justify-end mt-4">
+            <Button variant="outline" onClick={() => setRevertSpace(null)} disabled={isReverting}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-amber-500 hover:bg-amber-600 text-white gap-2"
+              onClick={handleRevertConfirm}
+              disabled={isReverting}
+            >
+              {isReverting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Undo2 className="h-4 w-4" />
+              )}
+              Reverter Vaga
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Exclusão (Mover para Lixeira) */}
+      <Dialog open={!!deleteSpaceId} onOpenChange={(open) => !open && (setDeleteSpaceId(null), setDeleteReason(""))}>
+        <DialogContent className="w-[95vw] max-w-md rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Mover para a Lixeira
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja mover esta vaga para a lixeira operacional?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <Label htmlFor="delete-reason" className="text-xs font-semibold">Motivo da Exclusão</Label>
+            <Input
+              id="delete-reason"
+              placeholder="Digite o motivo da exclusão..."
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          <DialogFooter className="flex-row gap-2 justify-end sm:justify-end mt-4">
+            <Button variant="outline" onClick={() => (setDeleteSpaceId(null), setDeleteReason(""))} disabled={isDeleting}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-destructive hover:bg-destructive/90 text-white gap-2"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Mover para Lixeira
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

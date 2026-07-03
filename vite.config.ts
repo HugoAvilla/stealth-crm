@@ -33,14 +33,6 @@ export default defineConfig(({ mode }) => ({
             urlPattern: /\.(?:mp4|webm|ogg|mp3|wav)$/i,
             handler: "NetworkOnly",
           },
-          {
-            urlPattern: /^https:\/\/.*supabase\.co\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "supabase-cache",
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 },
-            },
-          },
         ],
       },
     }),

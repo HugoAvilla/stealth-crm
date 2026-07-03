@@ -82,12 +82,8 @@ const WhatsAppPreviewModal = ({ open, onOpenChange, sale }: WhatsAppPreviewModal
   const servicesListString = detailedItems && detailedItems.length > 0
     ? detailedItems.map((item, i) => {
         const regionName = item.display_name || item.region?.name || 'Região';
-        const productName = item.product_type
-          ? `${item.product_type.brand} ${item.product_type.name}${item.product_type.light_transmission ? ` ${item.product_type.light_transmission}` : ''}`
-          : 'Produto';
         const categoryBadge = item.category ? ` [${item.category}]` : '';
-        const metersInfo = item.meters_used > 0 ? ` (${item.meters_used.toFixed(2)}m)` : '';
-        return `${i + 1}. ${regionName}${categoryBadge}: ${productName}${metersInfo} - R$ ${item.total_price.toFixed(2)}`;
+        return `${i + 1}. ${regionName}${categoryBadge} R$ ${item.total_price.toFixed(2)}`;
       }).join("\n")
     : saleItems.map((item, i) => `${i + 1}. ${item.service?.name || `Serviço #${item.service_id}`} - R$ ${item.total_price.toFixed(2)}`).join("\n");
 

@@ -46,7 +46,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { consumeStockForDetailedSale, createTransactionFromSale } from "@/lib/stockConsumption";
-import { reverseAllSaleTransactions } from "@/lib/financialTransactions";
+import { reverseAllSaleTransactions, createBoletoInstallmentTransactions } from "@/lib/financialTransactions";
 import NewClientModal from "@/components/vendas/NewClientModal";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
@@ -135,6 +135,11 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
   const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [originalAccountId, setOriginalAccountId] = useState<number | null>(null);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [machines, setMachines] = useState<any[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [selectedMachineId, setSelectedMachineId] = useState<number | null>(null);
+  const [selectedInstallments, setSelectedInstallments] = useState<number>(1);
 
   useEffect(() => {
     if (open && sale) {
@@ -153,6 +158,8 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
          setNotes(sale.observations);
          setShowNotes(true);
       }
+      setSelectedMachineId(null);
+      setSelectedInstallments(1);
       fetchData();
       
       const fetchItems = async () => {
@@ -216,13 +223,15 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
 
       setCompanyId(profile.company_id);
 
-      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes, paymentsRes] = await Promise.all([
+      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes, paymentsRes, accountsRes, machinesRes] = await Promise.all([
         supabase.from('clients').select('id, name, phone, email').eq('company_id', profile.company_id).order('name'),
         supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
         supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
         supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
         supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true),
-        supabase.from('sale_payments').select('account_id').eq('sale_id', sale.id).limit(1)
+        supabase.from('sale_payments').select('*').eq('sale_id', sale.id),
+        supabase.from('accounts').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('is_main', { ascending: false }),
+        supabase.from('card_machines').select('id, name, debit_rate').eq('company_id', profile.company_id)
       ]);
 
       const regionsList = regionsRes.data || [];
@@ -241,6 +250,8 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       setClients(clientsRes.data || []);
       setProductTypes(productsList);
       setVehicleRegions(regionsList);
+      setAccounts(accountsRes.data || []);
+      setMachines(machinesRes.data || []);
       
       const rulesList = (rulesRes.data || []).map((rule: any) => {
         const region = regionsList.find(r => r.id === rule.region_id);
@@ -248,9 +259,13 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       });
       setConsumptionRules(rulesList);
 
-      const payData = paymentsRes.data;
-      if (payData && payData.length > 0 && payData[0].account_id) {
-        setOriginalAccountId(payData[0].account_id);
+      const payData = paymentsRes.data || [];
+      if (payData.length > 0) {
+        const firstPayment = payData[0];
+        setOriginalAccountId(firstPayment.account_id);
+        setSelectedAccountId(firstPayment.account_id);
+        setSelectedMachineId(firstPayment.machine_id);
+        setSelectedInstallments(firstPayment.installments || 1);
       } else {
         const { data: txData } = await supabase
           .from('transactions')
@@ -259,6 +274,32 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
           .limit(1);
         if (txData && txData.length > 0 && txData[0].account_id) {
           setOriginalAccountId(txData[0].account_id);
+          setSelectedAccountId(txData[0].account_id);
+        } else if (accountsRes.data && accountsRes.data.length > 0) {
+          setSelectedAccountId(accountsRes.data[0].id);
+        }
+      }
+
+      // If the sale payment method is Boleto, let's load installments count and account from boletos table
+      if (sale.payment_method === "Boleto") {
+        const { data: boletoData } = await supabase
+          .from("boletos")
+          .select("id, account_id")
+          .eq("sale_id", sale.id)
+          .maybeSingle();
+
+        if (boletoData) {
+          const { data: insts } = await supabase
+            .from("boleto_installments")
+            .select("id")
+            .eq("boleto_id", boletoData.id);
+            
+          if (insts && insts.length > 0) {
+            setSelectedInstallments(insts.length);
+          }
+          if (boletoData.account_id) {
+            setSelectedAccountId(boletoData.account_id);
+          }
         }
       }
     } catch (error) {
@@ -501,6 +542,19 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       // RF-08: Reverter transações antigas via serviço financeiro (trigger reverte saldo)
       await reverseAllSaleTransactions(sale.id, "delete");
       await supabase.from('sale_commissions').delete().eq('sale_id', sale.id);
+      await supabase.from('sale_payments').delete().eq('sale_id', sale.id);
+
+      // Deletar boletos antigos se existirem
+      const { data: oldBoleto } = await supabase
+        .from('boletos')
+        .select('id')
+        .eq('sale_id', sale.id)
+        .maybeSingle();
+
+      if (oldBoleto) {
+        await supabase.from('boleto_installments').delete().eq('boleto_id', oldBoleto.id);
+        await supabase.from('boletos').delete().eq('id', oldBoleto.id);
+      }
 
       // Create service_items_detailed
       const serviceItemsData: any[] = [];
@@ -565,21 +619,110 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
 
       // Create financial transaction if sale is closed
       if (!isOpen) {
-        const txCreated = await createTransactionFromSale(
-          sale.id,
-          total,
-          selectedClient?.name || 'Cliente',
-          paymentMethod,
-          format(saleDate, 'yyyy-MM-dd'),
-          companyId,
-          originalAccountId || undefined, // accountId — usa conta original se houver
-          undefined, // machineId
-          undefined, // installments
-          undefined, // netAmount
-          true       // isPaid
-        );
-        if (!txCreated) {
-          toast.error("Venda atualizada, mas não foi possível gerar o lançamento financeiro automático. Verifique suas contas.");
+        // Calculate net amount if card
+        let finalNetAmount = total;
+        if ((paymentMethod === "Crédito" || paymentMethod === "Débito") && selectedMachineId) {
+          const { data: rateData } = await supabase
+            .from("card_machine_rates")
+            .select("rate")
+            .eq("machine_id", selectedMachineId)
+            .eq("installments", selectedInstallments)
+            .single();
+          
+          if (rateData) {
+            finalNetAmount = total * (1 - rateData.rate / 100);
+          }
+        }
+
+        // Insert sale payment record
+        await supabase.from("sale_payments").insert({
+          sale_id: sale.id,
+          method: paymentMethod,
+          amount: total,
+          account_id: selectedAccountId,
+          machine_id: selectedMachineId,
+          installments: selectedInstallments,
+          status: 'received',
+          company_id: companyId
+        });
+
+        if (paymentMethod === "Boleto") {
+          // If Boleto, register boletos & installments
+          const { data: boletoData, error: boletoError } = await supabase
+            .from("boletos")
+            .insert({
+              sale_id: sale.id,
+              total_amount: total,
+              status: 'pending',
+              company_id: companyId,
+              account_id: selectedAccountId as number,
+              client_id: parseInt(selectedClientId)
+            })
+            .select()
+            .single();
+
+          if (boletoError) throw boletoError;
+
+          if (boletoData) {
+            const installmentsToInsert = [];
+            const installmentAmount = total / selectedInstallments;
+            
+            for (let i = 1; i <= selectedInstallments; i++) {
+              const dueDate = new Date(saleDate);
+              dueDate.setMonth(dueDate.getMonth() + i);
+              
+              installmentsToInsert.push({
+                boleto_id: boletoData.id,
+                installment_number: i,
+                amount: installmentAmount,
+                due_date: format(dueDate, 'yyyy-MM-dd'),
+                status: 'pending'
+              });
+            }
+            
+            await supabase.from("boleto_installments").insert(installmentsToInsert);
+
+            // Fetch created installments to generate pending transactions
+            const { data: createdInstallments } = await supabase
+              .from("boleto_installments")
+              .select("id, installment_number, amount, due_date")
+              .eq("boleto_id", boletoData.id)
+              .order("installment_number");
+
+            if (createdInstallments && createdInstallments.length > 0) {
+              await createBoletoInstallmentTransactions({
+                saleId: sale.id,
+                clientName: selectedClient?.name || 'Cliente',
+                saleDate: format(saleDate, 'yyyy-MM-dd'),
+                companyId,
+                accountId: selectedAccountId as number,
+                installments: createdInstallments.map(ci => ({
+                  installmentNumber: ci.installment_number,
+                  amount: ci.amount,
+                  dueDate: ci.due_date,
+                  installmentId: ci.id
+                }))
+              });
+            }
+          }
+        } else {
+          // Normal payment method
+          const txCreated = await createTransactionFromSale(
+            sale.id,
+            total,
+            selectedClient?.name || 'Cliente',
+            paymentMethod,
+            format(saleDate, 'yyyy-MM-dd'),
+            companyId,
+            selectedAccountId || undefined,
+            selectedMachineId || undefined,
+            selectedInstallments || undefined,
+            finalNetAmount,
+            true // isPaid
+          );
+          if (!txCreated) {
+            toast.error("Venda atualizada, mas não foi possível gerar o lançamento financeiro automático. Verifique suas contas.");
+          }
         }
       }
 
@@ -856,6 +999,77 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {!isOpen && (
+                <div className="space-y-4 p-4 border border-border/50 rounded-lg bg-muted/20">
+                  <div className="space-y-2">
+                    <Label>Conta de Destino *</Label>
+                    <Select 
+                      value={selectedAccountId ? selectedAccountId.toString() : ""} 
+                      onValueChange={(val) => setSelectedAccountId(parseInt(val))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a conta" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map(acc => (
+                          <SelectItem key={acc.id} value={acc.id.toString()}>
+                            {acc.name} (Saldo: R$ {acc.current_balance?.toFixed(2)})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {paymentMethod === "Boleto" && (
+                    <div className="space-y-2">
+                      <Label>Número de Parcelas *</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="36"
+                        value={selectedInstallments}
+                        onChange={(e) => setSelectedInstallments(Math.max(1, parseInt(e.target.value) || 1))}
+                      />
+                    </div>
+                  )}
+
+                  {(paymentMethod === "Crédito" || paymentMethod === "Débito") && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Maquininha de Cartão *</Label>
+                        <Select 
+                          value={selectedMachineId ? selectedMachineId.toString() : ""} 
+                          onValueChange={(val) => setSelectedMachineId(parseInt(val))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a maquininha" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {machines.map(m => (
+                              <SelectItem key={m.id} value={m.id.toString()}>
+                                {m.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {paymentMethod === "Crédito" && (
+                        <div className="space-y-2">
+                          <Label>Parcelas *</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="18"
+                            value={selectedInstallments}
+                            onChange={(e) => setSelectedInstallments(Math.max(1, parseInt(e.target.value) || 1))}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Service Price - NEW FIELD */}
               <div className="space-y-2">

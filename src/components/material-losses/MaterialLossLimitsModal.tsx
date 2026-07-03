@@ -128,7 +128,9 @@ export function MaterialLossLimitsModal({ open, onOpenChange }: MaterialLossLimi
                         <Input 
                           type="number" 
                           step={form.watch('limit_type') === 'count' ? '1' : '0.01'}
+                          placeholder="0"
                           {...field} 
+                          value={field.value || ""}
                           onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
                         />
                       </FormControl>

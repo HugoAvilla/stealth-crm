@@ -154,7 +154,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
     category: "INSULFILM" as ProductCategory,
     name: "",
     description: "",
-    fixed_price: 0,
+    fixed_price: "",
     region_code: "" as string,
   });
 
@@ -209,7 +209,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
           name: data.name,
           description: data.description || null,
           category: data.category,
-          fixed_price: data.fixed_price || null,
+          fixed_price: parseFloat(data.fixed_price as string) || null,
           region_code: data.region_code || null,
           company_id: companyId,
           sort_order: nextOrder,
@@ -238,7 +238,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
         .update({
           name: data.name,
           description: data.description || null,
-          fixed_price: data.fixed_price || null,
+          fixed_price: parseFloat(data.fixed_price as string) || null,
           region_code: data.region_code || null,
         })
         .eq("id", id)
@@ -352,7 +352,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
         category: region.category,
         name: region.name,
         description: region.description || "",
-        fixed_price: region.fixed_price || 0,
+        fixed_price: region.fixed_price ? region.fixed_price.toString() : "",
         region_code: region.region_code || "",
       });
     } else {
@@ -361,7 +361,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
         category: activeCategory,
         name: "",
         description: "",
-        fixed_price: 0,
+        fixed_price: "",
         region_code: "",
       });
     }
@@ -375,7 +375,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
       category: activeCategory,
       name: "",
       description: "",
-      fixed_price: 0,
+      fixed_price: "",
       region_code: "",
     });
   };
@@ -389,7 +389,7 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
     if (editingRegion) {
       updateMutation.mutate({
         id: editingRegion.id,
-        data: { name: formData.name, description: formData.description, fixed_price: formData.fixed_price, region_code: formData.region_code },
+        data: { name: formData.name, description: formData.description, fixed_price: parseFloat(formData.fixed_price as string) || 0, region_code: formData.region_code },
       });
     } else {
       createMutation.mutate(formData);
@@ -519,8 +519,8 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
                 type="number"
                 step="0.01"
                 placeholder="0.00"
-                value={formData.fixed_price || ""}
-                onChange={(e) => setFormData({ ...formData, fixed_price: parseFloat(e.target.value) || 0 })}
+                value={formData.fixed_price}
+                onChange={(e) => setFormData({ ...formData, fixed_price: e.target.value })}
               />
               <p className="text-xs text-muted-foreground">
                 Este preço aparecerá automaticamente ao preencher vagas

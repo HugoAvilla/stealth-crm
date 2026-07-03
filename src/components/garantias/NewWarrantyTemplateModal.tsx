@@ -15,6 +15,12 @@ interface NewWarrantyTemplateModalProps {
   templateToEdit?: any;
 }
 
+const DEFAULT_CARE_INSTRUCTIONS = `• Lavar o veículo somente após 7 dias da aplicação
+• Utilizar apenas produtos neutros
+• Evitar exposição prolongada ao sol nos primeiros dias
+• Não utilizar produtos abrasivos
+• Realizar manutenção preventiva conforme recomendado`;
+
 export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated, templateToEdit }: NewWarrantyTemplateModalProps) {
   const { user } = useAuth();
   const [name, setName] = useState("");
@@ -22,6 +28,7 @@ export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated
   const [terms, setTerms] = useState("");
   const [coverage, setCoverage] = useState("");
   const [restrictions, setRestrictions] = useState("");
+  const [careInstructions, setCareInstructions] = useState(DEFAULT_CARE_INSTRUCTIONS);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -32,6 +39,7 @@ export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated
         setTerms(templateToEdit.terms || "");
         setCoverage(templateToEdit.coverage || "");
         setRestrictions(templateToEdit.restrictions || "");
+        setCareInstructions(templateToEdit.care_instructions || "");
       } else {
         resetForm();
       }
@@ -44,6 +52,7 @@ export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated
     setTerms("");
     setCoverage("");
     setRestrictions("");
+    setCareInstructions(DEFAULT_CARE_INSTRUCTIONS);
   };
 
   const handleSubmit = async () => {
@@ -59,12 +68,12 @@ export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated
         .select('company_id')
         .eq('user_id', user?.id)
         .single();
-  
+   
       if (!profile?.company_id) {
         toast.error("Empresa não encontrada");
         return;
       }
-  
+   
       if (templateToEdit?.id) {
         const { error } = await supabase
           .from('warranty_templates')
@@ -74,9 +83,10 @@ export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated
             terms: terms || null,
             coverage: coverage || null,
             restrictions: restrictions || null,
+            care_instructions: careInstructions || null,
           })
           .eq('id', templateToEdit.id);
-  
+   
         if (error) throw error;
         toast.success("Modelo de garantia atualizado com sucesso!");
       } else {
@@ -89,8 +99,9 @@ export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated
             terms: terms || null,
             coverage: coverage || null,
             restrictions: restrictions || null,
+            care_instructions: careInstructions || null,
           });
-  
+   
         if (error) throw error;
         toast.success("Modelo de garantia criado com sucesso!");
       }
@@ -163,12 +174,22 @@ export function NewWarrantyTemplateModal({ open, onOpenChange, onTemplateCreated
             />
           </div>
 
+          <div className="space-y-2">
+            <Label>Instruções de Cuidado</Label>
+            <Textarea
+              placeholder="Instruções de cuidado com o veículo (uma por linha)..."
+              value={careInstructions}
+              onChange={e => setCareInstructions(e.target.value)}
+              rows={4}
+            />
+          </div>
+
           <div className="flex gap-2 pt-4">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
              <Button className="flex-1" onClick={handleSubmit} disabled={isSubmitting}>
-              Criar Modelo
+              {templateToEdit ? "Salvar Alterações" : "Criar Modelo"}
             </Button>
           </div>
         </div>

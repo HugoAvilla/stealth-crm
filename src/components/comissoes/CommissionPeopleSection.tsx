@@ -28,6 +28,7 @@ interface CommissionPeopleSectionProps {
   onAdd: () => void;
   onEdit: (person: CommissionPersonWithMetrics) => void;
   onViewDetail: (person: CommissionPersonWithMetrics) => void;
+  onToggleStatus?: (person: CommissionPersonWithMetrics, checked: boolean) => void;
 }
 
 const CommissionPeopleSection = ({
@@ -36,6 +37,7 @@ const CommissionPeopleSection = ({
   onAdd,
   onEdit,
   onViewDetail,
+  onToggleStatus,
 }: CommissionPeopleSectionProps) => {
   const config = SECTION_CONFIG[type];
 
@@ -73,6 +75,7 @@ const CommissionPeopleSection = ({
               person={person}
               onClick={() => onViewDetail(person)}
               onEdit={() => onEdit(person)}
+              onToggleStatus={onToggleStatus}
             />
           ))}
         </div>

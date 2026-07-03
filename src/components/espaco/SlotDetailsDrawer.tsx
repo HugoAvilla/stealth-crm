@@ -33,7 +33,10 @@ import { generateSpacePDFA4, generateSpacePDFReceipt } from "@/lib/pdfGenerator"
 import { useAuth } from "@/contexts/AuthContext";
 import { EditSlotModal } from "./EditSlotModal";
 import NewSaleModal from "../vendas/NewSaleModal";
+import { FillSlotModal } from "./FillSlotModal";
 import { createSaleTransaction } from "@/lib/financialTransactions";
+import { ClientProfileModal } from "../clientes/ClientProfileModal";
+import { EditClientModal } from "../clientes/EditClientModal";
 
 interface SpaceDetails {
   id: number;
@@ -199,6 +202,77 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   });
 
 
+
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileClient, setProfileClient] = useState<any>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showEditClientModal, setShowEditClientModal] = useState(false);
+  const [showNewSaleModal, setShowNewSaleModal] = useState(false);
+  const [showNewSlotModal, setShowNewSlotModal] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<any>(null);
+
+  const handleOpenClientProfile = async () => {
+    if (!space?.client_id) return;
+    setProfileLoading(true);
+
+    try {
+      const { data: clientData, error: clientError } = await supabase
+        .from("clients")
+        .select("id, name, phone, email, cpf_cnpj, birth_date, cep, street, number, complement, neighborhood, city, state, origem, created_at, company_id")
+        .eq("id", space.client_id)
+        .single();
+      
+      if (clientError) throw clientError;
+
+      const { data: vehiclesData } = await supabase
+        .from("vehicles")
+        .select("id, brand, model, plate, year, size, client_id, created_at")
+        .eq("client_id", space.client_id);
+
+      const { data: salesData } = await supabase
+        .from("sales")
+        .select("total")
+        .eq("client_id", space.client_id);
+
+      const totalSpent = (salesData || []).reduce((sum, s) => sum + (s.total || 0), 0);
+
+      const fullClient = {
+        ...clientData,
+        vehicles: vehiclesData || [],
+        total_spent: totalSpent,
+        sales_count: (salesData || []).length,
+        created_at: clientData?.created_at || new Date().toISOString()
+      };
+
+      setProfileClient(fullClient);
+      setShowProfileModal(true);
+    } catch (error) {
+       console.error(error);
+       toast.error("Falha ao carregar perfil do cliente");
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const confirmDeleteClient = async () => {
+    if (!clientToDelete) return;
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', clientToDelete.id);
+
+      if (error) throw error;
+
+      toast.success("Cliente excluído com sucesso!");
+      setClientToDelete(null);
+      setProfileClient(null);
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
+    } catch (error) {
+      console.error(error);
+      toast.error("Falha ao excluir cliente.");
+    }
+  };
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
@@ -731,15 +805,17 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Enviar mensagem de saída
                 </Button>
-                <Button 
+                 <Button 
                   variant="outline" 
                   className="w-full justify-start" 
-                  onClick={() => {
-                    onOpenChange(false);
-                    navigate('/clientes');
-                  }}
+                  onClick={handleOpenClientProfile}
+                  disabled={profileLoading}
                 >
-                  <User className="h-4 w-4 mr-2" />
+                  {profileLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <User className="h-4 w-4 mr-2" />
+                  )}
                   Ver cliente da vaga
                 </Button>
               </div>
@@ -937,7 +1013,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           />
         )}
 
-        {/* New Sale Modal */}
+         {/* New Sale Modal */}
         {space && space.client_id && space.vehicle_id && (
           <NewSaleModal
             open={showExportSaleModal}
@@ -959,6 +1035,98 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
             }}
           />
         )}
+
+        {profileClient && (
+          <>
+            <ClientProfileModal
+              open={showProfileModal}
+              onOpenChange={(open) => {
+                setShowProfileModal(open);
+                if (!open) {
+                  setTimeout(() => setProfileClient(null), 300);
+                }
+              }}
+              client={profileClient}
+              onEdit={() => {
+                setShowProfileModal(false);
+                setShowEditClientModal(true);
+              }}
+              onCreateSale={() => {
+                setShowProfileModal(false);
+                setShowNewSaleModal(true);
+              }}
+              onAddToSpace={() => {
+                setShowProfileModal(false);
+                setShowNewSlotModal(true);
+              }}
+              onDelete={(client) => {
+                setShowProfileModal(false);
+                setClientToDelete(client);
+              }}
+            />
+
+            <EditClientModal
+              open={showEditClientModal}
+              onOpenChange={(open) => {
+                setShowEditClientModal(open);
+                if (!open) {
+                  setProfileClient(null);
+                }
+              }}
+              client={profileClient}
+              onSave={() => {
+                setShowEditClientModal(false);
+                setProfileClient(null);
+                toast.success("Cliente atualizado com sucesso!");
+                queryClient.invalidateQueries({ queryKey: ['spaces'] });
+              }}
+            />
+          </>
+        )}
+
+        {/* New Sale Modal (general) */}
+        <NewSaleModal
+          open={showNewSaleModal}
+          onOpenChange={(open) => {
+            setShowNewSaleModal(open);
+            if (!open) setProfileClient(null);
+          }}
+          defaultClientId={profileClient?.id}
+        />
+
+        {/* New Slot Modal */}
+        <FillSlotModal
+          open={showNewSlotModal}
+          onOpenChange={(open) => {
+            setShowNewSlotModal(open);
+            if (!open) setProfileClient(null);
+          }}
+          defaultClientId={profileClient?.id}
+        />
+
+        {/* Client Delete Confirmation */}
+        <AlertDialog open={!!clientToDelete} onOpenChange={(open) => {
+          if (!open) setClientToDelete(null);
+        }}>
+          <AlertDialogContent className="bg-card border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o cliente "{clientToDelete?.name}"?
+                Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteClient}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SheetContent>
     </Sheet>
   );

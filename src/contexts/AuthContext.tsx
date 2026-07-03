@@ -1,7 +1,7 @@
 // AuthContext - Manages authentication state and user data
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, setSupabaseReadOnly } from '@/integrations/supabase/client';
 import type { Profile, AppRole } from '@/lib/database.types';
 import { checkPwnedPassword } from '@/lib/passwordSecurity';
 
@@ -38,6 +38,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      const isReadOnly = user.subscriptionStatus === 'pending_payment' && !user.isMaster;
+      setSupabaseReadOnly(isReadOnly);
+    } else {
+      setSupabaseReadOnly(false);
+    }
+  }, [user]);
 
   const fetchUserData = async (userId: string): Promise<AuthUser | null> => {
     try {

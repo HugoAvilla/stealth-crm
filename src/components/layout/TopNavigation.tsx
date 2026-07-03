@@ -48,6 +48,7 @@ export function TopNavigation() {
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const isReadOnly = user?.subscriptionStatus === 'pending_payment' && !user?.isMaster;
 
   // Fetch pending requests count for admin
   useEffect(() => {
@@ -148,7 +149,10 @@ export function TopNavigation() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 bg-background/95 backdrop-blur-sm border-b border-border z-50">
+    <header className={cn(
+      "fixed left-0 right-0 h-16 bg-background/95 backdrop-blur-sm border-b border-border z-50 transition-all duration-300",
+      isReadOnly ? "top-10" : "top-0"
+    )}>
       <div className="h-full flex items-center px-2 sm:px-4 gap-2 sm:gap-4">
         {/* Logo */}
         <Link to="/" className="flex-shrink-0">

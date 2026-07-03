@@ -9,6 +9,7 @@ import CommissionPersonModal from "@/components/comissoes/CommissionPersonModal"
 import { CommissionPersonWithMetrics } from "@/components/comissoes/CommissionPersonCard";
 import CommissionDetailDrawer from "@/components/comissoes/CommissionDetailDrawer";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
+import { toast } from "sonner";
 
 export default function Comissoes() {
   const { user } = useAuth();
@@ -88,6 +89,23 @@ export default function Comissoes() {
     setShowDetailDrawer(true);
   };
 
+  const handleToggleStatus = async (person: CommissionPersonWithMetrics, checked: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('commission_people')
+        .update({ is_active: checked, updated_at: new Date().toISOString() })
+        .eq('id', person.id);
+
+      if (error) throw error;
+      
+      toast.success(`${person.name} foi ${checked ? 'ativado' : 'inativado'} com sucesso!`);
+      refetch();
+    } catch (err) {
+      console.error('Erro ao atualizar status:', err);
+      toast.error('Erro ao atualizar status do comissionado.');
+    }
+  };
+
   return (
     <div className="space-y-6 p-6 pb-20 max-w-[100vw] overflow-x-hidden">
       <HelpOverlay
@@ -129,6 +147,7 @@ export default function Comissoes() {
           onAdd={handleAdd}
           onEdit={handleEdit}
           onViewDetail={handleViewDetail}
+          onToggleStatus={handleToggleStatus}
         />
         <CommissionPeopleSection
           type="INSTALADOR_INSULFILM"
@@ -136,6 +155,7 @@ export default function Comissoes() {
           onAdd={handleAdd}
           onEdit={handleEdit}
           onViewDetail={handleViewDetail}
+          onToggleStatus={handleToggleStatus}
         />
         <CommissionPeopleSection
           type="INSTALADOR_PPF"
@@ -143,6 +163,7 @@ export default function Comissoes() {
           onAdd={handleAdd}
           onEdit={handleEdit}
           onViewDetail={handleViewDetail}
+          onToggleStatus={handleToggleStatus}
         />
       </div>
 

@@ -5,17 +5,13 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function test() {
-  const { data, error } = await supabase.from("boletos").select("*");
-  console.log("Boletos count:", data?.length);
-  if (data?.length) console.log(data);
+  const { data: subs, error: err1 } = await supabase.from("subscriptions").select("*");
+  console.log("Subscriptions count:", subs?.length);
+  console.log("Subscriptions:", subs);
   
-  const { data: data2 } = await supabase.from("boleto_installments").select("*");
-  console.log("Installments count:", data2?.length);
-  if (data2?.length) console.log(data2);
-  
-  const { data: sales } = await supabase.from("sales").select("*").order("id", { ascending: false }).limit(5);
-  console.log("Recent sales:");
-  console.log(sales);
+  const { data: profiles, error: err2 } = await supabase.from("profiles").select("*");
+  console.log("Profiles count:", profiles?.length);
+  console.log("Profiles:", profiles);
 }
 
 test();

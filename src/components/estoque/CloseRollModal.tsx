@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Car, Ruler, AlertTriangle, Loader2 } from "lucide-react";
+import { Car, Ruler, AlertTriangle, Loader2, DollarSign } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -13,6 +13,7 @@ interface Material {
   name: string;
   open_roll_accumulated: number | null;
   unit: string;
+  average_cost?: number | null;
 }
 
 interface CloseRollModalProps {
@@ -58,7 +59,7 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
         .from("stock_movements")
         .select("reason")
         .eq("material_id", material.id)
-        .eq("movement_type", "Saida")
+        .in("movement_type", ["Saida", "open_roll_use"])
         .like("reason", "Consumo automático - Venda%");
 
       if (error) {
@@ -156,6 +157,30 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
                   ) : (
                     <p className="text-2xl font-bold">{stats?.totalCars || 0}</p>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-muted/50">
+              <CardContent className="p-4 flex flex-col items-center justify-center text-center space-y-2">
+                <DollarSign className="h-8 w-8 text-amber-500" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Valor / Metro</p>
+                  <p className="text-lg font-bold truncate max-w-full">
+                    {(material.average_cost || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-muted/50">
+              <CardContent className="p-4 flex flex-col items-center justify-center text-center space-y-2">
+                <DollarSign className="h-8 w-8 text-emerald-500" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Valor Total</p>
+                  <p className="text-lg font-bold truncate max-w-full">
+                    {((material.open_roll_accumulated || 0) * (material.average_cost || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </p>
                 </div>
               </CardContent>
             </Card>

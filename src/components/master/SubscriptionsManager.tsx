@@ -59,6 +59,7 @@ import {
   Users,
   Trash2,
   ArrowLeftRight,
+  Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getFriendlyErrorMessage } from "@/lib/logger";
@@ -82,6 +83,7 @@ interface SubscriptionWithRelations extends Subscription {
   profile?: {
     email: string;
     name: string;
+    phone?: string | null;
   } | null;
   company?: {
     id: number;
@@ -147,7 +149,7 @@ const SubscriptionsManager = () => {
 
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, email, name")
+        .select("user_id, email, name, phone")
         .in("user_id", userIds);
 
       const { data: companies } = await supabase
@@ -452,6 +454,7 @@ const SubscriptionsManager = () => {
     return (
       sub.profile?.email?.toLowerCase().includes(term) ||
       sub.profile?.name?.toLowerCase().includes(term) ||
+      sub.profile?.phone?.toLowerCase().includes(term) ||
       sub.company?.company_name?.toLowerCase().includes(term)
     );
   });
@@ -512,6 +515,7 @@ const SubscriptionsManager = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Usuário</TableHead>
+                <TableHead>Telefone</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Empresa</TableHead>
                 <TableHead>Plano / Ciclo</TableHead>
@@ -532,6 +536,21 @@ const SubscriptionsManager = () => {
                         <p className="text-xs text-muted-foreground">{sub.profile?.email || "—"}</p>
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {sub.profile?.phone ? (
+                      <a
+                        href={`https://wa.me/${sub.profile.phone.replace(/\D/g, "").startsWith("55") ? sub.profile.phone.replace(/\D/g, "") : `55${sub.profile.phone.replace(/\D/g, "")}`}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-emerald-500 transition-colors"
+                      >
+                        <Phone className="h-3 w-3 text-emerald-500" />
+                        {sub.profile.phone}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
                   </TableCell>
                   <TableCell>{getRoleBadge(sub.userRole)}</TableCell>
                   <TableCell>
@@ -759,8 +778,6 @@ const SubscriptionsManager = () => {
                 <SelectContent>
                   <SelectItem value="active">Ativo</SelectItem>
                   <SelectItem value="pending_payment">Aguardando Pagamento</SelectItem>
-                  <SelectItem value="payment_submitted">Pagamento Enviado</SelectItem>
-                  <SelectItem value="expired">Expirado</SelectItem>
                   <SelectItem value="blocked">Bloqueado</SelectItem>
                 </SelectContent>
               </Select>

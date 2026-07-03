@@ -99,7 +99,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
           rate: 0
         }));
         setRates(initialRates);
-        setRateInputs(new Map(initialRates.map(r => [r.installments, "0"])));
+        setRateInputs(new Map(initialRates.map(r => [r.installments, ""])));
       }
     }
   }, [open, machineId]);
@@ -178,7 +178,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
       });
       
       setRates(fullRates);
-      setRateInputs(new Map(fullRates.map(r => [r.installments, r.rate.toString().replace(".", ",")])));
+      setRateInputs(new Map(fullRates.map(r => [r.installments, r.rate ? r.rate.toString().replace(".", ",") : ""])));
     } catch (error) {
       console.error("Error fetching machine data:", error);
       toast.error("Erro ao carregar dados da maquininha");
@@ -201,7 +201,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
     // Ao sair do campo, normaliza o texto para o valor numérico armazenado
     const rate = rates.find(r => r.installments === installments);
     if (rate !== undefined) {
-      setRateInputs(prev => new Map(prev).set(installments, rate.rate.toString().replace(".", ",")));
+      setRateInputs(prev => new Map(prev).set(installments, rate.rate ? rate.rate.toString().replace(".", ",") : ""));
     }
   };
 
@@ -422,7 +422,7 @@ export function CardMachineModal({ open, onOpenChange, machineId, onSuccess }: C
                   <div className="relative">
                     <Input 
                       className="pr-6 text-sm"
-                      value={(watch("debit_rate") ?? 0).toString().replace(".", ",")}
+                      value={watch("debit_rate") ? watch("debit_rate").toString().replace(".", ",") : ""}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value.replace(",", ".")) || 0;
                         setValue("debit_rate", val);

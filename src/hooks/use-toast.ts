@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
+import { getSupabaseReadOnly } from "@/integrations/supabase/client";
 
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 1000000;
@@ -135,6 +136,10 @@ function dispatch(action: Action) {
 type Toast = Omit<ToasterToast, "id">;
 
 function toast({ ...props }: Toast) {
+  if (getSupabaseReadOnly() && (props.variant === "destructive" || (props.title && String(props.title).toLowerCase().includes("erro")))) {
+    props.title = "Ação bloqueada no modo de leitura";
+    props.description = "Regularize sua assinatura pelo WhatsApp no topo da tela para realizar alterações.";
+  }
   const id = genId();
 
   const update = (props: ToasterToast) =>

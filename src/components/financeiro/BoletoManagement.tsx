@@ -11,7 +11,12 @@ import {
   ChevronUp,
   ExternalLink,
   MoreVertical,
-  Check
+  Check,
+  RotateCcw,
+  User,
+  Car,
+  Plus,
+  DollarSign
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,15 +38,33 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 import { Skeleton } from "@/components/ui/skeleton";
 import { settleTransaction, reverseTransaction } from "@/lib/financialTransactions";
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
+import SaleDetailsModal from "@/components/vendas/SaleDetailsModal";
+import { SaleWithDetails } from "@/types/sales";
+import { PaymentBlock, SalePayment } from "@/components/vendas/PaymentBlock";
+
+
+
 
 interface BoletoManagementProps {
   accountId?: number | null;
+  onRefreshRequired?: () => void;
 }
 
 interface BoletoRow {
@@ -70,13 +93,27 @@ interface Installment {
   transaction_id: number | null;
 }
 
-export function BoletoManagement({ accountId }: BoletoManagementProps) {
+export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagementProps) {
   const { user } = useAuth();
   const [boletos, setBoletos] = useState<BoletoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedBoleto, setExpandedBoleto] = useState<number | null>(null);
   const [installments, setInstallments] = useState<Record<number, Installment[]>>({});
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [accountFilter, setAccountFilter] = useState<string>("all");
+  const [selectedSaleDetails, setSelectedSaleDetails] = useState<SaleWithDetails | null>(null);
+  const [loadingSaleId, setLoadingSaleId] = useState<number | null>(null);
+
+  // States for payment confirmation and revert
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedInstallment, setSelectedInstallment] = useState<Installment | null>(null);
+  const [selectedBoletoRow, setSelectedBoletoRow] = useState<BoletoRow | null>(null);
+  const [payments, setPayments] = useState<SalePayment[]>([]);
+  const [companyId, setCompanyId] = useState<number | null>(null);
+  const [isPaying, setIsPaying] = useState(false);
+
+
 
   useEffect(() => {
     if (user?.id) fetchBoletos();
@@ -92,6 +129,7 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
         .single();
 
       if (!profile) return;
+      setCompanyId(profile.company_id);
 
       // Build query - fetch boletos with client info via join
       let query = supabase
@@ -177,8 +215,11 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
       setInstallments(prev => ({ ...prev, [boletoId]: data || [] }));
     } catch (error) {
       logger.error("Error fetching installments:", error);
+      setInstallments(prev => ({ ...prev, [boletoId]: [] }));
+      toast.error("Erro ao carregar parcelas do boleto. Verifique se a estrutura do banco está atualizada.");
     }
   };
+
 
   const toggleExpand = (boletoId: number) => {
     if (expandedBoleto === boletoId) {
@@ -190,6 +231,58 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
       }
     }
   };
+
+  const handleOpenSaleDetails = async (saleId: number) => {
+    setLoadingSaleId(saleId);
+    try {
+      const { data, error } = await supabase
+        .from("sales")
+        .select(`
+          *,
+          client:clients(id, name, phone),
+          vehicle:vehicles(id, brand, model, year, plate, size),
+          sale_items(
+            id, service_id, quantity, unit_price, total_price,
+            service:services(id, name, base_price)
+          )
+        `)
+        .eq("id", saleId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching sale details:", error);
+        toast.error("Erro ao buscar detalhes da venda");
+        return;
+      }
+
+      if (data) {
+        const saleDetails: SaleWithDetails = {
+          id: data.id,
+          client_id: data.client_id,
+          vehicle_id: data.vehicle_id,
+          sale_date: data.sale_date,
+          subtotal: data.subtotal,
+          discount: data.discount,
+          total: data.total,
+          payment_method: data.payment_method,
+          status: data.status,
+          is_open: data.is_open,
+          observations: data.observations,
+          created_at: data.created_at,
+          client: data.client,
+          vehicle: data.vehicle,
+          sale_items: data.sale_items || [],
+        };
+        setSelectedSaleDetails(saleDetails);
+      }
+    } catch (err) {
+      console.error("Error fetching sale details:", err);
+      toast.error("Erro inesperado ao buscar detalhes da venda");
+    } finally {
+      setLoadingSaleId(null);
+    }
+  };
+
 
   const updateInstallmentStatus = async (inst: Installment, newStatus: string) => {
     try {
@@ -260,8 +353,315 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
           }
         }
       }
+      onRefreshRequired?.();
     } catch (error) {
       toast.error("Erro ao atualizar status");
+    }
+  };
+
+  const handleOpenPaymentModal = async (inst: Installment, boleto: BoletoRow) => {
+    setSelectedInstallment(inst);
+    setSelectedBoletoRow(boleto);
+    
+    // Set default payment item
+    setPayments([
+      {
+        tempId: Math.random().toString(36).substring(2, 9),
+        payment_method: "Pix",
+        amount: inst.amount,
+        account_id: boleto.account_id || null, // Default to the boleto's account
+        machine_id: null,
+        installments: 1,
+        due_date: new Date().toISOString(),
+        status: 'received'
+      }
+    ]);
+    
+    setPaymentModalOpen(true);
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!selectedInstallment || !selectedBoletoRow) return;
+    
+    if (payments.length === 0) {
+      toast.error("Adicione pelo menos uma forma de pagamento");
+      return;
+    }
+    
+    if (payments.some(p => !p.account_id)) {
+      toast.error("Selecione a conta de destino para todos os pagamentos");
+      return;
+    }
+    
+    const totalToPay = selectedInstallment.amount;
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    
+    if (Math.abs(totalPaid - totalToPay) > 0.01) {
+      toast.error(`O valor total pago (R$ ${totalPaid.toFixed(2)}) deve ser igual ao valor da parcela (R$ ${totalToPay.toFixed(2)})`);
+      return;
+    }
+    
+    setIsPaying(true);
+    
+    try {
+      // 1. Update the installment status to 'paid'
+      const updateData: any = {
+        status: 'paid',
+        payment_date: format(new Date(), 'yyyy-MM-dd'),
+        paid_amount: totalToPay,
+      };
+      
+      const { error: instError } = await supabase
+        .from("boleto_installments")
+        .update(updateData)
+        .eq("id", selectedInstallment.id);
+        
+      if (instError) throw instError;
+      
+      // 2. Handle the transactions and sale_payments
+      for (let index = 0; index < payments.length; index++) {
+        const p = payments[index];
+        
+        // Calculate net amount if card
+        let finalNetAmount = p.amount;
+        if ((p.payment_method === "Crédito" || p.payment_method === "Débito") && p.machine_id) {
+          const { data: rateData } = await supabase
+            .from("card_machine_rates")
+            .select("rate")
+            .eq("machine_id", p.machine_id)
+            .eq("installments", p.installments)
+            .single();
+          
+          if (rateData) {
+            finalNetAmount = p.amount * (1 - rateData.rate / 100);
+          }
+        }
+
+        // Create sale_payments record
+        const { data: salePayment, error: salePaymentError } = await supabase
+          .from("sale_payments")
+          .insert({
+            sale_id: selectedBoletoRow.sale_id,
+            method: p.payment_method,
+            amount: p.amount,
+            account_id: p.account_id,
+            machine_id: p.machine_id,
+            installments: p.installments,
+            status: p.status || 'received',
+            company_id: selectedBoletoRow.company_id || companyId || 0
+          })
+          .select("id")
+          .single();
+
+        if (salePaymentError) throw salePaymentError;
+        
+        if (index === 0 && selectedInstallment.transaction_id) {
+          // Update the main transaction
+          const txUpdate: any = {
+            is_paid: true,
+            transaction_date: format(new Date(), 'yyyy-MM-dd'),
+            amount: finalNetAmount,
+            account_id: p.account_id,
+            payment_method: p.payment_method,
+            sale_payment_id: salePayment.id
+          };
+          
+          const { error: txError } = await supabase
+            .from("transactions")
+            .update(txUpdate)
+            .eq("id", selectedInstallment.transaction_id);
+            
+          if (txError) throw txError;
+        } else {
+          // Create a new transaction (either a split payment or because there was no transaction_id on the installment)
+          const isFirstPaymentNoTx = index === 0 && !selectedInstallment.transaction_id;
+          const txName = isFirstPaymentNoTx 
+            ? `Boleto #${selectedBoletoRow.sale_id} - ${selectedBoletoRow.client_name} - Parcela ${selectedInstallment.installment_number}`
+            : `Boleto #${selectedBoletoRow.sale_id} - ${selectedBoletoRow.client_name} - Parcela ${selectedInstallment.installment_number} (Split)`;
+            
+          const txDescription = isFirstPaymentNoTx
+            ? `Pagamento da Parcela ${selectedInstallment.installment_number}`
+            : `Pagamento complementar da Parcela ${selectedInstallment.installment_number}`;
+
+          const { data: newTx, error: newTxError } = await supabase
+            .from("transactions")
+            .insert({
+              name: txName,
+              amount: finalNetAmount,
+              type: "Entrada",
+              transaction_date: format(new Date(), 'yyyy-MM-dd'),
+              account_id: p.account_id,
+              company_id: selectedBoletoRow.company_id || companyId || 0,
+              is_paid: true,
+              payment_method: p.payment_method,
+              sale_id: selectedBoletoRow.sale_id,
+              description: txDescription,
+              origin_type: "boleto_installment",
+              origin_id: selectedInstallment.id,
+              sale_payment_id: salePayment.id
+            })
+            .select("id")
+            .single();
+            
+          if (newTxError) throw newTxError;
+          
+          // Update the first transaction_id on the installment if needed
+          if (isFirstPaymentNoTx && newTx) {
+            const { error: updateInstTxError } = await supabase
+              .from("boleto_installments")
+              .update({ transaction_id: newTx.id })
+              .eq("id", selectedInstallment.id);
+              
+            if (updateInstTxError) throw updateInstTxError;
+          }
+        }
+      }
+      
+      toast.success("Pagamento da parcela registrado!");
+      setPaymentModalOpen(false);
+      fetchInstallments(selectedInstallment.boleto_id);
+      
+      // Check if all installments are paid to update the main boleto status
+      const { data: allInstallments } = await supabase
+        .from("boleto_installments")
+        .select("status")
+        .eq("boleto_id", selectedInstallment.boleto_id);
+        
+      if (allInstallments) {
+        const allPaid = allInstallments.every(i => i.status === 'paid');
+        if (allPaid) {
+          await supabase
+            .from("boletos")
+            .update({ status: 'paid' })
+            .eq("id", selectedInstallment.boleto_id);
+          fetchBoletos();
+        } else {
+          // Verify if boleto status needs update to pending
+          const { data: boletoCheck } = await supabase
+            .from("boletos")
+            .select("status")
+            .eq("id", selectedInstallment.boleto_id)
+            .single();
+            
+          if (boletoCheck?.status === 'paid') {
+            await supabase
+              .from("boletos")
+              .update({ status: 'pending' })
+              .eq("id", selectedInstallment.boleto_id);
+            fetchBoletos();
+          }
+        }
+      }
+      console.log("[BoletoManagement] Chamando onRefreshRequired (Confirmar Pagamento)...");
+      await onRefreshRequired?.();
+      console.log("[BoletoManagement] onRefreshRequired concluído.");
+    } catch (err) {
+      console.error("Error confirming payment:", err);
+      toast.error("Erro ao registrar o pagamento");
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
+  const handleRevertPayment = async (inst: Installment, boleto: BoletoRow) => {
+    try {
+      console.log("[BoletoManagement] Iniciando reversão de pagamento da parcela:", inst.id);
+      // 1. Update installment status to 'pending' and clear payment fields
+      const { error: instError } = await supabase
+        .from("boleto_installments")
+        .update({
+          status: 'pending',
+          payment_date: null,
+          paid_amount: null
+        })
+        .eq("id", inst.id);
+        
+      if (instError) throw instError;
+      
+      // 2. Revert the transactions and delete associated sale_payments
+      if (inst.transaction_id) {
+        const salePaymentIdsToDelete: number[] = [];
+
+        // Fetch main transaction's sale_payment_id
+        const { data: mainTx } = await supabase
+          .from("transactions")
+          .select("sale_payment_id")
+          .eq("id", inst.transaction_id)
+          .maybeSingle();
+
+        if (mainTx?.sale_payment_id) {
+          salePaymentIdsToDelete.push(mainTx.sale_payment_id);
+        }
+
+        // Fetch split transactions
+        const { data: splitTxs } = await supabase
+          .from("transactions")
+          .select("id, sale_payment_id")
+          .eq("origin_type", "boleto_installment")
+          .eq("origin_id", inst.id)
+          .neq("id", inst.transaction_id);
+
+        if (splitTxs && splitTxs.length > 0) {
+          for (const tx of splitTxs) {
+            if (tx.sale_payment_id) {
+              salePaymentIdsToDelete.push(tx.sale_payment_id);
+            }
+          }
+          
+          // Delete split transactions
+          const splitIds = splitTxs.map(t => t.id);
+          await supabase
+            .from("transactions")
+            .delete()
+            .in("id", splitIds);
+        }
+
+        // Reset main transaction to unpaid, default method, original amount & original account
+        const { error: resetTxError } = await supabase
+          .from("transactions")
+          .update({
+            is_paid: false,
+            payment_method: "Boleto",
+            amount: inst.amount,
+            account_id: boleto.account_id,
+            sale_payment_id: null
+          })
+          .eq("id", inst.transaction_id);
+
+        if (resetTxError) throw resetTxError;
+
+        // Delete associated sale_payments
+        if (salePaymentIdsToDelete.length > 0) {
+          await supabase
+            .from("sale_payments")
+            .delete()
+            .in("id", salePaymentIdsToDelete);
+        }
+      }
+      
+      toast.success("Pagamento revertido com sucesso!");
+      fetchInstallments(inst.boleto_id);
+      
+      // 3. Update main boleto status if it was paid
+      const { data: boletoCheck } = await supabase
+        .from("boletos")
+        .select("status")
+        .eq("id", inst.boleto_id)
+        .single();
+        
+      if (boletoCheck?.status === 'paid') {
+        await supabase
+          .from("boletos")
+          .update({ status: 'pending' })
+          .eq("id", inst.boleto_id);
+        fetchBoletos();
+      }
+      console.log("[BoletoManagement] Chamando onRefreshRequired (Reverter Pagamento)...");
+      await onRefreshRequired?.();
+      console.log("[BoletoManagement] onRefreshRequired concluído.");
+    } catch (err) {
+      console.error("Error reverting payment:", err);
+      toast.error("Erro ao reverter o pagamento");
     }
   };
 
@@ -274,13 +674,22 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
     }
   };
 
+  const uniqueAccounts = Array.from(
+    new Map(boletos.map(b => [b.account_id, b.account_name])).entries()
+  ).map(([id, name]) => ({ id, name }));
+
   const filteredBoletos = boletos.filter(b => {
     const clientName = b.client_name || "";
     const saleId = b.sale_id?.toString() || "";
-    const search = searchTerm.toLowerCase();
+    const search = searchTerm.toLowerCase().replace("#", "").trim();
     
-    return clientName.toLowerCase().includes(search) || saleId.includes(searchTerm);
+    const matchesSearch = clientName.toLowerCase().includes(search) || saleId.includes(search);
+    const matchesStatus = statusFilter === "all" || b.status === statusFilter;
+    const matchesAccount = accountFilter === "all" || b.account_id.toString() === accountFilter;
+    
+    return matchesSearch && matchesStatus && matchesAccount;
   });
+
 
   if (loading) {
     return (
@@ -304,9 +713,66 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
           />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Filter className="h-4 w-4" /> Filtros
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="h-4 w-4" /> Filtros
+                {(statusFilter !== "all" || accountFilter !== "all") && (
+                  <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-[10px] bg-amber-500/20 text-amber-500 border-none">
+                    {(statusFilter !== "all" ? 1 : 0) + (accountFilter !== "all" ? 1 : 0)}
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-background border border-border/80">
+              <div className="p-2 text-xs font-semibold text-muted-foreground border-b border-border/50">Status</div>
+              <DropdownMenuItem onClick={() => setStatusFilter("all")} className={cn("cursor-pointer", statusFilter === "all" && "bg-muted font-medium")}>
+                Todos
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("pending")} className={cn("cursor-pointer", statusFilter === "pending" && "bg-muted font-medium")}>
+                Pendente
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("paid")} className={cn("cursor-pointer", statusFilter === "paid" && "bg-muted font-medium")}>
+                Pago
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter("overdue")} className={cn("cursor-pointer", statusFilter === "overdue" && "bg-muted font-medium")}>
+                Atrasado
+              </DropdownMenuItem>
+              
+              {uniqueAccounts.length > 0 && (
+                <>
+                  <div className="p-2 text-xs font-semibold text-muted-foreground border-t border-border/50 border-b border-b-border/50">Conta</div>
+                  <DropdownMenuItem onClick={() => setAccountFilter("all")} className={cn("cursor-pointer", accountFilter === "all" && "bg-muted font-medium")}>
+                    Todas as Contas
+                  </DropdownMenuItem>
+                  {uniqueAccounts.map(acc => (
+                    <DropdownMenuItem 
+                      key={acc.id} 
+                      onClick={() => setAccountFilter(acc.id.toString())} 
+                      className={cn("cursor-pointer", accountFilter === acc.id.toString() && "bg-muted font-medium")}
+                    >
+                      {acc.name}
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+              
+              {(statusFilter !== "all" || accountFilter !== "all") && (
+                <>
+                  <div className="border-t border-border/50 my-1" />
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setAccountFilter("all");
+                    }} 
+                    className="text-destructive focus:text-destructive font-medium justify-center cursor-pointer"
+                  >
+                    Limpar Filtros
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -354,10 +820,20 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
                           <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem className="gap-2">
-                            <ExternalLink className="h-4 w-4" /> Ver Venda
+                          <DropdownMenuItem 
+                            className="gap-2 cursor-pointer" 
+                            onClick={() => handleOpenSaleDetails(boleto.sale_id)}
+                            disabled={loadingSaleId === boleto.sale_id}
+                          >
+                            {loadingSaleId === boleto.sale_id ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            ) : (
+                              <ExternalLink className="h-4 w-4" />
+                            )}
+                            Ver Venda
                           </DropdownMenuItem>
                         </DropdownMenuContent>
+
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
@@ -390,13 +866,23 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
                                         variant="outline" 
                                         size="sm" 
                                         className="w-full h-8 text-xs gap-1 mt-1 border-green-500/50 text-green-600 hover:bg-green-500/10"
-                                        onClick={() => updateInstallmentStatus(inst, 'paid')}
+                                        onClick={() => handleOpenPaymentModal(inst, boleto)}
                                       >
                                         <Check className="h-3 w-3" /> Baixar Parcela
                                       </Button>
                                     ) : (
-                                      <div className="text-[10px] text-green-600 flex items-center gap-1 mt-1 italic">
-                                        <CheckCircle2 className="h-3 w-3" /> Pago em {inst.payment_date ? format(new Date(inst.payment_date + 'T12:00:00'), "dd/MM/yy") : ''}
+                                      <div className="space-y-2 mt-1">
+                                        <div className="text-[10px] text-green-600 flex items-center gap-1 italic">
+                                          <CheckCircle2 className="h-3 w-3" /> Pago em {inst.payment_date ? format(new Date(inst.payment_date + 'T12:00:00'), "dd/MM/yy") : ''}
+                                        </div>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="w-full h-8 text-xs gap-1 mt-1 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                                          onClick={() => handleRevertPayment(inst, boleto)}
+                                        >
+                                          <RotateCcw className="h-3 w-3" /> Reverter Pagamento
+                                        </Button>
                                       </div>
                                     )}
                                   </CardContent>
@@ -414,6 +900,131 @@ export function BoletoManagement({ accountId }: BoletoManagementProps) {
           </TableBody>
         </Table>
       </Card>
+
+      <SaleDetailsModal
+        open={!!selectedSaleDetails}
+        onOpenChange={(open) => !open && setSelectedSaleDetails(null)}
+        sale={selectedSaleDetails}
+      />
+
+      {/* Modal de confirmação de pagamento */}
+      <Dialog open={paymentModalOpen} onOpenChange={(open) => !open && setPaymentModalOpen(false)}>
+        <DialogContent className="w-[95vw] max-w-xl rounded-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-success" />
+              Confirmar Pagamento
+            </DialogTitle>
+            <DialogDescription>
+              Confirme as formas de pagamento antes de registrar o recebimento.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedInstallment && selectedBoletoRow && (
+            <div className="space-y-5 py-2">
+              {/* Seção de Pagamentos */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Pagamentos</Label>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 gap-1 text-xs"
+                    onClick={() => {
+                      const totalToPay = selectedInstallment.amount;
+                      const currentPaid = payments.reduce((acc, curr) => acc + curr.amount, 0);
+                      const remaining = Math.max(0, totalToPay - currentPaid);
+                      setPayments([...payments, {
+                        tempId: Math.random().toString(36).substring(2, 9),
+                        payment_method: "Pix",
+                        amount: remaining,
+                        account_id: payments[0]?.account_id || null,
+                        machine_id: null,
+                        installments: 1,
+                        due_date: new Date().toISOString(),
+                        status: 'received'
+                      }]);
+                    }}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Adicionar Forma
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {payments.map((p, index) => (
+                    <PaymentBlock
+                      key={p.tempId}
+                      payment={p}
+                      isFirst={index === 0}
+                      companyId={companyId || selectedBoletoRow.company_id || 0}
+                      totalRemaining={selectedInstallment.amount - payments.reduce((acc, curr, i) => i < index ? acc + curr.amount : acc, 0)}
+                      onUpdate={(updated) => setPayments(payments.map(item => item.tempId === p.tempId ? updated : item))}
+                      onRemove={() => setPayments(payments.filter(item => item.tempId !== p.tempId))}
+                    />
+                  ))}
+                </div>
+
+                {(() => {
+                  const totalToPay = selectedInstallment.amount;
+                  const paidTotal = payments.reduce((acc, p) => acc + p.amount, 0);
+                  const diff = paidTotal - totalToPay;
+                  const isBalanced = Math.abs(diff) < 0.01;
+                  const isExcess = diff > 0.01;
+                  const isShort = diff < -0.01;
+
+                  return (
+                    <div className={cn(
+                      "p-3 rounded-lg text-sm font-medium space-y-1 border",
+                      isBalanced
+                        ? "bg-green-500/10 text-green-600 border-green-500/20"
+                        : isExcess
+                          ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                          : "bg-red-500/10 text-red-600 border-red-500/20"
+                    )}>
+                      <div className="flex justify-between items-center">
+                        <span>Total Pago: R$ {paidTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        <span>Total Parcela: R$ {totalToPay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      {!isBalanced && (
+                        <div className={cn(
+                          "text-xs pt-1 border-t flex items-center gap-1.5",
+                          isExcess ? "border-amber-500/20" : "border-red-500/20"
+                        )}>
+                          {isExcess ? (
+                            <span>⚠ Valor superior em <strong>R$ {Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+                          ) : (
+                            <span>⚠ Restam <strong>R$ {Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong> para concluir</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-row gap-2 justify-end sm:justify-end">
+            <Button variant="outline" onClick={() => setPaymentModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-success hover:bg-success/90 text-white gap-2"
+              onClick={handleConfirmPayment}
+              disabled={isPaying}
+            >
+              {isPaying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
+              Confirmar Pagamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

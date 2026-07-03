@@ -56,7 +56,7 @@ export default function Compras() {
     if (!user?.companyId) return;
     const { data } = await supabase
       .from("purchases")
-      .select("*")
+      .select("*, purchase_installments(id, status)")
       .eq("company_id", user.companyId)
       .order("created_at", { ascending: false });
     
@@ -64,7 +64,7 @@ export default function Compras() {
       const formatted = data.map(p => ({
         ...p,
         supplier_name: p.supplier_name_snapshot
-      })) as PurchaseRow[];
+      })) as unknown as PurchaseRow[];
       setPurchases(formatted);
     }
   };

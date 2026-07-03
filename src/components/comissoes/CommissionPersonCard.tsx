@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Edit, DollarSign, TrendingUp } from "lucide-react";
 
 type CommissionPersonType = 'VENDEDOR' | 'INSTALADOR_INSULFILM' | 'INSTALADOR_PPF';
@@ -22,6 +23,7 @@ interface CommissionPersonCardProps {
   person: CommissionPersonWithMetrics;
   onClick: () => void;
   onEdit: () => void;
+  onToggleStatus?: (person: CommissionPersonWithMetrics, checked: boolean) => void;
 }
 
 const TYPE_LABELS: Record<CommissionPersonType, string> = {
@@ -36,7 +38,7 @@ const TYPE_COLORS: Record<CommissionPersonType, string> = {
   'INSTALADOR_PPF': 'bg-purple-500/10 text-purple-500 border-purple-500/30',
 };
 
-const CommissionPersonCard = ({ person, onClick, onEdit }: CommissionPersonCardProps) => {
+const CommissionPersonCard = ({ person, onClick, onEdit, onToggleStatus }: CommissionPersonCardProps) => {
   return (
     <Card
       className="bg-card/50 border-border/50 cursor-pointer hover:border-primary/40 transition-all"
@@ -51,24 +53,35 @@ const CommissionPersonCard = ({ person, onClick, onEdit }: CommissionPersonCardP
               <Badge variant="outline" className={TYPE_COLORS[person.type]}>
                 {TYPE_LABELS[person.type]}
               </Badge>
-              {!person.is_active && (
-                <Badge variant="outline" className="text-muted-foreground">
-                  Inativo
-                </Badge>
-              )}
+              <Badge 
+                variant="outline" 
+                className={person.is_active 
+                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' 
+                  : 'bg-destructive/10 text-destructive border-destructive/30'
+                }
+              >
+                {person.is_active ? 'Ativo' : 'Inativo'}
+              </Badge>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-          >
-            <Edit className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <Switch
+              checked={person.is_active}
+              onCheckedChange={(checked) => onToggleStatus?.(person, checked)}
+              className="scale-75 data-[state=checked]:bg-emerald-500"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Edit className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
 
         {/* Metrics */}

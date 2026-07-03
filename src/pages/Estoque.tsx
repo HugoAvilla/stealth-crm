@@ -257,7 +257,9 @@ export default function Estoque() {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {items.map((material) => {
         const stockStatus = getStockStatus(material);
-        const totalVal = (material.current_stock || 0) * (material.average_cost || 0);
+        const totalVal = (material.is_open_roll 
+          ? (material.open_roll_accumulated || 0) 
+          : (material.current_stock || 0)) * (material.average_cost || 0);
 
         return (
           <Card key={material.id} className="bg-card/50 border-border/50 p-4 flex flex-col justify-between space-y-3 hover:border-primary/30 transition-all duration-300">
@@ -332,7 +334,9 @@ export default function Estoque() {
                   </div>
                 </div>
                 <div>
-                  <span className="text-[10px] text-muted-foreground block mb-0.5">Valor Total</span>
+                  <span className="text-[10px] text-muted-foreground block mb-0.5">
+                    {material.is_open_roll ? "Consumido" : "Valor Total"}
+                  </span>
                   <span className="font-semibold text-xs text-foreground block truncate" title={`R$ ${totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}>
                     R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </span>

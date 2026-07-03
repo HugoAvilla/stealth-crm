@@ -35,8 +35,17 @@ interface Warranty {
   expiry_date: string;
   status: string | null;
   warranty_text: string | null;
-  client: { id: number; name: string; phone: string; email: string | null } | null;
+  sale_id: number | null;
+  client: { id: number; name: string; phone: string; email: string | null; cpf_cnpj?: string | null } | null;
   vehicle: { id: number; brand: string; model: string; plate: string | null; year: number | null } | null;
+  sale?: {
+    id: number;
+    sale_date: string;
+    subtotal: number;
+    discount: number | null;
+    total: number;
+    payment_method: string | null;
+  } | null;
 }
 
 interface WarrantyTemplate {
@@ -88,8 +97,9 @@ export default function Garantias() {
           .from('warranties')
           .select(`
             *,
-            client:clients(id, name, phone, email),
-            vehicle:vehicles(id, brand, model, plate, year)
+            client:clients(id, name, phone, email, cpf_cnpj),
+            vehicle:vehicles(id, brand, model, plate, year),
+            sale:sales(id, sale_date, subtotal, discount, total, payment_method)
           `)
           .eq('company_id', profile.company_id)
           .order('issue_date', { ascending: false }),
@@ -114,8 +124,21 @@ export default function Garantias() {
     }
   };
 
-  const getStatus = (expiresAt: string) => {
+  const formatLocalDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "-";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "-";
+      return format(date, "dd/MM/yyyy");
+    } catch {
+      return "-";
+    }
+  };
+
+  const getStatus = (expiresAt: string | null | undefined) => {
+    if (!expiresAt) return { label: 'Sem Validade', color: 'bg-gray-500/20 text-gray-400' };
     const expDate = new Date(expiresAt);
+    if (isNaN(expDate.getTime())) return { label: 'Sem Validade', color: 'bg-gray-500/20 text-gray-400' };
     const now = new Date();
     const monthsLeft = Math.floor((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30));
 
@@ -129,16 +152,18 @@ export default function Garantias() {
     if (search) {
       const searchLower = search.toLowerCase();
       const codeMatch = w.id.toString() === search;
-      if (!w.warranty_type.toLowerCase().includes(searchLower) &&
-          !w.client?.name.toLowerCase().includes(searchLower) &&
-          !w.vehicle?.plate?.toLowerCase().includes(searchLower) &&
-          !codeMatch) {
+      
+      const typeMatch = w.warranty_type?.toLowerCase().includes(searchLower) || false;
+      const clientMatch = w.client?.name?.toLowerCase().includes(searchLower) || false;
+      const plateMatch = w.vehicle?.plate?.toLowerCase().includes(searchLower) || false;
+      
+      if (!typeMatch && !clientMatch && !plateMatch && !codeMatch) {
          pass = false;
       }
     }
 
     if (statusFilter !== "todos") {
-      const statusLabel = getStatus(w.expiry_date).label.toLowerCase(); // "ativa", "vencendo", "expirada"
+      const statusLabel = getStatus(w.expiry_date || new Date().toISOString()).label.toLowerCase(); // "ativa", "vencendo", "expirada"
       if (statusLabel !== statusFilter) pass = false;
     }
 
@@ -148,7 +173,7 @@ export default function Garantias() {
   const getWarrantyWhatsAppUrl = (warranty: Warranty) => {
     if (!warranty.client?.phone) return "#";
 
-    const certNumber = `${warranty.id.toString().padStart(4, '0')}`;
+    const certNumber = warranty.sale_id ? String(warranty.sale_id) : `${warranty.id.toString().padStart(4, '0')}`;
     const vehicleInfo = warranty.vehicle
       ? `${warranty.vehicle.brand} ${warranty.vehicle.model} - Placa: ${warranty.vehicle.plate || 'N/A'}`
       : 'N/A';
@@ -172,13 +197,14 @@ export default function Garantias() {
   };
 
   const handleDownload = (warranty: Warranty) => {
-    const certNumber = `${warranty.id.toString().padStart(4, '0')}`;
+    const certNumber = warranty.sale_id ? String(warranty.sale_id) : `${warranty.id.toString().padStart(4, '0')}`;
     const companyAddress = companyInfo ? [companyInfo.street, companyInfo.number, companyInfo.neighborhood, companyInfo.city, companyInfo.state, companyInfo.cep].filter(Boolean).join(', ') : undefined;
     const pdfData: WarrantyPDFData = {
       certificate_number: certNumber,
       client_name: warranty.client?.name || 'Cliente',
       client_phone: warranty.client?.phone || '',
       client_email: warranty.client?.email || undefined,
+      client_cpf_cnpj: warranty.client?.cpf_cnpj || undefined,
       vehicle_brand: warranty.vehicle?.brand || '',
       vehicle_model: warranty.vehicle?.model || '',
       vehicle_plate: warranty.vehicle?.plate || '',
@@ -193,6 +219,11 @@ export default function Garantias() {
       company_phone: companyInfo?.phone || undefined,
       company_email: companyInfo?.email || undefined,
       company_address: companyAddress || undefined,
+      sale_date: warranty.sale?.sale_date || undefined,
+      payment_method: warranty.sale?.payment_method || undefined,
+      subtotal: warranty.sale?.subtotal || undefined,
+      discount: warranty.sale?.discount || undefined,
+      total: warranty.sale?.total || undefined,
     };
 
     generateWarrantyPDF(pdfData, companyId || undefined);
@@ -328,6 +359,9 @@ export default function Garantias() {
                   <div>
                     <p className="text-sm text-muted-foreground">Modelos</p>
                     <p className="text-2xl font-bold">{templates.length}</p>
+                    <span className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors block mt-1 font-medium">
+                      Clique aqui para ver modelos
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -402,7 +436,7 @@ export default function Garantias() {
                                 {warranty.vehicle ? `${warranty.vehicle.model} - ${warranty.vehicle.plate}` : '-'}
                               </TableCell>
                               <TableCell className="text-center text-sm">
-                                {format(new Date(warranty.expiry_date), "dd/MM/yyyy")}
+                                {formatLocalDate(warranty.expiry_date)}
                               </TableCell>
                               <TableCell className="text-center">
                                 <Badge className={status.color}>{status.label}</Badge>
@@ -455,7 +489,7 @@ export default function Garantias() {
                   <div className="grid grid-cols-1 gap-3 md:hidden">
                     {filteredWarranties.map(warranty => {
                       const status = getStatus(warranty.expiry_date);
-                      const certNumber = `${warranty.id.toString().padStart(4, '0')}`;
+                      const certNumber = warranty.sale_id ? String(warranty.sale_id) : `${warranty.id.toString().padStart(4, '0')}`;
 
                       return (
                         <Card key={warranty.id} className="bg-card/50 border-border/50 p-4 space-y-3">
@@ -521,7 +555,7 @@ export default function Garantias() {
                             <div>
                               <span className="text-[10px] text-muted-foreground block">Validade</span>
                               <span className="font-medium text-foreground">
-                                {format(new Date(warranty.expiry_date), "dd/MM/yyyy")}
+                                {formatLocalDate(warranty.expiry_date)}
                               </span>
                             </div>
                             <Badge className={cn(status.color, "border-0 hover:bg-transparent text-[10px] py-0 px-2 font-normal")}>

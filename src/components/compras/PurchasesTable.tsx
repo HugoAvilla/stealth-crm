@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export interface PurchaseRow extends Purchase {
   supplier_name: string;
+  purchase_installments?: { id: number; status: string }[];
 }
 
 export interface PurchaseFilters {
@@ -156,6 +157,7 @@ export function PurchasesTable({
               <TableHead>Data</TableHead>
               <TableHead>Forma Pgto</TableHead>
               <TableHead>Parcelas</TableHead>
+              <TableHead>Pagas</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Restante</TableHead>
               <TableHead>Status</TableHead>
@@ -165,7 +167,7 @@ export function PurchasesTable({
           <TableBody>
             {filteredPurchases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
                   Nenhuma compra encontrada
                 </TableCell>
               </TableRow>
@@ -183,6 +185,14 @@ export function PurchasesTable({
                   </TableCell>
                   <TableCell>{purchase.payment_method}</TableCell>
                   <TableCell>{purchase.installments_count}x</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const paidCount = purchase.purchase_installments
+                        ? purchase.purchase_installments.filter(inst => inst.status === "paga").length
+                        : purchase.status === "paga" ? purchase.installments_count : 0;
+                      return `${paidCount} / ${purchase.installments_count}`;
+                    })()}
+                  </TableCell>
                   <TableCell>R$ {Number(purchase.total_amount).toFixed(2)}</TableCell>
                   <TableCell>R$ {Number(purchase.remaining_amount).toFixed(2)}</TableCell>
                   <TableCell>{getStatusBadge(purchase.status)}</TableCell>

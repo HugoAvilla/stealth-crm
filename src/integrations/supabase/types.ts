@@ -2792,6 +2792,7 @@ export type Database = {
       }
       warranty_templates: {
         Row: {
+          care_instructions: string | null
           company_id: number | null
           coverage: string | null
           created_at: string | null
@@ -2804,6 +2805,7 @@ export type Database = {
           validity_months: number
         }
         Insert: {
+          care_instructions?: string | null
           company_id?: number | null
           coverage?: string | null
           created_at?: string | null
@@ -2816,6 +2818,7 @@ export type Database = {
           validity_months: number
         }
         Update: {
+          care_instructions?: string | null
           company_id?: number | null
           coverage?: string | null
           created_at?: string | null

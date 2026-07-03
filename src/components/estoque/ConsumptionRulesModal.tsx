@@ -228,7 +228,8 @@ export function ConsumptionRulesModal({ open, onOpenChange }: ConsumptionRulesMo
                             type="number"
                             step="0.01"
                             min="0"
-                            value={rule.size_p || 0}
+                            placeholder="0"
+                            value={rule.size_p || ""}
                             onChange={(e) => handleRuleChange(materialType, "p", e.target.value)}
                             className="w-20 text-center"
                           />
@@ -238,7 +239,8 @@ export function ConsumptionRulesModal({ open, onOpenChange }: ConsumptionRulesMo
                             type="number"
                             step="0.01"
                             min="0"
-                            value={rule.size_m || 0}
+                            placeholder="0"
+                            value={rule.size_m || ""}
                             onChange={(e) => handleRuleChange(materialType, "m", e.target.value)}
                             className="w-20 text-center"
                           />
@@ -248,7 +250,8 @@ export function ConsumptionRulesModal({ open, onOpenChange }: ConsumptionRulesMo
                             type="number"
                             step="0.01"
                             min="0"
-                            value={rule.size_g || 0}
+                            placeholder="0"
+                            value={rule.size_g || ""}
                             onChange={(e) => handleRuleChange(materialType, "g", e.target.value)}
                             className="w-20 text-center"
                           />

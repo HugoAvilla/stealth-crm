@@ -65,7 +65,9 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
   };
 
   const status = getStockStatus(material);
-  const totalVal = (material.current_stock || 0) * (material.average_cost || 0);
+  const totalVal = (material.is_open_roll 
+    ? (material.open_roll_accumulated || 0) 
+    : (material.current_stock || 0)) * (material.average_cost || 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -106,7 +108,7 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
               {material.is_open_roll ? "Bobina Aberta" : `${material.minimum_stock || 0} ${material.unit}`}
             </span>
             {material.is_open_roll && (
-              <span className="text-xs text-muted-foreground mt-1">Subtração manual necessária no fim.</span>
+              <span className="text-xs text-muted-foreground mt-1">Consumo acumulado até encerramento.</span>
             )}
           </div>
 
@@ -119,15 +121,15 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
           </div>
 
           <div className="bg-muted/40 border p-4 rounded-xl flex flex-col justify-center">
-            <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Valor em Estoque</span>
-            <span className="text-xl font-medium mt-1">
-              {material.is_open_roll ? "-" : totalVal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            <span className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">
+              {material.is_open_roll ? "Valor Consumido" : "Valor em Estoque"}
             </span>
-            {!material.is_open_roll && (
-              <span className="text-xs text-muted-foreground mt-1">
-                {(material.average_cost || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} / {material.unit}
-              </span>
-            )}
+            <span className="text-xl font-medium mt-1">
+              {totalVal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            </span>
+            <span className="text-xs text-muted-foreground mt-1">
+              {(material.average_cost || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} / {material.unit}
+            </span>
           </div>
         </div>
 
@@ -164,6 +166,12 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
                     const isEntry = mov.movement_type === "Entrada" || mov.movement_type === "Saldo Inicial";
                     const isExit = mov.movement_type === "Saida" || mov.movement_type === "Saída";
                     const isAdjustmentOpen = mov.movement_type === "Ajuste Bobina Aberta";
+                    const isOpenRollUse = mov.movement_type === "open_roll_use";
+                    const isOpenRollClosure = mov.movement_type === "open_roll_closure";
+                    
+                    // Bobinas abertas acumulam uso (somam), estoque fechado subtrai
+                    const isAccumulation = isOpenRollUse;
+                    const showPositive = isEntry || isAccumulation;
                     
                     return (
                       <TableRow key={mov.id} className="hover:bg-muted/30 transition-colors">
@@ -188,20 +196,26 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
                             <Badge variant="outline" className="border-blue-500 text-blue-700 bg-blue-500/10 font-medium whitespace-nowrap">
                               <Activity className="h-3 w-3 mr-1" /> Bobina Aberta
                             </Badge>
+                          ) : isOpenRollUse ? (
+                            <Badge variant="outline" className="border-blue-500 text-blue-700 bg-blue-500/10 font-medium whitespace-nowrap">
+                              <ArrowUp className="h-3 w-3 mr-1" /> Uso de Bobina Aberta
+                            </Badge>
+                          ) : isOpenRollClosure ? (
+                            <Badge variant="outline" className="border-orange-500 text-orange-700 bg-orange-500/10 font-medium whitespace-nowrap">
+                              <Activity className="h-3 w-3 mr-1" /> Encerramento de Bobina
+                            </Badge>
                           ) : (
                             <Badge variant="outline" className="text-muted-foreground whitespace-nowrap">
-                              {mov.movement_type === 'open_roll_use' ? 'Uso de Rolo Aberto' : 
-                               mov.movement_type === 'open_roll_closure' ? 'Fim de Rolo Aberto' : 
-                               mov.movement_type}
+                              {mov.movement_type}
                             </Badge>
                           )}
                         </TableCell>
                         <TableCell>
                           <div className={cn(
                             "font-semibold font-mono tabular-nums",
-                            isEntry ? "text-green-600" : (isExit || isAdjustmentOpen) ? "text-foreground" : ""
+                            isEntry ? "text-green-600" : isOpenRollUse ? "text-blue-600" : isOpenRollClosure ? "text-orange-600" : (isExit || isAdjustmentOpen) ? "text-foreground" : ""
                           )}>
-                            {isEntry ? "+" : "-"}{mov.quantity} {material.unit}
+                            {showPositive ? "+" : "-"}{mov.quantity} {material.unit}
                           </div>
                         </TableCell>
                         <TableCell>

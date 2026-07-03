@@ -306,7 +306,14 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
 
           <div className="space-y-2">
             <Label>Estado da Bobina</Label>
-            <Select value={isOpenRoll ? "Aberta" : "Nova"} onValueChange={(v) => setIsOpenRoll(v === "Aberta")}>
+            <Select value={isOpenRoll ? "Aberta" : "Nova"} onValueChange={(v) => {
+              const open = v === "Aberta";
+              setIsOpenRoll(open);
+              if (open) {
+                setCurrentStock("");
+                setMinStock("");
+              }
+            }}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -315,30 +322,36 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
                 <SelectItem value="Aberta">Aberta</SelectItem>
               </SelectContent>
             </Select>
+            {isOpenRoll && (
+              <p className="text-[11px] text-muted-foreground">
+                Bobina aberta não possui estoque inicial nem mínimo. O consumo será acumulado até o encerramento.
+              </p>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Estoque Inicial</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={isOpenRoll ? "0" : currentStock}
-                onChange={(e) => setCurrentStock(e.target.value)}
-                disabled={isOpenRoll}
-              />
-            </div>
+          {!isOpenRoll && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Estoque Inicial</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={currentStock}
+                  onChange={(e) => setCurrentStock(e.target.value)}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Estoque Mínimo</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={minStock}
-                onChange={(e) => setMinStock(e.target.value)}
-              />
+              <div className="space-y-2">
+                <Label>Estoque Mínimo</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={minStock}
+                  onChange={(e) => setMinStock(e.target.value)}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {unit === "Metros" && (
             <div className="space-y-2">

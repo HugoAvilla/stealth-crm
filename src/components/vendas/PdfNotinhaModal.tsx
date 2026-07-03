@@ -180,6 +180,7 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
       payment_method: sale.payment_method || 'Não informado',
       company_name: companyData?.company_name || 'EMPRESA',
       company_cnpj: companyData?.cnpj || '',
+      company_logo_url: companyData?.logo_url || undefined,
     };
 
     generateSalePDFReceipt(pdfData, size, options, user?.companyId || undefined);
@@ -246,11 +247,19 @@ const PdfNotinhaModal = ({ open, onOpenChange, sale, size }: PdfNotinhaModalProp
               {/* Logo/Header */}
               {options.companyName && (
                 <div className="text-center mb-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-2 flex items-center justify-center">
-                    <span className="text-lg font-bold">
-                      {companyData?.company_name ? companyData.company_name.substring(0, 3).toUpperCase() : 'EMP'}
-                    </span>
-                  </div>
+                  {companyData?.logo_url ? (
+                    <img 
+                      src={companyData.logo_url} 
+                      alt="Logo" 
+                      className="max-h-12 max-w-[120px] object-contain mx-auto mb-2"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-2 flex items-center justify-center border border-gray-200">
+                      <span className="text-lg font-bold">
+                        {companyData?.company_name ? companyData.company_name.substring(0, 2).toUpperCase() : 'EMP'}
+                      </span>
+                    </div>
+                  )}
                   <p className="font-bold">{companyData?.company_name || 'NOME DA EMPRESA'}</p>
                   {options.companyCnpj && companyData?.cnpj && (
                     <p className="text-[10px] text-gray-500">CNPJ: {companyData.cnpj}</p>

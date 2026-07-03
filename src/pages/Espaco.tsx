@@ -90,6 +90,7 @@ export default function Espaco() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState("vagas");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [fallbackSpace, setFallbackSpace] = useState<SpaceData | null>(null);
   const [searchParams] = useSearchParams();
   const searchParamValue = searchParams.get("search") || "";
   const [searchTerm, setSearchTerm] = useState(searchParamValue);
@@ -167,7 +168,7 @@ export default function Espaco() {
   });
 
   // Derived state to always have the freshest space data
-  const selectedSpace = spaces?.find(s => s.id === selectedSpaceId) || deletedSpaces?.find(s => s.id === selectedSpaceId) || null;
+  const selectedSpace = spaces?.find(s => s.id === selectedSpaceId) || deletedSpaces?.find(s => s.id === selectedSpaceId) || fallbackSpace || null;
 
   // Fetch unpaid vehicles count
   const { data: unpaidCount } = useQuery({
@@ -208,6 +209,13 @@ export default function Espaco() {
   const availableCount = totalSlots - occupiedCount;
 
   const handleSlotClick = (space: SpaceData) => {
+    setFallbackSpace(null);
+    setSelectedSpaceId(space.id);
+    setShowDetailsDrawer(true);
+  };
+
+  const handleUnpaidSpaceClick = (space: any) => {
+    setFallbackSpace(space as SpaceData);
     setSelectedSpaceId(space.id);
     setShowDetailsDrawer(true);
   };
@@ -597,7 +605,7 @@ export default function Espaco() {
         </TabsContent>
 
         <TabsContent value="nao-pagos-saida" className="mt-6">
-          <UnpaidExitedVehicles refreshTrigger={refreshTrigger} />
+          <UnpaidExitedVehicles refreshTrigger={refreshTrigger} onSpaceClick={handleUnpaidSpaceClick} />
         </TabsContent>
 
         <TabsContent value="pdfs" className="mt-6">
@@ -709,7 +717,10 @@ export default function Espaco() {
 
       <SlotDetailsDrawer
         open={showDetailsDrawer}
-        onOpenChange={setShowDetailsDrawer}
+        onOpenChange={(open) => {
+          setShowDetailsDrawer(open);
+          if (!open) setFallbackSpace(null);
+        }}
         space={selectedSpace}
         onUpdate={handleSlotFilled}
       />

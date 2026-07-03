@@ -55,7 +55,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
     batch: "",
     light_transmission: "",
     description: "",
-    cost_per_meter: 0,
+    cost_per_meter: "",
     ppf_material_type: "",
   });
 
@@ -97,7 +97,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
           model: data.batch,
           light_transmission: data.light_transmission,
           description: data.description,
-          cost_per_meter: data.cost_per_meter,
+          cost_per_meter: parseFloat(data.cost_per_meter as string) || 0,
           ppf_material_type:
             data.category === "PPF" && data.ppf_material_type
               ? data.ppf_material_type
@@ -133,7 +133,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
           model: data.batch,
           light_transmission: data.light_transmission,
           description: data.description,
-          cost_per_meter: data.cost_per_meter,
+          cost_per_meter: parseFloat(data.cost_per_meter as string) || 0,
           ppf_material_type:
             data.category === "PPF" && data.ppf_material_type
               ? data.ppf_material_type
@@ -253,7 +253,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         batch: product.model || "",
         light_transmission: product.light_transmission || "",
         description: product.description || "",
-        cost_per_meter: product.cost_per_meter,
+        cost_per_meter: product.cost_per_meter ? product.cost_per_meter.toString() : "",
         ppf_material_type: product.ppf_material_type || "",
       });
     } else {
@@ -265,7 +265,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
         batch: "",
         light_transmission: "",
         description: "",
-        cost_per_meter: 0,
+        cost_per_meter: "",
         ppf_material_type: "",
       });
     }
@@ -565,7 +565,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                 onChange={(event) =>
                   setFormData({
                     ...formData,
-                    cost_per_meter: parseFloat(event.target.value) || 0,
+                    cost_per_meter: event.target.value,
                   })
                 }
               />

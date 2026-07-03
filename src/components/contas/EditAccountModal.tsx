@@ -62,7 +62,7 @@ export function EditAccountModal({
     if (account) {
       setName(account.name);
       setType(account.account_type || "");
-      setBalance((account.current_balance || 0).toString());
+      setBalance(account.current_balance ? account.current_balance.toString() : "");
       setBankCode(account.bank_code || null);
       setIsPrimary(account.is_main || false);
     }

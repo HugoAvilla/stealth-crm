@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag, ShoppingCart, Receipt, FileText, DollarSign } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, TrendingDown, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag, ShoppingCart, Receipt, FileText, DollarSign, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -54,12 +54,28 @@ interface Transfer {
   to_account_id: number;
 }
 
+interface CardMachine {
+  id: number;
+  name: string;
+  debit_rate: number | null;
+}
+
+interface CardMachineRate {
+  id: number;
+  machine_id: number;
+  brand: string | null;
+  installments: number | null;
+  rate: number;
+}
+
 export default function Financeiro() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [monthSales, setMonthSales] = useState<Sale[]>([]);
+  const [machines, setMachines] = useState<CardMachine[]>([]);
+  const [machineRates, setMachineRates] = useState<CardMachineRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showValues, setShowValues] = useState(true);
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
@@ -94,39 +110,71 @@ export default function Financeiro() {
         .order("is_main", { ascending: false });
 
       // Fetch transactions up to 7 days in the future for forecasts
-      const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+      const monthStartObj = startOfMonth(new Date());
+      const monthStart = format(monthStartObj, "yyyy-MM-dd");
+      const sevenDaysAgoObj = subDays(new Date(), 7);
+      const queryStartObj = monthStartObj < sevenDaysAgoObj ? monthStartObj : sevenDaysAgoObj;
+      const queryStart = format(queryStartObj, "yyyy-MM-dd");
       const futureEnd = format(addDays(new Date(), 7), "yyyy-MM-dd");
 
       const { data: transactionsData } = await supabase
         .from("transactions")
-        .select("id, type, amount, transaction_date, sale_id, origin_type, name, is_paid")
+        .select("id, type, amount, transaction_date, sale_id, origin_type, name, is_paid, sale_payment_id")
         .eq("company_id", profile.company_id)
-        .gte("transaction_date", monthStart)
+        .gte("transaction_date", queryStart)
         .lte("transaction_date", futureEnd)
         .order("transaction_date", { ascending: false });
 
-      // Fetch sales for the month
+      // Fetch sales for the month with payments
       const { data: salesData } = await supabase
         .from("sales")
-        .select("id, total, sale_date, status")
+        .select(`
+          id, 
+          total, 
+          sale_date, 
+          status,
+          sale_payments (
+            id,
+            amount,
+            method,
+            installments,
+            machine_id,
+            brand
+          )
+        `)
         .eq("company_id", profile.company_id)
         .gte("sale_date", monthStart)
         .lte("sale_date", format(endOfMonth(new Date()), "yyyy-MM-dd"));
 
-      // Fetch transfers for the last 7 days and future 7 days
+      // Fetch transfers for the month or last 7 days (whichever is earlier)
       const pastStart = format(subDays(new Date(), 7), "yyyy-MM-dd");
+      const transferStart = monthStart < pastStart ? monthStart : pastStart;
       const { data: transfersData } = await supabase
         .from("transfers")
         .select("*")
         .eq("company_id", profile.company_id)
-        .gte("transfer_date", pastStart)
+        .gte("transfer_date", transferStart)
         .lte("transfer_date", futureEnd)
         .order("transfer_date", { ascending: false });
+
+      // Fetch card machines
+      const { data: machinesData } = await supabase
+        .from("card_machines")
+        .select("id, name, debit_rate")
+        .eq("company_id", profile.company_id);
+
+      // Fetch card machine rates
+      const { data: ratesData } = await supabase
+        .from("card_machine_rates")
+        .select("id, machine_id, brand, installments, rate")
+        .eq("company_id", profile.company_id);
 
       setAccounts(accountsData || []);
       setTransactions(transactionsData || []);
       setTransfers(transfersData || []);
       setMonthSales(salesData || []);
+      setMachines(machinesData || []);
+      setMachineRates(ratesData || []);
     } catch (error) {
       console.error("Error fetching financial data:", error);
       toast.error("Erro ao carregar dados financeiros");
@@ -150,7 +198,7 @@ export default function Financeiro() {
   const futureTransactions = transactions.filter(t => t.transaction_date > todayStr && t.transaction_date <= futureEndStr);
 
   // === ENTRADAS ===
-  const entradasTransactions = monthTransactions.filter(t => t.type === 'Entrada');
+  const entradasTransactions = monthTransactions.filter(t => t.type === 'Entrada' && t.is_paid);
   const totalEntradas = entradasTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   // Vendas do mês (from sales table, para garantir contagem correta)
@@ -168,7 +216,7 @@ export default function Financeiro() {
     .reduce((sum, t) => sum + t.amount, 0);
 
   // === SAÍDAS ===
-  const saidasTransactions = monthTransactions.filter(t => t.type === 'Saida');
+  const saidasTransactions = monthTransactions.filter(t => t.type === 'Saida' && t.is_paid);
   const totalSaidas = saidasTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   // Despesas fixas / recorrentes (transações com "Despesa fixa" ou "recorrente" no nome, ou origin_type de purchase)
@@ -189,6 +237,85 @@ export default function Financeiro() {
     .filter(t => t.type === 'Saida')
     .reduce((sum, t) => sum + t.amount, 0);
 
+  // === NOVOS INDICADORES DE MAQUININHA E TRANSFERÊNCIAS ===
+
+  // 1. Total de transferências no mês
+  const monthTransfers = transfers.filter(t => t.transfer_date >= monthStartStr && t.transfer_date <= monthEndStr);
+  const totalTransferenciasMes = monthTransfers.reduce((sum, t) => sum + t.amount, 0);
+
+  // 2. Extrair todos os pagamentos em maquininha de vendas fechadas no mês corrente
+  const closedMonthSales = monthSales.filter(s => s.status === 'Fechada');
+  const maquininhaPayments = closedMonthSales.flatMap(sale => {
+    const payments = (sale as any).sale_payments || [];
+    return payments.filter((p: any) => 
+      (p.method === "Crédito" || p.method === "Débito") && p.machine_id !== null
+    );
+  });
+
+  // Valor Bruto de Maquininha
+  const totalVendasMaquininha = maquininhaPayments.reduce((sum, p) => sum + p.amount, 0);
+
+  // Calcular Taxas e Líquido Real/Estimado
+  let totalTaxaMaquininha = 0;
+  let totalLiquidoMaquininha = 0;
+
+  maquininhaPayments.forEach((p: any) => {
+    // Tenta encontrar a transação real pelo sale_payment_id ou sale_id (se for pagamento único)
+    const tx = transactions.find(t => 
+      t.type === 'Entrada' && 
+      t.is_paid &&
+      (t.sale_payment_id === p.id || (t.sale_id === p.sale_id && t.sale_payment_id === null))
+    );
+
+    if (tx) {
+      const liquido = tx.amount;
+      const taxa = Math.max(0, p.amount - liquido);
+      totalTaxaMaquininha += taxa;
+      totalLiquidoMaquininha += liquido;
+    } else {
+      // Fallback: cálculo baseado nas configurações de taxas
+      let rate = 0;
+      if (p.method === "Débito") {
+        const machine = machines.find(m => m.id === p.machine_id);
+        rate = machine?.debit_rate || 0;
+      } else {
+        // Crédito
+        const rateRecord = machineRates.find(r => 
+          r.machine_id === p.machine_id && 
+          r.installments === (p.installments || 1) &&
+          (!p.brand || !r.brand || r.brand.toLowerCase() === p.brand.toLowerCase())
+        );
+        rate = rateRecord?.rate || 0;
+      }
+      const taxaEstimada = p.amount * (rate / 100);
+      const liquidoEstimado = p.amount - taxaEstimada;
+
+      totalTaxaMaquininha += taxaEstimada;
+      totalLiquidoMaquininha += liquidoEstimado;
+    }
+  });
+
+  // 5. Maquininha mais usada
+  const usageMap: { [key: number]: number } = {};
+  maquininhaPayments.forEach((p: any) => {
+    if (p.machine_id) {
+      usageMap[p.machine_id] = (usageMap[p.machine_id] || 0) + 1;
+    }
+  });
+
+  let mostUsedMachineId: number | null = null;
+  let mostUsedMachineCount = 0;
+  Object.entries(usageMap).forEach(([idStr, count]) => {
+    if (count > mostUsedMachineCount) {
+      mostUsedMachineCount = count;
+      mostUsedMachineId = parseInt(idStr);
+    }
+  });
+
+  const mostUsedMachineName = mostUsedMachineId 
+    ? (machines.find(m => m.id === mostUsedMachineId)?.name || `Maquininha #${mostUsedMachineId}`)
+    : "Nenhuma";
+
   // Generate chart data for last 7 days working backwards from today's balance
   let currentBal = totalBalance;
   const reversedChartData = [];
@@ -202,7 +329,7 @@ export default function Financeiro() {
       saldo: currentBal,
     });
 
-    const dayTransactions = transactions.filter(t => t.transaction_date === dateStr);
+    const dayTransactions = transactions.filter(t => t.transaction_date === dateStr && t.is_paid);
     const dayEntradas = dayTransactions.filter(t => t.type === 'Entrada').reduce((s, t) => s + t.amount, 0);
     const daySaidas = dayTransactions.filter(t => t.type === 'Saida').reduce((s, t) => s + t.amount, 0);
     const netFlow = dayEntradas - daySaidas;
@@ -436,6 +563,85 @@ export default function Financeiro() {
 
       </div>
 
+      {/* Novos Cards de Detalhes de Maquininha e Transferências */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mt-6 animate-in fade-in duration-500">
+        
+        {/* Total de Transferências */}
+        <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transferências no Mês</span>
+              <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
+                <RefreshCw className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalTransferenciasMes)}</p>
+            <p className="text-[10px] text-muted-foreground mt-2">Volume movimentado entre contas</p>
+          </CardContent>
+        </Card>
+
+        {/* Total de Vendas em Maquininha */}
+        <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Vendas em Maquininha</span>
+              <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                <CreditCard className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalVendasMaquininha)}</p>
+            <p className="text-[10px] text-muted-foreground mt-2">Valor bruto total no mês</p>
+          </CardContent>
+        </Card>
+
+        {/* Valor de Taxa Consumido */}
+        <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Taxas de Maquininha</span>
+              <div className="p-1.5 rounded-lg bg-red-500/10 text-red-500">
+                <TrendingDown className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalTaxaMaquininha)}</p>
+            <p className="text-[10px] text-muted-foreground mt-2">Custos de intermediação no mês</p>
+          </CardContent>
+        </Card>
+
+        {/* Valor Líquido Recebido */}
+        <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor Líquido Recebido</span>
+              <div className="p-1.5 rounded-lg bg-green-500/10 text-green-500">
+                <PiggyBank className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalLiquidoMaquininha)}</p>
+            <p className="text-[10px] text-muted-foreground mt-2">Valor líquido a receber em conta</p>
+          </CardContent>
+        </Card>
+
+        {/* Maquininha Mais Usada */}
+        <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
+          <CardContent className="p-6 relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Maquininha Mais Usada</span>
+              <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500">
+                <Tag className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-lg font-bold tracking-tight mt-2 truncate" title={mostUsedMachineName}>
+              {mostUsedMachineName}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-2">
+              {mostUsedMachineCount} {mostUsedMachineCount === 1 ? 'venda registrada' : 'vendas registradas'}
+            </p>
+          </CardContent>
+        </Card>
+
+      </div>
+
       {/* Divisor do Dashboard */}
       <h2 className="text-lg font-semibold mt-8 mb-4 tracking-tight">Análise de Performance</h2>
 
@@ -451,7 +657,7 @@ export default function Financeiro() {
           <CardContent>
             <div className="h-[300px] mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -466,6 +672,7 @@ export default function Financeiro() {
                     tickLine={false} 
                     axisLine={false} 
                     tickFormatter={(value) => `R$${value.toLocaleString('pt-BR', { notation: "compact" })}`} 
+                    width={75}
                   />
                   <Tooltip
                     contentStyle={{
@@ -504,7 +711,7 @@ export default function Financeiro() {
           <CardContent>
             <div className="h-[300px] mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={transferChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={transferChartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} dy={10} />
                   <YAxis 
@@ -513,6 +720,7 @@ export default function Financeiro() {
                     tickLine={false} 
                     axisLine={false} 
                     tickFormatter={(value) => `R$${value.toLocaleString('pt-BR', { notation: "compact" })}`} 
+                    width={75}
                   />
                   <Tooltip
                     cursor={{ fill: 'hsl(var(--muted)/0.5)' }}

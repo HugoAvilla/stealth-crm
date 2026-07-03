@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { format, subDays, startOfMonth, endOfMonth, parseISO } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, parseISO, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Table,
@@ -18,15 +18,24 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { CAC_ORIGIN_OPTIONS, CacOrigin } from "@/constants/origins";
 import { toast } from "sonner";
-import { Target, TrendingUp, Users, DollarSign, PieChart, Plus, RefreshCw, UserPlus } from "lucide-react";
+import { Target, TrendingUp, Users, DollarSign, PieChart, Plus, RefreshCw, UserPlus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { RoasEntryModal } from "./RoasEntryModal";
 import { createExpenseTransaction } from "@/lib/financialTransactions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function CacTab() {
   const { user } = useAuth();
-  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+  const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(new Date()));
+  const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
+  const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
+
+  const handlePrevMonth = () => {
+    setCurrentMonth(prev => subMonths(prev, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(prev => addMonths(prev, 1));
+  };
   const [loading, setLoading] = useState(false);
   const [isRoasModalOpen, setIsRoasModalOpen] = useState(false);
   const [targetRoas, setTargetRoas] = useState<number>(4);
@@ -38,10 +47,13 @@ export function CacTab() {
   const [sellerDate, setSellerDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [sellerDescription, setSellerDescription] = useState<string>("");
   const [submittingSellerExpense, setSubmittingSellerExpense] = useState<boolean>(false);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accountId, setAccountId] = useState<string>("");
 
   useEffect(() => {
     if (user?.companyId) {
       fetchSellers();
+      fetchAccounts();
     }
   }, [user?.companyId]);
 
@@ -59,6 +71,30 @@ export function CacTab() {
       setSellers(data || []);
     } catch (e) {
       console.error("Error fetching sellers", e);
+    }
+  };
+
+  const fetchAccounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('id, name, is_main')
+        .eq('company_id', user.companyId)
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      setAccounts(data || []);
+      
+      // Define a conta principal como padrão inicial, ou a primeira da lista
+      const mainAcc = data?.find(a => a.is_main);
+      if (mainAcc) {
+        setAccountId(mainAcc.id.toString());
+      } else if (data && data.length > 0) {
+        setAccountId(data[0].id.toString());
+      }
+    } catch (e) {
+      console.error("Error fetching accounts", e);
     }
   };
 
@@ -88,6 +124,7 @@ export function CacTab() {
 
   const [channelStats, setChannelStats] = useState<any[]>([]);
   const [cacTransactions, setCacTransactions] = useState<any[]>([]);
+  const [sellerRanking, setSellerRanking] = useState<any[]>([]);
 
   // New vs Returning stats
   const [newClientSales, setNewClientSales] = useState(0);
@@ -128,9 +165,63 @@ export function CacTab() {
       const transactions = (cacTxData || []) as any[];
       setCacTransactions(transactions);
 
-      let tCac = 0;
+      // 1.2 Fetch Commissions in period
+      const { data: commData, error: commError } = await supabase
+        .from('sale_commissions')
+        .select(`
+          commission_amount,
+          commission_person_id,
+          person_name_snapshot,
+          person_type,
+          sale:sales!inner(sale_date, status, total)
+        `)
+        .eq('company_id', companyId)
+        .eq('sale.status', 'Fechada')
+        .gte('sale.sale_date', startDate)
+        .lte('sale.sale_date', endDate);
+
+      if (commError) throw commError;
+
+      const commissions = (commData || []) as any[];
+
+      // Agrupar ranking de vendedores
+      const sellerPerformance: Record<string, {
+        id: number;
+        name: string;
+        vendasCount: number;
+        faturamentoTotal: number;
+        comissaoTotal: number;
+      }> = {};
+
+      commissions.forEach((c: any) => {
+        if (c.person_type === 'VENDEDOR' && c.commission_person_id) {
+          const sellerId = c.commission_person_id;
+          if (!sellerPerformance[sellerId]) {
+            sellerPerformance[sellerId] = {
+              id: sellerId,
+              name: c.person_name_snapshot || 'Vendedor',
+              vendasCount: 0,
+              faturamentoTotal: 0,
+              comissaoTotal: 0
+            };
+          }
+          sellerPerformance[sellerId].vendasCount += 1;
+          sellerPerformance[sellerId].faturamentoTotal += Number(c.sale?.total || 0);
+          sellerPerformance[sellerId].comissaoTotal += Number(c.commission_amount || 0);
+        }
+      });
+
+      const sellersRank = Object.values(sellerPerformance).sort((a, b) => b.faturamentoTotal - a.faturamentoTotal);
+      setSellerRanking(sellersRank);
+
+      // Soma de comissões de vendedores no período
+      const totalComissoesVendedores = commissions
+        .filter((c: any) => c.person_type === 'VENDEDOR')
+        .reduce((sum: number, c: any) => sum + Number(c.commission_amount || 0), 0);
+
+      let tCac = totalComissoesVendedores;
       let mCost = 0;
-      let sCost = 0;
+      let sCost = totalComissoesVendedores;
       // Object to hold specific costs (not Geral)
       const costByOrigin: Record<string, number> = {};
       let geralCost = 0;
@@ -303,16 +394,8 @@ export function CacTab() {
     setSubmittingSellerExpense(true);
 
     try {
-      // Find main account
-      const { data: mainAccount } = await supabase
-        .from("accounts")
-        .select("id")
-        .eq("company_id", user.companyId)
-        .eq("is_main", true)
-        .single();
-
-      if (!mainAccount) {
-        toast.error("Conta principal não encontrada");
+      if (!accountId) {
+        toast.error("Selecione uma conta financeira");
         setSubmittingSellerExpense(false);
         return;
       }
@@ -326,7 +409,7 @@ export function CacTab() {
         amount: valorInvestido,
         transactionDate: sellerDate,
         companyId: user.companyId,
-        accountId: mainAccount.id,
+        accountId: parseInt(accountId),
         isPaid: true,
         description: `Gasto Vendedor: ${sellerName}${sellerDescription ? ` - ${sellerDescription}` : ''}`,
         originType: "manual",
@@ -364,8 +447,30 @@ export function CacTab() {
     }
   };
 
+  const handleDeleteCacTransaction = async (id: number) => {
+    if (!confirm("Tem certeza que deseja excluir esta despesa de CAC? Esta ação irá remover o lançamento do financeiro permanentemente.")) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      toast.success("Despesa de CAC excluída com sucesso!");
+      fetchCacData();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Erro ao excluir despesa: ${e.message}`);
+    }
+  };
+
   const avgCac = newPayingClients > 0 ? totalCac / newPayingClients : 0;
   const globalRoas = totalCac > 0 ? cohortRevenue / totalCac : 0;
+  const roasProgress = targetRoas > 0 ? Math.min((globalRoas / targetRoas) * 100, 100) : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -398,37 +503,40 @@ export function CacTab() {
             </Button>
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Data Inicial</Label>
-            <Input 
-              type="date" 
-              value={startDate} 
-              onChange={(e) => setStartDate(e.target.value)} 
-              className="h-9 w-full bg-background"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Data Final</Label>
-            <Input 
-              type="date" 
-              value={endDate} 
-              onChange={(e) => setEndDate(e.target.value)} 
-              className="h-9 w-full bg-background"
-            />
-          </div>
-          <div className="space-y-1 col-span-2 sm:col-span-1">
-            <Label className="text-xs">Meta de ROAS</Label>
-            <div className="flex items-center gap-1">
+        <div className="space-y-1.5 max-w-[280px]">
+          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Período de Análise</Label>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0 bg-background"
+              onClick={handlePrevMonth}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="relative flex-1">
               <Input 
-                type="number"
-                step="0.5" 
-                value={targetRoas || ''} 
-                onChange={(e) => handleTargetRoasChange(e.target.value)} 
-                className="h-9 w-20 bg-background text-center px-1"
+                type="month" 
+                value={format(currentMonth, "yyyy-MM")} 
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const [year, month] = e.target.value.split("-").map(Number);
+                    setCurrentMonth(new Date(year, month - 1, 1, 12, 0, 0));
+                  }
+                }} 
+                className="h-9 w-full bg-background font-semibold text-center text-sm cursor-pointer"
               />
-              <span className="text-sm font-medium text-muted-foreground">x</span>
             </div>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0 bg-background"
+              onClick={handleNextMonth}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
@@ -489,17 +597,50 @@ export function CacTab() {
           </p>
         </Card>
 
-        <Card className="p-5 flex flex-col justify-center space-y-2 relative overflow-hidden">
+        <Card className="p-5 flex flex-col justify-between space-y-2 relative overflow-hidden group min-h-[140px]">
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <PieChart className="w-16 h-16 text-primary" />
           </div>
-          <p className="text-sm font-medium text-muted-foreground">ROAS Global</p>
-          <h3 className={`text-3xl font-bold ${globalRoas === 0 ? 'text-primary' : (globalRoas >= targetRoas ? 'text-green-500' : 'text-red-500')}`}>
-            {globalRoas === 0 ? '0.00x' : `${globalRoas.toFixed(2)}x`}
-          </h3>
-          <p className={`text-xs mt-1 ${globalRoas === 0 ? 'text-muted-foreground' : (globalRoas >= targetRoas ? 'text-green-500/80 font-medium' : 'text-red-400 font-medium')}`}>
-            {globalRoas === 0 ? 'Retorno sobre investimento' : (globalRoas >= targetRoas ? 'Dentro da meta 🎉' : 'Abaixo da meta ⚠️')}
-          </p>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">ROAS Global</p>
+            <div className="flex items-baseline gap-2 mt-1">
+              <h3 className={`text-3xl font-bold ${globalRoas === 0 ? 'text-primary' : (globalRoas >= targetRoas ? 'text-green-500' : 'text-red-500')}`}>
+                {globalRoas === 0 ? '0.00x' : `${globalRoas.toFixed(2)}x`}
+              </h3>
+              {targetRoas > 0 && globalRoas > 0 && (
+                <span className="text-[10px] text-muted-foreground font-medium">
+                  ({roasProgress.toFixed(0)}% da meta)
+                </span>
+              )}
+            </div>
+            
+            {/* Barra de Progresso da Meta */}
+            {targetRoas > 0 && (
+              <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden mt-2">
+                <div 
+                  className={`h-full transition-all duration-500 ${globalRoas >= targetRoas ? 'bg-green-500' : 'bg-red-500'}`}
+                  style={{ width: `${roasProgress}%` }}
+                />
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center justify-between pt-1 border-t border-border/10">
+            <span className={`text-[10px] ${globalRoas === 0 ? 'text-muted-foreground' : (globalRoas >= targetRoas ? 'text-green-500/80 font-medium' : 'text-red-400/80 font-medium')}`}>
+              {globalRoas === 0 ? 'Sem retorno' : (globalRoas >= targetRoas ? 'Meta atingida 🎉' : 'Abaixo da meta ⚠️')}
+            </span>
+            <div className="flex items-center gap-1 bg-muted/40 rounded px-1.5 py-0.5 border border-border/50">
+              <span className="text-[9px] text-muted-foreground font-semibold uppercase">Meta:</span>
+              <input 
+                type="number"
+                step="0.5" 
+                value={targetRoas || ''} 
+                onChange={(e) => handleTargetRoasChange(e.target.value)} 
+                className="w-8 h-4 bg-transparent text-foreground text-center rounded text-[10px] focus:outline-none border-none p-0 font-bold"
+              />
+              <span className="text-[9px] text-muted-foreground font-medium">x</span>
+            </div>
+          </div>
         </Card>
       </div>
 
@@ -654,15 +795,39 @@ export function CacTab() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="sellerDescription" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Descrição Opcional</Label>
-                  <Input
-                    id="sellerDescription"
-                    placeholder="Ex: Comissão, Bônus..."
-                    value={sellerDescription}
-                    onChange={(e) => setSellerDescription(e.target.value)}
-                    className="h-9 text-xs bg-background"
-                  />
+                  <Label htmlFor="accountId" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Conta Financeira *</Label>
+                  {accounts.length > 0 ? (
+                    <Select value={accountId} onValueChange={setAccountId}>
+                      <SelectTrigger id="accountId" className="h-9 text-xs bg-background">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id.toString()} className="text-xs">
+                            {a.name} {a.is_main && "(Principal)"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input 
+                      placeholder="Sem contas..." 
+                      disabled 
+                      className="h-9 text-xs bg-background"
+                    />
+                  )}
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="sellerDescription" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Descrição Opcional</Label>
+                <Input
+                  id="sellerDescription"
+                  placeholder="Ex: Comissão, Bônus..."
+                  value={sellerDescription}
+                  onChange={(e) => setSellerDescription(e.target.value)}
+                  className="h-9 text-xs bg-background"
+                />
               </div>
 
               <Button 
@@ -781,7 +946,7 @@ export function CacTab() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={channelStats.filter(s => s.clientesPagantes > 0)}
-                margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
+                margin={{ top: 20, right: 0, left: 10, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888833" />
                 <XAxis 
@@ -795,6 +960,7 @@ export function CacTab() {
                   tickLine={false}
                   tickFormatter={(value) => `R$${value}`}
                   tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.7 }}
+                  width={75}
                 />
                 <Tooltip 
                   cursor={{ fill: '#88888811' }}
@@ -808,82 +974,155 @@ export function CacTab() {
         </Card>
       </div>
 
-      <Card className="p-1 mt-6">
-        <div className="p-4 border-b">
-          <h3 className="font-semibold flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-orange-500" />
-            Despesas de CAC Mapeadas no Período
-          </h3>
-          <p className="text-sm text-muted-foreground">Transações de saída que estão compondo o investimento total exibido acima.</p>
-        </div>
-        {/* Desktop: Tabela */}
-        <div className="hidden sm:block w-full overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-muted/10">
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Nome da Transação</TableHead>
-                <TableHead>Área</TableHead>
-                <TableHead>Canal Marcado</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {cacTransactions.length === 0 ? (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        {/* Table representation */}
+        <Card className="lg:col-span-2 p-1">
+          <div className="p-4 border-b">
+            <h3 className="font-semibold flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-orange-500" />
+              Despesas de CAC Mapeadas no Período
+            </h3>
+            <p className="text-sm text-muted-foreground">Transações de saída que estão compondo o investimento total exibido acima.</p>
+          </div>
+          {/* Desktop: Tabela */}
+          <div className="hidden sm:block w-full overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/10">
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-16 text-muted-foreground">
-                    Nenhuma despesa marcada como CAC no período.
-                  </TableCell>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Nome da Transação</TableHead>
+                  <TableHead>Área</TableHead>
+                  <TableHead>Canal Marcado</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right w-[80px]">Ações</TableHead>
                 </TableRow>
-              ) : cacTransactions.map((tx) => (
-                <TableRow key={tx.id}>
-                  <TableCell>{format(parseISO(tx.transaction_date), "dd/MM/yyyy")}</TableCell>
-                  <TableCell className="font-medium">{tx.name}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-medium uppercase tracking-wider ${tx.cac_bucket === 'marketing' ? 'bg-orange-500/10 text-orange-600' : 'bg-blue-500/10 text-blue-600'}`}>
+              </TableHeader>
+              <TableBody>
+                {cacTransactions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center h-16 text-muted-foreground">
+                      Nenhuma despesa marcada como CAC no período.
+                    </TableCell>
+                  </TableRow>
+                ) : cacTransactions.map((tx) => (
+                  <TableRow key={tx.id}>
+                    <TableCell>{format(parseISO(tx.transaction_date), "dd/MM/yyyy")}</TableCell>
+                    <TableCell className="font-medium">{tx.name}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-medium uppercase tracking-wider ${tx.cac_bucket === 'marketing' ? 'bg-orange-500/10 text-orange-600' : 'bg-blue-500/10 text-blue-600'}`}>
+                        {tx.cac_bucket}
+                      </span>
+                    </TableCell>
+                    <TableCell>{tx.cac_origin || 'Não classificado'}</TableCell>
+                    <TableCell className="text-right text-red-500">
+                      -{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tx.amount)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDeleteCacTransaction(tx.id)}
+                        className="h-7 w-7 text-muted-foreground hover:text-red-500 transition-colors"
+                        title="Excluir despesa"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile: Cards */}
+          <div className="block sm:hidden p-3 space-y-3">
+            {cacTransactions.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-6">Nenhuma despesa marcada como CAC no período.</p>
+            ) : cacTransactions.map((tx) => (
+              <div key={tx.id} className="p-3 rounded-lg border text-sm space-y-2 bg-card">
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className="font-semibold truncate max-w-[55%]">{tx.name}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${tx.cac_bucket === 'marketing' ? 'bg-orange-500/10 text-orange-600' : 'bg-blue-500/10 text-blue-600'}`}>
                       {tx.cac_bucket}
                     </span>
-                  </TableCell>
-                  <TableCell>{tx.cac_origin || 'Não classificado'}</TableCell>
-                  <TableCell className="text-right text-red-500">
-                    -{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tx.amount)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleDeleteCacTransaction(tx.id)}
+                      className="h-6 w-6 text-muted-foreground hover:text-red-500"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t text-center">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">Data</span>
+                    <span className="font-medium text-xs">{format(parseISO(tx.transaction_date), "dd/MM/yy")}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">Canal</span>
+                    <span className="font-medium text-xs">{tx.cac_origin || 'N/C'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-red-400 block">Valor</span>
+                    <span className="font-semibold text-xs text-red-500">-{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tx.amount)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
 
-        {/* Mobile: Cards */}
-        <div className="block sm:hidden p-3 space-y-3">
-          {cacTransactions.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-6">Nenhuma despesa marcada como CAC no período.</p>
-          ) : cacTransactions.map((tx) => (
-            <div key={tx.id} className="p-3 rounded-lg border text-sm space-y-2 bg-card">
-              <div className="flex items-center justify-between gap-1.5">
-                <span className="font-semibold truncate max-w-[60%]">{tx.name}</span>
-                <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${tx.cac_bucket === 'marketing' ? 'bg-orange-500/10 text-orange-600' : 'bg-blue-500/10 text-blue-600'}`}>
-                  {tx.cac_bucket}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t text-center">
-                <div>
-                  <span className="text-[10px] text-muted-foreground block">Data</span>
-                  <span className="font-medium text-xs">{format(parseISO(tx.transaction_date), "dd/MM/yy")}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-muted-foreground block">Canal</span>
-                  <span className="font-medium text-xs">{tx.cac_origin || 'N/C'}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-red-400 block">Valor</span>
-                  <span className="font-semibold text-xs text-red-500">-{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tx.amount)}</span>
-                </div>
-              </div>
+        {/* Ranking de Vendedores */}
+        <Card className="lg:col-span-1 p-1 flex flex-col justify-between">
+          <div>
+            <div className="p-4 border-b">
+              <h3 className="font-semibold flex items-center gap-2 text-foreground">
+                <Users className="w-4 h-4 text-blue-500" />
+                Eficiência Comercial
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Ranking de vendas por faturamento no período.</p>
             </div>
-          ))}
-        </div>
-      </Card>
+            <div className="flex-1 overflow-y-auto max-h-[350px]">
+              {sellerRanking.length === 0 ? (
+                <div className="text-center py-12 text-xs text-muted-foreground">
+                  Nenhuma venda comercial registrada no período.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {sellerRanking.map((seller, index) => (
+                    <div key={seller.id} className="p-3 flex items-center justify-between text-xs hover:bg-muted/20 transition-all duration-200">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                          index === 0 ? 'bg-amber-500/20 text-amber-500' :
+                          index === 1 ? 'bg-slate-400/20 text-slate-400' :
+                          index === 2 ? 'bg-amber-700/20 text-amber-700' : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <div>
+                          <span className="font-medium text-foreground block">{seller.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{seller.vendasCount} {seller.vendasCount === 1 ? 'venda' : 'vendas'}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-semibold text-foreground block">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(seller.faturamentoTotal)}
+                        </span>
+                        <span className="text-[10px] text-blue-500">
+                          Comissão: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(seller.comissaoTotal)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      </div>
 
       <RoasEntryModal
         open={isRoasModalOpen}

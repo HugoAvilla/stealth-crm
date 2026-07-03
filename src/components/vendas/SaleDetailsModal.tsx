@@ -48,6 +48,7 @@ import {
   Settings,
   Layers,
   Percent,
+  Shield,
 } from "lucide-react";
 import { SaleWithDetails, DetailedServiceItemDB } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
@@ -64,6 +65,7 @@ import NewSaleModal from "@/components/vendas/NewSaleModal";
 import { FillSlotModal } from "@/components/espaco/FillSlotModal";
 import { EditClientModal } from "@/components/clientes/EditClientModal";
 import { Loader2 } from "lucide-react";
+import { IssueWarrantyModal } from "@/components/garantias/IssueWarrantyModal";
 
 interface SaleDetailsModalProps {
   open: boolean;
@@ -81,6 +83,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isEditSaleOpen, setIsEditSaleOpen] = useState(false);
+  const [isIssueWarrantyOpen, setIsIssueWarrantyOpen] = useState(false);
   
   // Soft Delete and Lixeira states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -114,10 +117,47 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
     }
 
     try {
+      const vehicleIds = (clientToDelete.vehicles || []).map((v: any) => v.id);
+
+      // 1. Delete pipeline items and events associated with the client's vehicles
+      if (vehicleIds.length > 0) {
+        const { data: pipelineItems } = await supabase
+          .from("pipeline_items")
+          .select("id")
+          .in("vehicle_id", vehicleIds);
+
+        const pipelineItemIds = pipelineItems?.map(item => item.id) || [];
+        if (pipelineItemIds.length > 0) {
+          await supabase.from("whatsapp_messages").delete().in("related_pipeline_item", pipelineItemIds);
+          await supabase.from("pipeline_events").delete().in("item_id", pipelineItemIds);
+          await supabase.from("pipeline_items").delete().in("id", pipelineItemIds);
+        }
+
+        // Delete other operational data associated with the vehicles
+        await supabase.from("pipeline_stages").delete().in("vehicle_id", vehicleIds);
+        await supabase.from("spaces").delete().in("vehicle_id", vehicleIds);
+        await supabase.from("warranties").delete().in("vehicle_id", vehicleIds);
+      }
+
+      // 2. Delete pipeline items and events associated directly with the client
+      const { data: clientPipelineItems } = await supabase
+        .from("pipeline_items")
+        .select("id")
+        .eq("client_id", clientToDelete.id);
+
+      const clientPipelineItemIds = clientPipelineItems?.map(item => item.id) || [];
+      if (clientPipelineItemIds.length > 0) {
+        await supabase.from("whatsapp_messages").delete().in("related_pipeline_item", clientPipelineItemIds);
+        await supabase.from("pipeline_events").delete().in("item_id", clientPipelineItemIds);
+        await supabase.from("pipeline_items").delete().in("id", clientPipelineItemIds);
+      }
+
+      // 3. Delete other operational data associated directly with the client_id
       await supabase.from("pipeline_stages").delete().eq("client_id", clientToDelete.id);
       await supabase.from("spaces").delete().eq("client_id", clientToDelete.id);
       await supabase.from("warranties").delete().eq("client_id", clientToDelete.id);
 
+      // 4. Delete associated vehicles
       const { error: vehiclesError } = await supabase
         .from("vehicles")
         .delete()
@@ -125,6 +165,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
 
       if (vehiclesError) throw vehiclesError;
 
+      // 5. Delete the client
       const { error } = await supabase
         .from("clients")
         .delete()
@@ -724,7 +765,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
               <h3 className="text-sm font-medium text-muted-foreground">
                 Ações CRM
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <Button
                   className="gap-2 bg-success hover:bg-success/90"
                   onClick={() => setIsWhatsAppOpen(true)}
@@ -752,6 +793,14 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                 >
                   <ArrowRightLeft className="h-4 w-4" />
                   Enviar p/ Espaço
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2 border-amber-500 text-amber-500 hover:bg-amber-500/10"
+                  onClick={() => setIsIssueWarrantyOpen(true)}
+                >
+                  <Shield className="h-4 w-4" />
+                  Emitir Garantia
                 </Button>
               </div>
             </div>
@@ -1035,6 +1084,12 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
         open={isEditSaleOpen}
         onOpenChange={setIsEditSaleOpen}
         sale={sale}
+      />
+
+      <IssueWarrantyModal
+        open={isIssueWarrantyOpen}
+        onOpenChange={setIsIssueWarrantyOpen}
+        preselectedSale={sale}
       />
     </>
   );

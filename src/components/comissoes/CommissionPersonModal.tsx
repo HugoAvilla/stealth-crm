@@ -57,7 +57,7 @@ const CommissionPersonModal = ({ open, onOpenChange, person, onSuccess }: Commis
       if (person) {
         setName(person.name);
         setType(person.type);
-        setPercentage(person.commission_percentage.toString());
+        setPercentage(person.commission_percentage === 0 ? "" : person.commission_percentage.toString());
         setIsActive(person.is_active);
       } else {
         setName("");

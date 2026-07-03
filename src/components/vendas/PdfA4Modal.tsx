@@ -166,6 +166,7 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
       payment_method: sale.payment_method || 'Não informado',
       company_name: companyData?.company_name || 'EMPRESA',
       company_cnpj: companyData?.cnpj || '',
+      company_logo_url: companyData?.logo_url || undefined,
     };
 
     generateSalePDFA4(pdfData, options, user?.companyId || undefined);
@@ -364,6 +365,13 @@ const PdfA4Modal = ({ open, onOpenChange, sale }: PdfA4ModalProps) => {
               {/* Header */}
               {options.companyName && (
                 <div className="text-center mb-4">
+                  {companyData?.logo_url && (
+                    <img 
+                      src={companyData.logo_url} 
+                      alt="Logo" 
+                      className="max-h-16 max-w-[200px] object-contain mx-auto mb-3" 
+                    />
+                  )}
                   <h1 className="text-xl font-bold">{companyData?.company_name || 'NOME DA EMPRESA'}</h1>
                   {options.companyCnpj && companyData?.cnpj && (
                     <p className="text-xs text-gray-500">CNPJ: {companyData.cnpj}</p>

@@ -1,8 +1,8 @@
 import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { TopNavigation } from './TopNavigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { SupportButton } from '@/components/support/SupportButton';
 import { PullToRefresh } from '@/components/shared/PullToRefresh';
 
@@ -11,7 +11,8 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const isReadOnly = user?.subscriptionStatus === 'pending_payment' && !user?.isMaster;
 
   if (isLoading) {
     return (
@@ -38,14 +39,28 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {isReadOnly && (
+        <div className="fixed top-0 left-0 right-0 h-10 bg-amber-600 dark:bg-amber-700 text-white px-4 py-2 text-center text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 z-[60] shadow-md transition-all duration-300">
+          <AlertTriangle className="h-4 w-4 animate-pulse text-amber-100" />
+          <span>Modo de Leitura: Sua assinatura está aguardando pagamento.</span>
+          <a 
+            href="https://wa.me/5517992573141?text=Olá!%20Minha%20assinatura%20está%20aguardando%20pagamento%20e%20gostaria%20de%20regularizar." 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="underline hover:text-amber-100 font-bold ml-1"
+          >
+            Regularizar no WhatsApp
+          </a>
+        </div>
+      )}
       <TopNavigation />
-      <main className="pt-16 overflow-x-hidden">
+      <main className={`overflow-x-hidden transition-all duration-300 ${isReadOnly ? 'pt-[104px]' : 'pt-16'}`}>
         <PullToRefresh onRefresh={async () => {
           // Pequeno delay para a animação de refresh aparecer
           await new Promise(resolve => setTimeout(resolve, 500));
           window.location.reload();
         }}>
-          <div className="min-h-[calc(100vh-64px)]">
+          <div className={isReadOnly ? "min-h-[calc(100vh-104px)]" : "min-h-[calc(100vh-64px)]"}>
             {children}
           </div>
         </PullToRefresh>

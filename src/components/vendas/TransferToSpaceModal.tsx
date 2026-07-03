@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowRightLeft, Car, User, DollarSign, Loader2 } from "lucide-react";
+import { ArrowRightLeft, Car, User, DollarSign, Loader2, Wrench } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,6 +69,7 @@ const TransferToSpaceModal = ({
   const [observations, setObservations] = useState("");
   const [client, setClient] = useState<Client | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [servicesData, setServicesData] = useState<any[]>([]);
 
   useEffect(() => {
     if (sale?.client_id && open) {
@@ -81,7 +83,7 @@ const TransferToSpaceModal = ({
     const [clientRes, vehiclesRes, detailedItemsRes, saleItemsRes] = await Promise.all([
       supabase.from("clients").select("id, name").eq("id", sale.client_id).single(),
       supabase.from("vehicles").select("id, brand, model, plate").eq("client_id", sale.client_id),
-      supabase.from("service_items_detailed").select("*, product_type:product_types(name), region:vehicle_regions(name)").eq("sale_id", sale.id),
+      supabase.from("service_items_detailed").select("*, product_type:product_types(id, name, brand, light_transmission, category), region:vehicle_regions(id, name, region_code)").eq("sale_id", sale.id),
       supabase.from("sale_items").select("*, service:services(name)").eq("sale_id", sale.id)
     ]);
 
@@ -96,18 +98,46 @@ const TransferToSpaceModal = ({
       }
     }
 
-    let servicesText = "";
+    // Build structured services_data from the sale's service items
+    const builtServicesData: any[] = [];
     if (detailedItemsRes.data && detailedItemsRes.data.length > 0) {
-      servicesText = detailedItemsRes.data.map(item => 
-        `${item.region?.name || 'Serviço'} - ${item.product_type?.name || 'Produto'}`
-      ).join(", ");
+      for (const item of detailedItemsRes.data) {
+        const productName = item.product_type
+          ? `${item.product_type.brand || ''} ${item.product_type.name || ''}`.trim()
+          : '';
+        builtServicesData.push({
+          category: item.category || 'INSULFILM',
+          regionId: item.region?.id || item.region_id || null,
+          regionName: item.region?.name || item.display_name || 'Serviço',
+          productTypeId: item.product_type?.id || item.product_type_id || null,
+          productTypeName: productName,
+          totalPrice: item.total_price || 0,
+          metersUsed: item.meters_used || 0,
+          serviceName: item.service_name || item.region?.name || 'Serviço',
+          regionCode: item.region?.region_code || null,
+          displayName: item.display_name || `${item.region?.name || 'Serviço'} • ${productName}`,
+          isCustomized: false,
+        });
+      }
     } else if (saleItemsRes.data && saleItemsRes.data.length > 0) {
-      servicesText = saleItemsRes.data.map(item => item.service?.name).filter(Boolean).join(", ");
+      for (const item of saleItemsRes.data) {
+        builtServicesData.push({
+          category: 'INSULFILM',
+          regionId: null,
+          regionName: item.service?.name || `Serviço #${item.service_id}`,
+          productTypeId: null,
+          productTypeName: '',
+          totalPrice: item.total_price || 0,
+          metersUsed: 0,
+          serviceName: item.service?.name || `Serviço #${item.service_id}`,
+          regionCode: null,
+          displayName: item.service?.name || `Serviço #${item.service_id}`,
+          isCustomized: false,
+        });
+      }
     }
 
-    if (servicesText) {
-      setObservations(prev => prev ? prev : `Serviços: ${servicesText}`);
-    }
+    setServicesData(builtServicesData);
   };
 
   if (!sale) return null;
@@ -136,7 +166,8 @@ const TransferToSpaceModal = ({
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.from("spaces").insert({
+      // Insert the space
+      const { data: spaceData, error } = await supabase.from("spaces").insert({
         company_id: user.companyId,
         name: `Vaga - ${client?.name || 'Cliente'}`,
         client_id: sale.client_id,
@@ -151,9 +182,17 @@ const TransferToSpaceModal = ({
         payment_status: paymentStatus,
         has_exited: !!exitDate,
         observations: observations || null,
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      // Save services as services_data JSONB
+      if (servicesData.length > 0 && spaceData) {
+        await supabase
+          .from("spaces")
+          .update({ services_data: servicesData } as any)
+          .eq("id", spaceData.id);
+      }
 
       toast({
         title: "Venda transferida para Espaço!",
@@ -182,6 +221,7 @@ const TransferToSpaceModal = ({
     setExitTime("");
     setPaymentStatus("pending");
     setObservations("");
+    setServicesData([]);
   };
 
   return (
@@ -223,6 +263,37 @@ const TransferToSpaceModal = ({
             </div>
           )}
         </div>
+
+        {/* Card visual dos serviços da venda */}
+        {servicesData.length > 0 && (
+          <div className="rounded-lg border border-border/50 bg-muted/30 overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b border-border/50">
+              <Wrench className="h-4 w-4 text-primary" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Serviços da Venda ({servicesData.length})
+              </span>
+            </div>
+            <div className="p-3 space-y-2">
+              {servicesData.map((service: any, index: number) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground truncate mr-2">
+                    {service.displayName || service.regionName || 'Serviço'}
+                  </span>
+                  <span className="font-medium text-foreground whitespace-nowrap">
+                    R$ {(service.totalPrice || 0).toFixed(2)}
+                  </span>
+                </div>
+              ))}
+              <Separator className="my-1" />
+              <div className="flex items-center justify-between text-sm font-semibold">
+                <span>Total em serviços</span>
+                <span className="text-success">
+                  R$ {servicesData.reduce((sum: number, s: any) => sum + (s.totalPrice || 0), 0).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleTransfer} className="space-y-4">
           {/* Seleção de Veículo */}

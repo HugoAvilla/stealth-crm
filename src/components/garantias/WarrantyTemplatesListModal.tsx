@@ -15,6 +15,7 @@ interface WarrantyTemplate {
   terms: string | null;
   coverage: string | null;
   restrictions?: string | null;
+  care_instructions?: string | null;
 }
 
 interface WarrantyTemplatesListModalProps {
@@ -172,7 +173,13 @@ export function WarrantyTemplatesListModal({ open, onOpenChange, onTemplatesChan
                             <p className="text-muted-foreground whitespace-pre-wrap">{template.restrictions}</p>
                           </div>
                         )}
-                        {!template.coverage && !template.terms && !template.restrictions && (
+                        {template.care_instructions && (
+                          <div>
+                            <p className="font-semibold mb-1 text-primary">Instruções de Cuidado:</p>
+                            <p className="text-muted-foreground whitespace-pre-wrap">{template.care_instructions}</p>
+                          </div>
+                        )}
+                        {!template.coverage && !template.terms && !template.restrictions && !template.care_instructions && (
                           <p className="text-muted-foreground italic">Nenhum detalhe adicional informado.</p>
                         )}
                       </div>

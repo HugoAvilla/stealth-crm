@@ -265,12 +265,47 @@ export default function Clientes() {
     }
 
     try {
-      // Delete associated operational data before deleting the client to prevent FK errors
+      const vehicleIds = (clientToDelete.vehicles || []).map(v => v.id);
+
+      // 1. Delete pipeline items and events associated with the client's vehicles
+      if (vehicleIds.length > 0) {
+        const { data: pipelineItems } = await supabase
+          .from("pipeline_items")
+          .select("id")
+          .in("vehicle_id", vehicleIds);
+
+        const pipelineItemIds = pipelineItems?.map(item => item.id) || [];
+        if (pipelineItemIds.length > 0) {
+          await supabase.from("whatsapp_messages").delete().in("related_pipeline_item", pipelineItemIds);
+          await supabase.from("pipeline_events").delete().in("item_id", pipelineItemIds);
+          await supabase.from("pipeline_items").delete().in("id", pipelineItemIds);
+        }
+
+        // Delete other operational data associated with the vehicles
+        await supabase.from("pipeline_stages").delete().in("vehicle_id", vehicleIds);
+        await supabase.from("spaces").delete().in("vehicle_id", vehicleIds);
+        await supabase.from("warranties").delete().in("vehicle_id", vehicleIds);
+      }
+
+      // 2. Delete pipeline items and events associated directly with the client
+      const { data: clientPipelineItems } = await supabase
+        .from("pipeline_items")
+        .select("id")
+        .eq("client_id", clientToDelete.id);
+
+      const clientPipelineItemIds = clientPipelineItems?.map(item => item.id) || [];
+      if (clientPipelineItemIds.length > 0) {
+        await supabase.from("whatsapp_messages").delete().in("related_pipeline_item", clientPipelineItemIds);
+        await supabase.from("pipeline_events").delete().in("item_id", clientPipelineItemIds);
+        await supabase.from("pipeline_items").delete().in("id", clientPipelineItemIds);
+      }
+
+      // 3. Delete other operational data associated directly with the client_id
       await supabase.from("pipeline_stages").delete().eq("client_id", clientToDelete.id);
       await supabase.from("spaces").delete().eq("client_id", clientToDelete.id);
       await supabase.from("warranties").delete().eq("client_id", clientToDelete.id);
 
-      // Delete associated vehicles
+      // 4. Delete associated vehicles
       const { error: vehiclesError } = await supabase
         .from("vehicles")
         .delete()
@@ -278,6 +313,7 @@ export default function Clientes() {
 
       if (vehiclesError) throw vehiclesError;
 
+      // 5. Delete the client
       const { error } = await supabase
         .from("clients")
         .delete()

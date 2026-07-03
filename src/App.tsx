@@ -111,7 +111,7 @@ function AppRoutes() {
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
-          ) : (user?.subscriptionStatus === 'active' && user?.companyId && (!isUpgradeMode || !isUpgradeNeeded)) ? (
+          ) : ((user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'pending_payment') && user?.companyId && (!isUpgradeMode || !isUpgradeNeeded)) ? (
             <Navigate to="/" replace />
           ) : (
             <PlanSelection />
@@ -123,7 +123,7 @@ function AppRoutes() {
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
-          ) : (user?.subscriptionStatus === 'active' && user?.companyId && (!isUpgradeMode || !isUpgradeNeeded)) ? (
+          ) : ((user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'pending_payment') && user?.companyId && (!isUpgradeMode || !isUpgradeNeeded)) ? (
             <Navigate to="/" replace />
           ) : (
             <Subscription />
@@ -139,7 +139,7 @@ function AppRoutes() {
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
-          ) : user?.subscriptionStatus === 'active' ? (
+          ) : (user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'pending_payment') ? (
             user?.companyId ? <Navigate to="/" replace /> : <Navigate to="/empresa/cadastro" replace />
           ) : user?.subscriptionStatus !== 'payment_submitted' ? (
             user?.planCode ? <Navigate to="/assinatura" replace /> : <Navigate to="/planos" replace />
@@ -153,7 +153,7 @@ function AppRoutes() {
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
-          ) : user?.subscriptionStatus !== 'active' ? (
+          ) : (user?.subscriptionStatus !== 'active' && user?.subscriptionStatus !== 'pending_payment') ? (
             user?.planCode ? <Navigate to="/assinatura" replace /> : <Navigate to="/planos" replace />
           ) : user?.companyId ? (
             <Navigate to="/" replace />

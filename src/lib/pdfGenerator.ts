@@ -33,6 +33,7 @@ export interface SalePDFData {
   payment_method: string;
   company_name?: string;
   company_cnpj?: string;
+  company_logo_url?: string;
 }
 
 export interface WarrantyPDFData {
@@ -40,6 +41,7 @@ export interface WarrantyPDFData {
   client_name: string;
   client_phone: string;
   client_email?: string;
+  client_cpf_cnpj?: string;
   vehicle_brand: string;
   vehicle_model: string;
   vehicle_plate: string;
@@ -54,6 +56,11 @@ export interface WarrantyPDFData {
   company_phone?: string;
   company_email?: string;
   company_address?: string;
+  sale_date?: string;
+  payment_method?: string;
+  subtotal?: number;
+  discount?: number;
+  total?: number;
 }
 
 export interface ReportPDFData {
@@ -100,6 +107,44 @@ export async function generateSalePDFA4(sale: SalePDFData, options: Record<strin
   const doc = new jsPDF('portrait', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 15;
+
+  // Header logo
+  if (options.companyName !== false && sale.company_logo_url) {
+    try {
+      const response = await fetch(sale.company_logo_url);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const imgFormat = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'JPEG' : 'PNG';
+
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+
+      const maxW = 35; // largura máxima
+      const ratio = img.naturalWidth / img.naturalHeight;
+      let drawW = maxW;
+      let drawH = maxW / ratio;
+      if (drawH > 18) { // altura máxima
+        drawH = 18;
+        drawW = 18 * ratio;
+      }
+
+      const logoX = (pageWidth - drawW) / 2;
+      doc.addImage(dataUrl, imgFormat, logoX, y, drawW, drawH);
+      y += drawH + 4;
+    } catch (e) {
+      console.warn('Não foi possível carregar a logo para o PDF A4:', e);
+    }
+  }
 
   // Header
   if (options.companyName !== false) {
@@ -237,8 +282,46 @@ export async function generateSalePDFReceipt(sale: SalePDFData, size: '80mm' | '
     format: [width, 200],
   });
 
-  let y = 8;
+  let y = 6;
   const margin = 3;
+
+  // Render company logo if available
+  if (options.companyName !== false && sale.company_logo_url) {
+    try {
+      const response = await fetch(sale.company_logo_url);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const imgFormat = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'JPEG' : 'PNG';
+
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+
+      const maxW = size === '80mm' ? 20 : 15;
+      const ratio = img.naturalWidth / img.naturalHeight;
+      let drawW = maxW;
+      let drawH = maxW / ratio;
+      if (drawH > maxW) {
+        drawH = maxW;
+        drawW = maxW * ratio;
+      }
+
+      const logoX = (width - drawW) / 2;
+      doc.addImage(dataUrl, imgFormat, logoX, y, drawW, drawH);
+      y += drawH + 3;
+    } catch (e) {
+      console.warn('Não foi possível carregar a logo para a notinha:', e);
+    }
+  }
 
   doc.setFontSize(size === '80mm' ? 12 : 10);
 
@@ -446,7 +529,10 @@ export async function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?:
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80, 80, 80);
-  doc.text(`Nº ${warranty.certificate_number}`, pageWidth - marginRight, y + 7, { align: 'right' });
+  const certText = warranty.sale_date 
+    ? `Nº ${warranty.certificate_number} - ${formatDate(warranty.sale_date)}`
+    : `Nº ${warranty.certificate_number}`;
+  doc.text(certText, pageWidth - marginRight, y + 7, { align: 'right' });
   doc.setTextColor(0, 0, 0);
 
   y += 22;
@@ -512,8 +598,13 @@ export async function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?:
   drawField('Nome', warranty.client_name, col1, y);
   drawField('WhatsApp', warranty.client_phone, col2, y);
   y += 12;
-  if (warranty.client_email) {
-    drawField('Email', warranty.client_email, col1, y);
+  if (warranty.client_cpf_cnpj || warranty.client_email) {
+    if (warranty.client_cpf_cnpj) {
+      drawField('CPF/CNPJ', warranty.client_cpf_cnpj, col1, y);
+    }
+    if (warranty.client_email) {
+      drawField('Email', warranty.client_email, warranty.client_cpf_cnpj ? col2 : col1, y);
+    }
     y += 12;
   }
 
@@ -534,6 +625,28 @@ export async function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?:
   drawField('Data de Emissão', formatDate(warranty.issue_date), col1, y);
   drawField('Válido Até', formatDate(warranty.expiry_date), col2, y);
   y += 14;
+
+  // ======= VALORES FINAIS =======
+  if (warranty.total !== undefined && warranty.total !== null) {
+    y = drawSectionTitle('Valores Finais', y);
+    drawField('Forma de Pagamento', warranty.payment_method || 'N/A', col1, y);
+    drawField('Subtotal', `R$ ${(warranty.subtotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, col2, y);
+    y += 12;
+    drawField('Desconto', `R$ ${(warranty.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, col1, y);
+    
+    // Draw Total da venda in col2 with bold green text
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text('Total da Venda', col2, y);
+    doc.setTextColor(0, 128, 0); // Green color for total!
+    doc.setFontSize(9.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`R$ ${(warranty.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, col2, y + 4);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    y += 14;
+  }
 
   // ======= TERMOS DA GARANTIA =======
   if (warranty.warranty_text) {
@@ -573,24 +686,27 @@ export async function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?:
   y += 18;
 
   // ======= ASSINATURAS =======
-  if (y < pageHeight - 45) {
-    const sigY = pageHeight - 42;
-    const sigWidth = 60;
-    const sig1X = marginLeft + 15;
-    const sig2X = pageWidth - marginRight - sigWidth - 15;
-    doc.setDrawColor(180, 180, 180);
-    doc.setLineWidth(0.3);
-    doc.line(sig1X, sigY, sig1X + sigWidth, sigY);
-    doc.line(sig2X, sigY, sig2X + sigWidth, sigY);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text(companyName, sig1X + sigWidth / 2, sigY + 5, { align: 'center' });
-    doc.text('Responsável', sig1X + sigWidth / 2, sigY + 9, { align: 'center' });
-    doc.text(warranty.client_name, sig2X + sigWidth / 2, sigY + 5, { align: 'center' });
-    doc.text('Cliente', sig2X + sigWidth / 2, sigY + 9, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
+  if (y >= pageHeight - 45) {
+    doc.addPage();
+    y = 15;
   }
+
+  const sigY = pageHeight - 42;
+  const sigWidth = 60;
+  const sig1X = marginLeft + 15;
+  const sig2X = pageWidth - marginRight - sigWidth - 15;
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.3);
+  doc.line(sig1X, sigY, sig1X + sigWidth, sigY);
+  doc.line(sig2X, sigY, sig2X + sigWidth, sigY);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  doc.text(companyName, sig1X + sigWidth / 2, sigY + 5, { align: 'center' });
+  doc.text('Responsável', sig1X + sigWidth / 2, sigY + 9, { align: 'center' });
+  doc.text(warranty.client_name, sig2X + sigWidth / 2, sigY + 5, { align: 'center' });
+  doc.text('Cliente', sig2X + sigWidth / 2, sigY + 9, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
 
   // ======= FOOTER =======
   doc.setFontSize(7);

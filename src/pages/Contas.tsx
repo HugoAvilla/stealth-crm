@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Eye, EyeOff, Settings, ArrowUpRight, ArrowDownRight, RefreshCw, Plus,
   Search, Calendar as CalendarIcon, Filter, ArrowUpDown, Landmark, FolderPlus, FolderTree, ArrowRightLeft, X, Receipt
@@ -99,9 +99,10 @@ export default function Contas() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user?.id) return;
 
+    console.log("[Contas] Iniciando fetchData...");
     try {
       const { data: profile } = await supabase
         .from("profiles")
@@ -110,6 +111,7 @@ export default function Contas() {
         .single();
 
       if (!profile?.company_id) {
+        console.warn("[Contas] Perfil ou company_id não encontrado para o usuário:", user.id);
         setLoading(false);
         return;
       }
@@ -121,6 +123,8 @@ export default function Contas() {
         .eq("company_id", profile.company_id)
         .eq("is_active", true)
         .order("is_main", { ascending: false });
+
+      console.log("[Contas] Contas carregadas do banco:", accountsData?.map(a => ({ id: a.id, name: a.name, balance: a.current_balance })));
 
       // Fetch transactions
       const { data: transactionsData } = await supabase
@@ -141,15 +145,16 @@ export default function Contas() {
 
       // Set initial selected account
       if (accountsData && accountsData.length > 0 && !selectedAccountId) {
+        console.log("[Contas] Definindo conta selecionada inicial:", accountsData[0].id);
         setSelectedAccountId(accountsData[0].id);
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("[Contas] Erro ao carregar dados:", error);
       toast.error("Erro ao carregar dados");
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, selectedAccountId]);
 
   useEffect(() => {
     fetchData();
@@ -862,7 +867,7 @@ export default function Contas() {
           ) : activeTab === 'maquininhas' ? (
             <CardMachinesList />
           ) : (
-            <BoletoManagement accountId={selectedAccountId} />
+            <BoletoManagement accountId={selectedAccountId} onRefreshRequired={fetchData} />
           )}
         </>
       ) : (

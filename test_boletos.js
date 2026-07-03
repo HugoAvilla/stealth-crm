@@ -1,17 +1,33 @@
-const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
+import { createClient } from '@supabase/supabase-js';
 
-const envFile = fs.readFileSync('.env', 'utf8');
-const envUrl = envFile.match(/VITE_SUPABASE_URL="(.*?)"/)[1];
-const envKey = envFile.match(/VITE_SUPABASE_PUBLISHABLE_KEY="(.*?)"/)[1];
+const supabaseUrl = 'https://msdpmhtdjyoqdmjwunkm.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZHBtaHRkanlvcWRtand1bmttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MTExMDAsImV4cCI6MjA4NTE4NzEwMH0.I4yFF1kMUWV589x58iLDsnb-87m5FX_apBUU4j7cHck';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-const supabase = createClient(envUrl, envKey);
+async function test() {
+  console.log("--- Testando boletos ---");
+  const { data: bData, error: bError } = await supabase
+    .from("boletos")
+    .select("*")
+    .limit(1);
+  
+  if (bError) {
+    console.error("Erro na query de boletos:", bError);
+  } else {
+    console.log("Sucesso ao consultar boletos. Dados:", bData);
+  }
 
-async function testBoletos() {
-  const { data, error } = await supabase.from('boletos').select('id, sale_id, account_id, company_id, client_id, status, created_at');
-  console.log('ALL BOLETOS:');
-  console.dir(data, { depth: null });
-  if(error) console.error(error);
+  console.log("\n--- Testando boleto_installments com todos os campos ---");
+  const { data: instData, error: instError } = await supabase
+    .from("boleto_installments")
+    .select("id, boleto_id, installment_number, amount, due_date, status, paid_amount, payment_date, transaction_id")
+    .limit(1);
+
+  if (instError) {
+    console.error("Erro na query de boleto_installments:", instError);
+  } else {
+    console.log("Sucesso ao consultar boleto_installments. Dados:", instData);
+  }
 }
 
-testBoletos();
+test();

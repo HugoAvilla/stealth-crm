@@ -62,11 +62,13 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
         .from('spaces')
         .select(`
           id, 
+          name,
           client:clients(name),
-          vehicle:vehicles(plate, model)
+          vehicle:vehicles(brand, model, plate)
         `)
         .eq('company_id', companyId)
         .eq('has_exited', false)
+        .is('deleted_at', null)
         .order('entry_date', { ascending: false });
 
       if (error) throw error;
@@ -277,11 +279,20 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {spaces?.map((space) => (
-                          <SelectItem key={space.id} value={space.id.toString()}>
-                            {space.vehicle?.plate || 'Sem placa'} - {space.client?.name || 'Sem cliente'}
-                          </SelectItem>
-                        ))}
+                        {spaces?.map((space) => {
+                          const spaceName = space.name || 'Vaga';
+                          const vehicleDetails = space.vehicle
+                            ? `${space.vehicle.brand || ''} ${space.vehicle.model || ''}`.trim()
+                            : 'Sem veículo';
+                          const plate = space.vehicle?.plate ? `(${space.vehicle.plate})` : '';
+                          const clientName = space.client?.name || 'Sem cliente';
+
+                          return (
+                            <SelectItem key={space.id} value={space.id.toString()}>
+                              {spaceName}: {vehicleDetails} {plate} — {clientName}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -353,7 +364,9 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
                       <Input 
                         type="number" 
                         step="0.01" 
+                        placeholder="0"
                         {...field} 
+                        value={field.value || ""}
                         onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
                       />
                     </FormControl>

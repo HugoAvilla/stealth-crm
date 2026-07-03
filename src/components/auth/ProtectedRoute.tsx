@@ -60,7 +60,7 @@ export function ProtectedRoute({
         if (!user.planCode) {
           return <Navigate to="/planos" replace />;
         }
-        return <Navigate to="/assinatura" replace />;
+        // Allow access to tabs in read-only mode, no redirect to /assinatura
       }
       
       if (user.subscriptionStatus === 'payment_submitted') {

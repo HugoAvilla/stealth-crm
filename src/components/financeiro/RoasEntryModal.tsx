@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -39,6 +39,38 @@ export function RoasEntryModal({ open, onOpenChange, onSuccess }: RoasEntryModal
   const [origin, setOrigin] = useState<string>("Google Ads");
   const [amount, setAmount] = useState<string>("");
   const [description, setDescription] = useState("");
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accountId, setAccountId] = useState<string>("");
+
+  useEffect(() => {
+    if (user?.companyId) {
+      fetchAccounts();
+    }
+  }, [user?.companyId]);
+
+  const fetchAccounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('id, name, is_main')
+        .eq('company_id', user.companyId)
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      setAccounts(data || []);
+      
+      // Define a conta principal como padrão inicial, ou a primeira da lista
+      const mainAcc = data?.find(a => a.is_main);
+      if (mainAcc) {
+        setAccountId(mainAcc.id.toString());
+      } else if (data && data.length > 0) {
+        setAccountId(data[0].id.toString());
+      }
+    } catch (e) {
+      console.error("Error fetching accounts", e);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,16 +88,9 @@ export function RoasEntryModal({ open, onOpenChange, onSuccess }: RoasEntryModal
     setIsLoading(true);
 
     try {
-      // Buscar conta principal da empresa
-      const { data: mainAccount } = await supabase
-        .from("accounts")
-        .select("id")
-        .eq("company_id", user.companyId)
-        .eq("is_main", true)
-        .single();
-
-      if (!mainAccount) {
-        toast({ title: "Conta principal não encontrada", variant: "destructive" });
+      if (!accountId) {
+        toast({ title: "Selecione uma conta financeira", variant: "destructive" });
+        setIsLoading(false);
         return;
       }
 
@@ -74,7 +99,7 @@ export function RoasEntryModal({ open, onOpenChange, onSuccess }: RoasEntryModal
         amount: valorInvestido,
         transactionDate: entryDate,
         companyId: user.companyId,
-        accountId: mainAccount.id,
+        accountId: parseInt(accountId),
         isPaid: true,
         description: `CAC - ${origin}`,
         originType: "roas",
@@ -159,17 +184,42 @@ export function RoasEntryModal({ open, onOpenChange, onSuccess }: RoasEntryModal
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="amount">Valor Investido (R$)</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              required
-              placeholder="Ex: 150.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="amount">Valor Investido (R$)</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                required
+                placeholder="Ex: 150.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="accountId">Conta Financeira</Label>
+              {accounts.length > 0 ? (
+                <Select value={accountId} onValueChange={setAccountId}>
+                  <SelectTrigger id="accountId">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id.toString()}>
+                        {a.name} {a.is_main && "(Principal)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input 
+                  placeholder="Sem contas..." 
+                  disabled 
+                />
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">

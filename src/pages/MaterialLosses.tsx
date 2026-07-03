@@ -16,11 +16,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Plus, Settings, TrendingDown, DollarSign, Ruler, FileWarning, MoreHorizontal, Pencil, Trash2, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { AlertTriangle, Plus, Settings, TrendingDown, DollarSign, Ruler, FileWarning, MoreHorizontal, Pencil, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDeleteMaterialLoss } from '@/hooks/useMaterialLosses';
 import { generateReportPDF } from '@/lib/pdfGenerator';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const formatSafeDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return 'N/A';
@@ -41,6 +51,7 @@ export default function MaterialLosses() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [showLimitsModal, setShowLimitsModal] = useState(false);
   const [selectedLoss, setSelectedLoss] = useState<any>(null);
+  const [lossToCancel, setLossToCancel] = useState<any>(null);
   
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'PPF' | 'INSULFILM'>('ALL');
@@ -84,9 +95,17 @@ export default function MaterialLosses() {
     
     const triggered: string[] = [];
     
-    // Group losses by category for limit checking
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
+    // Group losses by category for limit checking (only current month)
     const lossesByCategory = losses.reduce((acc, curr) => {
       if (curr.status === 'cancelled') return acc;
+      
+      const lossDate = new Date(curr.created_at);
+      if (lossDate < startOfMonth) return acc;
+      
       if (!acc[curr.category]) acc[curr.category] = { cost: 0, meters: 0, count: 0 };
       acc[curr.category].cost += Number(curr.cost);
       acc[curr.category].meters += Number(curr.lost_meters);
@@ -173,35 +192,7 @@ export default function MaterialLosses() {
     }
   };
 
-  const exportToCSV = () => {
-    if (!losses) return;
-    
-    const headers = ['Data', 'Instalador', 'Material', 'Categoria', 'Metros', 'Motivo', 'Custo'];
-    const activeLosses = losses.filter(loss => loss.status !== 'cancelled');
-    
-    const csvRows = [
-      headers.join(';'),
-      ...activeLosses.map(loss => [
-        formatSafeDate(loss.created_at),
-        `"${loss.installer?.name || 'Não identificado'}"`,
-        `"${loss.material?.name || ''}"`,
-        loss.category,
-        loss.lost_meters,
-        loss.reason,
-        Number(loss.cost).toFixed(2)
-      ].join(';'))
-    ];
 
-    const csvContent = "\uFEFF" + csvRows.join("\n"); // UTF-8 BOM
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `perdas_material_${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const exportToExcel = () => {
     if (!losses) return;
@@ -316,6 +307,127 @@ export default function MaterialLosses() {
         />
       </div>
 
+      {/* Visual Limits Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-card/30 border border-border/50 rounded-xl p-5 backdrop-blur-sm">
+        <div className="col-span-full flex items-center justify-between border-b border-border/40 pb-3">
+          <div>
+            <h3 className="text-lg font-semibold tracking-tight text-foreground">Limites de Desperdício Mensal</h3>
+            <p className="text-xs text-muted-foreground">Acompanhamento de perdas do mês corrente em relação aos tetos definidos.</p>
+          </div>
+          {isAdmin && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs hover:bg-muted/50 text-muted-foreground hover:text-foreground" onClick={() => setShowLimitsModal(true)}>
+              <Settings className="w-3.5 h-3.5 mr-1.5" />
+              Configurar
+            </Button>
+          )}
+        </div>
+        
+        {['PPF', 'INSULFILM'].map((cat) => {
+          const limit = limits?.find(l => l.category === cat);
+          
+          // Calculate usage for current month
+          const startOfMonth = new Date();
+          startOfMonth.setDate(1);
+          startOfMonth.setHours(0, 0, 0, 0);
+
+          const catStats = losses?.reduce((acc, curr) => {
+            if (curr.status === 'cancelled' || curr.category !== cat) return acc;
+            const lossDate = new Date(curr.created_at);
+            if (lossDate < startOfMonth) return acc;
+            
+            acc.cost += Number(curr.cost);
+            acc.meters += Number(curr.lost_meters);
+            acc.count += 1;
+            return acc;
+          }, { cost: 0, meters: 0, count: 0 });
+
+          if (!limit) {
+            return (
+              <div key={cat} className="flex flex-col justify-center items-center p-6 border border-dashed border-border/60 rounded-lg bg-card/10 min-h-[140px]">
+                <span className="text-sm font-semibold text-foreground/80 mb-1">{cat}</span>
+                <span className="text-xs text-muted-foreground text-center mb-3">Nenhum limite mensal definido</span>
+                {isAdmin && (
+                  <Button variant="outline" size="sm" className="h-7 text-[10px] py-0 px-3 hover:bg-muted/50" onClick={() => setShowLimitsModal(true)}>
+                    Definir Limite
+                  </Button>
+                )}
+              </div>
+            );
+          }
+
+          let valueToCheck = 0;
+          let limitLabel = '';
+          let currentValueLabel = '';
+
+          if (limit.limit_type === 'cost') {
+            valueToCheck = catStats?.cost || 0;
+            limitLabel = `R$ ${Number(limit.limit_value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            currentValueLabel = `R$ ${valueToCheck.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          } else if (limit.limit_type === 'meters') {
+            valueToCheck = catStats?.meters || 0;
+            limitLabel = `${Number(limit.limit_value).toFixed(2)}m`;
+            currentValueLabel = `${valueToCheck.toFixed(2)}m`;
+          } else if (limit.limit_type === 'count') {
+            valueToCheck = catStats?.count || 0;
+            limitLabel = `${limit.limit_value} registros`;
+            currentValueLabel = `${valueToCheck} registros`;
+          }
+
+          const percent = limit.limit_value > 0 ? (valueToCheck / Number(limit.limit_value)) * 100 : 0;
+          const percentClamped = Math.min(100, percent);
+
+          let barColorClass = "bg-emerald-500";
+          let statusLabel = "Sob Controle";
+          let statusColorClass = "text-emerald-500 border-emerald-500/30 bg-emerald-500/10";
+
+          if (percent >= 100) {
+            barColorClass = "bg-red-500 animate-pulse";
+            statusLabel = "Excedido";
+            statusColorClass = "text-red-500 border-red-500/30 bg-red-500/10";
+          } else if (percent >= 75) {
+            barColorClass = "bg-amber-500";
+            statusLabel = "Atenção";
+            statusColorClass = "text-amber-500 border-amber-500/30 bg-amber-500/10";
+          }
+
+          const limitTypeName = 
+            limit.limit_type === 'cost' ? 'Custo Financeiro' : 
+            limit.limit_type === 'meters' ? 'Metragem' : 'Registros';
+
+          return (
+            <div key={cat} className="p-4 border border-border/50 rounded-lg bg-card/45 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm tracking-wide text-foreground">{cat}</span>
+                  <Badge variant="outline" className={`text-[10px] font-medium py-0 px-2 rounded-full border ${statusColorClass}`}>
+                    {statusLabel}
+                  </Badge>
+                </div>
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">{limitTypeName}</span>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Consumo no mês</span>
+                  <span className="font-medium text-foreground">{percent.toFixed(0)}%</span>
+                </div>
+                {/* Custom premium progress bar */}
+                <div className="relative w-full h-2 bg-muted/60 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ease-out ${barColorClass}`}
+                    style={{ width: `${percentClamped}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>{currentValueLabel}</span>
+                  <span>Teto: {limitLabel}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Filters and List */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -336,10 +448,6 @@ export default function MaterialLosses() {
             <Button variant="outline" size="sm" onClick={exportToPDF} disabled={!losses || losses.length === 0}>
               <FileText className="w-4 h-4 mr-2" />
               PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportToCSV} disabled={!losses || losses.length === 0}>
-              <Download className="w-4 h-4 mr-2" />
-              CSV
             </Button>
             <Button variant="outline" size="sm" onClick={exportToExcel} disabled={!losses || losses.length === 0}>
               <FileSpreadsheet className="w-4 h-4 mr-2" />
@@ -394,11 +502,7 @@ export default function MaterialLosses() {
                             {isAdmin && (
                               <DropdownMenuItem 
                                 className="text-destructive focus:text-destructive"
-                                onClick={async () => {
-                                  if (confirm('Tem certeza que deseja cancelar este registro de perda? O estoque será devolvido.')) {
-                                    await deleteMutation.mutateAsync(loss.id);
-                                  }
-                                }}
+                                onClick={() => setLossToCancel(loss)}
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Cancelar Registro
@@ -449,11 +553,7 @@ export default function MaterialLosses() {
                         {isAdmin && (
                           <DropdownMenuItem 
                             className="text-destructive focus:text-destructive"
-                            onClick={async () => {
-                              if (confirm('Tem certeza que deseja cancelar este registro de perda? O estoque será devolvido.')) {
-                                await deleteMutation.mutateAsync(loss.id);
-                              }
-                            }}
+                            onClick={() => setLossToCancel(loss)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Cancelar Registro
@@ -520,6 +620,37 @@ export default function MaterialLosses() {
           onOpenChange={setShowLimitsModal} 
         />
       )}
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={!!lossToCancel} onOpenChange={(open) => !open && setLossToCancel(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar cancelamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja cancelar este registro de perda? O estoque do material será devolvido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border">Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (lossToCancel) {
+                  try {
+                    await deleteMutation.mutateAsync(lossToCancel.id);
+                  } catch (err) {
+                    console.error("Error cancelling loss:", err);
+                  } finally {
+                    setLossToCancel(null);
+                  }
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

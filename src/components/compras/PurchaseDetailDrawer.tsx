@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Check, Download, Paperclip, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { payInstallment, reverseInstallment } from "@/lib/purchaseService";
+import { payInstallment, payInstallmentWithDetails, reverseInstallment } from "@/lib/purchaseService";
 import { toast } from "sonner";
 import { Purchase, PurchaseInstallment, PurchaseItem, PurchaseAttachment } from "@/lib/database.types";
+import { ConfirmPurchasePaymentModal } from "./ConfirmPurchasePaymentModal";
 
 interface PurchaseDetailDrawerProps {
   purchaseId: number | null;
@@ -25,6 +26,9 @@ export function PurchaseDetailDrawer({ purchaseId, open, onOpenChange, onUpdate 
   const [items, setItems] = useState<PurchaseItem[]>([]);
   const [attachments, setAttachments] = useState<PurchaseAttachment[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedInstallment, setSelectedInstallment] = useState<{ id: number; amount: number } | null>(null);
 
   useEffect(() => {
     if (open && purchaseId) {
@@ -54,14 +58,27 @@ export function PurchaseDetailDrawer({ purchaseId, open, onOpenChange, onUpdate 
     }
   };
 
-  const handlePay = async (instId: number) => {
-    const success = await payInstallment(instId);
+  const handleOpenPaymentModal = (instId: number, amount: number) => {
+    setSelectedInstallment({ id: instId, amount });
+    setPaymentModalOpen(true);
+  };
+
+  const handleConfirmPayment = async (paymentsList: any[]) => {
+    if (!selectedInstallment) return;
+
+    const paymentDetails = paymentsList.map(p => ({
+      payment_method: p.payment_method,
+      amount: p.amount,
+      account_id: p.account_id
+    }));
+
+    const success = await payInstallmentWithDetails(selectedInstallment.id, paymentDetails);
     if (success) {
-      toast.success("Parcela baixada com sucesso!");
+      toast.success("Pagamento registrado com sucesso!");
       fetchPurchaseDetails();
       onUpdate();
     } else {
-      toast.error("Erro ao baixar parcela.");
+      toast.error("Erro ao registrar pagamento.");
     }
   };
 
@@ -155,7 +172,7 @@ export function PurchaseDetailDrawer({ purchaseId, open, onOpenChange, onUpdate 
                       </div>
                       <div>
                         {inst.status !== 'paga' ? (
-                          <Button size="sm" variant="outline" className="border-green-500/50 text-green-600 hover:bg-green-50" onClick={() => handlePay(inst.id)}>
+                          <Button size="sm" variant="outline" className="border-green-500/50 text-green-600 hover:bg-green-50" onClick={() => handleOpenPaymentModal(inst.id, Number(inst.amount))}>
                             <Check className="h-4 w-4 mr-1" /> Pagar
                           </Button>
                         ) : (
@@ -194,6 +211,16 @@ export function PurchaseDetailDrawer({ purchaseId, open, onOpenChange, onUpdate 
           </div>
         )}
       </SheetContent>
+      {selectedInstallment && (
+        <ConfirmPurchasePaymentModal
+          open={paymentModalOpen}
+          onOpenChange={setPaymentModalOpen}
+          installmentAmount={selectedInstallment.amount}
+          companyId={purchase.company_id}
+          defaultAccountId={purchase.account_id}
+          onConfirm={handleConfirmPayment}
+        />
+      )}
     </Sheet>
   );
 }

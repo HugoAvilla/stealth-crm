@@ -277,7 +277,7 @@ export async function recalculatePurchaseStatus(purchaseId: number): Promise<voi
 }
 
 /**
- * Liquida (marca como paga) uma parcela específica de compra.
+ * Liquida (marca como paga) uma parcela específica de compra de forma simples (retrocompatibilidade).
  */
 export async function payInstallment(installmentId: number): Promise<boolean> {
   try {
@@ -336,8 +336,140 @@ export async function payInstallment(installmentId: number): Promise<boolean> {
   }
 }
 
+export interface PurchasePaymentDetail {
+  payment_method: string;
+  amount: number;
+  account_id: number;
+}
+
 /**
- * Reverte o pagamento (marca como pendente) de uma parcela específica.
+ * Liquida uma parcela de compra registrando as formas de pagamento e contas especificadas pelo usuário.
+ */
+export async function payInstallmentWithDetails(
+  installmentId: number,
+  payments: PurchasePaymentDetail[]
+): Promise<boolean> {
+  try {
+    // 1. Buscar parcela
+    const { data: installment, error } = await supabase
+      .from("purchase_installments")
+      .select("*")
+      .eq("id", installmentId)
+      .single();
+
+    if (error || !installment) {
+      logger.error("[PurchaseService] Error fetching installment for payment with details:", error);
+      return false;
+    }
+
+    if (installment.status === "paga") {
+      return true;
+    }
+
+    // 2. Buscar compra principal
+    const { data: purchase, error: purchaseError } = await supabase
+      .from("purchases")
+      .select("*")
+      .eq("id", installment.purchase_id)
+      .single();
+
+    if (purchaseError || !purchase) {
+      logger.error("[PurchaseService] Error fetching purchase for installment payment:", purchaseError);
+      return false;
+    }
+
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    // 3. Atualizar status da parcela no banco
+    const { error: updateError } = await supabase
+      .from("purchase_installments")
+      .update({
+        status: "paga",
+        paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", installmentId);
+
+    if (updateError) {
+      logger.error("[PurchaseService] Error updating installment status:", updateError);
+      return false;
+    }
+
+    // 4. Tratar transações e splits
+    for (let index = 0; index < payments.length; index++) {
+      const p = payments[index];
+
+      if (index === 0 && installment.transaction_id) {
+        // Atualizar transação principal original com dados reais do pagamento
+        const { error: txError } = await supabase
+          .from("transactions")
+          .update({
+            is_paid: true,
+            transaction_date: todayStr,
+            amount: p.amount,
+            account_id: p.account_id,
+            payment_method: p.payment_method,
+          })
+          .eq("id", installment.transaction_id);
+
+        if (txError) {
+          logger.error("[PurchaseService] Error updating main transaction on installment payment:", txError);
+        }
+      } else {
+        // Criar transação complementar (split) ou se não havia transaction_id
+        const isFirstPaymentNoTx = index === 0 && !installment.transaction_id;
+        const txName = isFirstPaymentNoTx
+          ? `Compra #${purchase.id} - ${purchase.supplier_name_snapshot} - Parcela ${installment.installment_number}`
+          : `Compra #${purchase.id} - ${purchase.supplier_name_snapshot} - Parcela ${installment.installment_number} (Split)`;
+
+        const txDescription = isFirstPaymentNoTx
+          ? `Pagamento da Parcela ${installment.installment_number}`
+          : `Pagamento complementar da Parcela ${installment.installment_number}`;
+
+        const { data: newTx, error: newTxError } = await supabase
+          .from("transactions")
+          .insert({
+            name: txName,
+            amount: p.amount,
+            type: "Saida",
+            transaction_date: todayStr,
+            account_id: p.account_id,
+            company_id: purchase.company_id,
+            is_paid: true,
+            payment_method: p.payment_method,
+            category_id: purchase.category_id,
+            description: txDescription,
+            origin_type: "purchase_installment",
+            origin_id: installment.id,
+          })
+          .select("id")
+          .single();
+
+        if (newTxError) {
+          logger.error("[PurchaseService] Error creating split transaction on installment payment:", newTxError);
+        }
+
+        // Se era o primeiro pagamento mas não tinha transaction_id, vincula na parcela
+        if (isFirstPaymentNoTx && newTx) {
+          await supabase
+            .from("purchase_installments")
+            .update({ transaction_id: newTx.id })
+            .eq("id", installment.id);
+        }
+      }
+    }
+
+    // 5. Recalcular compra
+    await recalculatePurchaseStatus(installment.purchase_id);
+    return true;
+  } catch (error) {
+    logger.error("[PurchaseService] Exception in payInstallmentWithDetails:", error);
+    return false;
+  }
+}
+
+/**
+ * Reverte o pagamento (marca como pendente) de uma parcela específica, removendo splits adicionais.
  */
 export async function reverseInstallment(installmentId: number): Promise<boolean> {
   try {
@@ -372,11 +504,41 @@ export async function reverseInstallment(installmentId: number): Promise<boolean
       return false;
     }
 
-    // 3. Reverter transação (is_paid = false)
+    // 3. Remover transações adicionais (splits) e resetar a principal
     if (installment.transaction_id) {
-      const reversed = await reverseTransaction(installment.transaction_id, "unpay");
-      if (!reversed.success) {
-        logger.warn("[PurchaseService] Could not reverse financial transaction:", reversed.error);
+      // Buscar splits (transações vinculadas a esta parcela de compra mas que não sejam o transaction_id principal)
+      const { data: splitTxs, error: fetchSplitsError } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("origin_type", "purchase_installment")
+        .eq("origin_id", installment.id)
+        .neq("id", installment.transaction_id);
+
+      if (!fetchSplitsError && splitTxs && splitTxs.length > 0) {
+        const splitIds = splitTxs.map(t => t.id);
+        const { error: deleteError } = await supabase
+          .from("transactions")
+          .delete()
+          .in("id", splitIds);
+
+        if (deleteError) {
+          logger.warn("[PurchaseService] Could not delete split transactions on reversal:", deleteError);
+        }
+      }
+
+      // Resetar a transação principal:
+      // marcar como não-paga, limpar método de pagamento e restaurar o valor original da parcela
+      const { error: resetTxError } = await supabase
+        .from("transactions")
+        .update({
+          is_paid: false,
+          payment_method: null,
+          amount: installment.amount,
+        })
+        .eq("id", installment.transaction_id);
+
+      if (resetTxError) {
+        logger.error("[PurchaseService] Error resetting main transaction on reversal:", resetTxError);
       }
     }
 

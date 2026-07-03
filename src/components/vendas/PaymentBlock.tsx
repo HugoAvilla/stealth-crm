@@ -302,9 +302,14 @@ export function PaymentBlock({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => (
-                      <SelectItem key={n} value={n.toString()}>{n}x</SelectItem>
-                    ))}
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => {
+                      const installmentVal = payment.amount / n;
+                      return (
+                        <SelectItem key={n} value={n.toString()}>
+                          {n}x de R$ {installmentVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -346,9 +351,16 @@ export function PaymentBlock({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Array.from({ length: machines.find(m => m.id === payment.machine_id)?.max_installments || 1 }, (_, i) => i + 1).map(n => (
-                        <SelectItem key={n} value={n.toString()}>{n}x</SelectItem>
-                      ))}
+                      {Array.from({ length: machines.find(m => m.id === payment.machine_id)?.max_installments || 1 }, (_, i) => i + 1).map(n => {
+                        const r = rates.find(rateObj => rateObj.installments === n);
+                        const ratePercent = r ? r.rate : 0;
+                        const installmentVal = payment.amount / n;
+                        return (
+                          <SelectItem key={n} value={n.toString()}>
+                            {n}x de R$ {installmentVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (Taxa: {ratePercent}%)
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
