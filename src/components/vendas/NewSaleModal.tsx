@@ -51,12 +51,21 @@ import {
   Sliders,
   Check,
   ChevronsUpDown,
+  CreditCard,
+  Banknote,
+  Settings,
+  Shield,
+  ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { consumeStockForDetailedSale, createTransactionFromSale } from "@/lib/stockConsumption";
 import { createBoletoInstallmentTransactions } from "@/lib/financialTransactions";
+import {
+  calculateCardMachineNetAmount,
+  formatCardMachineRatePercent,
+} from "@/lib/cardMachineFees";
 import NewClientModal from "@/components/vendas/NewClientModal";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
@@ -171,6 +180,8 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
   const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
   const [companyId, setCompanyId] = useState<number | null>(null);
+  const [cardMachines, setCardMachines] = useState<any[]>([]);
+  const [cardRates, setCardRates] = useState<any[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -230,13 +241,17 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
 
       setCompanyId(profile.company_id);
 
-      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes] = await Promise.all([
+      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes, machinesRes, ratesRes] = await Promise.all([
         supabase.from('clients').select('id, name, phone, email').eq('company_id', profile.company_id).order('name'),
         supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
         supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
         supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
-        supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true)
+        supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true),
+        supabase.from('card_machines').select('*').eq('company_id', profile.company_id).eq('is_active', true),
+        supabase.from('card_machine_rates').select('*')
       ]);
+      setCardMachines(machinesRes.data || []);
+      setCardRates(ratesRes.data || []);
       const regionsList = regionsRes.data || [];
       const materialsList = materialsRes.data || [];
       const productsList = (productTypesRes.data || []).map(pt => {
@@ -373,7 +388,33 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const subtotal = servicePrice ? parseFloat(servicePrice) : calculatedSubtotal;
   const discount = discountValue ? parseFloat(discountValue) : 0;
   const total = subtotal - discount;
-  const paid = isOpen ? 0 : total;
+
+  const formatCurrency = (value: number) =>
+    `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const paymentSummaryDetails = payments
+    .map(p => {
+      const isCard = p.payment_method === "Crédito" || p.payment_method === "Débito";
+      const machine = cardMachines.find(m => m.id === p.machine_id);
+      const rateObj = p.payment_method === "Débito" || !p.machine_id
+        ? null
+        : cardRates.find(r => r.machine_id === p.machine_id && r.installments === p.installments);
+      const rate = p.payment_method === "Débito"
+        ? (machine?.debit_rate || 0)
+        : (rateObj?.rate || 0);
+      const netAmount = calculateCardMachineNetAmount(p.amount, rate);
+      return {
+        id: p.tempId,
+        method: p.payment_method,
+        amount: p.amount,
+        installments: p.installments,
+        isAnticipated: Boolean(machine?.is_anticipated),
+        isCard: isCard && Boolean(p.machine_id),
+        rate,
+        rateFormatted: formatCardMachineRatePercent(rate),
+        netAmount
+      };
+    });
 
   // Sync first payment amount with total if there's only one payment
   useEffect(() => {
@@ -669,17 +710,16 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
           // Calculate net amount if card
           let finalNetAmount = p.amount;
           if ((p.payment_method === "Crédito" || p.payment_method === "Débito") && p.machine_id) {
-            const { data: rateData } = await supabase
-              .from("card_machine_rates")
-              .select("rate")
-              .eq("machine_id", p.machine_id)
-              .eq("installments", p.installments)
-              .single();
-            
-            if (rateData) {
-              finalNetAmount = p.amount * (1 - rateData.rate / 100);
-            }
+            const machine = cardMachines.find(m => m.id === p.machine_id);
+            const rateObj = p.payment_method === "Débito"
+              ? null
+              : cardRates.find(r => r.machine_id === p.machine_id && r.installments === p.installments);
+            const rate = p.payment_method === "Débito"
+              ? (machine?.debit_rate || 0)
+              : (rateObj?.rate || 0);
+            finalNetAmount = calculateCardMachineNetAmount(p.amount, rate);
           }
+
 
           // Insert sale payment
           await supabase.from("sale_payments").insert({
@@ -1278,50 +1318,124 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
               </div>
 
               {/* Live Summary */}
-              <Card className="p-4 bg-muted/30">
-                <h4 className="font-medium mb-3">Resumo da venda</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4 text-info" />
-                      Data da venda
+              <Card className="p-5 bg-muted/30 space-y-4">
+                <div>
+                  <h4 className="font-semibold text-base text-foreground">Resumo da venda</h4>
+                  <p className="text-xs text-muted-foreground">Informações importantes dessa venda</p>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded bg-muted">
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span>
+                      Venda com <span className="font-semibold text-primary">{detailedItems.length}</span> serviço(s)
                     </span>
-                    <span>{format(saleDate, "dd/MM/yyyy")}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <Layers className="h-4 w-4 text-info" />
-                      Serviços
+
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded bg-muted">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span>
+                      Venda do dia <span className="font-semibold text-primary">{format(saleDate, "dd/MM/yyyy")}</span>
                     </span>
-                    <span>{detailedItems.length} item(s)</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-info" />
-                      Sub-total
+
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded bg-muted">
+                      <Banknote className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span>
+                      Subtotal ficou <span className="font-semibold text-primary">{formatCurrency(subtotal)}</span>
                     </span>
-                    <span>R$ {subtotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-info" />
-                      Desconto
+
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded bg-muted">
+                      <Percent className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span>
+                      Desconto de <span className="font-semibold text-primary">{formatCurrency(discount)}</span>
                     </span>
-                    <span className="text-destructive">- R$ {discount.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between font-semibold pt-2 border-t border-border">
-                    <span className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-success" />
-                      Valor total
+
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded bg-muted">
+                      <Shield className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span>
+                      Valor total da venda ficou <span className="font-semibold text-primary">{formatCurrency(total)}</span>
                     </span>
-                    <span className="text-success">R$ {total.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-info" />
-                      Valor pago
+
+                  {isOpen ? (
+                    <div className="flex items-center gap-3 pt-2 border-t border-dashed border-border">
+                      <div className="p-1.5 rounded bg-muted">
+                        <CreditCard className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <span>
+                        Forma de pagamento é <span className="font-semibold text-primary">conta a receber</span>
+                      </span>
+                    </div>
+                  ) : (
+                    paymentSummaryDetails.map((payment) => {
+                      const installmentsLabel = payment.method === "Crédito" ? `${payment.installments}x no ` : "";
+                      const anticipationLabel = payment.isCard
+                        ? ` (${payment.isAnticipated ? "antecipação" : "sem antecipação"})`
+                        : "";
+
+                      return (
+                        <div key={payment.id} className="space-y-3 pt-2 border-t border-dashed border-border">
+                          <div className="flex items-center gap-3">
+                            <div className="p-1.5 rounded bg-muted">
+                              <CreditCard className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <span>
+                              Forma de pagamento é{" "}
+                              <span className="font-semibold text-primary">
+                                {installmentsLabel}{payment.method}
+                                {anticipationLabel} ({formatCurrency(payment.amount)})
+                              </span>
+                            </span>
+                          </div>
+
+                          {payment.isCard && (
+                            <>
+                              <div className="flex items-center gap-3">
+                                <div className="p-1.5 rounded bg-muted">
+                                  <Percent className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <span>
+                                  Taxas de maquininhas{" "}
+                                  <span className="font-semibold text-primary">{payment.rateFormatted}% no {payment.method}</span>
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                <div className="p-1.5 rounded bg-muted">
+                                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <span>
+                                  Valor total com desconto da maquininha{" "}
+                                  <span className="font-semibold text-primary">{formatCurrency(payment.netAmount)}</span>
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+
+                  <div className="flex items-center gap-3 pt-2 border-t border-dashed border-border">
+                    <div className="p-1.5 rounded bg-muted">
+                      <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span>
+                      {prefillData?.spaceId ? "Vinculado a uma vaga" : "Não vinculado a nenhuma vaga"}
                     </span>
-                    <span>R$ {paid.toFixed(2)}</span>
                   </div>
                 </div>
               </Card>

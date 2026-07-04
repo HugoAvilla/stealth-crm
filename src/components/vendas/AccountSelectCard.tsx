@@ -12,6 +12,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import {
+  calculateCardMachineFeeAmount,
+  calculateCardMachineNetAmount,
+  formatCardMachineRatePercent,
+} from "@/lib/cardMachineFees";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -133,8 +138,9 @@ export function AccountSelectCard({
   const currentRate = isDebit
     ? machines.find(m => m.id === selectedMachineId)?.debit_rate || 0
     : rates.find(r => r.installments === installments)?.rate || 0;
-  const discountAmount = (totalAmount * currentRate) / 100;
-  const netAmount = totalAmount - discountAmount;
+  const discountAmount = calculateCardMachineFeeAmount(totalAmount, currentRate);
+  const netAmount = calculateCardMachineNetAmount(totalAmount, currentRate);
+  const currentRateFormatted = formatCardMachineRatePercent(currentRate);
 
   // Filter machines by type matching the payment method
   const filteredMachines = machines.filter(m => {
@@ -243,7 +249,7 @@ export function AccountSelectCard({
             <div className="bg-primary/5 rounded-lg p-3 border border-primary/10">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <span>Taxa aplicada ({currentRate}%):</span>
+                  <span>Taxa aplicada ({currentRateFormatted}%):</span>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>

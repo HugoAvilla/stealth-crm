@@ -49,6 +49,7 @@ import {
   Layers,
   Percent,
   Shield,
+  Banknote,
 } from "lucide-react";
 import { SaleWithDetails, DetailedServiceItemDB } from "@/types/sales";
 import { toast } from "@/hooks/use-toast";
@@ -66,6 +67,7 @@ import { FillSlotModal } from "@/components/espaco/FillSlotModal";
 import { EditClientModal } from "@/components/clientes/EditClientModal";
 import { Loader2 } from "lucide-react";
 import { IssueWarrantyModal } from "@/components/garantias/IssueWarrantyModal";
+import { calculateCardMachineNetAmount, formatCardMachineRatePercent } from "@/lib/cardMachineFees";
 
 interface SaleDetailsModalProps {
   open: boolean;
@@ -244,6 +246,72 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       if (error) {
         console.error('Error fetching commissions:', error);
         return [];
+      }
+      return data;
+    },
+    enabled: !!sale?.id && open,
+  });
+
+  // Fetch sale payments with machine info
+  const { data: salePayments } = useQuery({
+    queryKey: ['sale-payments-details', sale?.id],
+    queryFn: async () => {
+      if (!sale?.id) return [];
+      const { data, error } = await supabase
+        .from('sale_payments')
+        .select(`
+          *,
+          card_machines (
+            id,
+            name,
+            is_anticipated,
+            debit_rate
+          )
+        `)
+        .eq('sale_id', sale.id);
+      
+      if (error) {
+        console.error('Error fetching sale payments:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!sale?.id && open,
+  });
+
+  // Fetch rates for the used machines
+  const machineIds = salePayments?.map((p: any) => p.machine_id).filter(Boolean) || [];
+  const { data: machineRates } = useQuery({
+    queryKey: ['sale-payments-rates', machineIds],
+    queryFn: async () => {
+      if (machineIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('card_machine_rates')
+        .select('machine_id, installments, rate')
+        .in('machine_id', machineIds);
+      if (error) {
+        console.error('Error fetching machine rates:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: machineIds.length > 0,
+  });
+
+  // Fetch linked space (vaga)
+  const { data: linkedSpace } = useQuery({
+    queryKey: ['sale-linked-space', sale?.id],
+    queryFn: async () => {
+      if (!sale?.id) return null;
+      const { data, error } = await supabase
+        .from('spaces')
+        .select('id, name')
+        .eq('sale_id', sale.id)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching linked space:', error);
+        return null;
       }
       return data;
     },
@@ -663,45 +731,145 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
               </div>
             </Card>
 
-            {/* Financial Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-info" />
-                <span className="text-sm text-muted-foreground">
-                  {hasDetailedItems ? detailedItems.length : saleItems.length} serviço(s)
-                </span>
+            {/* Resumo da Venda Premium list */}
+            <Card className="p-5 space-y-4 bg-muted/20 border border-border/60">
+              <div>
+                <h4 className="font-semibold text-base text-foreground">Resumo da venda</h4>
+                <p className="text-xs text-muted-foreground">Informações importantes dessa venda</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-info" />
-                <span className="text-sm text-muted-foreground">
-                  {format(new Date(sale.sale_date), "dd/MM/yyyy", { locale: ptBR })}
-                </span>
+
+              <div className="space-y-3 text-sm">
+                {/* 1. Services count */}
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 rounded bg-muted">
+                    <Settings className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <span>
+                    Venda com <span className="font-semibold text-primary">{hasDetailedItems ? detailedItems.length : saleItems.length} serviço(s)</span>
+                  </span>
+                </div>
+
+                {/* 2. Sale Date */}
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 rounded bg-muted">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <span>
+                    Venda do dia <span className="font-semibold text-primary">{format(new Date(sale.sale_date + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR })}</span>
+                  </span>
+                </div>
+
+                {/* 3. Subtotal */}
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 rounded bg-muted">
+                    <Banknote className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <span>
+                    Subtotal ficou <span className="font-semibold text-primary">R$ {sale.subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </span>
+                </div>
+
+                {/* 4. Discount */}
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 rounded bg-muted">
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <span>
+                    Desconto de <span className="font-semibold text-primary">R$ {(sale.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </span>
+                </div>
+
+                {/* 5. Total */}
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 rounded bg-muted">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <span>
+                    Valor total da venda ficou <span className="font-semibold text-primary">R$ {sale.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </span>
+                </div>
+
+                {/* 6, 7, 8. Payments (Card Machines details if Crédito/Débito) */}
+                {salePayments && salePayments.length > 0 ? (
+                  salePayments.map((p: any, index: number) => {
+                    const isCard = p.method === "Crédito" || p.method === "Débito";
+                    if (!isCard || !p.machine_id) return null;
+                    
+                    const machine = p.card_machines;
+                    const rate = p.method === "Débito"
+                      ? machine?.debit_rate || 0
+                      : machineRates?.find(r => r.machine_id === p.machine_id && r.installments === p.installments)?.rate || 0;
+                    
+                    const netAmount = calculateCardMachineNetAmount(p.amount, rate);
+                    const isAnticipated = machine?.is_anticipated;
+                    
+                    const methodLabel = p.method;
+                    const installmentsLabel = p.method === "Crédito" ? `${p.installments}x no ` : "no ";
+                    const antLabel = ` (${isAnticipated ? "antecipação" : "sem antecipação"})`;
+
+                    return (
+                      <div key={p.id || index} className="space-y-3 pt-2 border-t border-dashed border-border">
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 rounded bg-muted">
+                            <CreditCard className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <span>
+                            Forma de pagamento é <span className="font-semibold text-primary">{installmentsLabel}{methodLabel}{antLabel} (R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 rounded bg-muted">
+                            <Percent className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <span>
+                            Taxas de maquininhas <span className="font-semibold text-primary">{formatCardMachineRatePercent(rate)}% no {methodLabel}</span>
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 rounded bg-muted">
+                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <span>
+                            Valor total com desconto da maquininha <span className="font-semibold text-primary">R$ {netAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex items-center gap-3 pt-2 border-t border-dashed border-border">
+                    <div className="p-1.5 rounded bg-muted">
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span>
+                      Forma de pagamento é <span className="font-semibold text-primary">{sale.payment_method || 'Não informado'}</span>
+                    </span>
+                  </div>
+                )}
+
+                {/* 10. Space slot linkage */}
+                <div className="flex items-center gap-3 pt-2 border-t border-dashed border-border">
+                  <div className="p-1.5 rounded bg-muted">
+                    <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  {linkedSpace ? (
+                    <span>
+                      Vinculado a uma vaga: <Button variant="link" className="p-0 h-auto font-semibold text-primary underline hover:text-primary/80" onClick={() => {
+                        setProfileClient(sale.client);
+                        setShowNewSlotModal(true);
+                      }}>Visualizar vaga ({linkedSpace.name})</Button>
+                    </span>
+                  ) : (
+                    <span>
+                      Não vinculado a nenhuma vaga
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-info" />
-                <span className="text-sm text-muted-foreground">
-                  Subtotal: R$ {sale.subtotal.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-info" />
-                <span className="text-sm text-muted-foreground">
-                  Desconto: R$ {(sale.discount || 0).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-success" />
-                <span className="text-sm font-medium">
-                  Total: R$ {sale.total.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-info" />
-                <span className="text-sm text-muted-foreground">
-                  {sale.payment_method || 'Não informado'}
-                </span>
-              </div>
-            </div>
+            </Card>
+
 
             {/* Commissions Summary */}
             {commissions && commissions.length > 0 && (

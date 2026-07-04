@@ -27,6 +27,11 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  calculateCardMachineFeeAmount,
+  calculateCardMachineNetAmount,
+  formatCardMachineRatePercent,
+} from "@/lib/cardMachineFees";
 
 export interface SalePayment {
   tempId: string;
@@ -186,7 +191,9 @@ export function PaymentBlock({
   const currentRate = isDebit
     ? machines.find(m => m.id === payment.machine_id)?.debit_rate || 0
     : rates.find(r => r.installments === payment.installments)?.rate || 0;
-  const netAmount = payment.amount * (1 - currentRate / 100);
+  const discountAmount = calculateCardMachineFeeAmount(payment.amount, currentRate);
+  const netAmount = calculateCardMachineNetAmount(payment.amount, currentRate);
+  const currentRateFormatted = formatCardMachineRatePercent(currentRate);
 
   return (
     <Card className="border-border/40 shadow-sm overflow-hidden bg-card/30">
@@ -357,7 +364,7 @@ export function PaymentBlock({
                         const installmentVal = payment.amount / n;
                         return (
                           <SelectItem key={n} value={n.toString()}>
-                            {n}x de R$ {installmentVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (Taxa: {ratePercent}%)
+                            {n}x de R$ {installmentVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (Taxa: {formatCardMachineRatePercent(ratePercent)}%)
                           </SelectItem>
                         );
                       })}
@@ -368,11 +375,19 @@ export function PaymentBlock({
             </div>
 
             {payment.machine_id && (
-              <div className="bg-primary/5 rounded-lg p-2.5 border border-primary/10 flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Líquido (Taxa {currentRate}%):</span>
-                <span className="font-bold text-green-600">
-                  R$ {netAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </span>
+              <div className="bg-primary/5 rounded-lg p-2.5 border border-primary/10 space-y-1.5 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Taxa da maquininha ({currentRateFormatted}%):</span>
+                  <span className="font-semibold text-red-500">
+                    R$ {discountAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Líquido:</span>
+                  <span className="font-bold text-green-600">
+                    R$ {netAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
               </div>
             )}
           </div>
