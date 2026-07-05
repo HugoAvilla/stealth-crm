@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlanGate } from '@/hooks/usePlanGate';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,6 +44,15 @@ interface CompanyLimits {
 export default function TeamRequests() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const gate = usePlanGate('permissoes');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!gate.hasAccess) {
+      if (gate.message) toast({ title: 'Acesso Restrito', description: gate.message, variant: 'destructive' });
+      if (gate.redirectTo) navigate(gate.redirectTo, { replace: true });
+    }
+  }, [gate.hasAccess, gate.redirectTo, gate.message, navigate]);
 
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [limits, setLimits] = useState<CompanyLimits>({ max_members: 5, current_members: 0 });
@@ -52,7 +63,7 @@ export default function TeamRequests() {
   const [unlinkModalOpen, setUnlinkModalOpen] = useState(false);
   const [memberToUnlink, setMemberToUnlink] = useState<JoinRequest | null>(null);
   const [unlinkLoading, setUnlinkLoading] = useState(false);
-  
+
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<JoinRequest | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -261,6 +272,8 @@ export default function TeamRequests() {
     );
   }
 
+  if (!gate.hasAccess) return null;
+
   return (
     <div className="space-y-6 max-w-[100vw] overflow-x-hidden">
       <HelpOverlay
@@ -427,18 +440,18 @@ export default function TeamRequests() {
                         </Badge>
                       </div>
                     </div>
-                    
+
                     <p className="text-xs sm:text-sm text-muted-foreground truncate" title={request.requester_email}>
                       {request.requester_email}
                     </p>
-                    
+
                     {request.rejected_reason && (
                       <div className="flex items-start gap-1 mt-1.5 text-xs text-muted-foreground bg-destructive/5 p-1.5 rounded border border-destructive/10">
                         <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-destructive" />
                         <span>Motivo: {request.rejected_reason}</span>
                       </div>
                     )}
-                    
+
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
                       {request.status === 'approved' && request.approved_at
                         ? `Aprovado em ${format(new Date(request.approved_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
@@ -446,7 +459,7 @@ export default function TeamRequests() {
                       }
                     </p>
                   </div>
-                  
+
                   <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
                     {/* Unlink button for approved members */}
                     {request.status === 'approved' && (
@@ -460,7 +473,7 @@ export default function TeamRequests() {
                         Desvincular
                       </Button>
                     )}
-                    
+
                     {/* Delete button (ex: to clean up rejected history) */}
                     <Button
                       size="sm"

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { usePlanGate } from "@/hooks/usePlanGate";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PurchaseKPIs } from "@/components/compras/PurchaseKPIs";
 import { PurchasesTable, PurchaseRow, PurchaseFilters } from "@/components/compras/PurchasesTable";
@@ -16,18 +19,28 @@ import { ptBR } from "date-fns/locale";
 
 export default function Compras() {
   const { user } = useAuth();
-  
-  const [metrics, setMetrics] = useState({ totalMonthDue: 0, monthBillsCount: 0, totalOpenPurchases: 0, totalOverduePurchases: 0, chartData: [] as {name: string, valor: number}[] });
+  const gate = usePlanGate('compras');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!gate.hasAccess) {
+      if (gate.message) toast.error(gate.message);
+      if (gate.redirectTo) navigate(gate.redirectTo, { replace: true });
+    }
+  }, [gate.hasAccess, gate.redirectTo, gate.message, navigate]);
+
+
+  const [metrics, setMetrics] = useState({ totalMonthDue: 0, monthBillsCount: 0, totalOpenPurchases: 0, totalOverduePurchases: 0, chartData: [] as { name: string, valor: number }[] });
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Modals state
   const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
   const [isBillsModalOpen, setIsBillsModalOpen] = useState(false);
   const [detailPurchaseId, setDetailPurchaseId] = useState<number | null>(null);
-  
+
   const [filters, setFilters] = useState<PurchaseFilters>({ search: "", status: "all", paymentMethod: "all", startDate: "", endDate: "" });
 
   useEffect(() => {
@@ -59,7 +72,7 @@ export default function Compras() {
       .select("*, purchase_installments(id, status)")
       .eq("company_id", user.companyId)
       .order("created_at", { ascending: false });
-    
+
     if (data) {
       const formatted = data.map(p => ({
         ...p,
@@ -75,9 +88,9 @@ export default function Compras() {
       supabase.from("accounts").select("*").eq("company_id", user.companyId).eq("is_active", true),
       supabase.from("categories").select("*").eq("type", "Saida").order("name")
     ]);
-    
+
     if (accRes.data) setAccounts(accRes.data);
-    
+
     if (catRes.data) {
       let existingCats = catRes.data;
       // Auto create 'Compras de material' if it doesn't exist
@@ -106,6 +119,8 @@ export default function Compras() {
 
   // Dados do gráfico agora vêm de metrics.chartData
 
+  if (!gate.hasAccess) return null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -121,25 +136,25 @@ export default function Compras() {
         </div>
       </div>
 
-      <PurchaseKPIs 
-        metrics={metrics} 
-        loading={loading} 
+      <PurchaseKPIs
+        metrics={metrics}
+        loading={loading}
         monthlyAverage={metrics.totalMonthDue || 0}
-        onBillsClick={() => setIsBillsModalOpen(true)} 
+        onBillsClick={() => setIsBillsModalOpen(true)}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <PurchasesTable 
-            purchases={purchases} 
-            loading={loading} 
-            onViewDetails={setDetailPurchaseId} 
+          <PurchasesTable
+            purchases={purchases}
+            loading={loading}
+            onViewDetails={setDetailPurchaseId}
             onDelete={handleDelete}
             filters={filters}
             onFiltersChange={setFilters}
           />
         </div>
-        
+
         <div className="lg:col-span-1">
           <Card>
             <CardHeader>
@@ -151,7 +166,7 @@ export default function Compras() {
                   <BarChart data={metrics.chartData || []}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(value) => `R$${value/1000}k`} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(value) => `R$${value / 1000}k`} />
                     <RechartsTooltip cursor={{ fill: "hsl(var(--muted))" }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Valor']} />
                     <Bar dataKey="valor" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -162,24 +177,24 @@ export default function Compras() {
         </div>
       </div>
 
-      <NewPurchaseModal 
-        open={isNewPurchaseOpen} 
-        onOpenChange={setIsNewPurchaseOpen} 
+      <NewPurchaseModal
+        open={isNewPurchaseOpen}
+        onOpenChange={setIsNewPurchaseOpen}
         onSuccess={loadData}
         accounts={accounts}
         categories={categories}
       />
 
-      <PurchaseDetailDrawer 
-        purchaseId={detailPurchaseId} 
-        open={!!detailPurchaseId} 
+      <PurchaseDetailDrawer
+        purchaseId={detailPurchaseId}
+        open={!!detailPurchaseId}
         onOpenChange={(v) => !v && setDetailPurchaseId(null)}
         onUpdate={loadData}
       />
 
-      <MonthBillsModal 
-        open={isBillsModalOpen} 
-        onOpenChange={setIsBillsModalOpen} 
+      <MonthBillsModal
+        open={isBillsModalOpen}
+        onOpenChange={setIsBillsModalOpen}
         companyId={user?.companyId || 0}
         onSuccess={loadData}
       />

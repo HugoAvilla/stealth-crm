@@ -31,7 +31,7 @@ export default function PlanSelection() {
         const { data: priceData, error: priceError } = await supabase
           .from('plan_prices')
           .select('plan_code, billing_period, price');
-        
+
         if (priceError) throw priceError;
         if (priceData) setPrices(priceData as PlanPrice[]);
 
@@ -81,21 +81,23 @@ export default function PlanSelection() {
   };
 
   const features = [
-    { name: "Usuários Base", basic: "1", ultra: "3", premium: "10" },
-    { name: "Controle de Vendas", basic: true, ultra: true, premium: true },
+    { name: "Dashboard", basic: true, ultra: true, premium: true },
+    { name: "Gestão de Vendas", basic: true, ultra: true, premium: true },
+    { name: "Gestão de Boxes", basic: true, ultra: true, premium: true },
+    { name: "Financeiro", basic: true, ultra: true, premium: true },
+    { name: "CAC (Custo de Aquisição)", basic: true, ultra: true, premium: true },
+    { name: "Compras", basic: false, ultra: true, premium: true },
+    { name: "Integração Bancária", basic: false, ultra: true, premium: true },
     { name: "Gestão de Clientes", basic: true, ultra: true, premium: true },
-    { name: "Controle Financeiro", basic: true, ultra: true, premium: true },
-    { name: "Cálculo de Comissões", basic: true, ultra: true, premium: true },
-    { name: "Emissão de Recibos", basic: true, ultra: true, premium: true },
-    { name: "Agendamento (Espaço)", basic: true, ultra: true, premium: true },
-    { name: "Gestão de Garantias", basic: true, ultra: true, premium: true },
-    { name: "Contas a Pagar/Receber", basic: true, ultra: true, premium: true },
-    { name: "Ordem de Serviço", basic: true, ultra: true, premium: true },
-    { name: "Relatórios Avançados", basic: true, ultra: true, premium: true },
-    { name: "Controle de Estoque", basic: false, ultra: true, premium: true },
+    { name: "Relatórios", basic: true, ultra: true, premium: true },
+    { name: "Comissões", basic: false, ultra: true, premium: true },
+    { name: "Garantias", basic: true, ultra: true, premium: true },
+    { name: "Ordens de Serviço", basic: true, ultra: true, premium: true },
+    { name: "Estoque", basic: false, ultra: true, premium: true },
     { name: "Controle de Perdas", basic: false, ultra: true, premium: true },
-    { name: "Suporte Prioritário", basic: false, ultra: true, premium: true },
-    { name: "Inteligência Artificial", basic: false, ultra: false, premium: true },
+    { name: "Perfis e Permissões", basic: false, ultra: true, premium: true },
+    { name: "IA Integrada", basic: false, ultra: false, premium: true },
+    { name: "Suporte ao usuário", basic: true, ultra: true, premium: true },
   ];
 
   const renderFeatureValue = (val: boolean | string) => {
@@ -113,7 +115,7 @@ export default function PlanSelection() {
 
   const basicPrice = getPrice('basic', isAnnual ? 'annual' : 'monthly');
   const ultraPrice = getPrice('ultra', isAnnual ? 'annual' : 'monthly');
-  
+
   // Calculate monthly equivalent for annual
   const basicMonthlyEq = basicPrice / 12;
   const ultraMonthlyEq = ultraPrice / 12;
@@ -144,18 +146,18 @@ export default function PlanSelection() {
             {isUpgrade ? "Aprimore seu plano" : "Escolha o plano ideal para seu negócio"}
           </h2>
           <p className="mt-4 text-xl text-gray-600 dark:text-gray-300">
-            {isUpgrade 
-              ? "O módulo Estoque e Perdas estão disponíveis a partir do plano Ultra." 
+            {isUpgrade
+              ? "O módulo Estoque e Perdas estão disponíveis a partir do plano Ultra."
               : "Ferramentas poderosas para alavancar suas vendas e gestão."}
           </p>
         </div>
 
         <div className="mt-12 flex justify-center items-center gap-4">
           <Label htmlFor="billing-toggle" className={`text-sm ${!isAnnual ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-500'}`}>Mensal</Label>
-          <Switch 
-            id="billing-toggle" 
-            checked={isAnnual} 
-            onCheckedChange={setIsAnnual} 
+          <Switch
+            id="billing-toggle"
+            checked={isAnnual}
+            onCheckedChange={setIsAnnual}
           />
           <Label htmlFor="billing-toggle" className={`text-sm flex items-center gap-2 ${isAnnual ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-500'}`}>
             Anual
@@ -177,8 +179,8 @@ export default function PlanSelection() {
             {isAnnual && (
               <p className="mt-1 text-sm text-gray-500">Cobrado {formatPrice(basicPrice)} anualmente</p>
             )}
-            <Button 
-              className="mt-8 w-full" 
+            <Button
+              className="mt-8 w-full"
               variant="outline"
               disabled={isUpgrade && currentPlan === 'basic'}
               onClick={() => handleSelectPlan('basic')}
@@ -203,18 +205,18 @@ export default function PlanSelection() {
             {isAnnual && (
               <p className="mt-1 text-sm text-gray-500">Cobrado {formatPrice(ultraPrice)} anualmente</p>
             )}
-            <Button 
-              className="mt-8 w-full" 
+            <Button
+              className="mt-8 w-full"
               disabled={hasPendingUpgrade || (isUpgrade && currentPlan === 'ultra')}
               onClick={() => handleSelectPlan('ultra')}
             >
-              {hasPendingUpgrade 
-                ? "Upgrade em análise" 
+              {hasPendingUpgrade
+                ? "Upgrade em análise"
                 : isUpgrade && currentPlan === 'ultra'
-                ? "Seu Plano Atual"
-                : isUpgrade 
-                ? "Fazer Upgrade para Ultra" 
-                : "Assinar Ultra"}
+                  ? "Seu Plano Atual"
+                  : isUpgrade
+                    ? "Fazer Upgrade para Ultra"
+                    : "Assinar Ultra"}
             </Button>
             {hasPendingUpgrade && (
               <p className="mt-2 text-xs text-yellow-600 text-center font-medium">
@@ -230,8 +232,8 @@ export default function PlanSelection() {
             <p className="mt-8">
               <span className="text-4xl font-extrabold text-gray-400">Em breve</span>
             </p>
-            <Button 
-              className="mt-8 w-full opacity-50 cursor-not-allowed" 
+            <Button
+              className="mt-8 w-full opacity-50 cursor-not-allowed"
               variant="secondary"
               disabled
             >
@@ -243,7 +245,7 @@ export default function PlanSelection() {
         {/* Comparison Table */}
         <div className="mt-24">
           <h3 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-12">Compare os recursos</h3>
-          
+
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -282,7 +284,7 @@ export default function PlanSelection() {
                 ))}
               </ul>
             </div>
-            
+
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-primary overflow-hidden">
               <div className="bg-primary/5 px-4 py-3 border-b border-primary/20">
                 <h4 className="font-semibold text-center text-primary">Ultra</h4>

@@ -4,6 +4,8 @@ import { Plus, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePlanGate } from "@/hooks/usePlanGate";
+import { useNavigate } from "react-router-dom";
 import CommissionPeopleSection from "@/components/comissoes/CommissionPeopleSection";
 import CommissionPersonModal from "@/components/comissoes/CommissionPersonModal";
 import { CommissionPersonWithMetrics } from "@/components/comissoes/CommissionPersonCard";
@@ -13,6 +15,15 @@ import { toast } from "sonner";
 
 export default function Comissoes() {
   const { user } = useAuth();
+  const gate = usePlanGate('comissoes');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!gate.hasAccess) {
+      if (gate.message) toast.error(gate.message);
+      if (gate.redirectTo) navigate(gate.redirectTo, { replace: true });
+    }
+  }, [gate.hasAccess, gate.redirectTo, gate.message, navigate]);
   const [showPersonModal, setShowPersonModal] = useState(false);
   const [showDetailDrawer, setShowDetailDrawer] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<CommissionPersonWithMetrics | null>(null);
@@ -40,7 +51,7 @@ export default function Comissoes() {
         .select('*')
         .eq('company_id', companyId)
         .order('name');
-        
+
       if (peopleError) throw peopleError;
 
       // 2. Fetch metrics
@@ -53,7 +64,7 @@ export default function Comissoes() {
 
       // 3. Aggregate
       const metricsMap = new Map<number, { total_sales: number, total_commission: number }>();
-      
+
       commissionsData?.forEach(comm => {
         const current = metricsMap.get(comm.commission_person_id) || { total_sales: 0, total_commission: 0 };
         current.total_sales += 1;
@@ -97,7 +108,7 @@ export default function Comissoes() {
         .eq('id', person.id);
 
       if (error) throw error;
-      
+
       toast.success(`${person.name} foi ${checked ? 'ativado' : 'inativado'} com sucesso!`);
       refetch();
     } catch (err) {
@@ -105,6 +116,8 @@ export default function Comissoes() {
       toast.error('Erro ao atualizar status do comissionado.');
     }
   };
+
+  if (!gate.hasAccess) return null;
 
   return (
     <div className="space-y-6 p-6 pb-20 max-w-[100vw] overflow-x-hidden">
