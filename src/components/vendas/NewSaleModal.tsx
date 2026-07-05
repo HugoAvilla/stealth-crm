@@ -67,6 +67,7 @@ import {
   formatCardMachineRatePercent,
 } from "@/lib/cardMachineFees";
 import NewClientModal from "@/components/vendas/NewClientModal";
+import NewVehicleModal from "@/components/vendas/NewVehicleModal";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/components/vendas/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/components/vendas/CustomizedServiceBlock";
 import CommissionSelectors from "@/components/vendas/CommissionSelectors";
@@ -152,6 +153,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const [showNotes, setShowNotes] = useState(false);
   const [showDetailedServices, setShowDetailedServices] = useState(true);
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [isNewVehicleModalOpen, setIsNewVehicleModalOpen] = useState(false);
   const [openClientPopover, setOpenClientPopover] = useState(false);
   const [servicePrice, setServicePrice] = useState("");
   const [isNewClient, setIsNewClient] = useState(true);
@@ -934,6 +936,43 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
     }
   };
 
+  const handleNewVehicleCreated = async (vehicle: any) => {
+    if (!selectedClientId) {
+      toast.error("Selecione um cliente primeiro.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .insert({
+          client_id: parseInt(selectedClientId),
+          plate: vehicle.plate,
+          brand: vehicle.brand,
+          model: vehicle.model,
+          year: vehicle.year,
+          size: vehicle.size,
+          company_id: companyId
+        })
+        .select('id, brand, model, plate, size, client_id')
+        .single();
+
+      if (error) throw error;
+
+      // Update vehicles list and select the new one
+      setVehicles(prev => [...prev, data]);
+      setSelectedVehicleId(data.id.toString());
+      setIsNewVehicleModalOpen(false);
+      toast.success("Veículo cadastrado!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao cadastrar veículo.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1094,30 +1133,42 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
               {selectedClientId && (
                 <div className="space-y-2">
                   <Label>Veículo *</Label>
-                  {vehicles.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Cliente não possui veículos cadastrados</p>
-                  ) : (
-                    <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um veículo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {vehicles.map((vehicle) => (
-                          <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
-                            <div className="flex items-center gap-2">
-                              <Car className="h-4 w-4" />
-                              {vehicle.brand} {vehicle.model} - {vehicle.plate}
-                              {vehicle.size && (
-                                <Badge variant="outline" className="ml-2">
-                                  {vehicle.size}
-                                </Badge>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                  <div className="flex gap-2 items-start">
+                    <div className="flex-1">
+                      {vehicles.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-2">Cliente não possui veículos cadastrados</p>
+                      ) : (
+                        <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um veículo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vehicles.map((vehicle) => (
+                              <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
+                                <div className="flex items-center gap-2">
+                                  <Car className="h-4 w-4" />
+                                  {vehicle.brand} {vehicle.model} - {vehicle.plate}
+                                  {vehicle.size && (
+                                    <Badge variant="outline" className="ml-2">
+                                      {vehicle.size}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsNewVehicleModalOpen(true)}
+                      className="gap-1 shrink-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Novo
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -1542,6 +1593,11 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         open={isNewClientModalOpen}
         onOpenChange={setIsNewClientModalOpen}
         onClientCreated={handleNewClientCreated}
+      />
+      <NewVehicleModal
+        open={isNewVehicleModalOpen}
+        onOpenChange={setIsNewVehicleModalOpen}
+        onVehicleCreated={handleNewVehicleCreated}
       />
     </>
   );
