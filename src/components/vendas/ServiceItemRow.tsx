@@ -216,37 +216,6 @@ const ServiceItemRow = ({
     );
   };
 
-  if (planCode === 'basic') {
-    return (
-      <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
-        <Input
-          className="flex-1 min-w-[200px]"
-          placeholder="Descrição do Serviço ou Produto"
-          value={item.serviceName || ""}
-          onChange={(e) => onUpdate({ ...item, serviceName: e.target.value, displayName: e.target.value })}
-        />
-        <div className="flex items-center gap-1 min-w-[110px]">
-          <span className="text-sm text-muted-foreground">R$</span>
-          <Input
-            type="number"
-            step="0.01"
-            className="w-[90px] text-right font-medium text-success"
-            value={item.totalPrice || ""}
-            onChange={(e) => handlePriceChange(e.target.value)}
-            placeholder="0.00"
-          />
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-          onClick={() => onRemove(item.id)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
@@ -282,29 +251,33 @@ const ServiceItemRow = ({
         </SelectContent>
       </Select>
 
-      <Select
-        value={item.productTypeId?.toString() || ""}
-        onValueChange={handleProductChange}
-      >
-        <SelectTrigger className="w-[200px]">
-          <SelectValue placeholder="Produto" />
-        </SelectTrigger>
-        <SelectContent>
-          {renderProductSelect()}
-        </SelectContent>
-      </Select>
+      {planCode !== 'basic' && (
+        <>
+          <Select
+            value={item.productTypeId?.toString() || ""}
+            onValueChange={handleProductChange}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Produto" />
+            </SelectTrigger>
+            <SelectContent>
+              {renderProductSelect()}
+            </SelectContent>
+          </Select>
 
-      <div className="flex items-center gap-1">
-        <Input
-          type="number"
-          step="0.1"
-          className="w-[70px] text-center"
-          value={item.metersUsed || ""}
-          onChange={(e) => handleMetersChange(e.target.value)}
-          placeholder="0.0"
-        />
-        <span className="text-sm text-muted-foreground">m</span>
-      </div>
+          <div className="flex items-center gap-1">
+            <Input
+              type="number"
+              step="0.1"
+              className="w-[70px] text-center"
+              value={item.metersUsed || ""}
+              onChange={(e) => handleMetersChange(e.target.value)}
+              placeholder="0.0"
+            />
+            <span className="text-sm text-muted-foreground">m</span>
+          </div>
+        </>
+      )}
 
       <div className="flex items-center gap-1 min-w-[110px]">
         <span className="text-sm text-muted-foreground">R$</span>

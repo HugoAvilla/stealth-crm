@@ -566,8 +566,9 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
 
     // Validate items - customized items don't need regionId/productTypeId at item level
     const invalidItems = detailedItems.filter(item => {
+      // Basic plan logic checks ONLY regionId
       if (planCode === 'basic') {
-        return !item.serviceName || item.serviceName.trim() === '';
+        return !item.regionId;
       }
       if (item.isCustomized && item.customizationGroup) {
         // For customized items, validate the group items instead
@@ -579,7 +580,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
     });
     if (invalidItems.length > 0) {
       if (planCode === 'basic') {
-        toast.error("Preencha o nome do serviço para todos os itens.");
+        toast.error("Ao menos uma Região/Serviço deve estar selecionada para cada item.");
       } else {
         toast.error("Preencha todos os campos de cada serviço (região, produto e metros).");
       }
@@ -643,14 +644,14 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
             sale_id: sale.id,
             category: item.category,
             product_type_id: planCode === 'basic' ? null : item.productTypeId,
-            region_id: planCode === 'basic' ? null : item.regionId,
-            meters_used: item.metersUsed,
+            region_id: item.regionId,
+            meters_used: planCode === 'basic' ? 0 : item.metersUsed,
             unit_price: 0,
             total_price: item.totalPrice,
             company_id: companyId,
-            service_name: planCode === 'basic' ? item.serviceName : (item.serviceName || item.regionName),
-            region_code: planCode === 'basic' ? null : (region?.region_code || null),
-            display_name: planCode === 'basic' ? item.serviceName : (item.displayName || `${item.regionName} • ${item.productTypeName}`),
+            service_name: item.regionName,
+            region_code: region?.region_code || null,
+            display_name: planCode === 'basic' ? item.regionName : (`${item.regionName} • ${item.productTypeName}`),
             is_customized: false,
             customization_group: null,
           });
