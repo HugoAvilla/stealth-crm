@@ -1304,7 +1304,17 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                         isFirst={index === 0}
                         companyId={companyId || 0}
                         totalRemaining={total - payments.reduce((acc, curr, i) => i < index ? acc + curr.amount : acc, 0)}
-                        onUpdate={(updated) => setPayments(payments.map(item => item.tempId === p.tempId ? updated : item))}
+                        onUpdate={(updated) => {
+                          setPayments(payments.map(item => item.tempId === p.tempId ? updated : item));
+                          if (payments.length === 1 && detailedItems.length === 1 && updated.amount !== total) {
+                            const newDiscountValue = discountValue ? parseFloat(discountValue) : 0;
+                            const newSubtotal = updated.amount + newDiscountValue;
+                            setDetailedItems(prev => prev.map((item, idx) =>
+                              idx === 0 ? { ...item, totalPrice: newSubtotal } : item
+                            ));
+                            setServicePrice(newSubtotal.toString());
+                          }
+                        }}
                         onRemove={() => setPayments(payments.filter(item => item.tempId !== p.tempId))}
                       />
                     ))}
