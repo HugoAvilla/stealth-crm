@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { generateReportPDF, type ReportPDFData } from "@/lib/pdfGenerator";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Switch } from "@/components/ui/switch";
+import { getMockReportData } from "@/lib/mockReportData";
 
 /**
  * Converte string de data "yyyy-MM-dd" para Date local.
@@ -47,6 +49,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
   const [generating, setGenerating] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [exportFormat, setExportFormat] = useState<'pdf' | 'xlsx'>('pdf');
+  const [useMockData, setUseMockData] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -516,7 +519,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
         const totalCost = meters * costPerMeter;
         const totalRevenue = stat.totalRevenue;
         const grossProfit = totalRevenue - totalCost;
-        
+
         const avgSalePricePerMeter = meters > 0 ? (totalRevenue / meters) : 0;
         const margin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
@@ -582,7 +585,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
 
   const generateClientesAtivosReport = async (): Promise<ReportPDFData> => {
     const ninetyDaysAgo = format(subDays(new Date(), 90), 'yyyy-MM-dd');
-    
+
     const { data: sales } = await supabase
       .from('sales')
       .select('client_id, total, clients(name, phone)')
@@ -594,11 +597,11 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
     sales?.forEach(sale => {
       if (!sale.client_id) return;
       if (!clientTotals[sale.client_id]) {
-        clientTotals[sale.client_id] = { 
-          name: (sale.clients as any)?.name || '-', 
+        clientTotals[sale.client_id] = {
+          name: (sale.clients as any)?.name || '-',
           phone: (sale.clients as any)?.phone || '-',
-          qty: 0, 
-          total: 0 
+          qty: 0,
+          total: 0
         };
       }
       clientTotals[sale.client_id].qty += 1;
@@ -627,7 +630,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
 
   const generateClientesInativosReport = async (): Promise<ReportPDFData> => {
     const ninetyDaysAgo = format(subDays(new Date(), 90), 'yyyy-MM-dd');
-    
+
     // Get all clients
     const { data: allClients } = await supabase
       .from('clients')
@@ -876,16 +879,16 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
       title: 'Relatório de Perdas de Material',
       period: { start: startDate, end: endDate },
       columns: [
-        '#', 
-        'Material', 
-        'Categoria', 
-        'Solicit.', 
-        'Metros Perdidos', 
-        'M² Perdidos', 
-        'Custo Total', 
-        'Média m/Solicit.', 
-        'Média m²/Solicit.', 
-        'Média $/Solicit.', 
+        '#',
+        'Material',
+        'Categoria',
+        'Solicit.',
+        'Metros Perdidos',
+        'M² Perdidos',
+        'Custo Total',
+        'Média m/Solicit.',
+        'Média m²/Solicit.',
+        'Média $/Solicit.',
         'Motivo Principal'
       ],
       rows,
@@ -990,7 +993,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
 
   const generateExtratoContaReport = async (): Promise<ReportPDFData> => {
     const account = accounts.find(a => a.id === parseInt(accountId));
-    
+
     const { data } = await supabase
       .from('transactions')
       .select('*')
@@ -1085,59 +1088,69 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
     try {
       let reportData: ReportPDFData;
 
-      switch (report.id) {
-        case 'dfc':
-          reportData = await generateDFCReport();
-          break;
-        case 'dre':
-          reportData = await generateDREReport();
-          break;
-        case 'vendas_periodo':
-          reportData = await generateVendasPeriodoReport();
-          break;
-        case 'vendas_servico':
-          reportData = await generateVendasServicoReport();
-          break;
-        case 'vendas_vendedor':
-          reportData = await generateVendasVendedorReport();
-          break;
-        case 'vendas_pelicula':
-          reportData = await generateVendasPeliculaReport();
-          break;
-        case 'clientes_ativos':
-          reportData = await generateClientesAtivosReport();
-          break;
-        case 'clientes_inativos':
-          reportData = await generateClientesInativosReport();
-          break;
-        case 'clientes_marketing':
-          reportData = await generateClientesMarketingReport();
-          break;
-        case 'clientes_completo':
-          reportData = await generateClientesCompletoReport();
-          break;
-        case 'ocupacao_vagas':
-          reportData = await generateOcupacaoVagasReport();
-          break;
-        case 'estoque_movimento':
-          reportData = await generateEstoqueMovimentoReport();
-          break;
-        case 'perdas_material':
-          reportData = await generatePerdasMaterialReport();
-          break;
-        case 'extrato_conta':
-          if (!accountId) {
-            toast.error("Selecione uma conta");
-            return;
-          }
-          reportData = await generateExtratoContaReport();
-          break;
-        case 'saidas_financeiro':
-          reportData = await generateSaidasFinanceiroReport();
-          break;
-        default:
-          toast.error("Relatório não implementado");
+      if (useMockData) {
+        const mock = getMockReportData(report.id, startDate, endDate);
+        if (!mock) {
+          toast.error("Mock data não implementado para este relatório.");
+          setGenerating(false);
           return;
+        }
+        reportData = mock;
+      } else {
+        switch (report.id) {
+          case 'dfc':
+            reportData = await generateDFCReport();
+            break;
+          case 'dre':
+            reportData = await generateDREReport();
+            break;
+          case 'vendas_periodo':
+            reportData = await generateVendasPeriodoReport();
+            break;
+          case 'vendas_servico':
+            reportData = await generateVendasServicoReport();
+            break;
+          case 'vendas_vendedor':
+            reportData = await generateVendasVendedorReport();
+            break;
+          case 'vendas_pelicula':
+            reportData = await generateVendasPeliculaReport();
+            break;
+          case 'clientes_ativos':
+            reportData = await generateClientesAtivosReport();
+            break;
+          case 'clientes_inativos':
+            reportData = await generateClientesInativosReport();
+            break;
+          case 'clientes_marketing':
+            reportData = await generateClientesMarketingReport();
+            break;
+          case 'clientes_completo':
+            reportData = await generateClientesCompletoReport();
+            break;
+          case 'ocupacao_vagas':
+            reportData = await generateOcupacaoVagasReport();
+            break;
+          case 'estoque_movimento':
+            reportData = await generateEstoqueMovimentoReport();
+            break;
+          case 'perdas_material':
+            reportData = await generatePerdasMaterialReport();
+            break;
+          case 'extrato_conta':
+            if (!accountId) {
+              toast.error("Selecione uma conta");
+              return;
+            }
+            reportData = await generateExtratoContaReport();
+            break;
+          case 'saidas_financeiro':
+            reportData = await generateSaidasFinanceiroReport();
+            break;
+          default:
+            toast.error("Relatório não implementado");
+            return;
+        }
       }
 
       if (exportFormat === 'xlsx') {
@@ -1236,6 +1249,17 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
                 Excel
               </Button>
             </div>
+          </div>
+
+          <div className="flex items-center space-x-2 py-2">
+            <Switch
+              id="mock-data"
+              checked={useMockData}
+              onCheckedChange={setUseMockData}
+            />
+            <Label htmlFor="mock-data" className="text-sm cursor-pointer whitespace-nowrap">
+              Usar dados fictícios para teste
+            </Label>
           </div>
 
           <div className="flex gap-2 pt-4">
