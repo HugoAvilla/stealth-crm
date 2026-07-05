@@ -65,6 +65,7 @@ interface ServiceItemRowProps {
   productTypes: ProductType[];
   vehicleRegions: VehicleRegion[];
   consumptionRules: ConsumptionRule[];
+  planCode?: string;
   onUpdate: (item: DetailedServiceItem) => void;
   onRemove: (id: string) => void;
 }
@@ -75,6 +76,7 @@ const ServiceItemRow = ({
   productTypes,
   vehicleRegions,
   consumptionRules,
+  planCode = 'ultra',
   onUpdate,
   onRemove,
 }: ServiceItemRowProps) => {
@@ -175,10 +177,10 @@ const ServiceItemRow = ({
     const renderProduct = (product: ProductType) => {
       let stockDisplay = "";
       if (product.openRollsCount && product.openRollsCount > 0) {
-         stockDisplay += `${product.openRollsCount} Aberta${product.openRollsCount === 1 ? '' : 's'}`;
+        stockDisplay += `${product.openRollsCount} Aberta${product.openRollsCount === 1 ? '' : 's'}`;
       }
       if (product.hasClosedRoll) {
-         stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
+        stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
       }
 
       return (
@@ -214,9 +216,40 @@ const ServiceItemRow = ({
     );
   };
 
+  if (planCode === 'basic') {
+    return (
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
+        <Input
+          className="flex-1 min-w-[200px]"
+          placeholder="Descrição do Serviço ou Produto"
+          value={item.serviceName || ""}
+          onChange={(e) => onUpdate({ ...item, serviceName: e.target.value, displayName: e.target.value })}
+        />
+        <div className="flex items-center gap-1 min-w-[110px]">
+          <span className="text-sm text-muted-foreground">R$</span>
+          <Input
+            type="number"
+            step="0.01"
+            className="w-[90px] text-right font-medium text-success"
+            value={item.totalPrice || ""}
+            onChange={(e) => handlePriceChange(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={() => onRemove(item.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
-      {/* Category Select */}
       <Select value={item.category} onValueChange={handleCategoryChange}>
         <SelectTrigger className="w-[120px]">
           <SelectValue placeholder="Categoria" />
@@ -227,7 +260,6 @@ const ServiceItemRow = ({
         </SelectContent>
       </Select>
 
-      {/* Region Select */}
       <Select
         value={item.regionId?.toString() || ""}
         onValueChange={handleRegionChange}
@@ -250,7 +282,6 @@ const ServiceItemRow = ({
         </SelectContent>
       </Select>
 
-      {/* Product Select */}
       <Select
         value={item.productTypeId?.toString() || ""}
         onValueChange={handleProductChange}
@@ -263,7 +294,6 @@ const ServiceItemRow = ({
         </SelectContent>
       </Select>
 
-      {/* Meters Input */}
       <div className="flex items-center gap-1">
         <Input
           type="number"
@@ -276,7 +306,6 @@ const ServiceItemRow = ({
         <span className="text-sm text-muted-foreground">m</span>
       </div>
 
-      {/* Editable Price Input */}
       <div className="flex items-center gap-1 min-w-[110px]">
         <span className="text-sm text-muted-foreground">R$</span>
         <Input
@@ -289,7 +318,6 @@ const ServiceItemRow = ({
         />
       </div>
 
-      {/* Remove Button */}
       <Button
         variant="ghost"
         size="icon"

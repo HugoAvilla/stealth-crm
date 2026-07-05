@@ -20,9 +20,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { 
-  Car, Phone, User, Calendar, Clock, DollarSign, Link2, 
-  FileText, MessageSquare, Trash2, Edit, 
+import {
+  Car, Phone, User, Calendar, Clock, DollarSign, Link2,
+  FileText, MessageSquare, Trash2, Edit,
   CheckCircle, Package, AlertCircle, Loader2, Camera, Undo2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,7 +34,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { EditSlotModal } from "./EditSlotModal";
 import NewSaleModal from "../vendas/NewSaleModal";
 import { FillSlotModal } from "./FillSlotModal";
-import { createSaleTransaction } from "@/lib/financialTransactions";
+import { createSaleTransaction, reverseAllSaleTransactions } from "@/lib/financialTransactions";
 import { ClientProfileModal } from "../clientes/ClientProfileModal";
 import { EditClientModal } from "../clientes/EditClientModal";
 
@@ -104,7 +104,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   const [isReleasing, setIsReleasing] = useState(false);
   const [whatsAppType, setWhatsAppType] = useState<'entrada' | 'saida'>('entrada');
   const [showWhatsApp, setShowWhatsApp] = useState(false);
-  const [checklistPhotos, setChecklistPhotos] = useState<{name: string, url: string}[]>([]);
+  const [checklistPhotos, setChecklistPhotos] = useState<{ name: string, url: string }[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showExportSaleModal, setShowExportSaleModal] = useState(false);
@@ -118,7 +118,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
         const { data, error } = await supabase.storage
           .from('checklists')
           .list(`${companyId}/${space.id}`);
-          
+
         if (data && !error) {
           const files = data.filter(f => f.name !== '.emptyFolderPlaceholder');
           const urls = await Promise.all(
@@ -139,7 +139,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
         setIsLoadingPhotos(false);
       }
     }
-    
+
     if (open) {
       fetchPhotos();
     } else {
@@ -172,13 +172,13 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           .from('sales')
           .update({ is_open: false, status: 'Fechada' })
           .eq('id', space.sale_id);
-        
+
         if (saleError) throw saleError;
       }
     },
     onMutate: async (completed: boolean) => {
       await queryClient.cancelQueries({ queryKey: ['spaces'] });
-      
+
       queryClient.setQueriesData({ queryKey: ['spaces'] }, (old: any) => {
         if (!old) return old;
         return old.map((s: any) => s.id === space?.id ? {
@@ -221,7 +221,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
         .select("id, name, phone, email, cpf_cnpj, birth_date, cep, street, number, complement, neighborhood, city, state, origem, created_at, company_id")
         .eq("id", space.client_id)
         .single();
-      
+
       if (clientError) throw clientError;
 
       const { data: vehiclesData } = await supabase
@@ -247,8 +247,8 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
       setProfileClient(fullClient);
       setShowProfileModal(true);
     } catch (error) {
-       console.error(error);
-       toast.error("Falha ao carregar perfil do cliente");
+      console.error(error);
+      toast.error("Falha ao carregar perfil do cliente");
     } finally {
       setProfileLoading(false);
     }
@@ -259,7 +259,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     try {
       const { error } = await supabase
         .from('clients')
-        .update({ deleted_at: new Date().toISOString() })
+        .update({ deleted_at: new Date().toISOString() } as any)
         .eq('id', clientToDelete.id);
 
       if (error) throw error;
@@ -301,7 +301,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   const softDeleteMutation = useMutation({
     mutationFn: async (reason: string) => {
       if (!space) return;
-      const { error } = await supabase.rpc('soft_delete_space', {
+      const { error } = await supabase.rpc('soft_delete_space' as any, {
         p_space_id: space.id,
         p_reason: reason.trim() || "Nenhum motivo informado."
       });
@@ -325,7 +325,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   const restoreMutation = useMutation({
     mutationFn: async () => {
       if (!space) return;
-      const { error } = await supabase.rpc('restore_space', {
+      const { error } = await supabase.rpc('restore_space' as any, {
         p_space_id: space.id
       });
       if (error) throw error;
@@ -348,7 +348,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   const permanentDeleteMutation = useMutation({
     mutationFn: async () => {
       if (!space) return;
-      const { error } = await supabase.rpc('permanently_delete_space', {
+      const { error } = await supabase.rpc('permanently_delete_space' as any, {
         p_space_id: space.id
       });
       if (error) throw error;
@@ -422,16 +422,16 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
 
   const handleReleaseWithPayment = async () => {
     if (!space) return;
-    
+
     if (!space.sale_id) {
       toast.error("Vaga sem venda. Clique em 'Exportar Venda' primeiro para garantir o registro financeiro.");
       setShowUnpaidAlert(false);
       setIsCompleting(false);
       return;
     }
-    
+
     setIsReleasing(true);
-    
+
     try {
       const { error: spaceError } = await supabase
         .from('spaces')
@@ -461,20 +461,80 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
       }
 
       if (saleData) {
-        const tx = await createSaleTransaction({
-          saleId: saleData.id,
-          saleTotal: saleData.total,
-          clientName: clientName,
-          paymentMethod: saleData.payment_method || 'Pix',
-          saleDate: saleData.sale_date,
-          companyId: saleData.company_id,
-          isPaid: true
-        });
-        if (!tx) {
-          console.warn("[SlotDetailsDrawer] Falha ao registrar transação financeira automática no fechamento.");
-          toast.error("Vaga liberada, mas não foi possível gerar o lançamento financeiro automático. Verifique suas contas.");
+        const { data: payments } = await supabase
+          .from('sale_payments')
+          .select(`
+            *,
+            card_machines (
+              id,
+              name,
+              debit_rate
+            )
+          `)
+          .eq('sale_id', saleData.id);
+
+        if (payments && payments.length > 0) {
+          await reverseAllSaleTransactions(saleData.id, "delete");
+          let allSuccess = true;
+
+          for (const p of payments) {
+            let finalNetAmount = p.amount;
+            if ((p.method === "Crédito" || p.method === "Débito") && p.machine_id) {
+              if (p.method === "Débito") {
+                const machine = p.card_machines;
+                if (machine?.debit_rate) {
+                  finalNetAmount = p.amount * (1 - machine.debit_rate / 100);
+                }
+              } else {
+                const { data: rateData } = await supabase
+                  .from("card_machine_rates")
+                  .select("rate")
+                  .eq("machine_id", p.machine_id)
+                  .eq("installments", p.installments)
+                  .single();
+                if (rateData) {
+                  finalNetAmount = p.amount * (1 - rateData.rate / 100);
+                }
+              }
+            }
+
+            const tx = await createSaleTransaction({
+              saleId: saleData.id,
+              saleTotal: p.amount,
+              clientName: clientName,
+              paymentMethod: p.method,
+              saleDate: saleData.sale_date,
+              companyId: saleData.company_id,
+              accountId: p.account_id,
+              isPaid: true,
+              salePaymentId: p.id,
+              installments: p.installments,
+              netAmount: finalNetAmount
+            });
+            if (!tx) allSuccess = false;
+          }
+
+          if (!allSuccess) {
+            console.warn("[SlotDetailsDrawer] Falha ao registrar uma ou mais transações financeiras automáticas no fechamento.");
+            toast.error("Vaga liberada, mas não foi possível gerar todos os lançamentos financeiros automáticos. Verifique suas contas.");
+          }
+        } else {
+          const tx = await createSaleTransaction({
+            saleId: saleData.id,
+            saleTotal: saleData.total,
+            clientName: clientName,
+            paymentMethod: saleData.payment_method || 'Pix',
+            saleDate: saleData.sale_date,
+            companyId: saleData.company_id,
+            isPaid: true
+          });
+          if (!tx) {
+            console.warn("[SlotDetailsDrawer] Falha ao registrar transação financeira automática no fechamento.");
+            toast.error("Vaga liberada, mas não foi possível gerar o lançamento financeiro automático. Verifique suas contas.");
+          }
         }
       }
+
 
       // Optimistic upate
       queryClient.setQueriesData({ queryKey: ['spaces'] }, (old: any) => {
@@ -504,7 +564,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
   const handleReleaseWithoutPayment = async () => {
     if (!space) return;
     setIsReleasing(true);
-    
+
     try {
       const { error: spaceError } = await supabase
         .from('spaces')
@@ -631,7 +691,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
                 <CheckCircle className={space.has_exited ? "h-5 w-5 text-success" : "h-5 w-5 text-muted-foreground"} />
                 <span className="text-sm font-medium">Concluir vaga e liberar espaço</span>
               </div>
-              <Switch 
+              <Switch
                 checked={space.has_exited || false}
                 onCheckedChange={handleCompleteToggle}
                 disabled={completeMutation.isPending}
@@ -749,11 +809,11 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           <div className="flex items-center justify-between p-4 rounded-lg border">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Status do pagamento:</span>
-              <Badge 
-                variant="outline" 
+              <Badge
+                variant="outline"
                 className={
-                  space.payment_status === 'paid' 
-                    ? "bg-success/20 text-success border-success/30" 
+                  space.payment_status === 'paid'
+                    ? "bg-success/20 text-success border-success/30"
                     : "bg-destructive/20 text-destructive border-destructive/30"
                 }
               >
@@ -805,9 +865,9 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Enviar mensagem de saída
                 </Button>
-                 <Button 
-                  variant="outline" 
-                  className="w-full justify-start" 
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
                   onClick={handleOpenClientProfile}
                   disabled={profileLoading}
                 >
@@ -836,14 +896,14 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
               ) : (
                 <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2">
                   {checklistPhotos.map((photo, index) => (
-                    <a 
-                      key={index} 
-                      href={photo.url} 
-                      target="_blank" 
+                    <a
+                      key={index}
+                      href={photo.url}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="relative min-w-[100px] h-[100px] rounded border overflow-hidden shrink-0 block hover:opacity-80 transition-opacity"
                     >
-                      <img src={photo.url} alt={`Foto ${index+1}`} className="w-full h-full object-cover" />
+                      <img src={photo.url} alt={`Foto ${index + 1}`} className="w-full h-full object-cover" />
                     </a>
                   ))}
                 </div>
@@ -900,8 +960,8 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
                   <Edit className="h-4 w-4 mr-2" />
                   Editar
                 </Button>
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   size="icon"
                   onClick={() => setIsDeleteDialogOpen(true)}
                 >
@@ -1013,7 +1073,7 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
           />
         )}
 
-         {/* New Sale Modal */}
+        {/* New Sale Modal */}
         {space && space.client_id && space.vehicle_id && (
           <NewSaleModal
             open={showExportSaleModal}

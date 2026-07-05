@@ -138,6 +138,7 @@ interface NewSaleModalProps {
 
 const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefillData, onSuccess }: NewSaleModalProps) => {
   const { user } = useAuth();
+  const planCode = user?.planCode || 'basic';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saleDate, setSaleDate] = useState<Date>(new Date());
@@ -155,10 +156,10 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const [servicePrice, setServicePrice] = useState("");
   const [isNewClient, setIsNewClient] = useState(true);
   const [pastSalesCount, setPastSalesCount] = useState(0);
-  
+
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
   const [selectedInstallerIds, setSelectedInstallerIds] = useState<number[]>([]);
-  
+
   const [payments, setPayments] = useState<SalePayment[]>([
     {
       tempId: Math.random().toString(36).substr(2, 9),
@@ -268,7 +269,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       setClients(clientsRes.data || []);
       setProductTypes(productsList);
       setVehicleRegions(regionsList);
-      
+
       const rulesList = (rulesRes.data || []).map((rule: any) => {
         const region = regionsList.find(r => r.id === rule.region_id);
         return { ...rule, region_code: region?.region_code || null };
@@ -278,7 +279,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       // Retroactive mapping for spaces created before ID tracking
       setDetailedItems(currentItems => {
         if (!currentItems || currentItems.length === 0) return currentItems;
-        
+
         return currentItems.map(item => {
           let mappedRegionId = item.regionId;
           if (!mappedRegionId && item.regionName) {
@@ -286,20 +287,20 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
             const found = regionsList.find(r => r.name?.toLowerCase().trim() === item.regionName?.toLowerCase().trim() && r.category === itemCategory);
             if (found) mappedRegionId = found.id;
           }
-          
+
           let mappedProductId = item.productTypeId;
           if (!mappedProductId && item.productTypeName) {
             const itemCategory = item.category || 'INSULFILM';
             const found = productsList.find(p => {
-               const brand = p.brand || "";
-               const name = p.name || "";
-               const light = p.light_transmission ? ` ${p.light_transmission}` : "";
-               const fullName = `${brand} ${name}${light}`.trim().toLowerCase();
-               return fullName === item.productTypeName?.toLowerCase().trim() && p.category === itemCategory;
+              const brand = p.brand || "";
+              const name = p.name || "";
+              const light = p.light_transmission ? ` ${p.light_transmission}` : "";
+              const fullName = `${brand} ${name}${light}`.trim().toLowerCase();
+              return fullName === item.productTypeName?.toLowerCase().trim() && p.category === itemCategory;
             });
             if (found) mappedProductId = found.id;
           }
-          
+
           return { ...item, regionId: mappedRegionId, productTypeId: mappedProductId };
         });
       });
@@ -325,7 +326,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         .eq('company_id', companyId);
 
       setVehicles(data || []);
-      
+
       if (data && data.length === 1) {
         setSelectedVehicleId(data[0].id.toString());
       } else {
@@ -366,9 +367,9 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       const updatedItems = detailedItems.map(item => {
         if (item.regionId) {
           const rule = consumptionRules.find(
-            r => r.region_id === item.regionId && 
-                r.vehicle_size === selectedVehicle.size && 
-                r.category === item.category
+            r => r.region_id === item.regionId &&
+              r.vehicle_size === selectedVehicle.size &&
+              r.category === item.category
           );
           const meters = rule?.meters_consumed || item.metersUsed;
           return {
@@ -555,14 +556,17 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         return;
       }
 
-      if (payments.some(p => !p.account_id)) {
-        toast.error("Por favor, selecione a conta de destino para todos os pagamentos.");
+      if (payments.some(p => !p.account_id && p.payment_method !== "Crédito" && p.payment_method !== "Débito")) {
+        toast.error("Por favor, selecione a conta de destino para todos os pagamentos não-cartão.");
         return;
       }
     }
 
     // Validate items - customized items don't need regionId/productTypeId at item level
     const invalidItems = detailedItems.filter(item => {
+      if (planCode === 'basic') {
+        return !item.serviceName || item.serviceName.trim() === '';
+      }
       if (item.isCustomized && item.customizationGroup) {
         // For customized items, validate the group items instead
         const groupItems = customizedGroups.get(item.customizationGroup);
@@ -572,7 +576,11 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       return !item.regionId || !item.productTypeId || item.metersUsed <= 0;
     });
     if (invalidItems.length > 0) {
-      toast.error("Preencha todos os campos de cada serviço (região, produto e metros).");
+      if (planCode === 'basic') {
+        toast.error("Preencha o nome do serviço para todos os itens.");
+      } else {
+        toast.error("Preencha todos os campos de cada serviço (região, produto e metros).");
+      }
       return;
     }
 
@@ -632,15 +640,15 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
           serviceItemsData.push({
             sale_id: sale.id,
             category: item.category,
-            product_type_id: item.productTypeId,
-            region_id: item.regionId,
+            product_type_id: planCode === 'basic' ? null : item.productTypeId,
+            region_id: planCode === 'basic' ? null : item.regionId,
             meters_used: item.metersUsed,
             unit_price: 0,
             total_price: item.totalPrice,
             company_id: companyId,
-            service_name: item.serviceName || item.regionName,
-            region_code: region?.region_code || null,
-            display_name: item.displayName || `${item.regionName} • ${item.productTypeName}`,
+            service_name: planCode === 'basic' ? item.serviceName : (item.serviceName || item.regionName),
+            region_code: planCode === 'basic' ? null : (region?.region_code || null),
+            display_name: planCode === 'basic' ? item.serviceName : (item.displayName || `${item.regionName} • ${item.productTypeName}`),
             is_customized: false,
             customization_group: null,
           });
@@ -685,14 +693,14 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
           .from('spaces')
           .update({ sale_id: sale.id, payment_status: newPaymentStatus })
           .eq('id', prefillData.spaceId);
-          
+
         if (spaceUpdateError) {
           console.error('Error updating space:', spaceUpdateError);
         }
       }
 
       // Consume stock based on detailed items
-      if (selectedVehicle?.size) {
+      if (selectedVehicle?.size && planCode !== 'basic') {
         await consumeStockForDetailedSale(
           sale.id,
           serviceItemsData,
@@ -709,46 +717,119 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         for (const p of payments) {
           // Calculate net amount if card
           let finalNetAmount = p.amount;
+          let isCard = false;
+          let machine: any = null;
+          let targetAccountId = p.account_id;
+
           if ((p.payment_method === "Crédito" || p.payment_method === "Débito") && p.machine_id) {
-            const machine = cardMachines.find(m => m.id === p.machine_id);
+            isCard = true;
+            machine = cardMachines.find((m: any) => m.id === p.machine_id);
+            if (machine?.account_id) {
+              targetAccountId = machine.account_id;
+            }
             const rateObj = p.payment_method === "Débito"
               ? null
-              : cardRates.find(r => r.machine_id === p.machine_id && r.installments === p.installments);
+              : cardRates.find((r: any) => r.machine_id === p.machine_id && r.installments === p.installments);
             const rate = p.payment_method === "Débito"
               ? (machine?.debit_rate || 0)
               : (rateObj?.rate || 0);
             finalNetAmount = calculateCardMachineNetAmount(p.amount, rate);
           }
 
+          let initialStatus = p.status || 'received';
+          let transactionDueDate = format(new Date(), 'yyyy-MM-dd');
+
+          if (isCard && machine) {
+            initialStatus = 'pending'; // Any card transaction starts as pending effectively when observing dueDate
+            if (machine.is_anticipated) {
+              // Antecipada: 1 unica transação no futuro
+              const dt = new Date();
+              if (machine.anticipation_type === 'hours') {
+                dt.setHours(dt.getHours() + (machine.anticipation_value || 0));
+              } else {
+                dt.setDate(dt.getDate() + (machine.anticipation_value || 0));
+              }
+              transactionDueDate = format(dt, 'yyyy-MM-dd');
+            }
+          }
 
           // Insert sale payment
           await supabase.from("sale_payments").insert({
             sale_id: sale.id,
             method: p.payment_method,
             amount: p.amount,
-            account_id: p.account_id,
+            account_id: targetAccountId,
             machine_id: p.machine_id,
             installments: p.installments,
-            status: p.status || 'received',
+            status: initialStatus,
             company_id: companyId
           });
 
-          // Create transaction — boleto usa is_paid=false, demais is_paid=true
+          // Create transaction
           const isBoleto = p.payment_method === "Boleto";
           if (!isBoleto) {
-            await createTransactionFromSale(
-              sale.id,
-              p.amount,
-              selectedClient?.name || 'Cliente',
-              p.payment_method,
-              format(saleDate, 'yyyy-MM-dd'),
-              companyId,
-              p.account_id,
-              p.machine_id,
-              p.installments,
-              finalNetAmount,
-              true // isPaid
-            );
+            if (isCard && machine && !machine.is_anticipated && (p.installments || 1) > 1 && p.payment_method === "Crédito") {
+              // Split for non-anticipated credit
+              const instCount = p.installments || 1;
+              const portion = finalNetAmount / instCount;
+              const portionAmount = p.amount / instCount;
+              for (let i = 1; i <= instCount; i++) {
+                const portionDate = new Date();
+                portionDate.setDate(portionDate.getDate() + (30 * i));
+                await createTransactionFromSale(
+                  sale.id,
+                  portionAmount,
+                  selectedClient?.name || 'Cliente',
+                  p.payment_method,
+                  format(saleDate, 'yyyy-MM-dd'),
+                  companyId,
+                  targetAccountId,
+                  p.machine_id,
+                  p.installments,
+                  portion,
+                  false,
+                  undefined,
+                  format(portionDate, 'yyyy-MM-dd')
+                );
+              }
+            } else if (isCard && machine && !machine.is_anticipated && (p.payment_method === "Débito" || (p.installments || 1) === 1)) {
+              // Não parcelado sem antecipação (1 parcela ou débito, cai +30 ou depende da tx)
+              const portionDate = new Date();
+              portionDate.setDate(portionDate.getDate() + 30);
+              await createTransactionFromSale(
+                sale.id,
+                p.amount,
+                selectedClient?.name || 'Cliente',
+                p.payment_method,
+                format(saleDate, 'yyyy-MM-dd'),
+                companyId,
+                p.account_id,
+                p.machine_id,
+                p.installments,
+                finalNetAmount,
+                false,
+                undefined,
+                format(portionDate, 'yyyy-MM-dd')
+              );
+            } else {
+              // Antecipada (Parcelado ou nao, antecipado junta tuto e da baixa na dueDate) OU PIX/Dinheiro
+              const willBePaidNow = !isCard ? true : false;
+              await createTransactionFromSale(
+                sale.id,
+                p.amount,
+                selectedClient?.name || 'Cliente',
+                p.payment_method,
+                format(saleDate, 'yyyy-MM-dd'),
+                companyId,
+                targetAccountId,
+                p.machine_id,
+                p.installments,
+                finalNetAmount,
+                willBePaidNow,
+                undefined,
+                isCard ? transactionDueDate : format(saleDate, 'yyyy-MM-dd')
+              );
+            }
           }
 
           // If Boleto, register installments
@@ -774,11 +855,11 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
             if (boletoData) {
               const installmentsToInsert = [];
               const installmentAmount = p.amount / (p.installments || 1);
-              
+
               for (let i = 1; i <= (p.installments || 1); i++) {
                 const dueDate = new Date(saleDate);
                 dueDate.setMonth(dueDate.getMonth() + i);
-                
+
                 installmentsToInsert.push({
                   boleto_id: boletoData.id,
                   installment_number: i,
@@ -787,7 +868,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                   status: 'pending'
                 });
               }
-              
+
               await supabase.from("boleto_installments").insert(installmentsToInsert);
 
               // RF-02: Buscar IDs das parcelas criadas e gerar transações pendentes
@@ -1089,11 +1170,12 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                                   productTypes={productTypes}
                                   vehicleRegions={vehicleRegions}
                                   consumptionRules={consumptionRules}
+                                  planCode={planCode}
                                   onUpdate={handleUpdateDetailedItem}
                                   onRemove={handleRemoveDetailedItem}
                                 />
                               </div>
-                              {item.category === 'INSULFILM' && (item.regionCode === 'SIDE_REAR' || item.regionName?.toLowerCase().includes('latera')) && (
+                              {planCode !== 'basic' && item.category === 'INSULFILM' && (item.regionCode === 'SIDE_REAR' || item.regionName?.toLowerCase().includes('latera')) && (
                                 <Button
                                   variant="outline"
                                   size="icon"
@@ -1142,9 +1224,9 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-base font-semibold">Pagamentos</Label>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="h-8 gap-1"
                       onClick={() => setPayments([...payments, {
                         tempId: Math.random().toString(36).substr(2, 9),
@@ -1443,12 +1525,12 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
           )}
 
           {/* Footer */}
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             className={cn(
               "w-full",
               prefillData?.spaceId ? "bg-warning text-warning-foreground hover:bg-warning/90" : ""
-            )} 
+            )}
             disabled={saving || loading}
           >
             {saving ? 'Salvando...' : prefillData?.spaceId ? 'Confirmar Exportação' : 'Adicionar'}

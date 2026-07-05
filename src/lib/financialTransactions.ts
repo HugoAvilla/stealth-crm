@@ -50,6 +50,7 @@ export interface CreateSaleTransactionParams {
   netAmount?: number;
   /** Sufixo descritivo, ex: "Parcela 1/3" */
   nameSuffix?: string;
+  dueDate?: string;
 }
 
 export interface SettleTransactionParams {
@@ -166,7 +167,7 @@ export async function createSaleTransaction(
     name: `Venda #${params.saleId} - ${params.clientName}`,
     amount: params.netAmount ?? params.saleTotal,
     type: "Entrada",
-    transactionDate: params.saleDate,
+    transactionDate: params.dueDate ?? params.saleDate,
     accountId: targetAccountId,
     companyId: params.companyId,
     isPaid: params.isPaid,

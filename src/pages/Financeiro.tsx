@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, TrendingDown, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag, ShoppingCart, Receipt, FileText, DollarSign, Percent } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, TrendingDown, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag, ShoppingCart, Receipt, FileText, DollarSign, Percent, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, subDays, startOfMonth, endOfMonth, addDays, parseISO } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, addDays, parseISO, subMonths, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
@@ -70,6 +70,7 @@ interface CardMachineRate {
 
 export default function Financeiro() {
   const { user } = useAuth();
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
@@ -109,20 +110,25 @@ export default function Financeiro() {
         .eq("is_active", true)
         .order("is_main", { ascending: false });
 
-      // Fetch transactions up to 7 days in the future for forecasts
-      const monthStartObj = startOfMonth(new Date());
-      const monthStart = format(monthStartObj, "yyyy-MM-dd");
-      const sevenDaysAgoObj = subDays(new Date(), 7);
-      const queryStartObj = monthStartObj < sevenDaysAgoObj ? monthStartObj : sevenDaysAgoObj;
-      const queryStart = format(queryStartObj, "yyyy-MM-dd");
-      const futureEnd = format(addDays(new Date(), 7), "yyyy-MM-dd");
+      // Fetch bounds
+      const monthStartObj = startOfMonth(currentMonth);
+      const queryStart = format(monthStartObj, "yyyy-MM-dd");
+      const monthEndObj = endOfMonth(currentMonth);
+      const monthEnd = format(monthEndObj, "yyyy-MM-dd");
+
+      const isCurrentMonth =
+        currentMonth.getMonth() === new Date().getMonth() &&
+        currentMonth.getFullYear() === new Date().getFullYear();
+
+      const futureEndObj = isCurrentMonth ? addDays(new Date(), 7) : monthEndObj;
+      const queryLimitStr = format(futureEndObj > monthEndObj ? futureEndObj : monthEndObj, "yyyy-MM-dd");
 
       const { data: transactionsData } = await supabase
         .from("transactions")
         .select("id, type, amount, transaction_date, sale_id, origin_type, name, is_paid, sale_payment_id")
         .eq("company_id", profile.company_id)
         .gte("transaction_date", queryStart)
-        .lte("transaction_date", futureEnd)
+        .lte("transaction_date", queryLimitStr)
         .order("transaction_date", { ascending: false });
 
       // Fetch sales for the month with payments
@@ -143,18 +149,16 @@ export default function Financeiro() {
           )
         `)
         .eq("company_id", profile.company_id)
-        .gte("sale_date", monthStart)
-        .lte("sale_date", format(endOfMonth(new Date()), "yyyy-MM-dd"));
+        .gte("sale_date", queryStart)
+        .lte("sale_date", monthEnd);
 
-      // Fetch transfers for the month or last 7 days (whichever is earlier)
-      const pastStart = format(subDays(new Date(), 7), "yyyy-MM-dd");
-      const transferStart = monthStart < pastStart ? monthStart : pastStart;
+      // Fetch transfers 
       const { data: transfersData } = await supabase
         .from("transfers")
         .select("*")
         .eq("company_id", profile.company_id)
-        .gte("transfer_date", transferStart)
-        .lte("transfer_date", futureEnd)
+        .gte("transfer_date", queryStart)
+        .lte("transfer_date", queryLimitStr)
         .order("transfer_date", { ascending: false });
 
       // Fetch card machines
@@ -185,12 +189,14 @@ export default function Financeiro() {
 
   useEffect(() => {
     fetchData();
-  }, [user?.id]);
+  }, [user?.id, currentMonth]);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const monthStartStr = format(startOfMonth(new Date()), "yyyy-MM-dd");
-  const monthEndStr = format(endOfMonth(new Date()), "yyyy-MM-dd");
+  const monthStartStr = format(startOfMonth(currentMonth), "yyyy-MM-dd");
+  const monthEndStr = format(endOfMonth(currentMonth), "yyyy-MM-dd");
   const futureEndStr = format(addDays(new Date(), 7), "yyyy-MM-dd");
+
+  const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear();
 
   const totalBalance = accounts.reduce((sum, acc) => sum + (acc.current_balance || 0), 0);
 
@@ -247,7 +253,7 @@ export default function Financeiro() {
   const closedMonthSales = monthSales.filter(s => s.status === 'Fechada');
   const maquininhaPayments = closedMonthSales.flatMap(sale => {
     const payments = (sale as any).sale_payments || [];
-    return payments.filter((p: any) => 
+    return payments.filter((p: any) =>
       (p.method === "Crédito" || p.method === "Débito") && p.machine_id !== null
     );
   });
@@ -261,8 +267,8 @@ export default function Financeiro() {
 
   maquininhaPayments.forEach((p: any) => {
     // Tenta encontrar a transação real pelo sale_payment_id ou sale_id (se for pagamento único)
-    const tx = transactions.find(t => 
-      t.type === 'Entrada' && 
+    const tx = transactions.find(t =>
+      t.type === 'Entrada' &&
       t.is_paid &&
       (t.sale_payment_id === p.id || (t.sale_id === p.sale_id && t.sale_payment_id === null))
     );
@@ -280,8 +286,8 @@ export default function Financeiro() {
         rate = machine?.debit_rate || 0;
       } else {
         // Crédito
-        const rateRecord = machineRates.find(r => 
-          r.machine_id === p.machine_id && 
+        const rateRecord = machineRates.find(r =>
+          r.machine_id === p.machine_id &&
           r.installments === (p.installments || 1) &&
           (!p.brand || !r.brand || r.brand.toLowerCase() === p.brand.toLowerCase())
         );
@@ -312,7 +318,7 @@ export default function Financeiro() {
     }
   });
 
-  const mostUsedMachineName = mostUsedMachineId 
+  const mostUsedMachineName = mostUsedMachineId
     ? (machines.find(m => m.id === mostUsedMachineId)?.name || `Maquininha #${mostUsedMachineId}`)
     : "Nenhuma";
 
@@ -323,7 +329,7 @@ export default function Financeiro() {
   for (let i = 0; i < 7; i++) {
     const dateObj = subDays(new Date(), i);
     const dateStr = format(dateObj, 'yyyy-MM-dd');
-    
+
     reversedChartData.push({
       date: format(dateObj, 'dd/MM'),
       saldo: currentBal,
@@ -333,7 +339,7 @@ export default function Financeiro() {
     const dayEntradas = dayTransactions.filter(t => t.type === 'Entrada').reduce((s, t) => s + t.amount, 0);
     const daySaidas = dayTransactions.filter(t => t.type === 'Saida').reduce((s, t) => s + t.amount, 0);
     const netFlow = dayEntradas - daySaidas;
-    
+
     // Balance before this day's transactions happened:
     currentBal -= netFlow;
   }
@@ -345,7 +351,7 @@ export default function Financeiro() {
   for (let i = 6; i >= 0; i--) {
     const dateObj = subDays(new Date(), i);
     const dateStr = format(dateObj, 'yyyy-MM-dd');
-    
+
     const dayTransfers = transfers.filter(t => t.transfer_date === dateStr);
     const dayTotalTransferred = dayTransfers.reduce((sum, t) => sum + t.amount, 0);
 
@@ -420,7 +426,22 @@ export default function Financeiro() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Financeiro</h1>
-          <p className="text-muted-foreground">Acompanhe o fluxo de caixa da empresa</p>
+          <div className="flex items-center gap-2 mt-2">
+            <Button variant="outline" size="icon" className="h-7 w-7 transition-colors hover:bg-muted" onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-semibold capitalize text-foreground min-w-[110px] text-center">
+              {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+            </span>
+            <Button variant="outline" size="icon" className="h-7 w-7 transition-colors hover:bg-muted" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            {!isCurrentMonth && (
+              <Button variant="secondary" size="sm" className="h-7 text-xs px-3 ml-1" onClick={() => setCurrentMonth(new Date())}>
+                Voltar para o mês atual
+              </Button>
+            )}
+          </div>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="ghost" size="icon" onClick={() => setShowValues(!showValues)}>
@@ -462,361 +483,361 @@ export default function Financeiro() {
 
         <TabsContent value="visao-geral" className="space-y-6 animate-in fade-in duration-500">
           {/* Visão Geral (Overview) - Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
-        
-        {/* Saldo Geral - Takes full width on mobile, 4 columns on desktop */}
-        <Card className="md:col-span-12 lg:col-span-4 bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30 relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute right-4 top-4 opacity-10">
-            <Landmark size={100} />
-          </div>
-          <CardContent className="p-6 relative z-10 flex flex-col justify-between h-full min-h-[160px]">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground/90 uppercase tracking-wider">Saldo Geral Atual</p>
-              <p className="text-4xl font-bold mt-2">{formatCurrency(totalBalance)}</p>
-            </div>
-            <div className="mt-4">
-              <div className="inline-flex items-center bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium text-foreground border border-border/50 shadow-sm">
-                <Wallet className="h-3 w-3 mr-2 text-primary" />
-                {accounts.length} {accounts.length === 1 ? 'conta conectada' : 'contas conectadas'}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
 
-        {/* Entradas Card */}
-        <Card className="md:col-span-6 lg:col-span-4 bg-card/50 border-border/50 relative overflow-hidden flex flex-col">
-          <div className="p-6 pb-3 flex-1">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
-                 <ArrowUpRight className="h-4 w-4" />
-                 <span className="text-xs font-semibold uppercase tracking-wider">Entradas</span>
+            {/* Saldo Geral - Takes full width on mobile, 4 columns on desktop */}
+            <Card className="md:col-span-12 lg:col-span-4 bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30 relative overflow-hidden flex flex-col justify-between">
+              <div className="absolute right-4 top-4 opacity-10">
+                <Landmark size={100} />
               </div>
-            </div>
-            
-            <div className="space-y-1 mb-4">
-               <p className="text-sm text-muted-foreground">Total no Mês</p>
-               <p className="text-3xl font-bold text-foreground">{formatCurrency(totalEntradas)}</p>
-            </div>
-
-            {/* Breakdown */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <ShoppingCart className="h-3.5 w-3.5 text-green-500/70" />
-                  <span>Vendas ({qtdVendasMes})</span>
+              <CardContent className="p-6 relative z-10 flex flex-col justify-between h-full min-h-[160px]">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground/90 uppercase tracking-wider">Saldo Geral Atual</p>
+                  <p className="text-4xl font-bold mt-2">{formatCurrency(totalBalance)}</p>
                 </div>
-                <span className="font-medium text-foreground">{formatCurrency(entradasDeVendas)}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <DollarSign className="h-3.5 w-3.5 text-green-500/70" />
-                  <span>Outras entradas</span>
+                <div className="mt-4">
+                  <div className="inline-flex items-center bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium text-foreground border border-border/50 shadow-sm">
+                    <Wallet className="h-3 w-3 mr-2 text-primary" />
+                    {accounts.length} {accounts.length === 1 ? 'conta conectada' : 'contas conectadas'}
+                  </div>
                 </div>
-                <span className="font-medium text-foreground">{formatCurrency(outrasEntradas)}</span>
-              </div>
-            </div>
-          </div>
-          <div className="bg-green-500/5 px-6 py-3 border-t border-green-500/10 flex justify-between items-center">
-             <span className="text-xs text-muted-foreground">Previsão (Próx. 7 dias)</span>
-             <span className="text-sm font-semibold text-green-500">+{formatCurrency(futureEntradas)}</span>
-          </div>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Saídas Card */}
-        <Card className="md:col-span-6 lg:col-span-4 bg-card/50 border-border/50 relative overflow-hidden flex flex-col">
-          <div className="p-6 pb-3 flex-1">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-red-500 bg-red-500/10 px-3 py-1 rounded-full">
-                 <ArrowDownRight className="h-4 w-4" />
-                 <span className="text-xs font-semibold uppercase tracking-wider">Saídas</span>
-              </div>
-            </div>
-            
-            <div className="space-y-1 mb-4">
-               <p className="text-sm text-muted-foreground">Total no Mês</p>
-               <p className="text-3xl font-bold text-foreground">{formatCurrency(totalSaidas)}</p>
-            </div>
-
-            {/* Breakdown */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Receipt className="h-3.5 w-3.5 text-red-500/70" />
-                  <span>Compras / Fornecedores</span>
+            {/* Entradas Card */}
+            <Card className="md:col-span-6 lg:col-span-4 bg-card/50 border-border/50 relative overflow-hidden flex flex-col">
+              <div className="p-6 pb-3 flex-1">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
+                    <ArrowUpRight className="h-4 w-4" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Entradas</span>
+                  </div>
                 </div>
-                <span className="font-medium text-foreground">{formatCurrency(saidasCompras)}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <FileText className="h-3.5 w-3.5 text-red-500/70" />
-                  <span>Despesas / Outros</span>
+
+                <div className="space-y-1 mb-4">
+                  <p className="text-sm text-muted-foreground">Total no Mês</p>
+                  <p className="text-3xl font-bold text-foreground">{formatCurrency(totalEntradas)}</p>
                 </div>
-                <span className="font-medium text-foreground">{formatCurrency(outrasSaidas)}</span>
-              </div>
-            </div>
-          </div>
-          <div className="bg-red-500/5 px-6 py-3 border-t border-red-500/10 flex justify-between items-center">
-             <span className="text-xs text-muted-foreground">Previsão (Próx. 7 dias)</span>
-             <span className="text-sm font-semibold text-red-500">-{formatCurrency(futureSaidas)}</span>
-          </div>
-        </Card>
 
-      </div>
-
-      {/* Novos Cards de Detalhes de Maquininha e Transferências */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mt-6 animate-in fade-in duration-500">
-        
-        {/* Total de Transferências */}
-        <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
-          <CardContent className="p-6 relative z-10">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transferências no Mês</span>
-              <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
-                <RefreshCw className="h-4 w-4" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalTransferenciasMes)}</p>
-            <p className="text-[10px] text-muted-foreground mt-2">Volume movimentado entre contas</p>
-          </CardContent>
-        </Card>
-
-        {/* Total de Vendas em Maquininha */}
-        <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
-          <CardContent className="p-6 relative z-10">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Vendas em Maquininha</span>
-              <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                <CreditCard className="h-4 w-4" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalVendasMaquininha)}</p>
-            <p className="text-[10px] text-muted-foreground mt-2">Valor bruto total no mês</p>
-          </CardContent>
-        </Card>
-
-        {/* Valor de Taxa Consumido */}
-        <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
-          <CardContent className="p-6 relative z-10">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Taxas de Maquininha</span>
-              <div className="p-1.5 rounded-lg bg-red-500/10 text-red-500">
-                <TrendingDown className="h-4 w-4" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalTaxaMaquininha)}</p>
-            <p className="text-[10px] text-muted-foreground mt-2">Custos de intermediação no mês</p>
-          </CardContent>
-        </Card>
-
-        {/* Valor Líquido Recebido */}
-        <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
-          <CardContent className="p-6 relative z-10">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor Líquido Recebido</span>
-              <div className="p-1.5 rounded-lg bg-green-500/10 text-green-500">
-                <PiggyBank className="h-4 w-4" />
-              </div>
-            </div>
-            <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalLiquidoMaquininha)}</p>
-            <p className="text-[10px] text-muted-foreground mt-2">Valor líquido a receber em conta</p>
-          </CardContent>
-        </Card>
-
-        {/* Maquininha Mais Usada */}
-        <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
-          <CardContent className="p-6 relative z-10">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Maquininha Mais Usada</span>
-              <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500">
-                <Tag className="h-4 w-4" />
-              </div>
-            </div>
-            <p className="text-lg font-bold tracking-tight mt-2 truncate" title={mostUsedMachineName}>
-              {mostUsedMachineName}
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-2">
-              {mostUsedMachineCount} {mostUsedMachineCount === 1 ? 'venda registrada' : 'vendas registradas'}
-            </p>
-          </CardContent>
-        </Card>
-
-      </div>
-
-      {/* Divisor do Dashboard */}
-      <h2 className="text-lg font-semibold mt-8 mb-4 tracking-tight">Análise de Performance</h2>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart Evolução do Saldo */}
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2">
-            <div>
-              <CardTitle className="text-lg">Evolução do Saldo</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Acompanhe seu patrimônio diário nos últimos 7 dias</p>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))" 
-                    fontSize={12} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickFormatter={(value) => `R$${value.toLocaleString('pt-BR', { notation: "compact" })}`} 
-                    width={75}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                    }}
-                    itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
-                    formatter={(value: number) => [formatCurrency(value), 'Saldo em Conta']}
-                    labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="saldo" 
-                    stroke="hsl(var(--primary))" 
-                    fillOpacity={1} 
-                    fill="url(#colorSaldo)" 
-                    strokeWidth={3}
-                    activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "hsl(var(--background))", strokeWidth: 2 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Chart Volume de Transferências */}
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2">
-            <div>
-              <CardTitle className="text-lg">Volume de Transferências</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Movimentações entre suas contas nos últimos 7 dias</p>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={transferChartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))" 
-                    fontSize={12} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickFormatter={(value) => `R$${value.toLocaleString('pt-BR', { notation: "compact" })}`} 
-                    width={75}
-                  />
-                  <Tooltip
-                    cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                    }}
-                    itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
-                    formatter={(value: number) => [formatCurrency(value), 'Volume Transferido']}
-                    labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
-                  />
-                  <Bar 
-                    dataKey="volume" 
-                    fill="hsl(var(--blue-500, 221 83% 53%))" 
-                    radius={[4, 4, 0, 0]} 
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <h2 className="text-lg font-semibold mt-8 mb-4 tracking-tight">Detalhes Bancários</h2>
-
-      {/* Accounts */}
-      <Card className="bg-card/50 border-border/50">
-        <CardHeader>
-          <CardTitle className="text-lg">Minhas Contas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {accounts.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Wallet className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Nenhuma conta cadastrada</p>
-              <Button onClick={() => setAccountModalOpen(true)} className="mt-4" variant="outline">
-                <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeira Conta
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {accounts.map(account => (
-                <Card key={account.id} className={cn(
-                  "hover:shadow-md transition-shadow cursor-default",
-                  account.is_main ? "bg-gradient-to-br from-primary/10 to-transparent border-primary/30" : "bg-card border-border/50"
-                )}>
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "p-2 rounded-lg",
-                          account.is_main ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-                        )}>
-                           {getAccountIcon(account.account_type)}
-                        </div>
-                        <div>
-                          <span className="font-semibold block leading-tight">{account.name}</span>
-                          <span className="text-xs text-muted-foreground">{account.account_type}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {account.is_main && (
-                          <span className="text-[10px] bg-primary text-primary-foreground px-2 py-1 rounded-full uppercase font-bold tracking-wider">Principal</span>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedAccount(account);
-                            setDetailsModalOpen(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
+                {/* Breakdown */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <ShoppingCart className="h-3.5 w-3.5 text-green-500/70" />
+                      <span>Vendas ({qtdVendasMes})</span>
                     </div>
-                    <div className="mt-2 text-right">
-                       <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Balanço</p>
-                       <p className="text-2xl font-bold font-mono tracking-tight">{formatCurrency(account.current_balance || 0)}</p>
+                    <span className="font-medium text-foreground">{formatCurrency(entradasDeVendas)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <DollarSign className="h-3.5 w-3.5 text-green-500/70" />
+                      <span>Outras entradas</span>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      </TabsContent>
+                    <span className="font-medium text-foreground">{formatCurrency(outrasEntradas)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-green-500/5 px-6 py-3 border-t border-green-500/10 flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Previsão (Próx. 7 dias)</span>
+                <span className="text-sm font-semibold text-green-500">+{formatCurrency(futureEntradas)}</span>
+              </div>
+            </Card>
 
-      <TabsContent value="cac">
-        <CacTab />
-      </TabsContent>
+            {/* Saídas Card */}
+            <Card className="md:col-span-6 lg:col-span-4 bg-card/50 border-border/50 relative overflow-hidden flex flex-col">
+              <div className="p-6 pb-3 flex-1">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 text-red-500 bg-red-500/10 px-3 py-1 rounded-full">
+                    <ArrowDownRight className="h-4 w-4" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Saídas</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1 mb-4">
+                  <p className="text-sm text-muted-foreground">Total no Mês</p>
+                  <p className="text-3xl font-bold text-foreground">{formatCurrency(totalSaidas)}</p>
+                </div>
+
+                {/* Breakdown */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Receipt className="h-3.5 w-3.5 text-red-500/70" />
+                      <span>Compras / Fornecedores</span>
+                    </div>
+                    <span className="font-medium text-foreground">{formatCurrency(saidasCompras)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <FileText className="h-3.5 w-3.5 text-red-500/70" />
+                      <span>Despesas / Outros</span>
+                    </div>
+                    <span className="font-medium text-foreground">{formatCurrency(outrasSaidas)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-red-500/5 px-6 py-3 border-t border-red-500/10 flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Previsão (Próx. 7 dias)</span>
+                <span className="text-sm font-semibold text-red-500">-{formatCurrency(futureSaidas)}</span>
+              </div>
+            </Card>
+
+          </div>
+
+          {/* Novos Cards de Detalhes de Maquininha e Transferências */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mt-6 animate-in fade-in duration-500">
+
+            {/* Total de Transferências */}
+            <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
+              <CardContent className="p-6 relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transferências no Mês</span>
+                  <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
+                    <RefreshCw className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalTransferenciasMes)}</p>
+                <p className="text-[10px] text-muted-foreground mt-2">Volume movimentado entre contas</p>
+              </CardContent>
+            </Card>
+
+            {/* Total de Vendas em Maquininha */}
+            <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
+              <CardContent className="p-6 relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Vendas em Maquininha</span>
+                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                    <CreditCard className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalVendasMaquininha)}</p>
+                <p className="text-[10px] text-muted-foreground mt-2">Valor bruto total no mês</p>
+              </CardContent>
+            </Card>
+
+            {/* Valor de Taxa Consumido */}
+            <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
+              <CardContent className="p-6 relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Taxas de Maquininha</span>
+                  <div className="p-1.5 rounded-lg bg-red-500/10 text-red-500">
+                    <TrendingDown className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalTaxaMaquininha)}</p>
+                <p className="text-[10px] text-muted-foreground mt-2">Custos de intermediação no mês</p>
+              </CardContent>
+            </Card>
+
+            {/* Valor Líquido Recebido */}
+            <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
+              <CardContent className="p-6 relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor Líquido Recebido</span>
+                  <div className="p-1.5 rounded-lg bg-green-500/10 text-green-500">
+                    <PiggyBank className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalLiquidoMaquininha)}</p>
+                <p className="text-[10px] text-muted-foreground mt-2">Valor líquido a receber em conta</p>
+              </CardContent>
+            </Card>
+
+            {/* Maquininha Mais Usada */}
+            <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
+              <CardContent className="p-6 relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Maquininha Mais Usada</span>
+                  <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500">
+                    <Tag className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="text-lg font-bold tracking-tight mt-2 truncate" title={mostUsedMachineName}>
+                  {mostUsedMachineName}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  {mostUsedMachineCount} {mostUsedMachineCount === 1 ? 'venda registrada' : 'vendas registradas'}
+                </p>
+              </CardContent>
+            </Card>
+
+          </div>
+
+          {/* Divisor do Dashboard */}
+          <h2 className="text-lg font-semibold mt-8 mb-4 tracking-tight">Análise de Performance</h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Chart Evolução do Saldo */}
+            <Card className="bg-card/50 border-border/50">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-lg">Evolução do Saldo</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">Acompanhe seu patrimônio diário nos últimos 7 dias</p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                      <YAxis
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `R$${value.toLocaleString('pt-BR', { notation: "compact" })}`}
+                        width={75}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                        }}
+                        itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
+                        formatter={(value: number) => [formatCurrency(value), 'Saldo em Conta']}
+                        labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="saldo"
+                        stroke="hsl(var(--primary))"
+                        fillOpacity={1}
+                        fill="url(#colorSaldo)"
+                        strokeWidth={3}
+                        activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "hsl(var(--background))", strokeWidth: 2 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Chart Volume de Transferências */}
+            <Card className="bg-card/50 border-border/50">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-lg">Volume de Transferências</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">Movimentações entre suas contas nos últimos 7 dias</p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={transferChartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                      <YAxis
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `R$${value.toLocaleString('pt-BR', { notation: "compact" })}`}
+                        width={75}
+                      />
+                      <Tooltip
+                        cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                        }}
+                        itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
+                        formatter={(value: number) => [formatCurrency(value), 'Volume Transferido']}
+                        labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
+                      />
+                      <Bar
+                        dataKey="volume"
+                        fill="hsl(var(--blue-500, 221 83% 53%))"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <h2 className="text-lg font-semibold mt-8 mb-4 tracking-tight">Detalhes Bancários</h2>
+
+          {/* Accounts */}
+          <Card className="bg-card/50 border-border/50">
+            <CardHeader>
+              <CardTitle className="text-lg">Minhas Contas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {accounts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Wallet className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>Nenhuma conta cadastrada</p>
+                  <Button onClick={() => setAccountModalOpen(true)} className="mt-4" variant="outline">
+                    <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeira Conta
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {accounts.map(account => (
+                    <Card key={account.id} className={cn(
+                      "hover:shadow-md transition-shadow cursor-default",
+                      account.is_main ? "bg-gradient-to-br from-primary/10 to-transparent border-primary/30" : "bg-card border-border/50"
+                    )}>
+                      <CardContent className="p-5">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "p-2 rounded-lg",
+                              account.is_main ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                            )}>
+                              {getAccountIcon(account.account_type)}
+                            </div>
+                            <div>
+                              <span className="font-semibold block leading-tight">{account.name}</span>
+                              <span className="text-xs text-muted-foreground">{account.account_type}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {account.is_main && (
+                              <span className="text-[10px] bg-primary text-primary-foreground px-2 py-1 rounded-full uppercase font-bold tracking-wider">Principal</span>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAccount(account);
+                                setDetailsModalOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-right">
+                          <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Balanço</p>
+                          <p className="text-2xl font-bold font-mono tracking-tight">{formatCurrency(account.current_balance || 0)}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="cac">
+          <CacTab />
+        </TabsContent>
       </Tabs>
 
       {/* Modals */}

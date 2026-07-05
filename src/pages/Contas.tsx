@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { 
+import {
   Eye, EyeOff, Settings, ArrowUpRight, ArrowDownRight, RefreshCw, Plus,
   Search, Calendar as CalendarIcon, Filter, ArrowUpDown, Landmark, FolderPlus, FolderTree, ArrowRightLeft, X, Receipt
 } from "lucide-react";
@@ -158,7 +158,17 @@ export default function Contas() {
 
   useEffect(() => {
     fetchData();
-  }, [user?.id]);
+
+    const handleFinancialUpdate = () => {
+      fetchData();
+    };
+
+    window.addEventListener("financial-data-changed", handleFinancialUpdate);
+
+    return () => {
+      window.removeEventListener("financial-data-changed", handleFinancialUpdate);
+    };
+  }, [user?.id, fetchData]);
 
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
   const accountTransactions = transactions.filter(t => t.account_id === selectedAccountId);
@@ -227,8 +237,8 @@ export default function Contas() {
   }
   if (searchTerm) {
     const term = searchTerm.toLowerCase();
-    filteredTransactions = filteredTransactions.filter(t => 
-      t.name.toLowerCase().includes(term) || 
+    filteredTransactions = filteredTransactions.filter(t =>
+      t.name.toLowerCase().includes(term) ||
       (t.description?.toLowerCase() || "").includes(term) ||
       (getCategoryById(t.category_id || 0)?.name.toLowerCase() || "").includes(term)
     );
@@ -392,9 +402,9 @@ export default function Contas() {
                 <div className="flex items-center gap-2 mt-1 mb-2">
                   {account.bank_code ? (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={account.bank_name || undefined}>
-                      <img 
-                        src={`/banks/${account.bank_code}.svg`} 
-                        alt={account.bank_name || "Banco"} 
+                      <img
+                        src={`/banks/${account.bank_code}.svg`}
+                        alt={account.bank_name || "Banco"}
                         className="w-4 h-4 object-contain rounded-sm"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = 'none';
@@ -425,9 +435,9 @@ export default function Contas() {
               <div className="flex items-center gap-3">
                 {selectedAccount.bank_code ? (
                   <div className="w-12 h-12 rounded-xl bg-white border border-border/50 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
-                    <img 
-                      src={`/banks/${selectedAccount.bank_code}.svg`} 
-                      alt={selectedAccount.bank_name || "Banco"} 
+                    <img
+                      src={`/banks/${selectedAccount.bank_code}.svg`}
+                      alt={selectedAccount.bank_name || "Banco"}
                       className="w-8 h-8 object-contain"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
@@ -453,49 +463,49 @@ export default function Contas() {
                 </div>
               </div>
 
-                <Dialog open={fabOpen} onOpenChange={setFabOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-full px-6">
-                      Adicionar <Plus className="h-4 w-4 ml-2" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-3xl bg-background border-border/50">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-semibold mb-4">Escolha o que deseja fazer</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                      <button onClick={() => { setFabOpen(false); setTransactionType('entrada'); setTransactionModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                        <ArrowUpRight className="h-8 w-8 text-green-500" />
-                        <span className="font-medium text-sm text-center">Nova entrada na conta</span>
-                      </button>
-                      <button onClick={() => { setFabOpen(false); setTransactionType('saida'); setTransactionModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                        <ArrowDownRight className="h-8 w-8 text-red-500" />
-                        <span className="font-medium text-sm text-center">Nova saída na conta</span>
-                      </button>
-                      <button onClick={() => { setFabOpen(false); setTransferModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                        <ArrowRightLeft className="h-8 w-8 text-blue-500" />
-                        <span className="font-medium text-sm text-center">Nova transferência</span>
-                      </button>
-                      <button onClick={() => { setFabOpen(false); setCategoryModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                        <FolderPlus className="h-8 w-8 text-primary" />
-                        <span className="font-medium text-sm text-center">Nova categoria</span>
-                      </button>
-                      <button onClick={() => { setFabOpen(false); setManageCategoriesOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                        <FolderTree className="h-8 w-8 text-primary" />
-                        <span className="font-medium text-sm text-center">Gerenciar categorias</span>
-                      </button>
-                      <button onClick={() => { setFabOpen(false); setShowAddModal(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
-                        <Landmark className="h-8 w-8 text-primary" />
-                        <span className="font-medium text-sm text-center">Nova conta</span>
-                      </button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+              <Dialog open={fabOpen} onOpenChange={setFabOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-full px-6">
+                    Adicionar <Plus className="h-4 w-4 ml-2" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-3xl bg-background border-border/50">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-semibold mb-4">Escolha o que deseja fazer</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <button onClick={() => { setFabOpen(false); setTransactionType('entrada'); setTransactionModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                      <ArrowUpRight className="h-8 w-8 text-green-500" />
+                      <span className="font-medium text-sm text-center">Nova entrada na conta</span>
+                    </button>
+                    <button onClick={() => { setFabOpen(false); setTransactionType('saida'); setTransactionModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                      <ArrowDownRight className="h-8 w-8 text-red-500" />
+                      <span className="font-medium text-sm text-center">Nova saída na conta</span>
+                    </button>
+                    <button onClick={() => { setFabOpen(false); setTransferModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                      <ArrowRightLeft className="h-8 w-8 text-blue-500" />
+                      <span className="font-medium text-sm text-center">Nova transferência</span>
+                    </button>
+                    <button onClick={() => { setFabOpen(false); setCategoryModalOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                      <FolderPlus className="h-8 w-8 text-primary" />
+                      <span className="font-medium text-sm text-center">Nova categoria</span>
+                    </button>
+                    <button onClick={() => { setFabOpen(false); setManageCategoriesOpen(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                      <FolderTree className="h-8 w-8 text-primary" />
+                      <span className="font-medium text-sm text-center">Gerenciar categorias</span>
+                    </button>
+                    <button onClick={() => { setFabOpen(false); setShowAddModal(true); }} className="flex flex-col items-center justify-center p-6 gap-3 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent transition-all">
+                      <Landmark className="h-8 w-8 text-primary" />
+                      <span className="font-medium text-sm text-center">Nova conta</span>
+                    </button>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
-                <Button variant="outline" size="icon" className="rounded-full" onClick={() => setEditingAccount(selectedAccount)}>
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button variant="outline" size="icon" className="rounded-full" onClick={() => setEditingAccount(selectedAccount)}>
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
 
             {/* Sub-tabs */}
             <div className="flex space-x-1 border-b border-border/50 mb-6">
@@ -537,386 +547,386 @@ export default function Contas() {
             {activeTab === 'extrato' ? (
               <>
                 {/* Balance Card */}
-            <Card className="bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30 relative overflow-hidden">
-              <div className="absolute right-4 top-4 opacity-10">
-                <Landmark size={80} />
-              </div>
-              <CardContent className="p-6 relative z-10">
-                <p className="text-sm font-medium text-muted-foreground">Saldo Atual</p>
-                <p className="text-4xl font-bold mt-1">{formatCurrency(selectedAccount.current_balance || 0)}</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Previsto: <span className="font-semibold">{formatCurrency(saldoPrevisto)}</span>
-                </p>
-              </CardContent>
-            </Card>
+                <Card className="bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30 relative overflow-hidden">
+                  <div className="absolute right-4 top-4 opacity-10">
+                    <Landmark size={80} />
+                  </div>
+                  <CardContent className="p-6 relative z-10">
+                    <p className="text-sm font-medium text-muted-foreground">Saldo Atual</p>
+                    <p className="text-4xl font-bold mt-1">{formatCurrency(selectedAccount.current_balance || 0)}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Previsto: <span className="font-semibold">{formatCurrency(saldoPrevisto)}</span>
+                    </p>
+                  </CardContent>
+                </Card>
 
-            {/* Resumo do Período */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-4">
-              <Card className="bg-card/50 border-border/50">
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Entradas recebidas</p>
-                  <p className="text-lg font-bold text-green-500">+{formatCurrency(summaryEntries)}</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/50 border-border/50">
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Saídas pagas</p>
-                  <p className="text-lg font-bold text-red-500">-{formatCurrency(summaryExits)}</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/50 border-border/50">
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Geração de caixa</p>
-                  <p className={`text-lg font-bold ${geracaoCaixa >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {geracaoCaixa >= 0 ? '+' : ''}{formatCurrency(geracaoCaixa)}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/50 border-border/50">
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Saldo inicial</p>
-                  <p className="text-lg font-bold">{formatCurrency(saldoInicial)}</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/50 border-border/50">
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Saldo final</p>
-                  <p className="text-lg font-bold">{formatCurrency(saldoFinal)}</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Evolução Últimos 7 dias */}
-            <Card className="bg-card/50 border-border/50">
-              <CardHeader>
-                <CardTitle className="text-sm">Entradas e saídas (Últimos 7 dias)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[250px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={last7Days}>
-                      <XAxis dataKey="date" fontSize={12} tickMargin={10} axisLine={false} tickLine={false} />
-                      <YAxis hide />
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} cursor={{fill: 'transparent'}} />
-                      <Bar dataKey="entradas" name="Entradas" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={30} />
-                      <Bar dataKey="saidas" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                {/* Resumo do Período */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                  <Card className="bg-card/50 border-border/50">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground mb-1">Entradas recebidas</p>
+                      <p className="text-lg font-bold text-green-500">+{formatCurrency(summaryEntries)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-card/50 border-border/50">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground mb-1">Saídas pagas</p>
+                      <p className="text-lg font-bold text-red-500">-{formatCurrency(summaryExits)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-card/50 border-border/50">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground mb-1">Geração de caixa</p>
+                      <p className={`text-lg font-bold ${geracaoCaixa >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {geracaoCaixa >= 0 ? '+' : ''}{formatCurrency(geracaoCaixa)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-card/50 border-border/50">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground mb-1">Saldo inicial</p>
+                      <p className="text-lg font-bold">{formatCurrency(saldoInicial)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-card/50 border-border/50">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground mb-1">Saldo final</p>
+                      <p className="text-lg font-bold">{formatCurrency(saldoFinal)}</p>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Charts Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Payment Methods */}
-              <Card className="bg-card/50 border-border/50">
-                <CardHeader>
-                  <CardTitle className="text-sm">Formas de Pagamento</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {paymentData.length === 0 ? (
-                    <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                      <p className="text-sm">Sem dados de entradas</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="h-[200px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={paymentData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={80}
-                              dataKey="value"
-                            >
-                              {paymentData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-2 justify-center">
-                        {paymentData.map(item => (
-                          <div key={item.name} className="flex items-center gap-1 text-xs">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                            <span>{item.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Categories */}
-              <Card className="bg-card/50 border-border/50">
-                <CardHeader>
-                  <CardTitle className="text-sm">Saídas por Categoria</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {categoryData.length === 0 ? (
-                    <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                      <p className="text-sm">Sem dados de saídas</p>
-                    </div>
-                  ) : (
-                    <div className="h-[200px]">
+                {/* Evolução Últimos 7 dias */}
+                <Card className="bg-card/50 border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-sm">Entradas e saídas (Últimos 7 dias)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[250px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={categoryData} layout="vertical">
-                          <XAxis type="number" hide />
-                          <YAxis type="category" dataKey="name" width={100} fontSize={11} />
-                          <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                          <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                            {categoryData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Bar>
+                        <BarChart data={last7Days}>
+                          <XAxis dataKey="date" fontSize={12} tickMargin={10} axisLine={false} tickLine={false} />
+                          <YAxis hide />
+                          <Tooltip formatter={(value: number) => formatCurrency(value)} cursor={{ fill: 'transparent' }} />
+                          <Bar dataKey="entradas" name="Entradas" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={30} />
+                          <Bar dataKey="saidas" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                  </CardContent>
+                </Card>
 
-            {/* Transactions Table */}
-            <Card className="bg-card/50 border-border/50">
-              <CardHeader className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-                <CardTitle className="text-sm">Extrato</CardTitle>
-                <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto">
-                  <div className="relative w-full sm:w-[250px]">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por transação..."
-                      className="pl-8 bg-background"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-2 w-full xl:w-auto">
-                    <Select value={filterType} onValueChange={setFilterType}>
-                      <SelectTrigger className="w-[110px] bg-background">
-                        <SelectValue placeholder="Tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos</SelectItem>
-                        <SelectItem value="entrada">Entradas</SelectItem>
-                        <SelectItem value="saida">Saídas</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="w-[120px] bg-background">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos</SelectItem>
-                        <SelectItem value="pago">Conciliado</SelectItem>
-                        <SelectItem value="pendente">Pendente</SelectItem>
-                      </SelectContent>
-                    </Select>
+                {/* Charts Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Payment Methods */}
+                  <Card className="bg-card/50 border-border/50">
+                    <CardHeader>
+                      <CardTitle className="text-sm">Formas de Pagamento</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {paymentData.length === 0 ? (
+                        <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                          <p className="text-sm">Sem dados de entradas</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="h-[200px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={paymentData}
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius={50}
+                                  outerRadius={80}
+                                  dataKey="value"
+                                >
+                                  {paymentData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                  ))}
+                                </Pie>
+                                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-2 justify-center">
+                            {paymentData.map(item => (
+                              <div key={item.name} className="flex items-center gap-1 text-xs">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                                <span>{item.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
 
-                    <Input 
-                      type="date" 
-                      className="w-full sm:w-[130px] bg-background text-sm"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                    />
-                    <Input 
-                      type="date" 
-                      className="w-full sm:w-[130px] bg-background text-sm"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                    />
-                  </div>
+                  {/* Categories */}
+                  <Card className="bg-card/50 border-border/50">
+                    <CardHeader>
+                      <CardTitle className="text-sm">Saídas por Categoria</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {categoryData.length === 0 ? (
+                        <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                          <p className="text-sm">Sem dados de saídas</p>
+                        </div>
+                      ) : (
+                        <div className="h-[200px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={categoryData} layout="vertical">
+                              <XAxis type="number" hide />
+                              <YAxis type="category" dataKey="name" width={100} fontSize={11} />
+                              <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                                {categoryData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardHeader>
-              <CardContent>
-                {filteredTransactions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm">Nenhuma transação encontrada</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* 🖥️ Visualização Desktop: Tabela Completa */}
-                    <div className="hidden md:block rounded-md border border-border/50 overflow-x-auto overscroll-x-contain">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="min-w-[200px]">Transação</TableHead>
-                            <TableHead>Conta</TableHead>
-                            <TableHead className="text-center">Categoria</TableHead>
-                            <TableHead className="text-right whitespace-nowrap">Valor</TableHead>
-                            <TableHead className="text-center">Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
+
+                {/* Transactions Table */}
+                <Card className="bg-card/50 border-border/50">
+                  <CardHeader className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+                    <CardTitle className="text-sm">Extrato</CardTitle>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto">
+                      <div className="relative w-full sm:w-[250px]">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar por transação..."
+                          className="pl-8 bg-background"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2 w-full xl:w-auto">
+                        <Select value={filterType} onValueChange={setFilterType}>
+                          <SelectTrigger className="w-[110px] bg-background">
+                            <SelectValue placeholder="Tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todos">Todos</SelectItem>
+                            <SelectItem value="entrada">Entradas</SelectItem>
+                            <SelectItem value="saida">Saídas</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select value={filterStatus} onValueChange={setFilterStatus}>
+                          <SelectTrigger className="w-[120px] bg-background">
+                            <SelectValue placeholder="Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todos">Todos</SelectItem>
+                            <SelectItem value="pago">Conciliado</SelectItem>
+                            <SelectItem value="pendente">Pendente</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Input
+                          type="date"
+                          className="w-full sm:w-[130px] bg-background text-sm"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                        />
+                        <Input
+                          type="date"
+                          className="w-full sm:w-[130px] bg-background text-sm"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {filteredTransactions.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p className="text-sm">Nenhuma transação encontrada</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* 🖥️ Visualização Desktop: Tabela Completa */}
+                        <div className="hidden md:block rounded-md border border-border/50 overflow-x-auto overscroll-x-contain">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="min-w-[200px]">Transação</TableHead>
+                                <TableHead>Conta</TableHead>
+                                <TableHead className="text-center">Categoria</TableHead>
+                                <TableHead className="text-right whitespace-nowrap">Valor</TableHead>
+                                <TableHead className="text-center">Status</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredTransactions.map(tx => {
+                                const category = tx.category_id ? getCategoryById(tx.category_id) : null;
+                                const isEntry = tx.type === 'Entrada';
+
+                                return (
+                                  <TableRow key={tx.id}>
+                                    <TableCell>
+                                      <div className="flex items-center gap-3">
+                                        <div className={cn(
+                                          "p-1.5 rounded-full flex-shrink-0",
+                                          isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                                        )}>
+                                          {isEntry ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium leading-none mb-1">{tx.name}</p>
+                                          <span className="text-[10px] text-muted-foreground">{format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground text-sm">{selectedAccount?.name}</TableCell>
+                                    <TableCell className="text-center">
+                                      {category ? (
+                                        <Badge variant="outline" className="text-[10px] whitespace-nowrap" style={{ borderColor: category.color || undefined, color: category.color || undefined }}>
+                                          {category.name}
+                                        </Badge>
+                                      ) : (
+                                        <span className="text-muted-foreground">-</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <span className={cn(
+                                        "font-medium whitespace-nowrap",
+                                        isEntry ? "text-green-500" : "text-red-500"
+                                      )}>
+                                        {isEntry ? '+' : '-'}{formatCurrency(tx.amount)}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn(
+                                        "text-[10px]",
+                                        tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : ""
+                                      )}>
+                                        {tx.is_paid ? 'Recebido' : 'Pendente'}
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+
+                        {/* 📱 Visualização Mobile: Cards Empilhados */}
+                        <div className="grid grid-cols-1 gap-3 md:hidden">
                           {filteredTransactions.map(tx => {
                             const category = tx.category_id ? getCategoryById(tx.category_id) : null;
                             const isEntry = tx.type === 'Entrada';
 
                             return (
-                              <TableRow key={tx.id}>
-                                <TableCell>
-                                  <div className="flex items-center gap-3">
+                              <Card key={tx.id} className="bg-card/50 border-border/50 p-4 space-y-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2">
                                     <div className={cn(
                                       "p-1.5 rounded-full flex-shrink-0",
                                       isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
                                     )}>
-                                      {isEntry ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                                      {isEntry ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
                                     </div>
                                     <div>
-                                      <p className="text-sm font-medium leading-none mb-1">{tx.name}</p>
+                                      <p className="text-sm font-semibold text-foreground leading-snug">{tx.name}</p>
                                       <span className="text-[10px] text-muted-foreground">{format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
                                     </div>
                                   </div>
-                                </TableCell>
-                                <TableCell className="text-muted-foreground text-sm">{selectedAccount?.name}</TableCell>
-                                <TableCell className="text-center">
-                                  {category ? (
-                                    <Badge variant="outline" className="text-[10px] whitespace-nowrap" style={{ borderColor: category.color || undefined, color: category.color || undefined }}>
-                                      {category.name}
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-muted-foreground">-</span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right">
                                   <span className={cn(
-                                    "font-medium whitespace-nowrap",
+                                    "font-bold text-sm whitespace-nowrap",
                                     isEntry ? "text-green-500" : "text-red-500"
                                   )}>
                                     {isEntry ? '+' : '-'}{formatCurrency(tx.amount)}
                                   </span>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn(
-                                    "text-[10px]",
-                                    tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : ""
-                                  )}>
-                                    {tx.is_paid ? 'Recebido' : 'Pendente'}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
+                                  <div className="flex items-center gap-1 text-muted-foreground">
+                                    <Landmark className="h-3 w-3" />
+                                    <span>{selectedAccount?.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    {category && (
+                                      <Badge variant="outline" className="text-[10px] py-0 px-2 font-normal" style={{ borderColor: category.color || undefined, color: category.color || undefined }}>
+                                        {category.name}
+                                      </Badge>
+                                    )}
+                                    <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn(
+                                      "text-[10px] py-0 px-2 font-normal",
+                                      tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : ""
+                                    )}>
+                                      {tx.is_paid ? 'Confirmado' : 'Pendente'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </Card>
                             );
                           })}
-                        </TableBody>
-                      </Table>
-                    </div>
-
-                    {/* 📱 Visualização Mobile: Cards Empilhados */}
-                    <div className="grid grid-cols-1 gap-3 md:hidden">
-                      {filteredTransactions.map(tx => {
-                        const category = tx.category_id ? getCategoryById(tx.category_id) : null;
-                        const isEntry = tx.type === 'Entrada';
-
-                        return (
-                          <Card key={tx.id} className="bg-card/50 border-border/50 p-4 space-y-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <div className={cn(
-                                  "p-1.5 rounded-full flex-shrink-0",
-                                  isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
-                                )}>
-                                  {isEntry ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                                </div>
-                                <div>
-                                  <p className="text-sm font-semibold text-foreground leading-snug">{tx.name}</p>
-                                  <span className="text-[10px] text-muted-foreground">{format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
-                                </div>
-                              </div>
-                              <span className={cn(
-                                "font-bold text-sm whitespace-nowrap",
-                                isEntry ? "text-green-500" : "text-red-500"
-                              )}>
-                                {isEntry ? '+' : '-'}{formatCurrency(tx.amount)}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
-                              <div className="flex items-center gap-1 text-muted-foreground">
-                                <Landmark className="h-3 w-3" />
-                                <span>{selectedAccount?.name}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                {category && (
-                                  <Badge variant="outline" className="text-[10px] py-0 px-2 font-normal" style={{ borderColor: category.color || undefined, color: category.color || undefined }}>
-                                    {category.name}
-                                  </Badge>
-                                )}
-                                <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn(
-                                  "text-[10px] py-0 px-2 font-normal",
-                                  tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : ""
-                                )}>
-                                  {tx.is_paid ? 'Confirmado' : 'Pendente'}
-                                </Badge>
-                              </div>
-                            </div>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            ) : activeTab === 'maquininhas' ? (
+              <CardMachinesList />
+            ) : (
+              <BoletoManagement accountId={selectedAccountId} onRefreshRequired={fetchData} />
+            )}
           </>
-          ) : activeTab === 'maquininhas' ? (
-            <CardMachinesList />
-          ) : (
-            <BoletoManagement accountId={selectedAccountId} onRefreshRequired={fetchData} />
-          )}
-        </>
-      ) : (
-        <div className="flex items-center justify-center h-full text-muted-foreground">
-        <div className="text-center">
-          <p>Selecione ou crie uma conta para visualizar</p>
-          <Button onClick={() => setShowAddModal(true)} className="mt-4">
-            <Plus className="h-4 w-4 mr-2" /> Criar Conta
-          </Button>
-        </div>
-      </div>
-    )}
+        ) : (
+          <div className="flex items-center justify-center h-full text-muted-foreground">
+            <div className="text-center">
+              <p>Selecione ou crie uma conta para visualizar</p>
+              <Button onClick={() => setShowAddModal(true)} className="mt-4">
+                <Plus className="h-4 w-4 mr-2" /> Criar Conta
+              </Button>
+            </div>
+          </div>
+        )}
 
-      {/* Modals */}
-      <AddAccountModal
-        open={showAddModal}
-        onOpenChange={setShowAddModal}
-        onSuccess={handleAccountCreated}
-      />
-      <EditAccountModal
-        open={!!editingAccount}
-        onOpenChange={(open) => !open && setEditingAccount(null)}
-        account={editingAccount}
-        onAccountUpdated={handleAccountUpdated}
-        onAccountDeleted={handleAccountDeleted}
-        canDelete={accounts.length > 1}
-      />
-      <AddTransactionModal
-        open={transactionModalOpen}
-        onOpenChange={setTransactionModalOpen}
-        type={transactionType}
-        onSuccess={fetchData}
-      />
-      <AddTransferModal
-        open={transferModalOpen}
-        onOpenChange={setTransferModalOpen}
-        onSuccess={fetchData}
-      />
-      <NewCategoryModal
-        open={categoryModalOpen}
-        onOpenChange={setCategoryModalOpen}
-        onSuccess={fetchData}
-      />
-      <ManageCategoriesModal
-        open={manageCategoriesOpen}
-        onOpenChange={setManageCategoriesOpen}
-        onCategoriesChange={fetchData}
-      />
+        {/* Modals */}
+        <AddAccountModal
+          open={showAddModal}
+          onOpenChange={setShowAddModal}
+          onSuccess={handleAccountCreated}
+        />
+        <EditAccountModal
+          open={!!editingAccount}
+          onOpenChange={(open) => !open && setEditingAccount(null)}
+          account={editingAccount}
+          onAccountUpdated={handleAccountUpdated}
+          onAccountDeleted={handleAccountDeleted}
+          canDelete={accounts.length > 1}
+        />
+        <AddTransactionModal
+          open={transactionModalOpen}
+          onOpenChange={setTransactionModalOpen}
+          type={transactionType}
+          onSuccess={fetchData}
+        />
+        <AddTransferModal
+          open={transferModalOpen}
+          onOpenChange={setTransferModalOpen}
+          onSuccess={fetchData}
+        />
+        <NewCategoryModal
+          open={categoryModalOpen}
+          onOpenChange={setCategoryModalOpen}
+          onSuccess={fetchData}
+        />
+        <ManageCategoriesModal
+          open={manageCategoriesOpen}
+          onOpenChange={setManageCategoriesOpen}
+          onCategoriesChange={fetchData}
+        />
+      </div>
     </div>
-  </div>
-);
+  );
 }

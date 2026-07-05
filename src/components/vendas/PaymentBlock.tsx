@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { 
-  CreditCard, 
-  Landmark, 
-  DollarSign, 
-  Calendar as CalendarIcon, 
-  Trash2, 
+import {
+  CreditCard,
+  Landmark,
+  DollarSign,
+  Calendar as CalendarIcon,
+  Trash2,
   AlertCircle,
   QrCode,
   Banknote,
@@ -126,13 +126,13 @@ function CurrencyInput({ value, onChange }: { value: number; onChange: (val: num
   );
 }
 
-export function PaymentBlock({ 
-  payment, 
-  onUpdate, 
-  onRemove, 
-  totalRemaining, 
+export function PaymentBlock({
+  payment,
+  onUpdate,
+  onRemove,
+  totalRemaining,
   companyId,
-  isFirst 
+  isFirst
 }: PaymentBlockProps) {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [machines, setMachines] = useState<any[]>([]);
@@ -180,9 +180,9 @@ export function PaymentBlock({
   const handleMachineChange = (id: number | null) => {
     const machine = machines.find(m => m.id === id);
     const isDebitMachine = (machine as any)?.machine_type === 'debit';
-    onUpdate({ 
-      ...payment, 
-      machine_id: id, 
+    onUpdate({
+      ...payment,
+      machine_id: id,
       account_id: machine?.account_id || payment.account_id,
       installments: isDebitMachine ? 1 : 1
     });
@@ -201,8 +201,8 @@ export function PaymentBlock({
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 space-y-2">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Forma</Label>
-            <Select 
-              value={payment.payment_method} 
+            <Select
+              value={payment.payment_method}
               onValueChange={(val) => onUpdate({ ...payment, payment_method: val, installments: 1, machine_id: null })}
             >
               <SelectTrigger className="h-10">
@@ -230,9 +230,9 @@ export function PaymentBlock({
           </div>
 
           {!isFirst && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="mt-6 text-destructive hover:text-destructive hover:bg-destructive/10 h-10 w-10"
               onClick={onRemove}
             >
@@ -242,34 +242,36 @@ export function PaymentBlock({
         </div>
 
         <div className={cn("grid grid-cols-1 gap-4", isBoleto ? "md:grid-cols-3" : "md:grid-cols-1")}>
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Conta de Destino</Label>
-            <Select 
-              value={payment.account_id?.toString()} 
-              onValueChange={(val) => onUpdate({ ...payment, account_id: parseInt(val) })}
-            >
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue placeholder="Selecione a conta" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map(acc => (
-                  <SelectItem key={acc.id} value={acc.id.toString()}>
-                    <div className="flex items-center gap-2">
-                      {acc.bank_code && (
-                        <img 
-                          src={`/banks/${acc.bank_code}.png`} 
-                          alt="" 
-                          className="w-3.5 h-3.5 object-contain filter drop-shadow-sm brightness-110"
-                          onError={(e) => (e.target as any).style.display = 'none'}
-                        />
-                      )}
-                      {acc.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!isCard && (
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Conta de Destino</Label>
+              <Select
+                value={payment.account_id?.toString()}
+                onValueChange={(val) => onUpdate({ ...payment, account_id: parseInt(val) })}
+              >
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione a conta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map(acc => (
+                    <SelectItem key={acc.id} value={acc.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        {acc.bank_code && (
+                          <img
+                            src={`/banks/${acc.bank_code}.png`}
+                            alt=""
+                            className="w-3.5 h-3.5 object-contain filter drop-shadow-sm brightness-110"
+                            onError={(e) => (e.target as any).style.display = 'none'}
+                          />
+                        )}
+                        {acc.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {isBoleto && (
             <>
@@ -301,8 +303,8 @@ export function PaymentBlock({
 
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground">Parcelas</Label>
-                <Select 
-                  value={payment.installments.toString()} 
+                <Select
+                  value={payment.installments.toString()}
                   onValueChange={(val) => onUpdate({ ...payment, installments: parseInt(val) })}
                 >
                   <SelectTrigger className="h-9 text-sm">
@@ -329,8 +331,8 @@ export function PaymentBlock({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground">Maquininha</Label>
-                <Select 
-                  value={payment.machine_id?.toString() || "none"} 
+                <Select
+                  value={payment.machine_id?.toString() || "none"}
                   onValueChange={(val) => handleMachineChange(val === "none" ? null : parseInt(val))}
                 >
                   <SelectTrigger className="h-9 text-sm">
@@ -350,8 +352,8 @@ export function PaymentBlock({
               {payment.machine_id && !isDebit && (
                 <div className="space-y-2">
                   <Label className="text-xs font-medium text-muted-foreground">Parcelas</Label>
-                  <Select 
-                    value={payment.installments.toString()} 
+                  <Select
+                    value={payment.installments.toString()}
                     onValueChange={(val) => onUpdate({ ...payment, installments: parseInt(val) })}
                   >
                     <SelectTrigger className="h-9 text-sm">

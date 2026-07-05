@@ -157,59 +157,59 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       if (sale.client_id) setSelectedClientId(sale.client_id.toString());
       if (sale.vehicle_id) setSelectedVehicleId(sale.vehicle_id.toString());
       if (sale.discount) {
-         setDiscountValue(sale.discount.toString());
-         if (sale.subtotal) {
-            setDiscountPercent(((sale.discount / sale.subtotal) * 100).toFixed(1));
-         }
+        setDiscountValue(sale.discount.toString());
+        if (sale.subtotal) {
+          setDiscountPercent(((sale.discount / sale.subtotal) * 100).toFixed(1));
+        }
       }
       if (sale.payment_method) setPaymentMethod(sale.payment_method);
       setIsOpen(sale.is_open || false);
       if (sale.observations) {
-         setNotes(sale.observations);
-         setShowNotes(true);
+        setNotes(sale.observations);
+        setShowNotes(true);
       }
       setSelectedMachineId(null);
       setSelectedInstallments(1);
       fetchData();
-      
+
       const fetchItems = async () => {
-         const queryColumns = 'id, name, region_code' as '*';
-         const [{ data: items }, { data: regions }, { data: commissions }] = await Promise.all([
-           supabase.from('service_items_detailed').select('*').eq('sale_id', sale.id),
-           supabase.from('vehicle_regions').select(queryColumns).eq('company_id', (sale as any).company_id || companyId || 0),
-           supabase.from('sale_commissions').select('*').eq('sale_id', sale.id)
-         ]);
+        const queryColumns = 'id, name, region_code' as '*';
+        const [{ data: items }, { data: regions }, { data: commissions }] = await Promise.all([
+          supabase.from('service_items_detailed').select('*').eq('sale_id', sale.id),
+          supabase.from('vehicle_regions').select(queryColumns).eq('company_id', (sale as any).company_id || companyId || 0),
+          supabase.from('sale_commissions').select('*').eq('sale_id', sale.id)
+        ]);
 
-         if (items) {
-              setDetailedItems(items.map((item) => {
-                const foundRegion = regions?.find(r => r.id === item.region_id);
-                return {
-                  id: Math.random().toString(36).substr(2, 9),
-                  category: item.category as ProductCategory,
-                  regionId: item.region_id,
-                  regionName: foundRegion?.name || '', 
-                  productTypeId: item.product_type_id,
-                  productTypeName: '', 
-                  metersUsed: item.meters_used,
-                  totalPrice: item.total_price,
-                  serviceName: (item as any).service_name || '',
-                  regionCode: (item as any).region_code || foundRegion?.region_code || null,
-                  displayName: (item as any).display_name || '',
-                  isCustomized: (item as any).is_customized || false,
-                  customizationGroup: (item as any).customization_group || null,
-                };
-              }));
-         }
+        if (items) {
+          setDetailedItems(items.map((item) => {
+            const foundRegion = regions?.find(r => r.id === item.region_id);
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              category: item.category as ProductCategory,
+              regionId: item.region_id,
+              regionName: foundRegion?.name || '',
+              productTypeId: item.product_type_id,
+              productTypeName: '',
+              metersUsed: item.meters_used,
+              totalPrice: item.total_price,
+              serviceName: (item as any).service_name || '',
+              regionCode: (item as any).region_code || foundRegion?.region_code || null,
+              displayName: (item as any).display_name || '',
+              isCustomized: (item as any).is_customized || false,
+              customizationGroup: (item as any).customization_group || null,
+            };
+          }));
+        }
 
-         if (commissions) {
-           const seller = commissions.find(c => c.person_type === 'VENDEDOR');
-           if (seller) setSelectedSellerId(seller.commission_person_id);
-           
-           const installers = commissions
-             .filter(c => c.person_type !== 'VENDEDOR')
-             .map(c => c.commission_person_id);
-           setSelectedInstallerIds(installers);
-         }
+        if (commissions) {
+          const seller = commissions.find(c => c.person_type === 'VENDEDOR');
+          if (seller) setSelectedSellerId(seller.commission_person_id);
+
+          const installers = commissions
+            .filter(c => c.person_type !== 'VENDEDOR')
+            .map(c => c.commission_person_id);
+          setSelectedInstallerIds(installers);
+        }
       };
       if (sale.id) fetchItems();
     }
@@ -264,7 +264,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       setVehicleRegions(regionsList);
       setAccounts(accountsRes.data || []);
       setMachines(machinesRes.data || []);
-      
+
       const rulesList = (rulesRes.data || []).map((rule: any) => {
         const region = regionsList.find(r => r.id === rule.region_id);
         return { ...rule, region_code: region?.region_code || null };
@@ -305,7 +305,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
             .from("boleto_installments")
             .select("id")
             .eq("boleto_id", boletoData.id);
-            
+
           if (insts && insts.length > 0) {
             setSelectedInstallments(insts.length);
           }
@@ -336,7 +336,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
         .eq('company_id', companyId);
 
       setVehicles(data || []);
-      
+
       if (data && data.length === 1) {
         setSelectedVehicleId(data[0].id.toString());
       } else {
@@ -356,9 +356,9 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       const updatedItems = detailedItems.map(item => {
         if (item.regionId) {
           const rule = consumptionRules.find(
-            r => r.region_id === item.regionId && 
-                r.vehicle_size === selectedVehicle.size && 
-                r.category === item.category
+            r => r.region_id === item.regionId &&
+              r.vehicle_size === selectedVehicle.size &&
+              r.category === item.category
           );
           const meters = rule?.meters_consumed || item.metersUsed;
           return {
@@ -555,14 +555,14 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
         .eq('id', sale.id);
 
       if (saleError) throw saleError;
-      
+
       // Find old stock movements to reverse
       const { data: oldMovements } = await supabase
         .from('stock_movements')
         .select('*')
         .like('reason', `Consumo automático - Venda #${sale.id}%`)
         .eq('movement_type', 'Saida');
-        
+
       if (oldMovements && oldMovements.length > 0) {
         const estornoData = oldMovements.map(m => ({
           material_id: m.material_id,
@@ -574,7 +574,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
         }));
         await supabase.from('stock_movements').insert(estornoData);
       }
-      
+
       await supabase.from('service_items_detailed').delete().eq('sale_id', sale.id);
       // RF-08: Reverter transações antigas via serviço financeiro (trigger reverte saldo)
       await reverseAllSaleTransactions(sale.id, "delete");
@@ -670,15 +670,39 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
         }
 
 
+        let initialStatus = 'received';
+        let transactionDueDate = format(new Date(), 'yyyy-MM-dd');
+        let isCard = false;
+        let machine: any = null;
+        let targetAccountId = selectedAccountId;
+
+        if ((paymentMethod === "Crédito" || paymentMethod === "Débito") && selectedMachineId) {
+          isCard = true;
+          machine = machines.find((m: any) => m.id === selectedMachineId);
+          initialStatus = 'pending';
+          if (machine?.account_id) {
+            targetAccountId = machine.account_id;
+          }
+          if (machine?.is_anticipated) {
+            const dt = new Date();
+            if (machine.anticipation_type === 'hours') {
+              dt.setHours(dt.getHours() + (machine.anticipation_value || 0));
+            } else {
+              dt.setDate(dt.getDate() + (machine.anticipation_value || 0));
+            }
+            transactionDueDate = format(dt, 'yyyy-MM-dd');
+          }
+        }
+
         // Insert sale payment record
         await supabase.from("sale_payments").insert({
           sale_id: sale.id,
           method: paymentMethod,
           amount: total,
-          account_id: selectedAccountId,
+          account_id: targetAccountId,
           machine_id: selectedMachineId,
           installments: selectedInstallments,
-          status: 'received',
+          status: initialStatus,
           company_id: companyId
         });
 
@@ -702,11 +726,11 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
           if (boletoData) {
             const installmentsToInsert = [];
             const installmentAmount = total / selectedInstallments;
-            
+
             for (let i = 1; i <= selectedInstallments; i++) {
               const dueDate = new Date(saleDate);
               dueDate.setMonth(dueDate.getMonth() + i);
-              
+
               installmentsToInsert.push({
                 boleto_id: boletoData.id,
                 installment_number: i,
@@ -715,7 +739,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
                 status: 'pending'
               });
             }
-            
+
             await supabase.from("boleto_installments").insert(installmentsToInsert);
 
             // Fetch created installments to generate pending transactions
@@ -742,22 +766,68 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
             }
           }
         } else {
-          // Normal payment method
-          const txCreated = await createTransactionFromSale(
-            sale.id,
-            total,
-            selectedClient?.name || 'Cliente',
-            paymentMethod,
-            format(saleDate, 'yyyy-MM-dd'),
-            companyId,
-            selectedAccountId || undefined,
-            selectedMachineId || undefined,
-            selectedInstallments || undefined,
-            finalNetAmount,
-            true // isPaid
-          );
-          if (!txCreated) {
-            toast.error("Venda atualizada, mas não foi possível gerar o lançamento financeiro automático. Verifique suas contas.");
+          // Normal payment method or Card Flow
+          if (isCard && machine && !machine.is_anticipated && (selectedInstallments || 1) > 1 && paymentMethod === "Crédito") {
+            const instCount = selectedInstallments || 1;
+            const portion = finalNetAmount / instCount;
+            const portionAmount = total / instCount;
+            for (let i = 1; i <= instCount; i++) {
+              const portionDate = new Date();
+              portionDate.setDate(portionDate.getDate() + (30 * i));
+              await createTransactionFromSale(
+                sale.id,
+                portionAmount,
+                selectedClient?.name || 'Cliente',
+                paymentMethod,
+                format(saleDate, 'yyyy-MM-dd'),
+                companyId,
+                targetAccountId || undefined,
+                selectedMachineId || undefined,
+                selectedInstallments || undefined,
+                portion,
+                false,
+                undefined,
+                format(portionDate, 'yyyy-MM-dd')
+              );
+            }
+          } else if (isCard && machine && !machine.is_anticipated && (paymentMethod === "Débito" || (selectedInstallments || 1) === 1)) {
+            const portionDate = new Date();
+            portionDate.setDate(portionDate.getDate() + 30);
+            await createTransactionFromSale(
+              sale.id,
+              total,
+              selectedClient?.name || 'Cliente',
+              paymentMethod,
+              format(saleDate, 'yyyy-MM-dd'),
+              companyId,
+              targetAccountId || undefined,
+              selectedMachineId || undefined,
+              selectedInstallments || undefined,
+              finalNetAmount,
+              false,
+              undefined,
+              format(portionDate, 'yyyy-MM-dd')
+            );
+          } else {
+            const willBePaidNow = !isCard ? true : false;
+            const txCreated = await createTransactionFromSale(
+              sale.id,
+              total,
+              selectedClient?.name || 'Cliente',
+              paymentMethod,
+              format(saleDate, 'yyyy-MM-dd'),
+              companyId,
+              targetAccountId || undefined,
+              selectedMachineId || undefined,
+              selectedInstallments || undefined,
+              finalNetAmount,
+              willBePaidNow, // isPaid
+              undefined,
+              isCard ? transactionDueDate : format(saleDate, 'yyyy-MM-dd')
+            );
+            if (!txCreated) {
+              toast.error("Venda atualizada, mas não foi possível gerar o lançamento financeiro automático. Verifique suas contas.");
+            }
           }
         }
       }
@@ -1038,24 +1108,26 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
 
               {!isOpen && (
                 <div className="space-y-4 p-4 border border-border/50 rounded-lg bg-muted/20">
-                  <div className="space-y-2">
-                    <Label>Conta de Destino *</Label>
-                    <Select 
-                      value={selectedAccountId ? selectedAccountId.toString() : ""} 
-                      onValueChange={(val) => setSelectedAccountId(parseInt(val))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a conta" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {accounts.map(acc => (
-                          <SelectItem key={acc.id} value={acc.id.toString()}>
-                            {acc.name} (Saldo: R$ {acc.current_balance?.toFixed(2)})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {paymentMethod !== "Crédito" && paymentMethod !== "Débito" && (
+                    <div className="space-y-2">
+                      <Label>Conta de Destino *</Label>
+                      <Select
+                        value={selectedAccountId ? selectedAccountId.toString() : ""}
+                        onValueChange={(val) => setSelectedAccountId(parseInt(val))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a conta" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {accounts.map(acc => (
+                            <SelectItem key={acc.id} value={acc.id.toString()}>
+                              {acc.name} (Saldo: R$ {acc.current_balance?.toFixed(2)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {paymentMethod === "Boleto" && (
                     <div className="space-y-2">
@@ -1074,8 +1146,8 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Maquininha de Cartão *</Label>
-                        <Select 
-                          value={selectedMachineId ? selectedMachineId.toString() : ""} 
+                        <Select
+                          value={selectedMachineId ? selectedMachineId.toString() : ""}
                           onValueChange={(val) => setSelectedMachineId(parseInt(val))}
                         >
                           <SelectTrigger>

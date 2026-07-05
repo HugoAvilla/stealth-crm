@@ -224,17 +224,29 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
           // Calculate net amount if card
           let finalNetAmount = p.amount;
           if ((p.payment_method === "Crédito" || p.payment_method === "Débito") && p.machine_id) {
-            const { data: rateData } = await supabase
-              .from("card_machine_rates")
-              .select("rate")
-              .eq("machine_id", p.machine_id)
-              .eq("installments", p.installments)
-              .single();
-            
-            if (rateData) {
-              finalNetAmount = p.amount * (1 - rateData.rate / 100);
+            if (p.payment_method === "Débito") {
+              const { data: machineData } = await supabase
+                .from("card_machines")
+                .select("debit_rate")
+                .eq("id", p.machine_id)
+                .single();
+              if (machineData?.debit_rate) {
+                finalNetAmount = p.amount * (1 - machineData.debit_rate / 100);
+              }
+            } else {
+              const { data: rateData } = await supabase
+                .from("card_machine_rates")
+                .select("rate")
+                .eq("machine_id", p.machine_id)
+                .eq("installments", p.installments)
+                .single();
+              
+              if (rateData) {
+                finalNetAmount = p.amount * (1 - rateData.rate / 100);
+              }
             }
           }
+
 
           // Insert sale payment
           await supabase.from("sale_payments").insert({

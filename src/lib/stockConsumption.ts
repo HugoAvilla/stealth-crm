@@ -286,11 +286,11 @@ export async function consumeStockForDetailedSale(
           .select("brand, name")
           .eq("id", productTypeId)
           .single();
-        
-        const productName = productType 
-          ? `${productType.brand} ${productType.name}` 
+
+        const productName = productType
+          ? `${productType.brand} ${productType.name}`
           : `Produto #${productTypeId}`;
-        
+
         result.warnings.push(
           `Material não vinculado ao produto "${productName}". Configure no Estoque > Materiais.`
         );
@@ -413,7 +413,8 @@ export async function createTransactionFromSale(
   installments?: number,
   netAmount?: number,
   isPaid: boolean = true,
-  salePaymentId?: number | null
+  salePaymentId?: number | null,
+  dueDate?: string
 ): Promise<boolean> {
   try {
     const result = await createSaleTransaction({
@@ -428,6 +429,7 @@ export async function createTransactionFromSale(
       salePaymentId: salePaymentId ?? undefined,
       installments,
       netAmount,
+      dueDate,
     });
 
     return result !== null;

@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { CardMachineModal } from "./CardMachineModal";
+import { CardMachineSalesTable } from "./CardMachineSalesTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
@@ -281,6 +282,9 @@ export function CardMachinesList() {
           ))}
         </div>
       )}
+
+      {/* Tabela de vendas realizadas nas maquininhas */}
+      <CardMachineSalesTable />
 
       <CardMachineModal 
         open={modalOpen}
