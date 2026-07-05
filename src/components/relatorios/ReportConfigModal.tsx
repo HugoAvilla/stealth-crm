@@ -1088,7 +1088,7 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
     try {
       let reportData: ReportPDFData;
 
-      if (useMockData) {
+      if (useMockData && user?.email?.toLowerCase() === 'hg.lavila@gmail.com') {
         const mock = getMockReportData(report.id, startDate, endDate);
         if (!mock) {
           toast.error("Mock data não implementado para este relatório.");
@@ -1251,16 +1251,18 @@ export function ReportConfigModal({ open, onOpenChange, report }: ReportConfigMo
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 py-2">
-            <Switch
-              id="mock-data"
-              checked={useMockData}
-              onCheckedChange={setUseMockData}
-            />
-            <Label htmlFor="mock-data" className="text-sm cursor-pointer whitespace-nowrap">
-              Usar dados fictícios para teste
-            </Label>
-          </div>
+          {user?.email?.toLowerCase() === 'hg.lavila@gmail.com' && (
+            <div className="flex items-center space-x-2 py-2">
+              <Switch
+                id="mock-data"
+                checked={useMockData}
+                onCheckedChange={setUseMockData}
+              />
+              <Label htmlFor="mock-data" className="text-sm cursor-pointer whitespace-nowrap">
+                Usar dados fictícios para teste
+              </Label>
+            </div>
+          )}
 
           <div className="flex gap-2 pt-4">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>

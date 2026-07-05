@@ -33,7 +33,7 @@ export default function Upgrade() {
         const { data: priceData, error: priceError } = await supabase
           .from('plan_prices')
           .select('plan_code, billing_period, price');
-        
+
         if (priceError) throw priceError;
         if (priceData) setPrices(priceData as PlanPrice[]);
 
@@ -45,7 +45,7 @@ export default function Upgrade() {
             .eq('company_id', user.companyId)
             .eq('status', 'payment_submitted')
             .maybeSingle();
-            
+
           if (pendingError) throw pendingError;
           if (pendingData) {
             setPendingUpgrade(true);
@@ -57,7 +57,7 @@ export default function Upgrade() {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [user, navigate, isOwnerOrAdmin]);
 
@@ -67,7 +67,7 @@ export default function Upgrade() {
   };
 
   const handleSelectUpgrade = (planCode: string) => {
-    if (planCode === 'premium' || pendingUpgrade) return;
+    if (pendingUpgrade) return;
     navigate(`/assinatura?mode=upgrade&target=${planCode}`);
   };
 
@@ -122,7 +122,7 @@ export default function Upgrade() {
             <div>
               <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Upgrade em processamento</h3>
               <p className="mt-1 text-sm text-blue-700 dark:text-blue-400">
-                Identificamos que você já possui uma solicitação de upgrade em andamento. 
+                Identificamos que você já possui uma solicitação de upgrade em andamento.
                 Aguarde a compensação do pagamento e a liberação pelo administrador do sistema.
               </p>
             </div>
@@ -142,10 +142,11 @@ export default function Upgrade() {
               Tenha acesso completo ao Controle de Estoque, suporte prioritário e até 3 usuários base.
             </p>
             <p className="mt-8">
+              <span className="text-sm line-through text-gray-400 mr-2">De R$ 159,90</span>
               <span className="text-4xl font-extrabold text-gray-900 dark:text-white">{formatPrice(ultraMonthly)}</span>
               <span className="text-base font-medium text-gray-500 dark:text-gray-400">/mês</span>
             </p>
-            
+
             <ul className="mt-8 space-y-4 flex-1">
               <li className="flex items-center gap-3">
                 <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
@@ -167,8 +168,8 @@ export default function Upgrade() {
               </li>
             </ul>
 
-            <Button 
-              className="mt-8 w-full" 
+            <Button
+              className="mt-8 w-full"
               onClick={() => handleSelectUpgrade('ultra')}
               disabled={pendingUpgrade}
             >
@@ -177,40 +178,41 @@ export default function Upgrade() {
           </div>
 
           {/* Premium Plan */}
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-8 opacity-75 flex flex-col">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8 flex flex-col">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Premium</h3>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
               Para operações avançadas, grandes equipes e necessidades de integração via API.
             </p>
             <p className="mt-8">
-              <span className="text-4xl font-extrabold text-gray-400">Em breve</span>
+              <span className="text-4xl font-extrabold text-gray-900 dark:text-white">R$ 359,90</span>
+              <span className="text-base font-medium text-gray-500 dark:text-gray-400">/mês + Tokens</span>
             </p>
-            
-            <ul className="mt-8 space-y-4 flex-1 opacity-60">
+
+            <ul className="mt-8 space-y-4 flex-1">
               <li className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                <span className="text-gray-500 dark:text-gray-400">Até 10 Usuários Inclusos</span>
+                <span className="text-gray-600 dark:text-gray-300">Até 10 Usuários Inclusos</span>
               </li>
               <li className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                <span className="text-gray-500 dark:text-gray-400">Acesso ao Painel Master</span>
+                <span className="text-gray-600 dark:text-gray-300">Acesso ao Painel Master</span>
               </li>
               <li className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                <span className="text-gray-500 dark:text-gray-400">API de Integração</span>
+                <span className="text-gray-600 dark:text-gray-300">API de Integração</span>
               </li>
             </ul>
 
-            <Button 
-              className="mt-8 w-full opacity-50 cursor-not-allowed" 
-              variant="secondary"
-              disabled
+            <Button
+              className="mt-8 w-full"
+              onClick={() => handleSelectUpgrade('premium')}
+              disabled={pendingUpgrade}
             >
-              Em breve
+              Fazer Upgrade para Premium
             </Button>
           </div>
         </div>
-        
+
         <div className="mt-8 text-center">
           <Button variant="ghost" onClick={() => navigate(-1)}>
             Voltar

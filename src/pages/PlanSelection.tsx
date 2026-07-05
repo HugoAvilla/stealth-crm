@@ -71,7 +71,6 @@ export default function PlanSelection() {
   };
 
   const handleSelectPlan = (planCode: string) => {
-    if (planCode === 'premium') return;
     const period = isAnnual ? 'annual' : 'monthly';
     if (isUpgrade) {
       navigate(`/assinatura?mode=upgrade&target=${planCode}&period=${period}`);
@@ -173,12 +172,9 @@ export default function PlanSelection() {
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Básico</h3>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Para profissionais independentes e pequenos negócios.</p>
             <p className="mt-8">
-              <span className="text-4xl font-extrabold text-gray-900 dark:text-white">{formatPrice(isAnnual ? basicMonthlyEq : basicPrice)}</span>
+              <span className="text-4xl font-extrabold text-gray-900 dark:text-white">{formatPrice(basicPrice)}</span>
               <span className="text-base font-medium text-gray-500 dark:text-gray-400">/mês</span>
             </p>
-            {isAnnual && (
-              <p className="mt-1 text-sm text-gray-500">Cobrado {formatPrice(basicPrice)} anualmente</p>
-            )}
             <Button
               className="mt-8 w-full"
               variant="outline"
@@ -199,6 +195,9 @@ export default function PlanSelection() {
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Ultra</h3>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Para equipes em crescimento que precisam de mais poder.</p>
             <p className="mt-8">
+              {!isAnnual && (
+                <span className="text-sm line-through text-gray-400 mr-2">De R$ 159,90</span>
+              )}
               <span className="text-4xl font-extrabold text-gray-900 dark:text-white">{formatPrice(isAnnual ? ultraMonthlyEq : ultraPrice)}</span>
               <span className="text-base font-medium text-gray-500 dark:text-gray-400">/mês</span>
             </p>
@@ -226,18 +225,19 @@ export default function PlanSelection() {
           </div>
 
           {/* Premium Plan */}
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-8 opacity-75 flex flex-col">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8 flex flex-col">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Premium</h3>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Para operações avançadas e grandes volumes.</p>
             <p className="mt-8">
-              <span className="text-4xl font-extrabold text-gray-400">Em breve</span>
+              <span className="text-4xl font-extrabold text-gray-900 dark:text-white">R$ 359,90</span>
+              <span className="text-base font-medium text-gray-500 dark:text-gray-400">/mês + Tokens</span>
             </p>
             <Button
-              className="mt-8 w-full opacity-50 cursor-not-allowed"
-              variant="secondary"
-              disabled
+              className="mt-8 w-full"
+              disabled={isUpgrade && currentPlan === 'premium'}
+              onClick={() => handleSelectPlan('premium')}
             >
-              Em breve
+              {isUpgrade && currentPlan === 'premium' ? "Seu Plano Atual" : isUpgrade ? "Fazer Upgrade para Premium" : "Assinar Premium"}
             </Button>
           </div>
         </div>
