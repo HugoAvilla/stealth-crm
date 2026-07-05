@@ -112,7 +112,7 @@ export default function PlanSelection() {
     return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div></div>;
   }
 
-  const basicPrice = getPrice('basic', isAnnual ? 'annual' : 'monthly');
+  const basicPrice = getPrice('basic', 'monthly');
   const ultraPrice = getPrice('ultra', isAnnual ? 'annual' : 'monthly');
 
   // Calculate monthly equivalent for annual
@@ -168,21 +168,31 @@ export default function PlanSelection() {
 
         <div className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
           {/* Basic Plan */}
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 shadow-sm flex flex-col">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Básico</h3>
-            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Para profissionais independentes e pequenos negócios.</p>
-            <p className="mt-8">
-              <span className="text-4xl font-extrabold text-gray-900 dark:text-white">{formatPrice(basicPrice)}</span>
-              <span className="text-base font-medium text-gray-500 dark:text-gray-400">/mês</span>
-            </p>
-            <Button
-              className="mt-8 w-full"
-              variant="outline"
-              disabled={isUpgrade && currentPlan === 'basic'}
-              onClick={() => handleSelectPlan('basic')}
-            >
-              {isUpgrade && currentPlan === 'basic' ? "Seu Plano Atual" : "Começar com Básico"}
-            </Button>
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 shadow-sm flex flex-col relative overflow-hidden">
+            {isAnnual && (
+              <div className="absolute inset-0 z-10 bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center select-none">
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                  <p className="font-bold text-gray-900 dark:text-white text-lg">Apenas Mensal</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">O plano básico está disponível somente na assinatura mensal.</p>
+                </div>
+              </div>
+            )}
+            <div className={`flex flex-col flex-1 transition-all duration-300 ${isAnnual ? 'opacity-30 blur-[2px] pointer-events-none' : ''}`}>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Básico</h3>
+              <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Para profissionais independentes e pequenos negócios.</p>
+              <div className="mt-8 flex-1">
+                <span className="text-4xl font-extrabold text-gray-900 dark:text-white">{formatPrice(basicPrice)}</span>
+                <span className="text-base font-medium text-gray-500 dark:text-gray-400">/mês</span>
+              </div>
+              <Button
+                className="mt-8 w-full"
+                variant="outline"
+                disabled={isUpgrade && currentPlan === 'basic'}
+                onClick={() => handleSelectPlan('basic')}
+              >
+                {isUpgrade && currentPlan === 'basic' ? "Seu Plano Atual" : "Começar com Básico"}
+              </Button>
+            </div>
           </div>
 
           {/* Ultra Plan */}
