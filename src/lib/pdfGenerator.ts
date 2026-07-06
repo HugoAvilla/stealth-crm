@@ -806,13 +806,63 @@ export async function generateSpacePDFA4(space: SpacePDFData, companyId?: number
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 15;
 
+  // Header logo
+  if (space.company_logo_url) {
+    try {
+      const response = await fetch(space.company_logo_url);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const imgFormat = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'JPEG' : 'PNG';
+
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+
+      const maxW = 35; // largura máxima
+      const ratio = img.naturalWidth / img.naturalHeight;
+      let drawW = maxW;
+      let drawH = maxW / ratio;
+      if (drawH > 18) { // altura máxima
+        drawH = 18;
+        drawW = 18 * ratio;
+      }
+
+      const logoX = (pageWidth - drawW) / 2;
+      doc.addImage(dataUrl, imgFormat, logoX, y, drawW, drawH);
+      y += drawH + 4;
+    } catch (e) {
+      console.warn('Não foi possível carregar a logo para o PDF A4:', e);
+    }
+  }
+
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('Comprovante de Vaga', pageWidth / 2, y, { align: 'center' });
+  doc.text(space.company_name || 'Comprovante', pageWidth / 2, y, { align: 'center' });
   y += 8;
+
+  if (space.company_cnpj) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`CNPJ: ${space.company_cnpj}`, pageWidth / 2, y, { align: 'center' });
+    y += 6;
+  }
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
+  doc.text(`Data: ${space.entry_date ? formatDate(space.entry_date) : '-'}`, pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
   doc.text(`Vaga Nº ${space.id}`, pageWidth / 2, y, { align: 'center' });
   y += 10;
 
@@ -820,27 +870,53 @@ export async function generateSpacePDFA4(space: SpacePDFData, companyId?: number
   doc.line(15, y, pageWidth - 15, y);
   y += 8;
 
+  // Informações do cliente
+  const clientLines = [];
+  clientLines.push(`Nome: ${space.client_name}`);
+  if (space.client_email) clientLines.push(`Email: ${space.client_email}`);
+  clientLines.push(`WhatsApp: ${space.client_phone}`);
+
+  const clientBoxHeight = 8 + (clientLines.length * 5) + 3;
   doc.setFillColor(245, 245, 245);
-  doc.rect(15, y - 2, pageWidth - 30, 18, 'F');
+  doc.rect(15, y - 2, pageWidth - 30, clientBoxHeight, 'F');
+
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('Cliente', 20, y + 4);
-  y += 10;
+  doc.text('Informações do Cliente', 20, y + 4);
+  y += 9;
+
   doc.setFont('helvetica', 'normal');
-  doc.text(`Nome: ${space.client_name}`, 20, y);
+  doc.setFontSize(10);
+  clientLines.forEach(line => {
+    doc.text(line, 20, y);
+    y += 5;
+  });
+  y += 10;
+
+  // Veículo
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Dados do Veículo', 15, y);
+  y += 6;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Marca: ${space.vehicle_brand}`, 15, y);
   y += 5;
-  doc.text(`Telefone: ${space.client_phone}`, 20, y);
+  doc.text(`Modelo: ${space.vehicle_model}`, 15, y);
+  y += 5;
+  doc.text(`Placa: ${space.vehicle_plate}`, 15, y);
+  y += 5;
+  if (space.vehicle_year) {
+    doc.text(`Ano: ${space.vehicle_year}`, 15, y);
+    y += 5;
+  }
   y += 8;
 
+  // Serviços
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Veículo: ${space.vehicle_brand} ${space.vehicle_model} (${space.vehicle_plate})`, 20, y);
-  y += 10;
-
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Entrada: ${space.entry_date ? formatDate(space.entry_date) : '-'} ${space.entry_time ? `às ${space.entry_time}h` : ''}`, 20, y);
-  y += 5;
-  doc.text(`Saída: ${space.exit_date ? formatDate(space.exit_date) : '-'} ${space.exit_time ? `às ${space.exit_time}h` : ''}`, 20, y);
-  y += 10;
+  doc.text('Serviços Realizados', 15, y);
+  y += 4;
 
   if (space.services.length > 0) {
     const tableData = space.services.map(s => [s.name, `R$ ${s.price.toFixed(2)}`]);
@@ -852,20 +928,52 @@ export async function generateSpacePDFA4(space: SpacePDFData, companyId?: number
       headStyles: { fillColor: [50, 50, 50] },
       margin: { left: 15, right: 15 },
     });
-    y = (doc as any).lastAutoTable.finalY + 10;
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    y = finalY;
+  } else {
+    y += 6;
   }
 
+  // Valores finais
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
   doc.text(`Subtotal: R$ ${space.subtotal.toFixed(2)}`, pageWidth - 60, y);
   y += 6;
+
   if (space.discount > 0) {
     doc.setTextColor(0, 128, 0);
     doc.text(`Desconto: - R$ ${space.discount.toFixed(2)}`, pageWidth - 60, y);
     doc.setTextColor(0, 0, 0);
     y += 6;
   }
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.text(`TOTAL: R$ ${space.total.toFixed(2)}`, pageWidth - 60, y);
+  y += 20;
+
+  if (space.observations) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Observações', 15, y);
+    y += 6;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const obsLines = doc.splitTextToSize(space.observations, pageWidth - 30);
+    obsLines.forEach((line: string) => {
+      doc.text(line, 15, y);
+      y += 5;
+    });
+    y += 10;
+  }
+
+  doc.setLineWidth(0.5);
+  doc.line(15, y, pageWidth - 15, y);
+  y += 8;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Obrigado pela preferência!', pageWidth / 2, y, { align: 'center' });
 
   const filename = `vaga-${space.id}-A4.pdf`;
   await saveAndUploadPDF(doc, filename, 'Comprovante Vaga A4', 'espaco', `Vaga #${space.id} - ${space.client_name}`, companyId);
