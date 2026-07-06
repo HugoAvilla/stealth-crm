@@ -73,14 +73,14 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
   const [vehicles, setVehicles] = useState<PaidExitedVehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   // Custom dialog states
   const [revertSpace, setRevertSpace] = useState<PaidExitedVehicle | null>(null);
   const [isReverting, setIsReverting] = useState(false);
   const [deleteSpaceId, setDeleteSpaceId] = useState<number | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   const companyId = user?.companyId;
 
   useEffect(() => {
@@ -95,7 +95,7 @@ const PaidExitedVehicles = ({ refreshTrigger }: PaidExitedVehiclesProps) => {
         .from("spaces")
         .select(`
           id, name, client_id, vehicle_id, sale_id, entry_date, entry_time, exit_date, exit_time, payment_status, observations, company_id,
-          client:clients(id, name, phone),
+          client:clients(id, name, phone, email),
           vehicle:vehicles(id, brand, model, plate, year),
           sale:sales(id, total)
         `)

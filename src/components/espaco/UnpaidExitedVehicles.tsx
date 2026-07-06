@@ -105,7 +105,7 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
   const [markingPaidId, setMarkingPaidId] = useState<number | null>(null);
   const [confirmSpace, setConfirmSpace] = useState<UnpaidExitedVehicle | null>(null);
   const [payments, setPayments] = useState<SalePayment[]>([]);
-  
+
   const companyId = user?.companyId;
 
   useEffect(() => {
@@ -120,7 +120,7 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
         .from("spaces")
         .select(`
           *,
-          client:clients(id, name, phone, birth_date),
+          client:clients(id, name, phone, birth_date, email),
           vehicle:vehicles(id, brand, model, plate, year),
           sale:sales(
             id, total, subtotal, discount, is_open,
@@ -206,7 +206,7 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
         .select('id, total, sale_date, client_id, company_id')
         .eq('id', saleId)
         .single();
-      
+
       let clientName = 'Cliente';
       if (saleData?.client_id) {
         const { data: clientData } = await supabase
@@ -240,7 +240,7 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
                 .eq("machine_id", p.machine_id)
                 .eq("installments", p.installments)
                 .single();
-              
+
               if (rateData) {
                 finalNetAmount = p.amount * (1 - rateData.rate / 100);
               }
@@ -305,11 +305,11 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
             if (boletoData) {
               const installmentsToInsert = [];
               const installmentAmount = p.amount / (p.installments || 1);
-              
+
               for (let i = 1; i <= (p.installments || 1); i++) {
                 const dueDate = new Date(saleDateStr + 'T12:00:00');
                 dueDate.setMonth(dueDate.getMonth() + i);
-                
+
                 installmentsToInsert.push({
                   boleto_id: boletoData.id,
                   installment_number: i,
@@ -318,7 +318,7 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
                   status: 'pending'
                 });
               }
-              
+
               await supabase.from("boleto_installments").insert(installmentsToInsert);
 
               const { data: createdInstallments } = await supabase
@@ -572,9 +572,9 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">Pagamentos</Label>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="h-8 gap-1 text-xs"
                     onClick={() => {
                       const totalToReceive = confirmSpace?.sale?.total || 0;

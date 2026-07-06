@@ -196,12 +196,12 @@ export async function generateSalePDFA4(sale: SalePDFData, options: Record<strin
     const boxHeight = 8 + (clientLines.length * 5) + 3; // header (8) + lines * 5 + padding
     doc.setFillColor(245, 245, 245);
     doc.rect(15, y - 2, pageWidth - 30, boxHeight, 'F');
-    
+
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.text('Informações do Cliente', 20, y + 4);
     y += 9;
-    
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     clientLines.forEach(line => {
@@ -529,7 +529,7 @@ export async function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?:
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80, 80, 80);
-  const certText = warranty.sale_date 
+  const certText = warranty.sale_date
     ? `Nº ${warranty.certificate_number} - ${formatDate(warranty.sale_date)}`
     : `Nº ${warranty.certificate_number}`;
   doc.text(certText, pageWidth - marginRight, y + 7, { align: 'right' });
@@ -633,7 +633,7 @@ export async function generateWarrantyPDF(warranty: WarrantyPDFData, companyId?:
     drawField('Subtotal', `R$ ${(warranty.subtotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, col2, y);
     y += 12;
     drawField('Desconto', `R$ ${(warranty.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, col1, y);
-    
+
     // Draw Total da venda in col2 with bold green text
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
@@ -782,17 +782,23 @@ export interface SpacePDFData {
   id: number;
   client_name: string;
   client_phone: string;
+  client_email?: string;
   vehicle_brand: string;
   vehicle_model: string;
   vehicle_plate: string;
+  vehicle_year?: number;
   entry_date: string;
   entry_time: string;
   exit_date: string;
   exit_time: string;
-  services: Array<{ name: string; price: number }>;
+  services: Array<{ name: string; price: number; description?: string }>;
   subtotal: number;
   discount: number;
   total: number;
+  observations?: string;
+  company_name?: string;
+  company_cnpj?: string;
+  company_logo_url?: string;
 }
 
 export async function generateSpacePDFA4(space: SpacePDFData, companyId?: number): Promise<void> {
@@ -868,85 +874,177 @@ export async function generateSpacePDFA4(space: SpacePDFData, companyId?: number
 export async function generateSpacePDFReceipt(space: SpacePDFData, size: '80mm' | '58mm', companyId?: number): Promise<void> {
   const width = size === '80mm' ? 80 : 58;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, 200] });
-  let y = 8;
+  let y = 6;
   const margin = 3;
+
+  // Render company logo if available
+  if (space.company_logo_url) {
+    try {
+      const response = await fetch(space.company_logo_url);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const imgFormat = blob.type.includes('jpeg') || blob.type.includes('jpg') ? 'JPEG' : 'PNG';
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+
+      const maxW = size === '80mm' ? 20 : 15;
+      const ratio = img.naturalWidth / img.naturalHeight;
+      let drawW = maxW;
+      let drawH = maxW / ratio;
+      if (drawH > maxW) {
+        drawH = maxW;
+        drawW = maxW * ratio;
+      }
+
+      const logoX = (width - drawW) / 2;
+      doc.addImage(dataUrl, imgFormat, logoX, y, drawW, drawH);
+      y += drawH + 3;
+    } catch (e) {
+      console.warn('Não foi possível carregar a logo para a notinha:', e);
+    }
+  }
 
   doc.setFontSize(size === '80mm' ? 12 : 10);
   doc.setFont('helvetica', 'bold');
-  doc.text('Comprovante de Vaga', width / 2, y, { align: 'center' });
+  doc.text(space.company_name || 'Comprovante', width / 2, y, { align: 'center' });
   y += 6;
+
+  if (space.company_cnpj) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(`CNPJ: ${space.company_cnpj}`, width / 2, y, { align: 'center' });
+    y += 4;
+  }
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Vaga Nº ${space.id}`, width / 2, y, { align: 'center' });
+  doc.text(`Data: ${space.entry_date ? formatDate(space.entry_date) : '-'}`, width / 2, y, { align: 'center' });
   y += 5;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text(`Vaga Nº ${space.id}`, width / 2, y, { align: 'center' });
+  y += 6;
 
   doc.setLineDashPattern([1, 1], 0);
   doc.line(margin, y, width - margin, y);
   y += 4;
 
-  doc.setFontSize(7);
-  doc.text('CLIENTE', margin, y);
-  y += 3;
+  // Informações do cliente
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Informações do cliente', width / 2, y, { align: 'center' });
+  y += 4;
+
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text(space.client_name, margin, y);
-  y += 3;
+  doc.text(`Nome: ${space.client_name}`, margin, y);
+  y += 3.5;
+  if (space.client_email) {
+    doc.text(`Email: ${space.client_email}`, margin, y);
+    y += 3.5;
+  }
   doc.text(`Tel: ${space.client_phone}`, margin, y);
   y += 4;
 
-  doc.setFontSize(7);
-  doc.text('VEÍCULO', margin, y);
-  y += 3;
-  doc.setFontSize(8);
-  doc.text(`${space.vehicle_brand} ${space.vehicle_model}`, margin, y);
-  y += 3;
-  doc.text(`Placa: ${space.vehicle_plate}`, margin, y);
-  y += 4;
-
-  doc.setFontSize(7);
-  doc.text('PERÍODO', margin, y);
-  y += 3;
-  doc.setFontSize(8);
-  doc.text(`Entrada: ${space.entry_date ? formatDate(space.entry_date) : '-'} ${space.entry_time || ''}`, margin, y);
-  y += 3;
-  doc.text(`Saída: ${space.exit_date ? formatDate(space.exit_date) : '-'} ${space.exit_time || ''}`, margin, y);
-  y += 4;
-
-  if (space.services.length > 0) {
-    doc.setFontSize(7);
-    doc.text('SERVIÇOS', margin, y);
-    y += 3;
-    doc.setFontSize(8);
-    space.services.forEach((s, i) => {
-      doc.text(`${i + 1}. ${s.name}`, margin, y);
-      doc.text(`R$ ${s.price.toFixed(2)}`, width - margin, y, { align: 'right' });
-      y += 4;
-    });
-  }
-
-  doc.line(margin, y, width - margin, y);
-  y += 4;
-
-  doc.setFontSize(7);
-  doc.text('VALORES', margin, y);
-  y += 3;
-  doc.setFontSize(8);
-  doc.text('Subtotal:', margin, y);
-  doc.text(`R$ ${space.subtotal.toFixed(2)}`, width - margin, y, { align: 'right' });
-  y += 3;
-  if (space.discount > 0) {
-    doc.text('Desconto:', margin, y);
-    doc.text(`- R$ ${space.discount.toFixed(2)}`, width - margin, y, { align: 'right' });
-    y += 3;
-  }
+  // Dados do veículo
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
-  doc.text('TOTAL:', margin, y);
+  doc.text('Dados do veículo', width / 2, y, { align: 'center' });
+  y += 4;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text(`Marca: ${space.vehicle_brand}`, margin, y);
+  y += 3.5;
+  doc.text(`Modelo: ${space.vehicle_model}`, margin, y);
+  y += 3.5;
+  doc.text(`Placa: ${space.vehicle_plate}`, margin, y);
+  y += 3.5;
+  if (space.vehicle_year) {
+    doc.text(`Ano: ${space.vehicle_year}`, margin, y);
+    y += 3.5;
+  }
+  y += 1;
+
+  // Serviços realizados
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Serviços realizados', width / 2, y, { align: 'center' });
+  y += 4;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  space.services.forEach((s, i) => {
+    const numStr = (i + 1).toString().padStart(2, '0');
+    // Multiline handling for service name
+    const lines = doc.splitTextToSize(`${numStr} - ${s.name}`, width - margin * 2 - 15);
+    lines.forEach((line: string, idx: number) => {
+      doc.text(line, margin, y);
+      if (idx === 0) {
+        doc.text(`R$ ${s.price.toFixed(2)}`, width - margin, y, { align: 'right' });
+      }
+      y += 3.5;
+    });
+  });
+
+  y += 1;
+  doc.text(`Total de serviços: R$ ${space.subtotal.toFixed(2)}`, width - margin, y, { align: 'right' });
+  y += 5;
+
+  // Valores finais
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Valores finais', width / 2, y, { align: 'center' });
+  y += 4;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text('Subtotal', margin, y);
+  doc.text(`R$ ${space.subtotal.toFixed(2)}`, width - margin, y, { align: 'right' });
+  y += 3.5;
+
+  if (space.discount > 0) {
+    doc.text('Desconto', margin, y);
+    doc.text(`- R$ ${space.discount.toFixed(2)}`, width - margin, y, { align: 'right' });
+    y += 3.5;
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total', margin, y);
   doc.text(`R$ ${space.total.toFixed(2)}`, width - margin, y, { align: 'right' });
   y += 6;
 
+  if (space.observations) {
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Observações', width / 2, y, { align: 'center' });
+    y += 4;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const obsLines = doc.splitTextToSize(space.observations, width - margin * 2);
+    obsLines.forEach((line: string) => {
+      doc.text(line, margin, y);
+      y += 3.5;
+    });
+    y += 2;
+  }
+
+  doc.setLineDashPattern([1, 1], 0);
   doc.line(margin, y, width - margin, y);
   y += 4;
-  doc.setFontSize(7);
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.text('Obrigado pela preferência!', width / 2, y, { align: 'center' });
 

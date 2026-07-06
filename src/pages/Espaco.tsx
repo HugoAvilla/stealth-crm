@@ -53,6 +53,7 @@ interface SpaceData {
     name: string;
     phone: string;
     birth_date: string | null;
+    email?: string | null;
   } | null;
   vehicle?: {
     id: number;
@@ -116,7 +117,7 @@ export default function Espaco() {
         .from('spaces')
         .select(`
           *,
-          client:clients(id, name, phone, birth_date),
+          client:clients(id, name, phone, birth_date, email),
           vehicle:vehicles(id, brand, model, plate, year),
           sale:sales(
             id, total, subtotal, discount,
@@ -146,7 +147,7 @@ export default function Espaco() {
         .from('spaces')
         .select(`
           *,
-          client:clients(id, name, phone, birth_date),
+          client:clients(id, name, phone, birth_date, email),
           vehicle:vehicles(id, brand, model, plate, year),
           sale:sales(
             id, total, subtotal, discount,
@@ -325,7 +326,7 @@ export default function Espaco() {
         <TabsContent value="vagas" className="space-y-6 mt-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card 
+            <Card
               className="bg-card/50 border-border/50 cursor-pointer hover:bg-card/80 transition-colors"
               onClick={() => setShowConfigureSlotsModal(true)}
             >
@@ -350,10 +351,10 @@ export default function Espaco() {
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "p-2 rounded-lg",
-                    availableCount < 0 
-                      ? "bg-red-500/10" 
-                      : availableCount === 0 
-                        ? "bg-amber-500/10" 
+                    availableCount < 0
+                      ? "bg-red-500/10"
+                      : availableCount === 0
+                        ? "bg-amber-500/10"
                         : "bg-green-500/10"
                   )}>
                     {availableCount <= 0 ? (
@@ -369,10 +370,10 @@ export default function Espaco() {
                     <p className="text-sm text-muted-foreground">Disponíveis</p>
                     <p className={cn(
                       "text-2xl font-bold",
-                      availableCount < 0 
-                        ? "text-red-500" 
-                        : availableCount === 0 
-                          ? "text-amber-500" 
+                      availableCount < 0
+                        ? "text-red-500"
+                        : availableCount === 0
+                          ? "text-amber-500"
                           : "text-green-500"
                     )}>{availableCount}</p>
                   </div>
@@ -396,12 +397,12 @@ export default function Espaco() {
           </div>
 
           {occupiedCount >= totalSlots && (
-            <Alert 
-              variant={occupiedCount > totalSlots ? "destructive" : "default"} 
+            <Alert
+              variant={occupiedCount > totalSlots ? "destructive" : "default"}
               className={cn(
                 "transition-all duration-300 shadow-md border-2",
-                occupiedCount > totalSlots 
-                  ? "bg-red-500/10 border-red-500/30 text-red-200" 
+                occupiedCount > totalSlots
+                  ? "bg-red-500/10 border-red-500/30 text-red-200"
                   : "bg-amber-500/10 border-amber-500/30 text-amber-200"
               )}
             >
@@ -511,7 +512,7 @@ export default function Espaco() {
                       className={cn(
                         "h-[72px] sm:h-auto sm:aspect-square sm:min-h-[100px] p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all flex flex-col items-center cursor-pointer hover:bg-accent/80 hover:scale-[1.02] overflow-hidden relative shadow-sm",
                         calendarEvent &&
-                          BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
+                        BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
                         isToday(day) && "border-primary ring-1 ring-primary/20",
                         !isSameMonth(day, currentDate) && "opacity-40"
                       )}
@@ -523,7 +524,7 @@ export default function Espaco() {
                             Hoje
                           </span>
                         ) : <div className="shrink-0" />}
-                        
+
                         {calendarEvent ? (
                           <span
                             className={cn(
@@ -658,8 +659,8 @@ export default function Espaco() {
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredDeleted.map((space) => (
-                  <Card 
-                    key={space.id} 
+                  <Card
+                    key={space.id}
                     className="flex flex-col justify-between border border-destructive/10 hover:border-destructive/20 hover:shadow-md transition-all bg-card/50 cursor-pointer"
                     onClick={() => handleSlotClick(space)}
                   >

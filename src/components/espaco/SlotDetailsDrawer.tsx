@@ -61,6 +61,7 @@ interface SpaceDetails {
     id: number;
     name: string;
     phone: string;
+    email?: string | null;
     birth_date: string | null;
   } | null;
   vehicle?: {
@@ -603,14 +604,34 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
     }
   };
 
-  const handlePDF = (format: 'a4' | '80mm' | '58mm') => {
+  const handlePDF = async (format: 'a4' | '80mm' | '58mm') => {
+    let companyName = undefined;
+    let companyCnpj = undefined;
+    let companyLogoUrl = undefined;
+
+    if (companyId) {
+      const { data } = await supabase
+        .from('companies')
+        .select('company_name, cnpj, logo_url')
+        .eq('id', companyId)
+        .maybeSingle();
+
+      if (data) {
+        companyName = data.company_name;
+        companyCnpj = data.cnpj;
+        companyLogoUrl = data.logo_url;
+      }
+    }
+
     const pdfData = {
       id: space.id,
       client_name: space.client?.name || 'N/A',
       client_phone: space.client?.phone || 'N/A',
+      client_email: space.client?.email || undefined,
       vehicle_brand: space.vehicle?.brand || '',
       vehicle_model: space.vehicle?.model || '',
       vehicle_plate: space.vehicle?.plate || 'N/A',
+      vehicle_year: space.vehicle?.year || undefined,
       entry_date: space.entry_date || '',
       entry_time: space.entry_time || '',
       exit_date: space.exit_date || '',
@@ -619,12 +640,16 @@ export function SlotDetailsDrawer({ open, onOpenChange, space, onUpdate }: SlotD
       subtotal,
       discount,
       total,
+      observations: space.observations || undefined,
+      company_name: companyName,
+      company_cnpj: companyCnpj,
+      company_logo_url: companyLogoUrl,
     };
 
     if (format === 'a4') {
-      generateSpacePDFA4(pdfData, companyId);
+      await generateSpacePDFA4(pdfData, companyId);
     } else {
-      generateSpacePDFReceipt(pdfData, format, companyId);
+      await generateSpacePDFReceipt(pdfData, format, companyId);
     }
     toast.success("PDF gerado com sucesso!");
   };
