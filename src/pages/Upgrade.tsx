@@ -178,7 +178,7 @@ export default function Upgrade() {
           </div>
 
           {/* Premium Plan */}
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8 flex flex-col">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8 flex flex-col opacity-60">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Premium</h3>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
               Para operações avançadas, grandes equipes e necessidades de integração via API.
@@ -204,11 +204,11 @@ export default function Upgrade() {
             </ul>
 
             <Button
-              className="mt-8 w-full"
-              onClick={() => handleSelectUpgrade('premium')}
-              disabled={pendingUpgrade}
+              className="mt-8 w-full cursor-not-allowed"
+              variant="secondary"
+              disabled
             >
-              Fazer Upgrade para Premium
+              Em breve
             </Button>
           </div>
         </div>

@@ -235,7 +235,7 @@ export default function PlanSelection() {
           </div>
 
           {/* Premium Plan */}
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8 flex flex-col">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8 flex flex-col opacity-60">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Premium</h3>
             <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">Para operações avançadas e grandes volumes.</p>
             <p className="mt-8">
@@ -243,11 +243,11 @@ export default function PlanSelection() {
               <span className="text-base font-medium text-gray-500 dark:text-gray-400">/mês + Tokens</span>
             </p>
             <Button
-              className="mt-8 w-full"
-              disabled={isUpgrade && currentPlan === 'premium'}
-              onClick={() => handleSelectPlan('premium')}
+              className="mt-8 w-full cursor-not-allowed"
+              variant="secondary"
+              disabled
             >
-              {isUpgrade && currentPlan === 'premium' ? "Seu Plano Atual" : isUpgrade ? "Fazer Upgrade para Premium" : "Assinar Premium"}
+              Em breve
             </Button>
           </div>
         </div>
