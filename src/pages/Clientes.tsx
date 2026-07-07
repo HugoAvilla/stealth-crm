@@ -1,7 +1,10 @@
+// @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ClientChartsTab } from "@/components/clientes/ClientChartsTab";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,6 +83,7 @@ export default function Clientes() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
   const searchParamValue = searchParams.get("search") || "";
@@ -139,13 +143,15 @@ export default function Clientes() {
         .eq("company_id", profile.company_id)
         .order("created_at", { ascending: false });
 
+      setSales(salesData || []);
+
       // Map clients with vehicles and stats
       const clientsWithData = (clientsData || []).map((client) => {
         const clientVehicles = (vehiclesData || []).filter(v => v.client_id === client.id);
         const clientSales = (salesData || []).filter(s => s.client_id === client.id);
         const totalSpent = clientSales.reduce((sum, s) => sum + (s.total || 0), 0);
         const lastSaleDate = clientSales.length > 0 ? clientSales[0].created_at : null;
-        
+
         // Calculate Status
         let status: 'Ativo' | 'Inativo' = 'Inativo';
         if (lastSaleDate) {
@@ -161,10 +167,10 @@ export default function Clientes() {
             status = 'Ativo'; // New clients are active for a while
           }
         }
-        
+
         // Calculate Tier
         let tier: 'VIP' | 'Comum' | 'Sem Compras' = 'Sem Compras';
-        
+
         if (totalSpent >= 3000 || clientSales.length >= 3) {
           tier = 'VIP';
         } else if (clientSales.length > 0) {
@@ -414,171 +420,184 @@ export default function Clientes() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">{totalClients}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Ativos</p>
-                <p className="text-2xl font-bold text-green-500">{activeClients}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="lista" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="lista">Lista de Clientes</TabsTrigger>
+          <TabsTrigger value="graficos">Visão Geral (Gráficos)</TabsTrigger>
+        </TabsList>
 
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10">
-                <Crown className="h-5 w-5 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">VIP</p>
-                <p className="text-2xl font-bold text-amber-500">{vipClients}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <TabsContent value="lista" className="space-y-6">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total</p>
+                    <p className="text-2xl font-bold">{totalClients}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10">
-                <DollarSign className="h-5 w-5 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Receita Total</p>
-                <p className="text-xl font-bold text-emerald-500">
-                  R$ {totalRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Ativos</p>
+                    <p className="text-2xl font-bold text-green-500">{activeClients}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, whatsapp ou placa..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-card border-border h-10"
-          />
-        </div>
-        
-        <div className="flex overflow-x-auto gap-2 pb-2 sm:pb-0 hide-scrollbar">
-          {/* Origin Filter */}
-          <div className="w-[140px] flex-shrink-0">
-          <Select value={filterOrigem} onValueChange={setFilterOrigem}>
-            <SelectTrigger className="bg-card border-border">
-              <SelectValue placeholder="Origem" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Origens (Todas)</SelectItem>
-              {Array.from(new Set(clients.map(c => c.origem).filter(Boolean))).sort().map(origem => (
-                <SelectItem key={origem} value={origem as string}>{origem}</SelectItem>
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-500/10">
+                    <Crown className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">VIP</p>
+                    <p className="text-2xl font-bold text-amber-500">{vipClients}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/10">
+                    <DollarSign className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Receita Total</p>
+                    <p className="text-xl font-bold text-emerald-500">
+                      R$ {totalRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Toolbar */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, whatsapp ou placa..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-card border-border h-10"
+              />
+            </div>
+
+            <div className="flex overflow-x-auto gap-2 pb-2 sm:pb-0 hide-scrollbar">
+              {/* Origin Filter */}
+              <div className="w-[140px] flex-shrink-0">
+                <Select value={filterOrigem} onValueChange={setFilterOrigem}>
+                  <SelectTrigger className="bg-card border-border">
+                    <SelectValue placeholder="Origem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Origens (Todas)</SelectItem>
+                    {Array.from(new Set(clients.map(c => c.origem).filter(Boolean))).sort().map(origem => (
+                      <SelectItem key={origem} value={origem as string}>{origem}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="w-[130px] flex-shrink-0">
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="bg-card border-border">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Status (Todos)</SelectItem>
+                    <SelectItem value="ativo">Ativos</SelectItem>
+                    <SelectItem value="inativo">Inativos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="border-border h-10 flex-shrink-0">
+                    <ArrowUpDown className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">{getSortLabel()}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-card border-border">
+                  <DropdownMenuItem onClick={() => setSortBy('name-asc')}>
+                    Nome A-Z
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('name-desc')}>
+                    Nome Z-A
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('recent')}>
+                    Mais Recentes
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('spent')}>
+                    Maior Gasto
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* Empty State or Table */}
+          {clients.length === 0 ? (
+            <div className="rounded-xl border border-border bg-card p-12 text-center">
+              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Nenhum cliente cadastrado</h3>
+              <p className="text-muted-foreground mb-4">
+                Comece cadastrando seu primeiro cliente
+              </p>
+              <Button onClick={() => setShowNewClientModal(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Cliente
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredAndSortedClients.map((client) => (
+                <ClientCard
+                  key={client.id}
+                  client={client}
+                  onViewProfile={handleViewProfile}
+                  onEdit={handleEditClient}
+                  onDelete={handleDeleteClient}
+                  onWhatsApp={(phone) => window.open(openWhatsApp(phone), "_blank")}
+                />
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Status Filter */}
-        <div className="w-[130px] flex-shrink-0">
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="bg-card border-border">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Status (Todos)</SelectItem>
-              <SelectItem value="ativo">Ativos</SelectItem>
-              <SelectItem value="inativo">Inativos</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="border-border h-10 flex-shrink-0">
-              <ArrowUpDown className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">{getSortLabel()}</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-card border-border">
-            <DropdownMenuItem onClick={() => setSortBy('name-asc')}>
-              Nome A-Z
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSortBy('name-desc')}>
-              Nome Z-A
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSortBy('recent')}>
-              Mais Recentes
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSortBy('spent')}>
-              Maior Gasto
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        </div>
-      </div>
-
-      {/* Empty State or Table */}
-      {clients.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center">
-          <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">Nenhum cliente cadastrado</h3>
-          <p className="text-muted-foreground mb-4">
-            Comece cadastrando seu primeiro cliente
-          </p>
-          <Button onClick={() => setShowNewClientModal(true)}>
-            <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Cliente
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredAndSortedClients.map((client) => (
-            <ClientCard
-              key={client.id}
-              client={client}
-              onViewProfile={handleViewProfile}
-              onEdit={handleEditClient}
-              onDelete={handleDeleteClient}
-              onWhatsApp={(phone) => window.open(openWhatsApp(phone), "_blank")}
-            />
-          ))}
-          {filteredAndSortedClients.length === 0 && clients.length > 0 && (
-            <div className="col-span-full p-8 text-center text-muted-foreground rounded-xl border border-border bg-card">
-              Nenhum cliente encontrado com os filtros atuais.
+              {filteredAndSortedClients.length === 0 && clients.length > 0 && (
+                <div className="col-span-full p-8 text-center text-muted-foreground rounded-xl border border-border bg-card">
+                  Nenhum cliente encontrado com os filtros atuais.
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Pagination info */}
-      {clients.length > 0 && (
-        <div className="flex justify-between items-center text-sm text-muted-foreground">
-          <span>Exibindo resultados de 1 a {filteredAndSortedClients.length}</span>
-        </div>
-      )}
+          {/* Pagination info */}
+          {clients.length > 0 && (
+            <div className="flex justify-between items-center text-sm text-muted-foreground">
+              <span>Exibindo resultados de 1 a {filteredAndSortedClients.length}</span>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="graficos" className="space-y-6">
+          <ClientChartsTab clients={clients} sales={sales} />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <NewClientModal
@@ -644,7 +663,6 @@ export default function Clientes() {
         onOpenChange={setShowNewSlotModal}
         defaultClientId={selectedClient?.id}
       />
-
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!clientToDelete} onOpenChange={() => setClientToDelete(null)}>

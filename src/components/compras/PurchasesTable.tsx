@@ -1,15 +1,16 @@
 import React, { useState } from "react";
-import { format } from "date-fns";
-import { 
-  Search, Filter, Trash2, Eye, MoreVertical, X
+import { format, parse, subMonths, addMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import {
+  Search, Filter, Trash2, Eye, MoreVertical, X, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -29,8 +30,7 @@ export interface PurchaseFilters {
   search: string;
   status: string;
   paymentMethod: string;
-  startDate?: string;
-  endDate?: string;
+  filterMonth: string;
 }
 
 interface PurchasesTableProps {
@@ -42,8 +42,8 @@ interface PurchasesTableProps {
   onFiltersChange: (filters: PurchaseFilters) => void;
 }
 
-export function PurchasesTable({ 
-  purchases, loading, onViewDetails, onDelete, filters, onFiltersChange 
+export function PurchasesTable({
+  purchases, loading, onViewDetails, onDelete, filters, onFiltersChange
 }: PurchasesTableProps) {
 
   const getStatusBadge = (status: string) => {
@@ -59,16 +59,9 @@ export function PurchasesTable({
     const searchMatch = p.supplier_name_snapshot.toLowerCase().includes(filters.search.toLowerCase());
     const statusMatch = filters.status === "all" || p.status === filters.status;
     const paymentMatch = filters.paymentMethod === "all" || p.payment_method === filters.paymentMethod;
-    
-    // Filtro por data
-    let dateMatch = true;
-    if (filters.startDate && filters.endDate) {
-      dateMatch = p.purchase_date >= filters.startDate && p.purchase_date <= filters.endDate;
-    } else if (filters.startDate) {
-      dateMatch = p.purchase_date >= filters.startDate;
-    } else if (filters.endDate) {
-      dateMatch = p.purchase_date <= filters.endDate;
-    }
+
+    // Filtro por data (mes)
+    const dateMatch = filters.filterMonth ? p.purchase_date.startsWith(filters.filterMonth) : true;
 
     return searchMatch && statusMatch && paymentMatch && dateMatch;
   });
@@ -87,64 +80,41 @@ export function PurchasesTable({
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por fornecedor..." 
+          <Input
+            placeholder="Buscar por fornecedor..."
             className="pl-9"
             value={filters.search}
             onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
           />
         </div>
-        <div className="flex gap-2">
-          {filters.startDate || filters.endDate ? (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => onFiltersChange({ ...filters, startDate: "", endDate: "" })}
-              className="text-muted-foreground hover:text-foreground"
+        <div className="flex gap-2 w-full md:w-auto items-center">
+          <div className="flex items-center bg-background border border-input rounded-md h-9">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-full w-9 rounded-none rounded-l-md hover:bg-muted"
+              onClick={() => {
+                const current = parse(filters.filterMonth, "yyyy-MM", new Date());
+                onFiltersChange({ ...filters, filterMonth: format(subMonths(current, 1), "yyyy-MM") });
+              }}
             >
-              <X className="h-4 w-4 mr-1" /> Limpar
+              <ChevronLeft className="h-4 w-4" />
             </Button>
-          ) : null}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Filter className="h-4 w-4" /> Filtros
-                {(filters.startDate || filters.endDate) && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">Ativo</Badge>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-96 border-border/50">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium leading-none">Filtro por Data</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Selecione o período das compras.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Data Inicial</Label>
-                    <Input 
-                      type="date" 
-                      className="[color-scheme:dark] w-full"
-                      value={filters.startDate || ""} 
-                      onChange={(e) => onFiltersChange({ ...filters, startDate: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Data Final</Label>
-                    <Input 
-                      type="date" 
-                      className="[color-scheme:dark] w-full"
-                      value={filters.endDate || ""} 
-                      onChange={(e) => onFiltersChange({ ...filters, endDate: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+            <div className="flex-1 text-center text-sm font-medium px-4 capitalize min-w-[140px] text-foreground">
+              {format(parse(filters.filterMonth, "yyyy-MM", new Date()), 'MMMM yyyy', { locale: ptBR })}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-full w-9 rounded-none rounded-r-md hover:bg-muted"
+              onClick={() => {
+                const current = parse(filters.filterMonth, "yyyy-MM", new Date());
+                onFiltersChange({ ...filters, filterMonth: format(addMonths(current, 1), "yyyy-MM") });
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -173,9 +143,9 @@ export function PurchasesTable({
               </TableRow>
             ) : (
               filteredPurchases.map(purchase => (
-                <TableRow 
-                  key={purchase.id} 
-                  className="cursor-pointer hover:bg-muted/30" 
+                <TableRow
+                  key={purchase.id}
+                  className="cursor-pointer hover:bg-muted/30"
                   onClick={() => onViewDetails(purchase.id)}
                 >
                   <TableCell className="font-medium">#{purchase.id}</TableCell>

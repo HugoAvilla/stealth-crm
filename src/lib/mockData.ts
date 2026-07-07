@@ -33,7 +33,7 @@ export interface Client {
   phone: string;
   email: string;
   cpf: string | null;
-  origem: 'Instagram' | 'Google' | 'Indicação' | 'Passante';
+  origem: 'Instagram' | 'Google' | 'Recomendação' | 'Passante';
   created_at: string;
   vehicles: Vehicle[];
   total_spent: number;

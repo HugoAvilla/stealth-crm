@@ -51,6 +51,9 @@ interface PaymentBlockProps {
   totalRemaining: number;
   companyId: number;
   isFirst?: boolean;
+  hidePaymentMethod?: boolean;
+  hideInstallments?: boolean;
+  removePaymentMethod?: boolean;
 }
 
 const PAYMENT_METHODS = [
@@ -132,7 +135,10 @@ export function PaymentBlock({
   onRemove,
   totalRemaining,
   companyId,
-  isFirst
+  isFirst,
+  hidePaymentMethod,
+  hideInstallments,
+  removePaymentMethod
 }: PaymentBlockProps) {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [machines, setMachines] = useState<any[]>([]);
@@ -199,27 +205,47 @@ export function PaymentBlock({
     <Card className="border-border/40 shadow-sm overflow-hidden bg-card/30">
       <CardContent className="p-4 space-y-4">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex-1 space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Forma</Label>
-            <Select
-              value={payment.payment_method}
-              onValueChange={(val) => onUpdate({ ...payment, payment_method: val, installments: 1, machine_id: null })}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_METHODS.map(m => (
-                  <SelectItem key={m.id} value={m.id}>
-                    <div className="flex items-center gap-2">
-                      <m.icon className="h-4 w-4 text-primary/70" />
-                      {m.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!removePaymentMethod && (
+            !hidePaymentMethod ? (
+              <div className="flex-1 space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Forma</Label>
+                <Select
+                  value={payment.payment_method}
+                  onValueChange={(val) => onUpdate({ ...payment, payment_method: val, installments: 1, machine_id: null })}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map(m => (
+                      <SelectItem key={m.id} value={m.id}>
+                        <div className="flex items-center gap-2">
+                          <m.icon className="h-4 w-4 text-primary/70" />
+                          {m.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="flex-1 space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Forma (Definida na Compra)</Label>
+                <div className="h-10 border rounded-md bg-muted/60 flex items-center px-3 text-muted-foreground">
+                  {(() => {
+                    const methodObj = PAYMENT_METHODS.find(m => m.id === payment.payment_method);
+                    const Icon = methodObj?.icon || Banknote;
+                    return (
+                      <div className="flex items-center gap-2 opacity-80">
+                        <Icon className="h-4 w-4" />
+                        <span className="text-sm font-medium">{methodObj?.label || payment.payment_method}</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )
+          )}
 
           <div className="w-36 sm:w-44 space-y-2">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Valor</Label>
@@ -241,7 +267,7 @@ export function PaymentBlock({
           )}
         </div>
 
-        <div className={cn("grid grid-cols-1 gap-4", isBoleto ? "md:grid-cols-3" : "md:grid-cols-1")}>
+        <div className={cn("grid grid-cols-1 gap-4", isBoleto ? (hideInstallments ? "md:grid-cols-2" : "md:grid-cols-3") : "md:grid-cols-1")}>
           {!isCard && (
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">Conta de Destino</Label>
@@ -301,27 +327,29 @@ export function PaymentBlock({
                 </Popover>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Parcelas</Label>
-                <Select
-                  value={payment.installments.toString()}
-                  onValueChange={(val) => onUpdate({ ...payment, installments: parseInt(val) })}
-                >
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => {
-                      const installmentVal = payment.amount / n;
-                      return (
-                        <SelectItem key={n} value={n.toString()}>
-                          {n}x de R$ {installmentVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!hideInstallments && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-muted-foreground">Parcelas</Label>
+                  <Select
+                    value={payment.installments.toString()}
+                    onValueChange={(val) => onUpdate({ ...payment, installments: parseInt(val) })}
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => {
+                        const installmentVal = payment.amount / n;
+                        return (
+                          <SelectItem key={n} value={n.toString()}>
+                            {n}x de R$ {installmentVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -349,7 +377,7 @@ export function PaymentBlock({
                 </Select>
               </div>
 
-              {payment.machine_id && !isDebit && (
+              {payment.machine_id && !isDebit && !hideInstallments && (
                 <div className="space-y-2">
                   <Label className="text-xs font-medium text-muted-foreground">Parcelas</Label>
                   <Select

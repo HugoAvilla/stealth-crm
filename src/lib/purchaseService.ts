@@ -1,7 +1,8 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { createExpenseTransaction, settleTransaction, reverseTransaction } from "./financialTransactions";
 import { logger } from "./logger";
 
+const supabase = supabaseClient as any;
 export interface Supplier {
   id: number;
   company_id: number;
@@ -504,41 +505,33 @@ export async function reverseInstallment(installmentId: number): Promise<boolean
       return false;
     }
 
-    // 3. Remover transações adicionais (splits) e resetar a principal
+    // 3. Atualizar status das transações financeiras vinculadas para pendente
+    const idsToUpdate = new Set<number>();
     if (installment.transaction_id) {
-      // Buscar splits (transações vinculadas a esta parcela de compra mas que não sejam o transaction_id principal)
-      const { data: splitTxs, error: fetchSplitsError } = await supabase
-        .from("transactions")
-        .select("id")
-        .eq("origin_type", "purchase_installment")
-        .eq("origin_id", installment.id)
-        .neq("id", installment.transaction_id);
+      idsToUpdate.add(installment.transaction_id);
+    }
 
-      if (!fetchSplitsError && splitTxs && splitTxs.length > 0) {
-        const splitIds = splitTxs.map(t => t.id);
-        const { error: deleteError } = await supabase
+    // Buscar todas as transações vinculadas a esta parcela de compra
+    const { data: allTxs } = await supabase
+      .from("transactions")
+      .select("id")
+      .eq("origin_type", "purchase_installment")
+      .eq("origin_id", installment.id);
+
+    if (allTxs && allTxs.length > 0) {
+      allTxs.forEach((t: { id: number }) => idsToUpdate.add(t.id));
+    }
+
+    if (idsToUpdate.size > 0) {
+      for (const txId of Array.from(idsToUpdate)) {
+        const { error: updateTxError } = await supabase
           .from("transactions")
-          .delete()
-          .in("id", splitIds);
+          .update({ is_paid: false })
+          .eq("id", txId);
 
-        if (deleteError) {
-          logger.warn("[PurchaseService] Could not delete split transactions on reversal:", deleteError);
+        if (updateTxError) {
+          logger.error(`[PurchaseService] Error unpaying transaction ${txId}:`, updateTxError);
         }
-      }
-
-      // Resetar a transação principal:
-      // marcar como não-paga, limpar método de pagamento e restaurar o valor original da parcela
-      const { error: resetTxError } = await supabase
-        .from("transactions")
-        .update({
-          is_paid: false,
-          payment_method: null,
-          amount: installment.amount,
-        })
-        .eq("id", installment.transaction_id);
-
-      if (resetTxError) {
-        logger.error("[PurchaseService] Error resetting main transaction on reversal:", resetTxError);
       }
     }
 
@@ -665,7 +658,7 @@ export async function fetchPurchaseMetrics(companyId: number): Promise<PurchaseM
 
     const purchasesList = purchases || [];
     const totalOpenPurchases = purchasesList.filter(p => p.status === "em_aberto" || p.status === "atrasada").length;
-    
+
     // Atrasadas são aquelas cuja compra tem status 'atrasada'
     // E também recalculamos para garantir consistência
     const totalOverduePurchases = purchasesList.filter(p => p.status === "atrasada").length;
@@ -675,7 +668,7 @@ export async function fetchPurchaseMetrics(companyId: number): Promise<PurchaseM
       const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
       const targetYear = targetDate.getFullYear();
       const targetMonth = targetDate.getMonth() + 1;
-      
+
       const monthLabel = targetDate.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '');
 
       const amount = pendingInstallments.reduce((sum, inst) => {

@@ -2,7 +2,7 @@ export const ORIGIN_OPTIONS = [
   "Meta Ads",
   "Google Ads",
   "TikTok Ads",
-  "Indicação",
+  "Recomendação",
   "Passante",
 ] as const;
 

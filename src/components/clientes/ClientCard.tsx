@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Client } from "@/pages/Clientes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";

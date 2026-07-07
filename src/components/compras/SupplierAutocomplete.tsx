@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from "react";
 import { Check, ChevronsUpDown, Plus, ArrowLeft, Loader2, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";

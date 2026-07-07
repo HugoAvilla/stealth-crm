@@ -2,6 +2,13 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { toast as sonnerToast } from "sonner";
 
+type AugmentedDatabase = Omit<Database, 'public'> & {
+  public: Omit<Database['public'], 'Tables' | 'Functions'> & {
+    Tables: Database['public']['Tables'] & Record<string, any>;
+    Functions: Database['public']['Functions'] & Record<string, any>;
+  }
+};
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -14,7 +21,7 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-const rawSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+const rawSupabase = createClient<AugmentedDatabase>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,

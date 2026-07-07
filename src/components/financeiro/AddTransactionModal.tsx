@@ -29,9 +29,10 @@ interface AddTransactionModalProps {
   onOpenChange: (open: boolean) => void;
   type: 'entrada' | 'saida';
   onSuccess?: () => void;
+  defaultAccountId?: string;
 }
 
-export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: AddTransactionModalProps) {
+export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defaultAccountId }: AddTransactionModalProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [name, setName] = useState("");
@@ -54,9 +55,14 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
 
   useEffect(() => {
     if (open) {
+      if (defaultAccountId) {
+        setAccountId(defaultAccountId);
+      }
       fetchData();
+    } else {
+      resetForm();
     }
-  }, [open, user?.id, type]);
+  }, [open, user?.id, type, defaultAccountId]);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -224,9 +230,9 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
                     </SelectContent>
                   </Select>
                 </div>
-                <Button 
-                  type="button" 
-                  size="icon" 
+                <Button
+                  type="button"
+                  size="icon"
                   variant="outline"
                   onClick={() => setNewCategoryModalOpen(true)}
                   title="Nova categoria"
@@ -322,7 +328,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label className="text-orange-700 dark:text-orange-300">Origem Principal</Label>
                     <Select value={cacOrigin} onValueChange={(v) => setCacOrigin(v as any)}>
@@ -384,7 +390,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess }: Add
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button 
+            <Button
               className={`flex-1 ${type === 'entrada' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
               onClick={handleSubmit}
               disabled={loading}

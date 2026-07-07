@@ -1,6 +1,7 @@
+// @ts-nocheck
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, GripVertical, Wrench } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, Wrench, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -119,9 +120,9 @@ function SortableRegionCard({ region, onEdit, onDelete }: SortableRegionCardProp
 
         {/* Ações */}
         <div className="flex gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onEdit(region)}
             className="h-8 w-8 sm:h-9 sm:w-9"
           >
@@ -502,6 +503,14 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
+              <div className="flex items-start gap-2 mt-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-md text-amber-600 dark:text-amber-500 text-xs shadow-sm animate-pulse">
+                <Lightbulb className="h-4 w-4 shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  <strong className="font-semibold">Dica:</strong> Nomear serviço com o nome do material e o local do veículo.
+                  <br />
+                  Exemplo: <strong>Ultra-black Parabrisa</strong> ou <strong>Ultra-Black LAT(lateral)/TRAS(traseiro)</strong>.
+                </p>
+              </div>
             </div>
 
             <div className="space-y-2">

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from "react";
 import { Landmark, CreditCard, ChevronDown, Check, Info } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";

@@ -51,7 +51,7 @@ export default function Estoque() {
   const { user, isLoading: authLoading } = useAuth();
   const gate = usePlanGate('estoque');
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("materials");
+  const [activeTab, setActiveTab] = useState("product-types");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("todos");
   const [statusFilter, setStatusFilter] = useState("todos");
@@ -92,7 +92,7 @@ export default function Estoque() {
 
       if (error) throw error;
 
-      setMaterials(data || []);
+      setMaterials((data as any as Material[]) || []);
     } catch (error) {
       console.error("Error fetching materials:", error);
       toast.error("Erro ao carregar materiais");
@@ -133,8 +133,8 @@ export default function Estoque() {
 
     if (search) {
       const lowerSearch = search.toLowerCase();
-      if (!m.name.toLowerCase().includes(lowerSearch) && 
-          !(m.type?.toLowerCase() || "").includes(lowerSearch)) {
+      if (!m.name.toLowerCase().includes(lowerSearch) &&
+        !(m.type?.toLowerCase() || "").includes(lowerSearch)) {
         pass = false;
       }
     }
@@ -148,10 +148,10 @@ export default function Estoque() {
         if (!m.is_open_roll) pass = false;
       } else {
         if (m.is_open_roll) {
-           pass = false;
+          pass = false;
         } else {
-           const status = getStockStatus(m).status;
-           if (status !== statusFilter) pass = false;
+          const status = getStockStatus(m).status;
+          if (status !== statusFilter) pass = false;
         }
       }
     }
@@ -257,8 +257,8 @@ export default function Estoque() {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {items.map((material) => {
         const stockStatus = getStockStatus(material);
-        const totalVal = (material.is_open_roll 
-          ? (material.open_roll_accumulated || 0) 
+        const totalVal = (material.is_open_roll
+          ? (material.open_roll_accumulated || 0)
           : (material.current_stock || 0)) * (material.average_cost || 0);
 
         return (
@@ -266,7 +266,7 @@ export default function Estoque() {
             <div className="space-y-3">
               {/* Topo: Nome e Ações Rápidas (Excluir e Detalhes) */}
               <div className="flex items-start justify-between gap-2">
-                <div 
+                <div
                   className="cursor-pointer hover:text-primary hover:underline transition-colors flex-1"
                   onClick={() => handleDetails(material)}
                 >
@@ -348,28 +348,28 @@ export default function Estoque() {
             <div className="flex gap-2 pt-2">
               {!material.is_open_roll ? (
                 <>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleEntry(material)} 
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEntry(material)}
                     className="flex-1 h-9 text-xs border-green-500/20 hover:bg-green-500/5 hover:text-green-600"
                   >
                     <ArrowDown className="mr-1 h-3.5 w-3.5 text-green-500" /> Entrada
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleExit(material)} 
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExit(material)}
                     className="flex-1 h-9 text-xs border-red-500/20 hover:bg-red-500/5 hover:text-red-600"
                   >
                     <ArrowUp className="mr-1 h-3.5 w-3.5 text-red-500" /> Saída
                   </Button>
                 </>
               ) : (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => handleCloseOpenRoll(material)} 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCloseOpenRoll(material)}
                   className="w-full h-9 text-xs border-blue-500/20 text-blue-600 hover:bg-blue-500/5"
                 >
                   <StopCircle className="mr-1 h-3.5 w-3.5 text-blue-500" /> Encerrar Bobina
@@ -453,13 +453,13 @@ export default function Estoque() {
             videoUrl: "/help/video-aula-estoque.mp4"
           },
           {
-            title: "Tipos de Produtos",
-            description: "Na aba 'Tipos de Produtos', cadastre os tipos de películas e materiais com detalhes como marca, modelo e transmissão de luz. Esses tipos são usados para identificar qual película foi aplicada em cada serviço.",
+            title: "Tipos de Materiais",
+            description: "Na aba 'Tipos de Materiais', cadastre os tipos de películas e materiais com detalhes como marca, modelo e transmissão de luz. Esses tipos são usados para identificar qual película foi aplicada em cada serviço.",
             screenshotUrl: "/help/help-estoque-tipos.png"
           },
           {
-            title: "Cadastrar Materiais",
-            description: "Na aba 'Materiais', clique em 'Novo Material' para cadastrar um item. Defina o nome, tipo, marca, unidade de medida, estoque mínimo e custo médio. O sistema alertará quando o estoque ficar baixo ou crítico.",
+            title: "Cadastrar Metragem de Materiais",
+            description: "Na aba 'Metragem de Materiais', clique em 'Novo Material' para cadastrar um item. Defina o nome, tipo, marca, unidade de medida, estoque mínimo e custo médio. O sistema alertará quando o estoque ficar baixo ou crítico.",
             screenshotUrl: "/help/help-estoque-materiais.png"
           },
           {
@@ -473,7 +473,7 @@ export default function Estoque() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Gestão de Estoque</h1>
-        <p className="text-muted-foreground">Controle de materiais e tipos de produtos</p>
+        <p className="text-muted-foreground">Controle de metragem de materiais e tipos de materiais</p>
       </div>
 
       {/* Sistema de Abas Principal */}
@@ -481,11 +481,11 @@ export default function Estoque() {
         <TabsList className="grid grid-cols-3 w-full max-w-lg">
           <TabsTrigger value="product-types" className="flex items-center gap-2">
             <Tag className="h-4 w-4" />
-            <span className="hidden sm:inline">Tipos de Produtos</span>
+            <span className="hidden sm:inline">Tipos de Materiais</span>
           </TabsTrigger>
           <TabsTrigger value="materials" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
-            <span className="hidden sm:inline">Materiais</span>
+            <span className="hidden sm:inline">Metragem de Materiais</span>
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
             <History className="h-4 w-4" />
@@ -498,7 +498,7 @@ export default function Estoque() {
           {/* Header da aba */}
           <div className="flex items-center justify-end gap-2">
             <Button onClick={() => setShowNewMaterial(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Novo Material
+              <Plus className="h-4 w-4 mr-2" /> Adicionar Metros
             </Button>
           </div>
 
@@ -588,7 +588,7 @@ export default function Estoque() {
                 className="pl-10"
               />
             </div>
-            
+
             <div className="flex gap-2 w-full sm:w-auto">
               <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger className="w-full sm:w-[150px]">
@@ -685,10 +685,10 @@ export default function Estoque() {
         onSuccess={handleMovementCompleted}
       />
       <ConsumptionRulesModal open={showRules} onOpenChange={setShowRules} />
-      <MaterialDetailsModal 
-        open={showDetails} 
-        onOpenChange={setShowDetails} 
-        material={selectedMaterial} 
+      <MaterialDetailsModal
+        open={showDetails}
+        onOpenChange={setShowDetails}
+        material={selectedMaterial}
       />
       <CloseRollModal
         open={showCloseRoll}

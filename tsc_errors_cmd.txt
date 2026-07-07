@@ -1,0 +1,503 @@
+src/components/clientes/ClientCard.tsx(1,10): error TS2614: Module '"@/pages/Clientes"' has no exported member 'Client'. Did you mean to use 'import Client from "@/pages/Clientes"' instead?
+src/components/clientes/ClientProfileModal.tsx(202,20): error TS2339: Property 'id' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/clientes/ClientProfileModal.tsx(203,27): error TS2551: Property 'client_id' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'. Did you mean 'client'?
+src/components/clientes/ClientProfileModal.tsx(204,28): error TS2551: Property 'vehicle_id' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'. Did you mean 'vehicle'?
+src/components/clientes/ClientProfileModal.tsx(205,27): error TS2339: Property 'sale_date' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/clientes/ClientProfileModal.tsx(206,26): error TS2339: Property 'subtotal' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/clientes/ClientProfileModal.tsx(207,26): error TS2339: Property 'discount' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/clientes/ClientProfileModal.tsx(208,23): error TS2339: Property 'total' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/clientes/ClientProfileModal.tsx(209,32): error TS2339: Property 'payment_method' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/clientes/ClientProfileModal.tsx(210,24): error TS2339: Property 'status' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/clientes/ClientProfileModal.tsx(211,25): error TS2339: Property 'is_open' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/clientes/ClientProfileModal.tsx(212,30): error TS2339: Property 'observations' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/clientes/ClientProfileModal.tsx(213,28): error TS2339: Property 'created_at' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/comissoes/CommissionDetailDrawer.tsx(123,41): error TS2339: Property 'id' does not exist on type '{ sales: { sale_date: string; subtotal: number; clients: { name: string; }; }; }'.
+src/components/comissoes/CommissionDetailDrawer.tsx(133,41): error TS2339: Property 'commission_base_amount' does not exist on type '{ sales: { sale_date: string; subtotal: number; clients: { name: string; }; }; }'.
+src/components/comissoes/CommissionDetailDrawer.tsx(137,33): error TS2339: Property 'percentage_snapshot' does not exist on type '{ sales: { sale_date: string; subtotal: number; clients: { name: string; }; }; }'.
+src/components/comissoes/CommissionDetailDrawer.tsx(141,41): error TS2339: Property 'commission_amount' does not exist on type '{ sales: { sale_date: string; subtotal: number; clients: { name: string; }; }; }'.
+src/components/compras/NewPurchaseModal.tsx(147,17): error TS2322: Type '{ companyId: any; value: any; onChange: Dispatch<any>; onCreateNew: () => void; }' is not assignable to type 'IntrinsicAttributes & SupplierAutocompleteProps'.
+  Property 'onCreateNew' does not exist on type 'IntrinsicAttributes & SupplierAutocompleteProps'.
+src/components/compras/NewPurchaseModal.tsx(223,17): error TS2322: Type '{ totalAmount: number; installmentsCount: number; firstDueDate: string; paymentMethod: string; installments: any[]; onChange: Dispatch<SetStateAction<any[]>>; }' is not assignable to type 'IntrinsicAttributes & InstallmentGeneratorProps'.
+  Property 'paymentMethod' does not exist on type 'IntrinsicAttributes & InstallmentGeneratorProps'.
+src/components/compras/PurchaseDetailDrawer.tsx(43,30): error TS2345: Argument of type 'SelectQueryError<"Invalid Relationships cannot infer result type">' is not assignable to parameter of type 'SetStateAction<Purchase>'.
+src/components/compras/PurchaseDetailDrawer.tsx(46,37): error TS2345: Argument of type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to parameter of type 'SetStateAction<PurchaseInstallment[]>'.
+  Type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to type 'PurchaseInstallment[]'.
+    Type '{ error: true; } & String' is missing the following properties from type 'PurchaseInstallment': id, purchase_id, installment_number, amount, and 6 more.
+src/components/compras/PurchaseDetailDrawer.tsx(49,31): error TS2345: Argument of type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to parameter of type 'SetStateAction<PurchaseItem[]>'.
+  Type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to type 'PurchaseItem[]'.
+    Type '{ error: true; } & String' is missing the following properties from type 'PurchaseItem': id, purchase_id, material_id, description, and 5 more.
+src/components/compras/PurchaseDetailDrawer.tsx(52,35): error TS2345: Argument of type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to parameter of type 'SetStateAction<PurchaseAttachment[]>'.
+  Type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to type 'PurchaseAttachment[]'.
+    Type '{ error: true; } & String' is missing the following properties from type 'PurchaseAttachment': id, purchase_id, file_name, file_path, and 3 more.
+src/components/compras/SupplierAutocomplete.tsx(63,20): error TS2345: Argument of type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to parameter of type 'SetStateAction<Supplier[]>'.
+  Type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to type 'Supplier[]'.
+    Type '{ error: true; } & String' is missing the following properties from type 'Supplier': id, company_id, name, phone, and 3 more.
+src/components/compras/SupplierAutocomplete.tsx(105,31): error TS2352: Conversion of type 'SelectQueryError<"Invalid Relationships cannot infer result type">' to type 'Supplier' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'Supplier': id, company_id, name, phone, and 3 more.
+src/components/espaco/EditSlotModal.tsx(431,33): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/espaco/EditSlotModal.tsx(508,31): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/espaco/EditSlotModal.tsx(518,54): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/espaco/FillSlotModal.tsx(416,33): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/espaco/FillSlotModal.tsx(498,31): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/espaco/FillSlotModal.tsx(508,54): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/espaco/SlotDetailsDrawer.tsx(482,36): error TS2339: Property 'amount' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(483,20): error TS2339: Property 'method' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(483,46): error TS2339: Property 'method' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(483,72): error TS2339: Property 'machine_id' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(484,21): error TS2339: Property 'method' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(487,38): error TS2339: Property 'amount' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(493,39): error TS2339: Property 'machine_id' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(494,41): error TS2339: Property 'installments' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(497,38): error TS2339: Property 'amount' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(504,28): error TS2339: Property 'amount' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(506,32): error TS2339: Property 'method' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(509,28): error TS2339: Property 'account_id' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(511,32): error TS2339: Property 'id' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/SlotDetailsDrawer.tsx(512,31): error TS2339: Property 'installments' does not exist on type '{ card_machines: { id: number; name: string; debit_rate: number; }; }'.
+src/components/espaco/UnpaidExitedVehicles.tsx(314,41): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/espaco/UnpaidExitedVehicles.tsx(327,45): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/estoque/ConsumptionRulesModal.tsx(85,9): error TS2739: Type '{}' is missing the following properties from type 'ConsumptionRule': material_type, size_p, size_m, size_g, company_id
+src/components/estoque/ConsumptionRulesModal.tsx(85,23): error TS2339: Property 'material_type' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(166,41): error TS2339: Property 'movement_type' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(166,76): error TS2339: Property 'movement_type' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(167,40): error TS2339: Property 'movement_type' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(167,73): error TS2339: Property 'movement_type' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(168,50): error TS2339: Property 'movement_type' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(169,47): error TS2339: Property 'movement_type' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(170,51): error TS2339: Property 'movement_type' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(177,42): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(180,50): error TS2339: Property 'created_at' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(183,50): error TS2339: Property 'created_at' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(189,75): error TS2339: Property 'movement_type' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(209,36): error TS2339: Property 'movement_type' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(218,60): error TS2339: Property 'quantity' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(222,86): error TS2339: Property 'reason' does not exist on type '{}'.
+src/components/estoque/MaterialDetailsModal.tsx(223,34): error TS2339: Property 'reason' does not exist on type '{}'.
+src/components/estoque/NewMaterialModal.tsx(206,40): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/estoque/ProductTypesTab.tsx(286,7): error TS2322: Type 'number' is not assignable to type 'string'.
+src/components/estoque/VehicleRegionsTab.tsx(392,73): error TS2322: Type 'number' is not assignable to type 'string'.
+src/components/financeiro/BoletoManagement.tsx(215,23): error TS2345: Argument of type '(prev: Record<number, Installment[]>) => { [x: number]: Installment[] | SelectQueryError<"column 'transaction_id' does not exist on 'boleto_installments'.">[]; }' is not assignable to parameter of type 'SetStateAction<Record<number, Installment[]>>'.
+  Type '(prev: Record<number, Installment[]>) => { [x: number]: Installment[] | SelectQueryError<"column 'transaction_id' does not exist on 'boleto_installments'.">[]; }' is not assignable to type '(prevState: Record<number, Installment[]>) => Record<number, Installment[]>'.
+    Type '{ [x: number]: Installment[] | SelectQueryError<"column 'transaction_id' does not exist on 'boleto_installments'.">[]; }' is not assignable to type 'Record<number, Installment[]>'.
+      'number' index signatures are incompatible.
+        Type 'Installment[] | SelectQueryError<"column 'transaction_id' does not exist on 'boleto_installments'.">[]' is not assignable to type 'Installment[]'.
+          Type 'SelectQueryError<"column 'transaction_id' does not exist on 'boleto_installments'.">[]' is not assignable to type 'Installment[]'.
+            Type '{ error: true; } & String' is missing the following properties from type 'Installment': id, boleto_id, installment_number, amount, and 5 more.
+src/components/financeiro/BoletoManagement.tsx(260,20): error TS2339: Property 'id' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/financeiro/BoletoManagement.tsx(261,27): error TS2551: Property 'client_id' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'. Did you mean 'client'?
+src/components/financeiro/BoletoManagement.tsx(262,28): error TS2551: Property 'vehicle_id' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'. Did you mean 'vehicle'?
+src/components/financeiro/BoletoManagement.tsx(263,27): error TS2339: Property 'sale_date' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/financeiro/BoletoManagement.tsx(264,26): error TS2339: Property 'subtotal' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/financeiro/BoletoManagement.tsx(265,26): error TS2339: Property 'discount' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/financeiro/BoletoManagement.tsx(266,23): error TS2339: Property 'total' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/financeiro/BoletoManagement.tsx(267,32): error TS2339: Property 'payment_method' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/financeiro/BoletoManagement.tsx(268,24): error TS2339: Property 'status' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/financeiro/BoletoManagement.tsx(269,25): error TS2339: Property 'is_open' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/financeiro/BoletoManagement.tsx(270,30): error TS2339: Property 'observations' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/financeiro/BoletoManagement.tsx(271,28): error TS2339: Property 'created_at' does not exist on type '{ client: { id: number; name: string; phone: string; }; vehicle: { id: number; brand: string; model: string; year: number; plate: string; size: string; }; sale_items: { id: number; service_id: number; quantity: number; unit_price: number; total_price: number; service: { ...; }; }[]; }'.
+src/components/financeiro/BoletoManagement.tsx(499,15): error TS2322: Type 'string' is not assignable to type 'never'.
+src/components/financeiro/BoletoManagement.tsx(500,15): error TS2322: Type 'number' is not assignable to type 'never'.
+src/components/financeiro/BoletoManagement.tsx(501,15): error TS2322: Type 'number' is not assignable to type 'never'.
+src/components/financeiro/BoletoManagement.tsx(512,25): error TS2353: Object literal may only specify known properties, and 'transaction_id' does not exist in type 'RejectExcessProperties<{ amount?: number; boleto_id?: number; created_at?: string; due_date?: string; id?: number; installment_number?: number; paid_amount?: number; payment_date?: string; status?: string; updated_at?: string; }, { ...; }>'.
+src/components/financeiro/BoletoManagement.tsx(592,21): error TS2339: Property 'sale_payment_id' does not exist on type 'SelectQueryError<"column 'sale_payment_id' does not exist on 'transactions'.">'.
+src/components/financeiro/BoletoManagement.tsx(593,46): error TS2339: Property 'sale_payment_id' does not exist on type 'SelectQueryError<"column 'sale_payment_id' does not exist on 'transactions'.">'.
+src/components/financeiro/BoletoManagement.tsx(600,15): error TS2345: Argument of type '"origin_type"' is not assignable to parameter of type '"type" | "id" | "name" | "company_id" | "account_id" | "sale_id" | "category_id" | "subcategory_id" | "description" | "created_at" | "updated_at" | "payment_method" | "amount" | ... 4 more ... | "transaction_date"'.
+src/components/financeiro/BoletoManagement.tsx(601,15): error TS2345: Argument of type '"origin_id"' is not assignable to parameter of type '"type" | "id" | "name" | "company_id" | "account_id" | "sale_id" | "category_id" | "subcategory_id" | "description" | "created_at" | "updated_at" | "payment_method" | "amount" | ... 4 more ... | "transaction_date"'.
+src/components/financeiro/BoletoManagement.tsx(606,20): error TS2339: Property 'sale_payment_id' does not exist on type 'SelectQueryError<"column 'sale_payment_id' does not exist on 'transactions'.">'.
+src/components/financeiro/BoletoManagement.tsx(607,46): error TS2339: Property 'sale_payment_id' does not exist on type 'SelectQueryError<"column 'sale_payment_id' does not exist on 'transactions'.">'.
+src/components/financeiro/BoletoManagement.tsx(612,48): error TS2339: Property 'id' does not exist on type 'SelectQueryError<"column 'sale_payment_id' does not exist on 'transactions'.">'.
+src/components/financeiro/BoletoManagement.tsx(627,13): error TS2322: Type 'null' is not assignable to type 'never'.
+src/components/financeiro/CardMachineModal.tsx(155,23): error TS2339: Property 'name' does not exist on type '{}'.
+src/components/financeiro/CardMachineModal.tsx(156,29): error TS2339: Property 'account_id' does not exist on type '{}'.
+src/components/financeiro/CardMachineModal.tsx(157,31): error TS2339: Property 'machine_type' does not exist on type '{}'.
+src/components/financeiro/CardMachineModal.tsx(158,35): error TS2339: Property 'max_installments' does not exist on type '{}'.
+src/components/financeiro/CardMachineModal.tsx(159,33): error TS2339: Property 'is_anticipated' does not exist on type '{}'.
+src/components/financeiro/CardMachineModal.tsx(160,37): error TS2339: Property 'anticipation_type' does not exist on type '{}'.
+src/components/financeiro/CardMachineModal.tsx(161,37): error TS2339: Property 'anticipation_value' does not exist on type '{}'.
+src/components/financeiro/CardMachineModal.tsx(162,29): error TS2339: Property 'debit_rate' does not exist on type '{}'.
+src/components/financeiro/CardMachineModal.tsx(163,28): error TS2339: Property 'is_active' does not exist on type '{}'.
+src/components/financeiro/CardMachineModal.tsx(175,54): error TS2339: Property 'max_installments' does not exist on type '{}'.
+src/components/financeiro/CardMachineModal.tsx(251,39): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/financeiro/CardMachinesList.tsx(92,19): error TS2345: Argument of type '{ accounts: { name: string; }; }[]' is not assignable to parameter of type 'SetStateAction<CardMachine[]>'.
+  Type '{ accounts: { name: string; }; }[]' is not assignable to type 'CardMachine[]'.
+    Type '{ accounts: { name: string; }; }' is missing the following properties from type 'CardMachine': id, name, account_id, machine_type, and 6 more.
+src/components/financeiro/ManageCategoriesModal.tsx(69,21): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<Category[]>'.
+  Type '{}[]' is not assignable to type 'Category[]'.
+    Type '{}' is missing the following properties from type 'Category': id, name, type, color
+src/components/financeiro/NewCategoryModal.tsx(78,24): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/garantias/IssueWarrantyModal.tsx(398,20): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<WarrantyTemplate[]>'.
+  Type '{}[]' is not assignable to type 'WarrantyTemplate[]'.
+    Type '{}' is missing the following properties from type 'WarrantyTemplate': id, name, validity_months, terms, coverage
+src/components/garantias/WarrantyServicesTab.tsx(51,20): error TS2345: Argument of type '{ warranty_template: { name: string; }; }[]' is not assignable to parameter of type 'SetStateAction<WarrantyService[]>'.
+  Type '{ warranty_template: { name: string; }; }[]' is not assignable to type 'WarrantyService[]'.
+    Type '{ warranty_template: { name: string; }; }' is missing the following properties from type 'WarrantyService': id, name, description, instructions, and 2 more.
+src/components/garantias/WarrantyTemplatesListModal.tsx(60,20): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<WarrantyTemplate[]>'.
+  Type '{}[]' is not assignable to type 'WarrantyTemplate[]'.
+    Type '{}' is missing the following properties from type 'WarrantyTemplate': id, name, validity_months, terms, coverage
+src/components/master/PlanPricesTab.tsx(45,26): error TS2339: Property 'plan_code' does not exist on type '{}'.
+src/components/master/PlanPricesTab.tsx(45,41): error TS2339: Property 'billing_period' does not exist on type '{}'.
+src/components/master/PlanPricesTab.tsx(45,63): error TS2339: Property 'price' does not exist on type '{}'.
+src/components/master/SubscriptionsManager.tsx(147,42): error TS2339: Property 'user_id' does not exist on type '{}'.
+src/components/master/SubscriptionsManager.tsx(148,45): error TS2339: Property 'company_id' does not exist on type '{}'.
+src/components/master/SubscriptionsManager.tsx(165,13): error TS2322: Type '{ profile: { user_id: string; email: string; name: string; phone: string; }; company: { id: number; company_name: string; max_members: number; }; userRole: "ADMIN" | "VENDEDOR" | "PRODUCAO" | "NENHUM"; }[]' is not assignable to type 'SubscriptionWithRelations[]'.
+  Type '{ profile: { user_id: string; email: string; name: string; phone: string; }; company: { id: number; company_name: string; max_members: number; }; userRole: "ADMIN" | "VENDEDOR" | "PRODUCAO" | "NENHUM"; }' is missing the following properties from type 'SubscriptionWithRelations': id, user_id, status, plan_code, and 6 more.
+src/components/master/SubscriptionsManager.tsx(167,58): error TS2339: Property 'user_id' does not exist on type '{}'.
+src/components/master/SubscriptionsManager.tsx(168,54): error TS2339: Property 'company_id' does not exist on type '{}'.
+src/components/master/SubscriptionsManager.tsx(169,56): error TS2339: Property 'user_id' does not exist on type '{}'.
+src/components/master/SubscriptionsManager.tsx(207,10): error TS2304: Cannot find name 'globalPrice'.
+src/components/master/SubscriptionsManager.tsx(207,26): error TS2304: Cannot find name 'globalPriceReason'.
+src/components/master/SubscriptionsManager.tsx(212,37): error TS2304: Cannot find name 'globalPrice'.
+src/components/master/SubscriptionsManager.tsx(213,23): error TS2304: Cannot find name 'globalPriceReason'.
+src/components/master/SubscriptionsManager.tsx(217,7): error TS2552: Cannot find name 'setShowGlobalPriceModal'. Did you mean 'setShowPriceModal'?
+src/components/master/SubscriptionsManager.tsx(218,7): error TS2304: Cannot find name 'setGlobalPrice'.
+src/components/master/SubscriptionsManager.tsx(219,7): error TS2552: Cannot find name 'setGlobalPriceReason'. Did you mean 'setPriceReason'?
+src/components/master/UpgradesTab.tsx(81,53): error TS2339: Property 'user_id' does not exist on type '{ company: { company_name: string; }; }'.
+src/components/master/UpgradesTab.tsx(87,13): error TS2322: Type '{ credit_amount: any; amount_due: any; profile: { user_id: string; name: string; email: string; }; company: { company_name: string; }; }[]' is not assignable to type 'UpgradeRequest[]'.
+  Type '{ credit_amount: any; amount_due: any; profile: { user_id: string; name: string; email: string; }; company: { company_name: string; }; }' is missing the following properties from type 'UpgradeRequest': id, subscription_id, user_id, company_id, and 7 more.
+src/components/master/UpgradesTab.tsx(89,28): error TS2339: Property 'credit_amount' does not exist on type '{ company: { company_name: string; }; }'.
+src/components/master/UpgradesTab.tsx(90,25): error TS2339: Property 'amount_due' does not exist on type '{ company: { company_name: string; }; }'.
+src/components/master/UpgradesTab.tsx(91,58): error TS2339: Property 'user_id' does not exist on type '{ company: { company_name: string; }; }'.
+src/components/material-losses/MaterialLossLimitsModal.tsx(48,33): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/components/material-losses/MaterialLossLimitsModal.tsx(49,41): error TS2339: Property 'limit_value' does not exist on type '{}'.
+src/components/material-losses/MaterialLossLimitsModal.tsx(62,26): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/relatorios/ReportConfigModal.tsx(96,42): error TS2339: Property 'type' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(96,85): error TS2339: Property 'amount' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(97,40): error TS2339: Property 'type' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(97,81): error TS2339: Property 'amount' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(101,31): error TS2339: Property 'transaction_date' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(102,9): error TS2339: Property 'name' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(103,9): error TS2339: Property 'description' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(104,9): error TS2339: Property 'type' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(105,9): error TS2339: Property 'payment_method' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(106,9): error TS2339: Property 'is_paid' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(107,15): error TS2339: Property 'amount' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(136,43): error TS2339: Property 'is_paid' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(136,75): error TS2339: Property 'amount' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(137,48): error TS2339: Property 'is_paid' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(137,80): error TS2339: Property 'amount' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(138,54): error TS2339: Property 'amount' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(142,9): error TS2339: Property 'name' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(143,9): error TS2339: Property 'description' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(144,15): error TS2339: Property 'amount' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(145,9): error TS2339: Property 'payment_method' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(146,31): error TS2339: Property 'transaction_date' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(147,9): error TS2339: Property 'is_paid' does not exist on type '{ accounts: { name: string; bank_name: string; }; categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(191,65): error TS2339: Property 'type' does not exist on type '{ categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(192,63): error TS2339: Property 'type' does not exist on type '{ categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(194,81): error TS2339: Property 'amount' does not exist on type '{ categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(226,42): error TS2339: Property 'amount' does not exist on type '{ categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(228,80): error TS2339: Property 'amount' does not exist on type '{ categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(290,42): error TS2339: Property 'amount' does not exist on type '{ categories: { name: string; }; subcategories: { name: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(331,38): error TS2339: Property 'id' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(357,54): error TS2339: Property 'total' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(358,63): error TS2339: Property 'discount' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(361,34): error TS2339: Property 'sale_date' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(362,12): error TS2339: Property 'id' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(364,29): error TS2339: Property 'id' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(365,29): error TS2339: Property 'id' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(366,19): error TS2339: Property 'subtotal' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(366,36): error TS2339: Property 'total' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(367,19): error TS2339: Property 'discount' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(368,18): error TS2339: Property 'total' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(398,46): error TS2339: Property 'quantity' does not exist on type '{ services: { name: string; }; sales: { sale_date: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(399,48): error TS2339: Property 'total_price' does not exist on type '{ services: { name: string; }; sales: { sale_date: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(439,46): error TS2339: Property 'total' does not exist on type '{ profiles: any; } | { profiles: { name: any; }[]; } | { profiles: SelectQueryError<"could not find the relation between sales and seller_id">; }'.
+  Property 'total' does not exist on type '{ profiles: any; }'.
+src/components/relatorios/ReportConfigModal.tsx(677,13): error TS2339: Property 'name' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(680,13): error TS2339: Property 'entry_date' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(680,54): error TS2339: Property 'entry_date' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(681,13): error TS2339: Property 'exit_date' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(681,53): error TS2339: Property 'exit_date' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(682,13): error TS2339: Property 'payment_status' does not exist on type '{ clients: { name: string; }; vehicles: { brand: string; model: string; plate: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(717,33): error TS2339: Property 'created_at' does not exist on type '{ materials: { name: string; unit: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(719,30): error TS2339: Property 'movement_type' does not exist on type '{ materials: { name: string; unit: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(720,14): error TS2339: Property 'quantity' does not exist on type '{ materials: { name: string; unit: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(721,11): error TS2339: Property 'reason' does not exist on type '{ materials: { name: string; unit: string; }; }'.
+src/components/relatorios/ReportConfigModal.tsx(1006,42): error TS2339: Property 'type' does not exist on type '{}'.
+src/components/relatorios/ReportConfigModal.tsx(1006,85): error TS2339: Property 'amount' does not exist on type '{}'.
+src/components/relatorios/ReportConfigModal.tsx(1007,40): error TS2339: Property 'type' does not exist on type '{}'.
+src/components/relatorios/ReportConfigModal.tsx(1007,81): error TS2339: Property 'amount' does not exist on type '{}'.
+src/components/relatorios/ReportConfigModal.tsx(1011,31): error TS2339: Property 'transaction_date' does not exist on type '{}'.
+src/components/relatorios/ReportConfigModal.tsx(1012,9): error TS2339: Property 'name' does not exist on type '{}'.
+src/components/relatorios/ReportConfigModal.tsx(1013,9): error TS2339: Property 'type' does not exist on type '{}'.
+src/components/relatorios/ReportConfigModal.tsx(1014,15): error TS2339: Property 'amount' does not exist on type '{}'.
+src/components/vendas/AccountSelectCard.tsx(95,19): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<Account[]>'.
+  Type '{}[]' is not assignable to type 'Account[]'.
+    Type '{}' is missing the following properties from type 'Account': id, name, bank_code, bank_name, account_type
+src/components/vendas/AccountSelectCard.tsx(96,19): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<CardMachine[]>'.
+  Type '{}[]' is not assignable to type 'CardMachine[]'.
+    Type '{}' is missing the following properties from type 'CardMachine': id, name, account_id, max_installments, machine_type
+src/components/vendas/AccountSelectCard.tsx(100,45): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/AccountSelectCard.tsx(231,22): error TS2304: Cannot find name 'Button'.
+src/components/vendas/AccountSelectCard.tsx(243,23): error TS2304: Cannot find name 'Button'.
+src/components/vendas/EditSaleModal.tsx(187,54): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(187,66): error TS2339: Property 'region_id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(190,30): error TS2339: Property 'category' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(191,30): error TS2339: Property 'region_id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(192,40): error TS2339: Property 'name' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(193,35): error TS2339: Property 'product_type_id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(195,32): error TS2339: Property 'meters_used' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(196,32): error TS2339: Property 'total_price' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(198,69): error TS2339: Property 'region_code' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(207,50): error TS2339: Property 'person_type' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(208,50): error TS2339: Property 'commission_person_id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(211,28): error TS2339: Property 'person_type' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(212,25): error TS2339: Property 'commission_person_id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(254,80): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(265,23): error TS2345: Argument of type '{ openRollsCount: number; hasClosedRoll: boolean; }[]' is not assignable to parameter of type 'SetStateAction<ProductType[]>'.
+  Type '{ openRollsCount: number; hasClosedRoll: boolean; }[]' is not assignable to type 'ProductType[]'.
+    Type '{ openRollsCount: number; hasClosedRoll: boolean; }' is missing the following properties from type 'ProductType': id, category, brand, name, and 2 more.
+src/components/vendas/EditSaleModal.tsx(266,25): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<VehicleRegion[]>'.
+  Type '{}[]' is not assignable to type 'VehicleRegion[]'.
+    Type '{}' is missing the following properties from type 'VehicleRegion': id, category, name, description, fixed_price
+src/components/vendas/EditSaleModal.tsx(271,48): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(272,48): error TS2339: Property 'region_code' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(279,43): error TS2339: Property 'account_id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(280,43): error TS2339: Property 'account_id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(281,43): error TS2339: Property 'machine_id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(282,46): error TS2339: Property 'installments' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(293,52): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(570,26): error TS2339: Property 'material_id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(572,23): error TS2339: Property 'quantity' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(737,39): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/EditSaleModal.tsx(751,43): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewClientModal.tsx(284,32): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(261,80): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(272,23): error TS2345: Argument of type '{ openRollsCount: number; hasClosedRoll: boolean; }[]' is not assignable to parameter of type 'SetStateAction<ProductType[]>'.
+  Type '{ openRollsCount: number; hasClosedRoll: boolean; }[]' is not assignable to type 'ProductType[]'.
+    Type '{ openRollsCount: number; hasClosedRoll: boolean; }' is missing the following properties from type 'ProductType': id, category, brand, name, and 2 more.
+src/components/vendas/NewSaleModal.tsx(273,25): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<VehicleRegion[]>'.
+  Type '{}[]' is not assignable to type 'VehicleRegion[]'.
+    Type '{}' is missing the following properties from type 'VehicleRegion': id, category, name, description, fixed_price
+src/components/vendas/NewSaleModal.tsx(276,48): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(277,48): error TS2339: Property 'region_code' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(289,51): error TS2339: Property 'name' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(289,125): error TS2339: Property 'category' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(290,47): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(297,31): error TS2339: Property 'brand' does not exist on type '{ openRollsCount: number; hasClosedRoll: boolean; }'.
+src/components/vendas/NewSaleModal.tsx(298,30): error TS2339: Property 'name' does not exist on type '{ openRollsCount: number; hasClosedRoll: boolean; }'.
+src/components/vendas/NewSaleModal.tsx(299,31): error TS2339: Property 'light_transmission' does not exist on type '{ openRollsCount: number; hasClosedRoll: boolean; }'.
+src/components/vendas/NewSaleModal.tsx(299,58): error TS2339: Property 'light_transmission' does not exist on type '{ openRollsCount: number; hasClosedRoll: boolean; }'.
+src/components/vendas/NewSaleModal.tsx(301,83): error TS2339: Property 'category' does not exist on type '{ openRollsCount: number; hasClosedRoll: boolean; }'.
+src/components/vendas/NewSaleModal.tsx(303,48): error TS2339: Property 'id' does not exist on type '{ openRollsCount: number; hasClosedRoll: boolean; }'.
+src/components/vendas/NewSaleModal.tsx(625,29): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(644,27): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(676,27): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(697,35): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(708,16): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(761,27): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(783,24): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(803,22): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(821,22): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(843,31): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(867,41): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(881,45): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/NewSaleModal.tsx(886,32): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(152,36): error TS2339: Property 'email' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(153,34): error TS2339: Property 'cpf_cnpj' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(167,34): error TS2339: Property 'company_name' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(168,34): error TS2339: Property 'cnpj' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(169,38): error TS2339: Property 'logo_url' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(368,33): error TS2339: Property 'logo_url' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(370,40): error TS2339: Property 'logo_url' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(375,67): error TS2339: Property 'company_name' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(376,56): error TS2339: Property 'cnpj' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(377,77): error TS2339: Property 'cnpj' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(401,56): error TS2339: Property 'cpf_cnpj' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(402,69): error TS2339: Property 'cpf_cnpj' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(404,58): error TS2339: Property 'email' does not exist on type '{}'.
+src/components/vendas/PdfA4Modal.tsx(405,66): error TS2339: Property 'email' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(166,36): error TS2339: Property 'email' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(167,34): error TS2339: Property 'cpf_cnpj' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(181,34): error TS2339: Property 'company_name' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(182,34): error TS2339: Property 'cnpj' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(183,38): error TS2339: Property 'logo_url' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(250,33): error TS2339: Property 'logo_url' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(252,40): error TS2339: Property 'logo_url' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(259,39): error TS2339: Property 'company_name' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(259,66): error TS2339: Property 'company_name' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(263,58): error TS2339: Property 'company_name' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(264,56): error TS2339: Property 'cnpj' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(265,81): error TS2339: Property 'cnpj' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(289,56): error TS2339: Property 'cpf_cnpj' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(289,96): error TS2339: Property 'cpf_cnpj' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(290,58): error TS2339: Property 'email' does not exist on type '{}'.
+src/components/vendas/PdfNotinhaModal.tsx(290,92): error TS2339: Property 'email' does not exist on type '{}'.
+src/components/vendas/SaleDetailsModal.tsx(250,14): error TS2304: Cannot find name 'data'.
+src/components/vendas/SaleDetailsModal.tsx(982,80): error TS2339: Property 'seller_id' does not exist on type 'SaleWithDetails'.
+src/components/vendas/TransferToSpaceModal.tsx(109,26): error TS2339: Property 'category' does not exist on type '{ product_type: { id: number; name: string; brand: string; light_transmission: string; category: string; }; region: { id: number; name: string; region_code: string; }; }'.
+src/components/vendas/TransferToSpaceModal.tsx(110,45): error TS2551: Property 'region_id' does not exist on type '{ product_type: { id: number; name: string; brand: string; light_transmission: string; category: string; }; region: { id: number; name: string; region_code: string; }; }'. Did you mean 'region'?
+src/components/vendas/TransferToSpaceModal.tsx(111,49): error TS2339: Property 'display_name' does not exist on type '{ product_type: { id: number; name: string; brand: string; light_transmission: string; category: string; }; region: { id: number; name: string; region_code: string; }; }'.
+src/components/vendas/TransferToSpaceModal.tsx(112,56): error TS2551: Property 'product_type_id' does not exist on type '{ product_type: { id: number; name: string; brand: string; light_transmission: string; category: string; }; region: { id: number; name: string; region_code: string; }; }'. Did you mean 'product_type'?
+src/components/vendas/TransferToSpaceModal.tsx(114,28): error TS2339: Property 'total_price' does not exist on type '{ product_type: { id: number; name: string; brand: string; light_transmission: string; category: string; }; region: { id: number; name: string; region_code: string; }; }'.
+src/components/vendas/TransferToSpaceModal.tsx(115,28): error TS2339: Property 'meters_used' does not exist on type '{ product_type: { id: number; name: string; brand: string; light_transmission: string; category: string; }; region: { id: number; name: string; region_code: string; }; }'.
+src/components/vendas/TransferToSpaceModal.tsx(116,29): error TS2339: Property 'service_name' does not exist on type '{ product_type: { id: number; name: string; brand: string; light_transmission: string; category: string; }; region: { id: number; name: string; region_code: string; }; }'.
+src/components/vendas/TransferToSpaceModal.tsx(118,29): error TS2339: Property 'display_name' does not exist on type '{ product_type: { id: number; name: string; brand: string; light_transmission: string; category: string; }; region: { id: number; name: string; region_code: string; }; }'.
+src/components/vendas/TransferToSpaceModal.tsx(127,62): error TS2551: Property 'service_id' does not exist on type '{ service: { name: string; }; }'. Did you mean 'service'?
+src/components/vendas/TransferToSpaceModal.tsx(130,28): error TS2339: Property 'total_price' does not exist on type '{ service: { name: string; }; }'.
+src/components/vendas/TransferToSpaceModal.tsx(132,63): error TS2551: Property 'service_id' does not exist on type '{ service: { name: string; }; }'. Did you mean 'service'?
+src/components/vendas/TransferToSpaceModal.tsx(134,63): error TS2551: Property 'service_id' does not exist on type '{ service: { name: string; }; }'. Did you mean 'service'?
+src/components/vendas/TransferToSpaceModal.tsx(194,31): error TS2339: Property 'id' does not exist on type '{}'.
+src/components/vendas/WhatsAppPreviewModal.tsx(97,48): error TS2339: Property 'method' does not exist on type '{}'.
+src/components/vendas/WhatsAppPreviewModal.tsx(97,59): error TS2339: Property 'installments' does not exist on type '{}'.
+src/components/vendas/WhatsAppPreviewModal.tsx(97,85): error TS2339: Property 'installments' does not exist on type '{}'.
+src/components/vendas/WhatsAppPreviewModal.tsx(99,78): error TS2339: Property 'method' does not exist on type '{}'.
+src/components/vendas/WhatsAppPreviewModal.tsx(99,89): error TS2339: Property 'installments' does not exist on type '{}'.
+src/components/vendas/WhatsAppPreviewModal.tsx(99,115): error TS2339: Property 'installments' does not exist on type '{}'.
+src/components/vendas/WhatsAppPreviewModal.tsx(99,146): error TS2339: Property 'amount' does not exist on type '{}'.
+src/contexts/AuthContext.tsx(79,20): error TS2339: Property 'company_id' does not exist on type '{}'.
+src/contexts/AuthContext.tsx(83,29): error TS2339: Property 'company_id' does not exist on type '{}'.
+src/contexts/AuthContext.tsx(105,21): error TS2339: Property 'company_id' does not exist on type '{}'.
+src/contexts/AuthContext.tsx(147,27): error TS2339: Property 'company_id' does not exist on type '{}'.
+src/contexts/AuthContext.tsx(154,25): error TS2339: Property 'email' does not exist on type '{}'.
+src/contexts/AuthContext.tsx(158,29): error TS2339: Property 'company_id' does not exist on type '{}'.
+src/hooks/useMaterialLosses.ts(75,46): error TS2339: Property 'installer_id' does not exist on type '{ material: { id: number; name: string; unit: string; }; }'.
+src/lib/financialTransactions.ts(129,7): error TS2322: Type 'TransactionOriginType' is not assignable to type 'never'.
+  Type '"sale"' is not assignable to type 'never'.
+src/lib/financialTransactions.ts(130,7): error TS2322: Type 'number' is not assignable to type 'never'.
+src/lib/financialTransactions.ts(131,7): error TS2322: Type 'number' is not assignable to type 'never'.
+src/lib/financialTransactions.ts(226,17): error TS2353: Object literal may only specify known properties, and 'transaction_id' does not exist in type 'RejectExcessProperties<{ amount?: number; boleto_id?: number; created_at?: string; due_date?: string; id?: number; installment_number?: number; paid_amount?: number; payment_date?: string; status?: string; updated_at?: string; }, { ...; }>'.
+src/lib/financialTransactions.ts(338,9): error TS2345: Argument of type '"origin_type"' is not assignable to parameter of type '"type" | "id" | "name" | "company_id" | "account_id" | "sale_id" | "category_id" | "subcategory_id" | "description" | "created_at" | "updated_at" | "payment_method" | "amount" | ... 4 more ... | "transaction_date"'.
+src/lib/financialTransactions.ts(339,9): error TS2345: Argument of type '"origin_id"' is not assignable to parameter of type '"type" | "id" | "name" | "company_id" | "account_id" | "sale_id" | "category_id" | "subcategory_id" | "description" | "created_at" | "updated_at" | "payment_method" | "amount" | ... 4 more ... | "transaction_date"'.
+src/lib/stockConsumption.ts(84,21): error TS2339: Property 'type' does not exist on type '{}'.
+src/lib/stockConsumption.ts(84,46): error TS2339: Property 'name' does not exist on type '{}'.
+src/lib/stockConsumption.ts(96,32): error TS2339: Property 'size_p' does not exist on type '{}'.
+src/lib/stockConsumption.ts(99,32): error TS2339: Property 'size_m' does not exist on type '{}'.
+src/lib/stockConsumption.ts(102,32): error TS2339: Property 'size_g' does not exist on type '{}'.
+src/lib/stockConsumption.ts(109,57): error TS2339: Property 'material_type' does not exist on type '{}'.
+src/lib/stockConsumption.ts(115,34): error TS2339: Property 'material_type' does not exist on type '{}'.
+src/lib/stockConsumption.ts(262,48): error TS2339: Property 'product_type_id' does not exist on type '{}'.
+src/lib/stockConsumption.ts(264,36): error TS2339: Property 'product_type_id' does not exist on type '{}'.
+src/pages/Clientes.tsx(144,67): error TS2339: Property 'client_id' does not exist on type '{}'.
+src/pages/Clientes.tsx(144,88): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Clientes.tsx(145,82): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Clientes.tsx(157,27): error TS2339: Property 'created_at' does not exist on type '{}'.
+src/pages/Clientes.tsx(160,31): error TS2339: Property 'created_at' does not exist on type '{}'.
+src/pages/Clientes.tsx(185,18): error TS2345: Argument of type '{ vehicles: {}[]; total_spent: number; sales_count: number; last_sale_date: string; status: "Ativo" | "Inativo"; tier: "VIP" | "Comum" | "Sem Compras"; }[]' is not assignable to parameter of type 'SetStateAction<Client[]>'.
+  Type '{ vehicles: {}[]; total_spent: number; sales_count: number; last_sale_date: string; status: "Ativo" | "Inativo"; tier: "VIP" | "Comum" | "Sem Compras"; }[]' is not assignable to type 'Client[]'.
+    Type '{ vehicles: {}[]; total_spent: number; sales_count: number; last_sale_date: string; status: "Ativo" | "Inativo"; tier: "VIP" | "Comum" | "Sem Compras"; }' is missing the following properties from type 'Client': id, name, phone, email, and 3 more.
+src/pages/Comissoes.tsx(77,39): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Comissoes.tsx(78,44): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Comissoes.tsx(157,10): error TS2741: Property 'title' is missing in type '{ type: "VENDEDOR"; people: CommissionPersonWithMetrics[]; onAdd: () => void; onEdit: (person: CommissionPersonWithMetrics) => void; onViewDetail: (person: CommissionPersonWithMetrics) => void; onToggleStatus: (person: CommissionPersonWithMetrics, checked: boolean) => Promise<...>; }' but required in type 'CommissionPeopleSectionProps'.
+src/pages/Comissoes.tsx(165,10): error TS2741: Property 'title' is missing in type '{ type: "INSTALADOR_INSULFILM"; people: CommissionPersonWithMetrics[]; onAdd: () => void; onEdit: (person: CommissionPersonWithMetrics) => void; onViewDetail: (person: CommissionPersonWithMetrics) => void; onToggleStatus: (person: CommissionPersonWithMetrics, checked: boolean) => Promise<...>; }' but required in type 'CommissionPeopleSectionProps'.
+src/pages/Comissoes.tsx(173,10): error TS2741: Property 'title' is missing in type '{ type: "INSTALADOR_PPF"; people: CommissionPersonWithMetrics[]; onAdd: () => void; onEdit: (person: CommissionPersonWithMetrics) => void; onViewDetail: (person: CommissionPersonWithMetrics) => void; onToggleStatus: (person: CommissionPersonWithMetrics, checked: boolean) => Promise<...>; }' but required in type 'CommissionPeopleSectionProps'.
+src/pages/Compras.tsx(78,9): error TS2698: Spread types may only be created from object types.
+src/pages/Compras.tsx(79,26): error TS2339: Property 'supplier_name_snapshot' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/pages/Compras.tsx(97,53): error TS2339: Property 'name' does not exist on type '{}'.
+src/pages/Contas.tsx(163,91): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Contas.tsx(163,103): error TS2339: Property 'name' does not exist on type '{}'.
+src/pages/Contas.tsx(163,120): error TS2339: Property 'current_balance' does not exist on type '{}'.
+src/pages/Contas.tsx(185,19): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<Account[]>'.
+  Type '{}[]' is not assignable to type 'Account[]'.
+    Type '{}' is missing the following properties from type 'Account': id, name, account_type, current_balance, and 2 more.
+src/pages/Contas.tsx(188,66): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Contas.tsx(188,84): error TS2339: Property 'from_account_id' does not exist on type '{}'.
+src/pages/Contas.tsx(188,103): error TS2339: Property 'name' does not exist on type '{}'.
+src/pages/Contas.tsx(189,64): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Contas.tsx(189,82): error TS2339: Property 'to_account_id' does not exist on type '{}'.
+src/pages/Contas.tsx(189,99): error TS2339: Property 'name' does not exist on type '{}'.
+src/pages/Contas.tsx(193,34): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Contas.tsx(195,22): error TS2339: Property 'amount' does not exist on type '{}'.
+src/pages/Contas.tsx(196,20): error TS2339: Property 'description' does not exist on type '{}'.
+src/pages/Contas.tsx(196,58): error TS2339: Property 'description' does not exist on type '{}'.
+src/pages/Contas.tsx(197,27): error TS2339: Property 'description' does not exist on type '{}'.
+src/pages/Contas.tsx(198,32): error TS2339: Property 'transfer_date' does not exist on type '{}'.
+src/pages/Contas.tsx(202,26): error TS2339: Property 'from_account_id' does not exist on type '{}'.
+src/pages/Contas.tsx(207,66): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Contas.tsx(207,84): error TS2339: Property 'from_account_id' does not exist on type '{}'.
+src/pages/Contas.tsx(207,103): error TS2339: Property 'name' does not exist on type '{}'.
+src/pages/Contas.tsx(208,64): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Contas.tsx(208,82): error TS2339: Property 'to_account_id' does not exist on type '{}'.
+src/pages/Contas.tsx(208,99): error TS2339: Property 'name' does not exist on type '{}'.
+src/pages/Contas.tsx(212,33): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Contas.tsx(214,22): error TS2339: Property 'amount' does not exist on type '{}'.
+src/pages/Contas.tsx(215,20): error TS2339: Property 'description' does not exist on type '{}'.
+src/pages/Contas.tsx(215,58): error TS2339: Property 'description' does not exist on type '{}'.
+src/pages/Contas.tsx(216,27): error TS2339: Property 'description' does not exist on type '{}'.
+src/pages/Contas.tsx(217,32): error TS2339: Property 'transfer_date' does not exist on type '{}'.
+src/pages/Contas.tsx(221,26): error TS2339: Property 'to_account_id' does not exist on type '{}'.
+src/pages/Contas.tsx(228,49): error TS2339: Property 'transaction_date' does not exist on type '{}'.
+src/pages/Contas.tsx(228,90): error TS2339: Property 'transaction_date' does not exist on type '{}'.
+src/pages/Contas.tsx(230,23): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<Transaction[]>'.
+  Type '{}[]' is not assignable to type 'Transaction[]'.
+    Type '{}' is missing the following properties from type 'Transaction': id, type, amount, name, and 6 more.
+src/pages/Contas.tsx(232,21): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<Category[]>'.
+  Type '{}[]' is not assignable to type 'Category[]'.
+    Type '{}' is missing the following properties from type 'Category': id, name, type, color
+src/pages/Contas.tsx(236,86): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Contas.tsx(237,46): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/Estoque.tsx(95,20): error TS2345: Argument of type '{ product_types: { light_transmission: string; }; }[]' is not assignable to parameter of type 'SetStateAction<Material[]>'.
+  Type '{ product_types: { light_transmission: string; }; }[]' is not assignable to type 'Material[]'.
+    Type '{ product_types: { light_transmission: string; }; }' is missing the following properties from type 'Material': id, name, type, brand, and 10 more.
+src/pages/Financeiro.tsx(176,19): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<Account[]>'.
+  Type '{}[]' is not assignable to type 'Account[]'.
+    Type '{}' is missing the following properties from type 'Account': id, name, account_type, current_balance, is_main
+src/pages/Financeiro.tsx(177,23): error TS2345: Argument of type 'SelectQueryError<"column 'origin_type' does not exist on 'transactions'.">[]' is not assignable to parameter of type 'SetStateAction<Transaction[]>'.
+  Type 'SelectQueryError<"column 'origin_type' does not exist on 'transactions'.">[]' is not assignable to type 'Transaction[]'.
+    Type '{ error: true; } & String' is missing the following properties from type 'Transaction': id, type, amount, transaction_date, and 4 more.
+src/pages/Financeiro.tsx(178,20): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<Transfer[]>'.
+  Type '{}[]' is not assignable to type 'Transfer[]'.
+    Type '{}' is missing the following properties from type 'Transfer': id, amount, transfer_date, from_account_id, to_account_id
+src/pages/Financeiro.tsx(273,10): error TS2339: Property 'sale_payment_id' does not exist on type 'Transaction'.
+src/pages/Financeiro.tsx(273,68): error TS2339: Property 'sale_payment_id' does not exist on type 'Transaction'.
+src/pages/Garantias.tsx(117,21): error TS2345: Argument of type '{ client: { id: number; name: string; phone: string; email: string; cpf_cnpj: string; }; vehicle: { id: number; brand: string; model: string; plate: string; year: number; }; sale: { id: number; sale_date: string; subtotal: number; discount: number; total: number; payment_method: string; }; }[]' is not assignable to parameter of type 'SetStateAction<Warranty[]>'.
+  Type '{ client: { id: number; name: string; phone: string; email: string; cpf_cnpj: string; }; vehicle: { id: number; brand: string; model: string; plate: string; year: number; }; sale: { id: number; sale_date: string; subtotal: number; discount: number; total: number; payment_method: string; }; }[]' is not assignable to type 'Warranty[]'.
+    Type '{ client: { id: number; name: string; phone: string; email: string; cpf_cnpj: string; }; vehicle: { id: number; brand: string; model: string; plate: string; year: number; }; sale: { id: number; sale_date: string; subtotal: number; discount: number; total: number; payment_method: string; }; }' is missing the following properties from type 'Warranty': id, warranty_type, issue_date, expiry_date, and 3 more.
+src/pages/Garantias.tsx(118,20): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<WarrantyTemplate[]>'.
+  Type '{}[]' is not assignable to type 'WarrantyTemplate[]'.
+    Type '{}' is missing the following properties from type 'WarrantyTemplate': id, name, validity_months, coverage, terms
+src/pages/MaterialLosses.tsx(83,16): error TS2339: Property 'status' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(84,33): error TS2339: Property 'lost_meters' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(85,29): error TS2339: Property 'lost_m2' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(86,31): error TS2339: Property 'cost' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(104,16): error TS2339: Property 'status' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(106,38): error TS2339: Property 'created_at' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(109,21): error TS2339: Property 'category' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(109,41): error TS2339: Property 'category' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(110,16): error TS2339: Property 'category' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(110,46): error TS2339: Property 'cost' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(111,16): error TS2339: Property 'category' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(111,48): error TS2339: Property 'lost_meters' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(112,16): error TS2339: Property 'category' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(117,47): error TS2339: Property 'category' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(123,17): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(125,34): error TS2339: Property 'limit_value' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(126,24): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(128,31): error TS2339: Property 'limit_value' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(129,24): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(131,31): error TS2339: Property 'limit_value' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(134,39): error TS2339: Property 'limit_value' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(135,60): error TS2339: Property 'category' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(136,17): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(137,17): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(165,28): error TS2339: Property 'status' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(167,29): error TS2339: Property 'created_at' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(170,14): error TS2339: Property 'category' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(171,17): error TS2339: Property 'lost_meters' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(172,14): error TS2339: Property 'reason' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(173,27): error TS2339: Property 'cost' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(200,53): error TS2339: Property 'status' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(214,42): error TS2339: Property 'created_at' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(217,27): error TS2339: Property 'category' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(218,27): error TS2339: Property 'lost_meters' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(219,27): error TS2339: Property 'reason' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(220,52): error TS2339: Property 'cost' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(326,45): error TS2339: Property 'category' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(334,22): error TS2339: Property 'status' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(334,53): error TS2339: Property 'category' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(335,44): error TS2339: Property 'created_at' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(338,37): error TS2339: Property 'cost' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(339,39): error TS2339: Property 'lost_meters' does not exist on type '{ installer: { id: number; name: string; }; material: { id: number; name: string; unit: string; }; }'.
+src/pages/MaterialLosses.tsx(362,21): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(364,45): error TS2339: Property 'limit_value' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(366,28): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(368,42): error TS2339: Property 'limit_value' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(370,28): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(372,35): error TS2339: Property 'limit_value' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(376,33): error TS2339: Property 'limit_value' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(376,80): error TS2339: Property 'limit_value' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(394,19): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/pages/MaterialLosses.tsx(395,19): error TS2339: Property 'limit_type' does not exist on type '{}'.
+src/pages/TeamRequests.tsx(88,19): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<JoinRequest[]>'.
+  Type '{}[]' is not assignable to type 'JoinRequest[]'.
+    Type '{}' is missing the following properties from type 'JoinRequest': id, requester_name, requester_email, requester_user_id, and 5 more.

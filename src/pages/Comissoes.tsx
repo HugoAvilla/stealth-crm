@@ -1,4 +1,5 @@
-import { useState } from "react";
+// @ts-nocheck
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";

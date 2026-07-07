@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription, 
-  DialogFooter 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ interface ConfirmPurchasePaymentModalProps {
   installmentAmount: number;
   companyId: number;
   defaultAccountId: number | null;
+  purchasePaymentMethod: string;
   onConfirm: (payments: SalePayment[]) => Promise<void>;
 }
 
@@ -29,6 +30,7 @@ export function ConfirmPurchasePaymentModal({
   installmentAmount,
   companyId,
   defaultAccountId,
+  purchasePaymentMethod,
   onConfirm
 }: ConfirmPurchasePaymentModalProps) {
   const [payments, setPayments] = useState<SalePayment[]>([]);
@@ -40,7 +42,7 @@ export function ConfirmPurchasePaymentModal({
       setPayments([
         {
           tempId: Math.random().toString(36).substring(2, 9),
-          payment_method: "Pix",
+          payment_method: "Boleto",
           amount: installmentAmount,
           account_id: defaultAccountId,
           machine_id: null,
@@ -50,17 +52,17 @@ export function ConfirmPurchasePaymentModal({
         }
       ]);
     }
-  }, [open, installmentAmount, defaultAccountId]);
+  }, [open, installmentAmount, defaultAccountId, purchasePaymentMethod]);
 
   const handleAddPayment = () => {
     const paidTotal = payments.reduce((acc, curr) => acc + curr.amount, 0);
     const remaining = Math.max(0, installmentAmount - paidTotal);
-    
+
     setPayments([
       ...payments,
       {
         tempId: Math.random().toString(36).substring(2, 9),
-        payment_method: "Pix",
+        payment_method: "Boleto",
         amount: remaining,
         account_id: payments[0]?.account_id || defaultAccountId,
         machine_id: null,
@@ -132,15 +134,6 @@ export function ConfirmPurchasePaymentModal({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-semibold">Pagamentos</Label>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-8 gap-1 text-xs border border-border"
-                onClick={handleAddPayment}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Adicionar Forma
-              </Button>
             </div>
 
             <div className="space-y-3">
@@ -153,6 +146,8 @@ export function ConfirmPurchasePaymentModal({
                   totalRemaining={installmentAmount - payments.reduce((acc, curr, i) => i < index ? acc + curr.amount : acc, 0)}
                   onUpdate={handleUpdatePayment}
                   onRemove={() => handleRemovePayment(p.tempId)}
+                  removePaymentMethod={true}
+                  hideInstallments={true}
                 />
               ))}
             </div>

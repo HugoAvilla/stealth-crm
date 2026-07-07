@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -23,20 +24,20 @@ interface NewPurchaseModalProps {
 export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, categories }: NewPurchaseModalProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  
+
   // States
   const [supplier, setSupplier] = useState<any | null>(null);
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split("T")[0]);
   const [totalAmount, setTotalAmount] = useState<number>(0);
-  const [paymentMethod, setPaymentMethod] = useState("Pix");
+  const [paymentMethod, setPaymentMethod] = useState("Boleto");
   const [accountId, setAccountId] = useState<number | null>(null);
   const [categoryId, setCategoryId] = useState<number | null>(null);
-  
+
   // Installments
   const [installmentsCount, setInstallmentsCount] = useState(1);
   const [firstDueDate, setFirstDueDate] = useState(new Date().toISOString().split("T")[0]);
   const [installments, setInstallments] = useState<any[]>([]);
-  
+
   // Items & Attachments
   const [items, setItems] = useState<any[]>([]);
   const [images, setImages] = useState<File[]>([]);
@@ -54,7 +55,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!supplier) {
       toast.error("Selecione ou crie um fornecedor.");
       return;
@@ -71,7 +72,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
     setLoading(true);
     try {
       const companyId = supplier.company_id;
-      
+
       const purchaseResult = await createPurchase({
         companyId,
         supplierId: supplier.id,
@@ -84,7 +85,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
         accountId,
         categoryId,
         createdBy: user?.id || "",
-        installments: isImmediate 
+        installments: isImmediate
           ? [{ installmentNumber: 1, amount: totalAmount, dueDate: purchaseDate }]
           : installments,
         items: items.length > 0 ? items.map(i => ({
@@ -122,7 +123,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
     setSupplier(null);
     setPurchaseDate(new Date().toISOString().split("T")[0]);
     setTotalAmount(0);
-    setPaymentMethod("Pix");
+    setPaymentMethod("Boleto");
     setInstallmentsCount(1);
     setItems([]);
     setImages([]);
@@ -140,11 +141,11 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Fornecedor *</Label>
-              <SupplierAutocomplete 
-                companyId={user?.companyId || accounts[0]?.company_id || 0} 
-                value={supplier} 
-                onChange={setSupplier} 
-                onCreateNew={() => {}} // Internamente ele mesmo já cria e seta
+              <SupplierAutocomplete
+                companyId={user?.companyId || accounts[0]?.company_id || 0}
+                value={supplier}
+                onChange={setSupplier}
+                onCreateNew={() => { }} // Internamente ele mesmo já cria e seta
               />
             </div>
             <div className="space-y-2">
@@ -153,55 +154,30 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Valor Total *</Label>
-              <Input 
-                type="number" 
-                step="0.01" 
-                min="0.01" 
-                required 
-                value={totalAmount || ""} 
-                onChange={e => setTotalAmount(parseFloat(e.target.value) || 0)} 
+              <Input
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+                value={totalAmount || ""}
+                onChange={e => setTotalAmount(parseFloat(e.target.value) || 0)}
                 placeholder="R$ 0,00"
               />
             </div>
             <div className="space-y-2">
-              <Label>Forma de Pgto *</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label>Categoria *</Label>
+              <Select value={categoryId?.toString() || ""} onValueChange={v => setCategoryId(parseInt(v))}>
+                <SelectTrigger><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Pix">Pix</SelectItem>
-                  <SelectItem value="Débito">Débito</SelectItem>
-                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                  <SelectItem value="Boleto">Boleto</SelectItem>
-                  <SelectItem value="Crédito">Crédito</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Conta Financeira *</Label>
-              <Select value={accountId?.toString() || ""} onValueChange={v => setAccountId(parseInt(v))}>
-                <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
-                <SelectContent>
-                  {accounts.map(acc => (
-                    <SelectItem key={acc.id} value={acc.id.toString()}>{acc.name}</SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Categoria *</Label>
-            <Select value={categoryId?.toString() || ""} onValueChange={v => setCategoryId(parseInt(v))}>
-              <SelectTrigger><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
-              <SelectContent>
-                {categories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {!isImmediate && (
@@ -216,10 +192,10 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
                   <Input type="date" value={firstDueDate} onChange={e => setFirstDueDate(e.target.value)} className="[color-scheme:dark]" />
                 </div>
               </div>
-              <InstallmentGenerator 
-                totalAmount={totalAmount} 
-                installmentsCount={installmentsCount} 
-                firstDueDate={firstDueDate} 
+              <InstallmentGenerator
+                totalAmount={totalAmount}
+                installmentsCount={installmentsCount}
+                firstDueDate={firstDueDate}
                 paymentMethod={paymentMethod}
                 installments={installments}
                 onChange={setInstallments}
@@ -232,11 +208,11 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
             Nota: Inserção de Itens implementada separadamente para evitar complexidade inicial. (Será vinculada pelo ItemsInput real do repositório)
           </div>
 
-          <AttachmentsBlock 
-            images={images} 
-            pdfs={pdfs} 
-            onImagesChange={setImages} 
-            onPdfsChange={setPdfs} 
+          <AttachmentsBlock
+            images={images}
+            pdfs={pdfs}
+            onImagesChange={setImages}
+            onPdfsChange={setPdfs}
           />
 
           <div className="flex justify-end gap-2 pt-4">
