@@ -24,7 +24,7 @@ interface Material {
   open_roll_accumulated: number | null;
   company_id: number | null;
   product_type_id: number | null;
-  product_types?: { light_transmission: string | null } | null;
+  product_types?: { light_transmission: string | null; cost_per_meter: number | null } | null;
 }
 
 interface MaterialDetailsModalProps {
@@ -66,9 +66,10 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
   };
 
   const status = getStockStatus(material);
-  const totalVal = (material.is_open_roll 
-    ? (material.open_roll_accumulated || 0) 
-    : (material.current_stock || 0)) * (material.average_cost || 0);
+  const currentCost = material.product_types?.cost_per_meter || material.average_cost || 0;
+  const totalVal = (material.is_open_roll
+    ? (material.open_roll_accumulated || 0)
+    : (material.current_stock || 0)) * currentCost;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,7 +130,7 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
               {totalVal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
             </span>
             <span className="text-xs text-muted-foreground mt-1">
-              {(material.average_cost || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} / {material.unit}
+              {currentCost.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} / {material.unit}
             </span>
           </div>
         </div>
@@ -141,7 +142,7 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
               Histórico de Movimentações ({movements?.length || 0})
             </h3>
           </div>
-          
+
           <div className="max-h-[400px] overflow-y-auto">
             <Table>
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
@@ -169,11 +170,11 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
                     const isAdjustmentOpen = mov.movement_type === "Ajuste Bobina Aberta";
                     const isOpenRollUse = mov.movement_type === "open_roll_use";
                     const isOpenRollClosure = mov.movement_type === "open_roll_closure";
-                    
+
                     // Bobinas abertas acumulam uso (somam), estoque fechado subtrai
                     const isAccumulation = isOpenRollUse;
                     const showPositive = isEntry || isAccumulation;
-                    
+
                     return (
                       <TableRow key={mov.id} className="hover:bg-muted/30 transition-colors">
                         <TableCell>

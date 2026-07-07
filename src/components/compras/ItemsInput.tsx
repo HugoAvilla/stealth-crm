@@ -26,6 +26,7 @@ interface MaterialOption {
   name: string;
   unit: string;
   average_cost: number | null;
+  product_types?: { cost_per_meter: number | null } | null;
 }
 
 interface ItemsInputProps {
@@ -52,7 +53,7 @@ export function ItemsInput({
       try {
         const { data, error } = await supabase
           .from("materials")
-          .select("id, name, unit, average_cost")
+          .select("id, name, unit, average_cost, product_types(cost_per_meter)")
           .eq("company_id", companyId)
           .eq("is_active", true)
           .order("name", { ascending: true });
@@ -98,7 +99,7 @@ export function ItemsInput({
         const selectedMaterial = materials.find((m) => m.id === matId);
         if (selectedMaterial) {
           currentItem.unit = selectedMaterial.unit || "un";
-          currentItem.unitPrice = selectedMaterial.average_cost || 0;
+          currentItem.unitPrice = selectedMaterial.product_types?.cost_per_meter || selectedMaterial.average_cost || 0;
           currentItem.description = null;
         }
       } else {

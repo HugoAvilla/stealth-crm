@@ -84,7 +84,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
       if (!companyId) return [];
       const { data, error } = await supabase
         .from('materials')
-        .select('id, name, current_stock, average_cost, unit, type, width')
+        .select('id, name, current_stock, average_cost, unit, type, width, product_types(cost_per_meter)')
         .eq('company_id', companyId)
         .eq('is_open_roll', false)
         .gt('current_stock', 0)
@@ -182,30 +182,32 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
 
   const lostMetersVal = form.watch("lost_meters") || 0;
   const lostWidthVal = form.watch("lost_width");
-  
+
   const widthVal = selectedMaterial && 'width' in selectedMaterial ? (selectedMaterial.width as number || 1.52) : 1.52;
   const activeWidth = lostWidthVal !== null && lostWidthVal !== undefined ? lostWidthVal : widthVal;
-  
+
   const previewM2 = lostMetersVal * activeWidth;
-  const previewCost = lostMetersVal * (selectedMaterial?.average_cost || 0);
+  const currentCost = (selectedMaterial as any)?.product_types?.cost_per_meter || selectedMaterial?.average_cost || 0;
+  const previewCost = lostMetersVal * currentCost;
 
   const onSubmit = async (values: FormValues) => {
     // Validate stock when creating
     if (selectedMaterial && values.lost_meters > selectedMaterial.current_stock && !isEditing) {
-      form.setError("lost_meters", { 
-        type: "manual", 
-        message: `Estoque insuficiente. Disponível: ${selectedMaterial.current_stock} ${selectedMaterial.unit}` 
+      form.setError("lost_meters", {
+        type: "manual",
+        message: `Estoque insuficiente. Disponível: ${selectedMaterial.current_stock} ${selectedMaterial.unit}`
       });
       return;
     }
-    
+
     const category = selectedMaterial?.type === 'INSULFILM' ? 'INSULFILM' : 'PPF';
-    
+
     // Calcula área e custo proporcional baseados na largura física real da bobina cadastrada no material (ou na largura da peça se informada)
     const bobbinWidth = selectedMaterial && 'width' in selectedMaterial ? (selectedMaterial.width as number || 1.52) : 1.52;
     const activeWidthSubmit = values.lost_width !== null && values.lost_width !== undefined ? values.lost_width : bobbinWidth;
     const lost_m2 = values.lost_meters * activeWidthSubmit;
-    const cost = values.lost_meters * (selectedMaterial?.average_cost || 0);
+    const currentCostSubmit = (selectedMaterial as any)?.product_types?.cost_per_meter || selectedMaterial?.average_cost || 0;
+    const cost = values.lost_meters * currentCostSubmit;
 
     try {
       if (isEditing && lossToEdit) {
@@ -240,7 +242,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
           sale_id: null,
         });
       }
-      
+
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
@@ -256,7 +258,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Perda de Material" : "Registrar Perda de Material"}</DialogTitle>
           <DialogDescription>
-            {isEditing 
+            {isEditing
               ? "Modifique os dados da perda. O estoque será ajustado automaticamente com a diferença."
               : "Preencha os dados da perda. O estoque fechado será reduzido com a quantidade informada."}
           </DialogDescription>
@@ -264,7 +266,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -361,13 +363,13 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
                       Metros Perdidos *
                     </FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01" 
+                      <Input
+                        type="number"
+                        step="0.01"
                         placeholder="0"
-                        {...field} 
+                        {...field}
                         value={field.value || ""}
-                        onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
+                        onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -384,15 +386,15 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
                       Largura da Peça (m) <span className="text-[10px] text-muted-foreground">(Opcional)</span>
                     </FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01" 
+                      <Input
+                        type="number"
+                        step="0.01"
                         placeholder={selectedMaterial ? `${widthVal.toFixed(2)}m (largura bobina)` : "Ex: 0.90"}
-                        value={field.value ?? ""} 
+                        value={field.value ?? ""}
                         onChange={e => {
                           const val = e.target.value;
                           field.onChange(val === "" ? null : parseFloat(val));
-                        }} 
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -435,10 +437,10 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
                     Motivo Detalhado {form.watch('reason') === 'OUTRO' ? '*' : '(Opcional)'}
                   </FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Descreva o que ocorreu..." 
-                      className="resize-none" 
-                      {...field} 
+                    <Textarea
+                      placeholder="Descreva o que ocorreu..."
+                      className="resize-none"
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />

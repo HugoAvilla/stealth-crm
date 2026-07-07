@@ -14,6 +14,7 @@ interface Material {
   open_roll_accumulated: number | null;
   unit: string;
   average_cost?: number | null;
+  product_types?: { cost_per_meter: number | null; light_transmission?: string | null } | null;
 }
 
 interface CloseRollModalProps {
@@ -75,7 +76,7 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
       data?.forEach((movement) => {
         if (!movement.reason) return;
         totalCars++;
-        
+
         // Extract size from reason string (e.g. "... - P)", "... - M)", "... - G)")
         const match = movement.reason.match(/- ([PMG])\)$/i);
         if (match && match[1]) {
@@ -104,7 +105,7 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
       });
 
       if (error) throw error;
-      
+
       toast.success("Bobina encerrada com sucesso");
       onSuccess();
     } catch (error) {
@@ -167,7 +168,7 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
                 <div>
                   <p className="text-sm text-muted-foreground">Valor / Metro</p>
                   <p className="text-lg font-bold truncate max-w-full">
-                    {(material.average_cost || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    {(material.product_types?.cost_per_meter || material.average_cost || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </p>
                 </div>
               </CardContent>
@@ -179,7 +180,7 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
                 <div>
                   <p className="text-sm text-muted-foreground">Valor Total</p>
                   <p className="text-lg font-bold truncate max-w-full">
-                    {((material.open_roll_accumulated || 0) * (material.average_cost || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    {((material.open_roll_accumulated || 0) * (material.product_types?.cost_per_meter || material.average_cost || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </p>
                 </div>
               </CardContent>

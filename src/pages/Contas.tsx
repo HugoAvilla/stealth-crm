@@ -49,6 +49,7 @@ import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from 
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { payInstallment, reverseInstallment, payInstallmentWithDetails } from "@/lib/purchaseService";
 
 interface Account {
   id: number;
@@ -72,6 +73,8 @@ interface Transaction {
   is_paid: boolean | null;
   category_id: number | null;
   account_id: number | null;
+  origin_type?: string | null;
+  origin_id?: number | null;
 }
 
 interface Transfer {
@@ -305,6 +308,23 @@ export default function Contas() {
       return;
     }
     if (window.confirm(newStatus ? "Confirmar o recebimento/pagamento deste lançamento?" : "Reverter o pagamento deste lançamento?")) {
+      if (tx.origin_type === 'purchase_installment' && tx.origin_id) {
+        let success = false;
+        if (newStatus) {
+          success = await payInstallment(tx.origin_id);
+        } else {
+          success = await reverseInstallment(tx.origin_id);
+        }
+
+        if (success) {
+          toast.success(newStatus ? "Lançamento de compra pago e sincronizado!" : "Pagamento de compra revertido!");
+          fetchData();
+        } else {
+          toast.error("Erro ao sincronizar o pagamento com as compras.");
+        }
+        return;
+      }
+
       const { error } = await supabase.from('transactions').update({ is_paid: newStatus }).eq('id', tx.id);
       if (!error) {
         toast.success(newStatus ? "Lançamento confirmado!" : "Lançamento revertido!");
@@ -329,6 +349,25 @@ export default function Contas() {
     if (!transactionToPay || !companyId) return;
 
     try {
+      if (transactionToPay.origin_type === 'purchase_installment' && transactionToPay.origin_id) {
+        const purchasePayments = payments.map(p => ({
+          payment_method: p.payment_method,
+          amount: p.amount,
+          account_id: p.account_id
+        }));
+
+        const success = await payInstallmentWithDetails(transactionToPay.origin_id, purchasePayments);
+        if (success) {
+          fetchData();
+          toast.success('Pagamento da compra confirmado e sincronizado!');
+          setPaymentModalOpen(false);
+          setTransactionToPay(null);
+        } else {
+          toast.error('Erro ao sincronizar o pagamento com as compras.');
+        }
+        return;
+      }
+
       const p = payments[0];
 
       let finalNetAmount = p.amount;
@@ -1223,7 +1262,14 @@ export default function Contas() {
                                         </span>
                                       </TableCell>
                                       <TableCell className="text-center">
-                                        <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn("text-[10px]", tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : "")}>{tx.is_paid ? 'Pago' : 'Pendente'}</Badge>
+                                        <div className="flex items-center justify-center gap-2">
+                                          <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn("text-[10px]", tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : "")}>{tx.is_paid ? 'Pago' : 'Pendente'}</Badge>
+                                          {tx.is_paid && typeof tx.id !== 'string' && (
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-red-500/10 hover:text-red-500" onClick={(e) => { e.stopPropagation(); handleTogglePayment(tx, false); }} title="Reverter Pagamento">
+                                              <RefreshCw className="h-3 w-3" />
+                                            </Button>
+                                          )}
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   );
@@ -1314,9 +1360,16 @@ export default function Contas() {
                                           {category.name}
                                         </Badge>
                                       )}
-                                      <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn("text-[10px] py-0 px-2 font-normal", tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : "")}>
-                                        {tx.is_paid ? 'Pago' : 'Pendente'}
-                                      </Badge>
+                                      <div className="flex items-center gap-1">
+                                        <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn("text-[10px] py-0 px-2 font-normal", tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : "")}>
+                                          {tx.is_paid ? 'Pago' : 'Pendente'}
+                                        </Badge>
+                                        {tx.is_paid && typeof tx.id !== 'string' && (
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-red-500/10 hover:text-red-500" onClick={(e) => { e.stopPropagation(); handleTogglePayment(tx, false); }} title="Reverter Pagamento">
+                                            <RefreshCw className="h-3 w-3" />
+                                          </Button>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>

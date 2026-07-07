@@ -43,7 +43,7 @@ interface Material {
   open_roll_accumulated: number | null;
   company_id: number | null;
   product_type_id: number | null;
-  product_types: { light_transmission: string | null } | null;
+  product_types: { light_transmission: string | null; cost_per_meter: number | null } | null;
   width: number | null;
 }
 
@@ -85,7 +85,7 @@ export default function Estoque() {
 
       const { data, error } = await supabase
         .from("materials")
-        .select("*, product_types(light_transmission)")
+        .select("*, product_types(light_transmission, cost_per_meter)")
         .eq("company_id", profile.company_id)
         .eq("is_active", true)
         .order("name");
@@ -180,7 +180,7 @@ export default function Estoque() {
   const openRollsCount = materials.filter(m => m.is_open_roll).length;
 
   const totalValue = materials.reduce(
-    (sum, m) => sum + ((m.current_stock || 0) * (m.average_cost || 0)),
+    (sum, m) => sum + ((m.current_stock || 0) * (m.product_types?.cost_per_meter || m.average_cost || 0)),
     0
   );
 
@@ -257,9 +257,10 @@ export default function Estoque() {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {items.map((material) => {
         const stockStatus = getStockStatus(material);
+        const currentCost = material.product_types?.cost_per_meter || material.average_cost || 0;
         const totalVal = (material.is_open_roll
           ? (material.open_roll_accumulated || 0)
-          : (material.current_stock || 0)) * (material.average_cost || 0);
+          : (material.current_stock || 0)) * currentCost;
 
         return (
           <Card key={material.id} className="bg-card/50 border-border/50 p-4 flex flex-col justify-between space-y-3 hover:border-primary/30 transition-all duration-300">
