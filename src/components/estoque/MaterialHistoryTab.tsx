@@ -367,26 +367,101 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
       );
     }
 
+    const renderMaterialCard = (material: HistoryMaterial) => {
+      const status = getOperationalStatus(material);
+      const statusConfig = STATUS_MAP[status];
+      const lastEntry = lastEntryMap.get(material.id);
+
+      return (
+        <div key={material.id} className="p-4 text-sm space-y-3">
+          {/* 1. Título e Status */}
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div
+              className="cursor-pointer transition-colors hover:text-primary hover:underline flex-1"
+              onClick={() => handleDetails(material)}
+            >
+              <span className="font-bold text-base leading-none block">{material.name}</span>
+              {material.brand && (
+                <span className="text-xs text-muted-foreground mt-1 block">
+                  {material.brand}
+                </span>
+              )}
+            </div>
+            <Badge className={cn(statusConfig.bg, statusConfig.color, "border-0 text-[10px] py-0 px-1.5 h-5 shrink-0")}>
+              {statusConfig.label}
+            </Badge>
+          </div>
+
+          {/* 2. Informações Específicas */}
+          {(activeCategory === "INSULFILM" && material.product_types?.light_transmission) ||
+            (activeCategory === "PPF" && material.product_types?.ppf_material_type) ? (
+            <div className="flex gap-2">
+              {activeCategory === "INSULFILM" && material.product_types?.light_transmission && (
+                <Badge variant="outline" className="text-[10px] font-normal border-amber-500/20 text-amber-600 bg-amber-500/5">
+                  Transmissão: {material.product_types.light_transmission}
+                </Badge>
+              )}
+              {activeCategory === "PPF" && material.product_types?.ppf_material_type && (
+                <Badge variant="outline" className="text-[10px] font-normal">
+                  Tipo: {material.product_types.ppf_material_type}
+                </Badge>
+              )}
+            </div>
+          ) : null}
+
+          {/* 3. Rodapé: Saldo e Entrada */}
+          <div className="flex items-center justify-between pt-2 border-t mt-3">
+            <div>
+              <span className="text-[10px] text-muted-foreground block mb-0.5">Saldo / Consumo</span>
+              <span className="font-semibold text-foreground text-xs">
+                {material.is_open_roll
+                  ? `${material.open_roll_accumulated || 0} ${material.unit}`
+                  : `${material.current_stock || 0} ${material.unit}`}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-muted-foreground block mb-0.5">Última Entrada</span>
+              <span className="font-medium text-xs">
+                {lastEntry ? (
+                  format(new Date(lastEntry), "dd/MM/yyyy", { locale: ptBR })
+                ) : (
+                  <span className="text-muted-foreground">S/ entrada</span>
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     return (
-      <Card className="bg-card/50 border-border/50">
+      <Card className="bg-card/50 border-border/50 overflow-hidden">
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Material</TableHead>
-                {activeCategory === "INSULFILM" && (
-                  <TableHead>Transmissao</TableHead>
-                )}
-                {activeCategory === "PPF" && (
-                  <TableHead>Tipo Material</TableHead>
-                )}
-                <TableHead className="text-center">Situacao</TableHead>
-                <TableHead className="text-center">Saldo / Consumo</TableHead>
-                <TableHead className="text-center">Ultima Entrada</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>{items.map(renderMaterialRow)}</TableBody>
-          </Table>
+          {/* Desktop Table View */}
+          <div className="hidden sm:block w-full overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Material</TableHead>
+                  {activeCategory === "INSULFILM" && (
+                    <TableHead>Transmissao</TableHead>
+                  )}
+                  {activeCategory === "PPF" && (
+                    <TableHead>Tipo Material</TableHead>
+                  )}
+                  <TableHead className="text-center">Situacao</TableHead>
+                  <TableHead className="text-center">Saldo / Consumo</TableHead>
+                  <TableHead className="text-center">Ultima Entrada</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>{items.map(renderMaterialRow)}</TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Stacked View */}
+          <div className="block sm:hidden flex flex-col divide-y divide-border">
+            {items.map(renderMaterialCard)}
+          </div>
         </CardContent>
       </Card>
     );
@@ -480,7 +555,7 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
                 <Package className="h-5 w-5" />
                 Bobinas / Materiais Ativos ({activeMaterials.length})
               </h3>
-              
+
               <div className="space-y-6">
                 {activeOpenRolls.length > 0 && (
                   <div className="space-y-3">
@@ -516,7 +591,7 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
                 <XCircle className="h-5 w-5" />
                 Bobinas / Materiais Desativados (Excluídos) ({inactiveMaterials.length})
               </h3>
-              
+
               <div className="space-y-6">
                 {inactiveOpenRolls.length > 0 && (
                   <div className="space-y-3">

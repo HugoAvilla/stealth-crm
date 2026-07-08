@@ -87,6 +87,7 @@ export default function Financeiro() {
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("visao-geral");
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -432,22 +433,24 @@ export default function Financeiro() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Financeiro</h1>
-          <div className="flex items-center gap-2 mt-2">
-            <Button variant="outline" size="icon" className="h-7 w-7 transition-colors hover:bg-muted" onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm font-semibold capitalize text-foreground min-w-[110px] text-center">
-              {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-            </span>
-            <Button variant="outline" size="icon" className="h-7 w-7 transition-colors hover:bg-muted" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            {!isCurrentMonth && (
-              <Button variant="secondary" size="sm" className="h-7 text-xs px-3 ml-1" onClick={() => setCurrentMonth(new Date())}>
-                Voltar para o mês atual
+          {activeTab === "visao-geral" && (
+            <div className="flex items-center gap-2 mt-2">
+              <Button variant="outline" size="icon" className="h-7 w-7 transition-colors hover:bg-muted" onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}>
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-            )}
-          </div>
+              <span className="text-sm font-semibold capitalize text-foreground min-w-[110px] text-center">
+                {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+              </span>
+              <Button variant="outline" size="icon" className="h-7 w-7 transition-colors hover:bg-muted" onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              {!isCurrentMonth && (
+                <Button variant="secondary" size="sm" className="h-7 text-xs px-3 ml-1" onClick={() => setCurrentMonth(new Date())}>
+                  Voltar para o mês atual
+                </Button>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="ghost" size="icon" onClick={() => setShowValues(!showValues)}>
@@ -481,7 +484,7 @@ export default function Financeiro() {
         </div>
       </div>
 
-      <Tabs defaultValue="visao-geral" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 lg:w-[400px] mb-6">
           <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
           <TabsTrigger value="cac">CAC / Aquisição</TabsTrigger>

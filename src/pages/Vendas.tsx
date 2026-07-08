@@ -56,7 +56,7 @@ const Vendas = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("vendas");
   const [initialSaleDate, setInitialSaleDate] = useState<Date | undefined>(undefined);
-  
+
   const [searchParams] = useSearchParams();
   const searchParamValue = searchParams.get("search") || "";
   const [searchTerm, setSearchTerm] = useState(searchParamValue);
@@ -152,7 +152,7 @@ const Vendas = () => {
         if (vehicleIds.length > 0) {
           filters.push(`vehicle_id.in.(${vehicleIds.join(',')})`);
         }
-        
+
         if (filters.length > 0) {
           salesQuery = salesQuery.or(filters.join(','));
         } else {
@@ -175,7 +175,7 @@ const Vendas = () => {
 
     return () => clearTimeout(delayDebounce);
   }, [searchTerm, user?.companyId]);
-  
+
   // Deleted Sales state
   const [deletedSales, setDeletedSales] = useState<SaleWithDetails[]>([]);
   const [deletedLoading, setDeletedLoading] = useState(false);
@@ -195,13 +195,15 @@ const Vendas = () => {
     }
   }, [user?.id, currentDate, activeTab]);
 
-  const fetchSales = async () => {
+  const fetchSales = async (silently: boolean = false) => {
     if (!user?.id || !user?.companyId) {
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (!silently) {
+      setLoading(true);
+    }
     try {
       const { data, error } = await supabase
         .from('sales')
@@ -247,8 +249,44 @@ const Vendas = () => {
     } catch (error) {
       console.error('Error fetching sales:', error);
     } finally {
-      setLoading(false);
+      if (!silently) {
+        setLoading(false);
+      }
     }
+  };
+
+  const handleNewSaleSuccess = (newSale?: any) => {
+    setIsNewSaleModalOpen(false);
+
+    // Optistic UI Update
+    if (newSale && newSale.id) {
+      const isCurrentMonth = isSameMonth(new Date(newSale.sale_date + 'T12:00:00'), currentDate);
+      if (isCurrentMonth) {
+        setSales(prev => {
+          if (prev.some(s => s.id === newSale.id)) return prev;
+          return [{
+            id: newSale.id,
+            client_id: newSale.client_id,
+            vehicle_id: newSale.vehicle_id,
+            sale_date: newSale.sale_date,
+            subtotal: newSale.subtotal,
+            discount: newSale.discount,
+            total: newSale.total,
+            payment_method: newSale.payment_method,
+            status: newSale.status,
+            is_open: newSale.is_open,
+            observations: newSale.observations,
+            created_at: newSale.created_at,
+            client: undefined, // Needs proper join, but will show partially formatted list
+            vehicle: undefined,
+            sale_items: [],
+          }, ...prev];
+        });
+      }
+    }
+
+    // Refresh data in background to load nested relations correctly
+    fetchSales(true);
   };
 
   const fetchDeletedSales = async () => {
@@ -322,13 +360,13 @@ const Vendas = () => {
       const matchClient = sale.client?.name?.toLowerCase().includes(term);
       const matchId = sale.id.toString() === term;
       const matchVehicle = sale.vehicle?.plate?.toLowerCase().includes(term) ||
-                           sale.vehicle?.brand?.toLowerCase().includes(term) ||
-                           sale.vehicle?.model?.toLowerCase().includes(term);
+        sale.vehicle?.brand?.toLowerCase().includes(term) ||
+        sale.vehicle?.model?.toLowerCase().includes(term);
       if (!matchClient && !matchId && !matchVehicle) pass = false;
     }
     return pass;
   });
-  
+
   const totalMonthValue = monthSales.reduce((sum, sale) => sum + sale.total, 0);
 
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -409,7 +447,7 @@ const Vendas = () => {
                     Lista
                   </Button>
                 </div>
-                
+
                 {/* Search and Filters */}
                 <div className="relative flex-1 min-w-[200px] w-full sm:w-auto search-container z-50">
                   <div className="relative">
@@ -642,7 +680,7 @@ const Vendas = () => {
                             "h-[72px] sm:h-auto sm:aspect-square sm:min-h-[100px] p-1.5 sm:p-2 border border-border rounded-lg sm:rounded-xl transition-all flex flex-col items-center cursor-pointer hover:bg-accent/80 hover:scale-[1.02] overflow-hidden relative shadow-sm",
                             isCurrentMonth ? "bg-card" : "bg-background opacity-40",
                             calendarEvent &&
-                              BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
+                            BRAZIL_CALENDAR_EVENT_STYLES[calendarEvent.kind].dayClass,
                             isToday && "border-primary ring-1 ring-primary/20"
                           )}
                         >
@@ -884,7 +922,7 @@ const Vendas = () => {
           }
         }}
         initialDate={initialSaleDate}
-        onSuccess={fetchSales}
+        onSuccess={handleNewSaleSuccess}
       />
 
       <SalesDayDrawer

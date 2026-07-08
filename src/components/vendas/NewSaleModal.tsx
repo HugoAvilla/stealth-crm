@@ -135,7 +135,7 @@ interface NewSaleModalProps {
     spaceId?: number;
     observations?: string;
   };
-  onSuccess?: () => void;
+  onSuccess?: (sale?: any) => void;
 }
 
 const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefillData, onSuccess }: NewSaleModalProps) => {
@@ -929,7 +929,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
 
       // Call onSuccess to notify parent components
       if (onSuccess) {
-        onSuccess();
+        onSuccess(sale);
       }
 
       // Reset form

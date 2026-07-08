@@ -352,69 +352,152 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Marca</TableHead>
-                  <TableHead>Nome/Lote</TableHead>
-                  {activeCategory === "INSULFILM" && (
-                    <TableHead>Transmissao</TableHead>
-                  )}
-                  {activeCategory === "PPF" && (
-                    <TableHead>Tipo Material</TableHead>
-                  )}
-                  <TableHead className="text-right">Custo/Metro</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="w-[100px]">Acoes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* 🖥️ Visualização Desktop: Tabela Completa */}
+              <div className="hidden sm:block w-full overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Marca</TableHead>
+                      <TableHead>Nome/Lote</TableHead>
+                      {activeCategory === "INSULFILM" && (
+                        <TableHead>Transmissao</TableHead>
+                      )}
+                      {activeCategory === "PPF" && (
+                        <TableHead>Tipo Material</TableHead>
+                      )}
+                      <TableHead className="text-right">Custo/Metro</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="w-[100px]">Acoes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {productTypes.map((product) => (
+                      <TableRow
+                        key={product.id}
+                        className={!product.is_active ? "opacity-50" : ""}
+                      >
+                        <TableCell className="font-medium">{product.brand}</TableCell>
+                        <TableCell>
+                          <div>
+                            <span>{product.name}</span>
+                            {product.model && (
+                              <span className="ml-1 text-muted-foreground">
+                                - Lote {product.model}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        {activeCategory === "INSULFILM" && (
+                          <TableCell>{product.light_transmission || "-"}</TableCell>
+                        )}
+                        {activeCategory === "PPF" && (
+                          <TableCell>
+                            {product.ppf_material_type ? (
+                              <Badge variant="outline">
+                                {product.ppf_material_type}
+                              </Badge>
+                            ) : (
+                              "-"
+                            )}
+                          </TableCell>
+                        )}
+                        <TableCell className="text-right">
+                          {formatCurrency(product.cost_per_meter)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge
+                            variant={product.is_active ? "default" : "destructive"}
+                            className={product.is_active ? "bg-green-500" : ""}
+                          >
+                            {product.is_active ? "Ativo" : "Inativo"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenModal(product)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(product)}
+                              className="text-muted-foreground hover:text-destructive"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <Switch
+                              checked={product.is_active}
+                              onCheckedChange={() =>
+                                toggleMutation.mutate({
+                                  id: product.id,
+                                  currentStatus: product.is_active,
+                                })
+                              }
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* 📱 Visualização Mobile: Cards Empilhados */}
+              <div className="block sm:hidden flex flex-col divide-y divide-border">
                 {productTypes.map((product) => (
-                  <TableRow
-                    key={product.id}
-                    className={!product.is_active ? "opacity-50" : ""}
-                  >
-                    <TableCell className="font-medium">{product.brand}</TableCell>
-                    <TableCell>
+                  <div key={product.id} className={cn("p-4 text-sm space-y-3", !product.is_active && "opacity-50")}>
+                    {/* 1. Título e Status */}
+                    <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <span>{product.name}</span>
-                        {product.model && (
-                          <span className="ml-1 text-muted-foreground">
-                            - Lote {product.model}
+                        <span className="font-bold text-base leading-none block">{product.name}</span>
+                        {(product.brand || product.model) && (
+                          <span className="text-xs text-muted-foreground mt-1 block">
+                            {product.brand} {product.model ? `- Lote ${product.model}` : ''}
                           </span>
                         )}
                       </div>
-                    </TableCell>
-                    {activeCategory === "INSULFILM" && (
-                      <TableCell>{product.light_transmission || "-"}</TableCell>
-                    )}
-                    {activeCategory === "PPF" && (
-                      <TableCell>
-                        {product.ppf_material_type ? (
-                          <Badge variant="outline">
-                            {product.ppf_material_type}
-                          </Badge>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                    )}
-                    <TableCell className="text-right">
-                      {formatCurrency(product.cost_per_meter)}
-                    </TableCell>
-                    <TableCell className="text-center">
                       <Badge
                         variant={product.is_active ? "default" : "destructive"}
-                        className={product.is_active ? "bg-green-500" : ""}
+                        className={cn("text-[10px] py-0 px-1.5 h-5", product.is_active ? "bg-green-500" : "")}
                       >
                         {product.is_active ? "Ativo" : "Inativo"}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
+                    </div>
+
+                    {/* 2. Informações Específicas */}
+                    {(activeCategory === "INSULFILM" && product.light_transmission) ||
+                      (activeCategory === "PPF" && product.ppf_material_type) ? (
+                      <div className="flex gap-2">
+                        {activeCategory === "INSULFILM" && product.light_transmission && (
+                          <Badge variant="outline" className="text-[10px] font-normal border-amber-500/20 text-amber-600 bg-amber-500/5">
+                            Transmissão: {product.light_transmission}
+                          </Badge>
+                        )}
+                        {activeCategory === "PPF" && product.ppf_material_type && (
+                          <Badge variant="outline" className="text-[10px] font-normal">
+                            Tipo: {product.ppf_material_type}
+                          </Badge>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {/* 3. Rodapé: Custo e Ações */}
+                    <div className="flex items-center justify-between pt-2 border-t mt-3">
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Custo/Metro</span>
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(product.cost_per_meter)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8"
                           onClick={() => handleOpenModal(product)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -422,13 +505,13 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
                           onClick={() => handleDelete(product)}
-                          className="text-muted-foreground hover:text-destructive"
-                          title="Excluir"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                         <Switch
+                          className="ml-2 data-[state=checked]:bg-green-500"
                           checked={product.is_active}
                           onCheckedChange={() =>
                             toggleMutation.mutate({
@@ -438,17 +521,17 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
                           }
                         />
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[calc(100%-2rem)] sm:w-full p-4 sm:p-6 max-h-[85dvh] sm:max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingProduct
@@ -480,7 +563,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Marca</Label>
                 <Input
@@ -503,7 +586,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Lote</Label>
                 <Input
@@ -584,11 +667,12 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCloseModal}>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={handleCloseModal}>
               Cancelar
             </Button>
             <Button
+              className="w-full sm:w-auto"
               onClick={handleSubmit}
               disabled={createMutation.isPending || updateMutation.isPending}
             >
