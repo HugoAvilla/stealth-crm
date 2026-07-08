@@ -24,6 +24,7 @@ interface AddTransferModalProps {
 export function AddTransferModal({ open, onOpenChange, onSuccess }: AddTransferModalProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
+  const [tedFee, setTedFee] = useState("");
   const [fromAccountId, setFromAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [description, setDescription] = useState("");
@@ -78,19 +79,40 @@ export function AddTransferModal({ open, onOpenChange, onSuccess }: AddTransferM
 
     try {
       const amountValue = parseFloat(amount);
+      const tedFeeValue = tedFee ? parseFloat(tedFee) : 0;
       const today = format(new Date(), 'yyyy-MM-dd');
 
       // Create transfer record
-      const { error } = await supabase.from("transfers").insert({
+      const { data: transferRecord, error } = await supabase.from("transfers").insert({
         company_id: companyId,
         from_account_id: parseInt(fromAccountId),
         to_account_id: parseInt(toAccountId),
         amount: amountValue,
         description: description || null,
         transfer_date: today,
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      if (tedFeeValue > 0 && transferRecord) {
+        const { error: feeError } = await supabase.from("transactions").insert({
+          company_id: companyId,
+          type: 'Saida',
+          name: 'Taxa de TED/DOC - Transferência',
+          amount: tedFeeValue,
+          account_id: parseInt(fromAccountId),
+          transaction_date: today,
+          is_paid: true,
+          description: `Taxa da transferência para a conta ${accounts.find(a => a.id.toString() === toAccountId)?.name || 'destino'}`,
+          origin_type: 'transfer_fee',
+          origin_id: transferRecord.id
+        });
+
+        if (feeError) {
+          console.error("Error creating fee transaction:", feeError);
+          toast.error("Transferência realizada, mas erro ao registrar a taxa");
+        }
+      }
 
       toast.success("Transferência realizada com sucesso!");
       onOpenChange(false);
@@ -106,6 +128,7 @@ export function AddTransferModal({ open, onOpenChange, onSuccess }: AddTransferM
 
   const resetForm = () => {
     setAmount("");
+    setTedFee("");
     setFromAccountId("");
     setToAccountId("");
     setDescription("");
@@ -119,14 +142,26 @@ export function AddTransferModal({ open, onOpenChange, onSuccess }: AddTransferM
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Valor *</Label>
-            <Input
-              type="number"
-              placeholder="0,00"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-            />
+          <div className="flex gap-4">
+            <div className="space-y-2 flex-1">
+              <Label>Valor *</Label>
+              <Input
+                type="number"
+                placeholder="0,00"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2 flex-1 relative">
+              <Label className="text-yellow-500">Taxa TED/DOC</Label>
+              <Input
+                type="number"
+                placeholder="0,00"
+                value={tedFee}
+                onChange={e => setTedFee(e.target.value)}
+                className="border-yellow-500/50 focus-visible:ring-yellow-500"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

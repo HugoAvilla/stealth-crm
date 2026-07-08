@@ -341,6 +341,7 @@ export interface PurchasePaymentDetail {
   payment_method: string;
   amount: number;
   account_id: number;
+  payment_date?: string;
 }
 
 /**
@@ -379,14 +380,15 @@ export async function payInstallmentWithDetails(
       return false;
     }
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const firstPaymentDate = payments[0]?.payment_date || new Date().toISOString();
+    const todayStr = firstPaymentDate.split("T")[0];
 
     // 3. Atualizar status da parcela no banco
     const { error: updateError } = await supabase
       .from("purchase_installments")
       .update({
         status: "paga",
-        paid_at: new Date().toISOString(),
+        paid_at: firstPaymentDate,
         updated_at: new Date().toISOString(),
       })
       .eq("id", installmentId);
@@ -406,7 +408,7 @@ export async function payInstallmentWithDetails(
           .from("transactions")
           .update({
             is_paid: true,
-            transaction_date: todayStr,
+            transaction_date: p.payment_date ? p.payment_date.split("T")[0] : todayStr,
             amount: p.amount,
             account_id: p.account_id,
             payment_method: p.payment_method,
@@ -433,7 +435,7 @@ export async function payInstallmentWithDetails(
             name: txName,
             amount: p.amount,
             type: "Saida",
-            transaction_date: todayStr,
+            transaction_date: p.payment_date ? p.payment_date.split("T")[0] : todayStr,
             account_id: p.account_id,
             company_id: purchase.company_id,
             is_paid: true,

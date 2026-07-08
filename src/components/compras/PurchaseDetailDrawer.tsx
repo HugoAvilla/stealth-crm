@@ -70,7 +70,8 @@ export function PurchaseDetailDrawer({ purchaseId, open, onOpenChange, onUpdate 
     const paymentDetails = paymentsList.map(p => ({
       payment_method: p.payment_method,
       amount: p.amount,
-      account_id: p.account_id
+      account_id: p.account_id,
+      payment_date: p.due_date
     }));
 
     const success = await payInstallmentWithDetails(selectedInstallment.id, paymentDetails);

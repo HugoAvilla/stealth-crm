@@ -60,6 +60,7 @@ interface Account {
   is_active: boolean | null;
   bank_code?: string | null;
   bank_name?: string | null;
+  accepted_payment_methods?: string[] | null;
 }
 
 interface Transaction {
@@ -303,11 +304,53 @@ export default function Contas() {
   const accountTransactions = transactions.filter(t => String(t.account_id) === String(selectedAccountId));
 
   const handleTogglePayment = async (tx: Transaction, newStatus: boolean) => {
-    if (typeof tx.id === 'string') {
-      toast.error("Não é possível alterar o status de uma transferência.");
+    if (typeof tx.id === 'string' && tx.id.startsWith('transfer-')) {
+      if (window.confirm("Deseja reverter esta transferência? Isso irá desfazer a transferência e remover eventuais taxas associadas.")) {
+        const transferId = parseInt(tx.id.replace('transfer-in-', '').replace('transfer-out-', ''));
+
+        // Excluir a taxa vinculada a essa transferência
+        await supabase.from("transactions").delete().eq("origin_type", "transfer_fee").eq("origin_id", transferId);
+
+        // Excluir a transferência em si
+        const { error } = await supabase.from("transfers").delete().eq("id", transferId);
+
+        if (!error) {
+          toast.success("Transferência revertida e saldo devolvido!");
+          fetchData();
+        } else {
+          toast.error("Erro ao reverter transferência.");
+        }
+      }
       return;
     }
+
     if (window.confirm(newStatus ? "Confirmar o recebimento/pagamento deste lançamento?" : "Reverter o pagamento deste lançamento?")) {
+      // Se for uma Taxa de TED/DOC nova e o usuário estiver revertendo
+      if (!newStatus && tx.name.includes("Taxa de TED/DOC") && tx.origin_type === 'transfer_fee' && tx.origin_id) {
+        // Excluir a transferência em si
+        await supabase.from("transfers").delete().eq("id", tx.origin_id);
+
+        // Excluir a taxa
+        const { error } = await supabase.from("transactions").delete().eq("id", tx.id);
+
+        if (!error) {
+          toast.success("Taxa e Transferência revertidas com sucesso! Os valores voltaram para as contas.");
+          fetchData();
+        } else {
+          toast.error("Erro ao reverter taxa.");
+        }
+        return;
+      }
+
+      // Se for uma Taxa antiga (sem vínculo)
+      if (!newStatus && tx.name.includes("Taxa de TED/DOC") && !tx.origin_type) {
+        toast.info("Atenção: A taxa foi revertida, mas como foi criada antes da atualização, a transferência da taxa ainda consta no extrato. Exclua a transferência manualmente.");
+        const { error } = await supabase.from('transactions').delete().eq('id', tx.id);
+        if (!error) {
+          fetchData();
+        }
+        return;
+      }
       if (tx.origin_type === 'purchase_installment' && tx.origin_id) {
         let success = false;
         if (newStatus) {
@@ -1239,15 +1282,16 @@ export default function Contas() {
                                   const category = tx.category_id ? getCategoryById(tx.category_id) : null;
                                   const isEntry = tx.type === 'Entrada';
                                   const isTransfer = tx.payment_method === 'Transferência';
+                                  const isTedFee = tx.name.includes("Taxa de TED/DOC");
                                   return (
-                                    <TableRow key={tx.id} className={cn(isChild && "bg-muted/10 border-l-[3px] border-l-primary/30")}>
+                                    <TableRow key={tx.id} className={cn(isChild && "bg-muted/10 border-l-[3px] border-l-primary/30", isTedFee && "bg-yellow-500/5")}>
                                       <TableCell className={cn(isChild && "pl-8")}>
                                         <div className="flex items-center gap-3">
-                                          <div className={cn("p-1.5 rounded-full flex-shrink-0", isTransfer ? "bg-blue-500/10 text-blue-500" : (isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"))}>
-                                            {isTransfer ? <RefreshCw className="h-3 w-3" /> : (isEntry ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />)}
+                                          <div className={cn("p-1.5 rounded-full flex-shrink-0", isTedFee ? "bg-yellow-500/20 text-yellow-600" : isTransfer ? "bg-blue-500/10 text-blue-500" : (isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"))}>
+                                            {isTedFee ? <Receipt className="h-3 w-3" /> : isTransfer ? <RefreshCw className="h-3 w-3" /> : (isEntry ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />)}
                                           </div>
                                           <div>
-                                            <p className="text-sm font-medium leading-none mb-1">{tx.name}</p>
+                                            <p className={cn("text-sm leading-none mb-1", isTedFee ? "font-bold text-yellow-600 dark:text-yellow-500" : "font-medium")}>{tx.name}</p>
                                             <span className="text-[10px] text-muted-foreground">{format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
                                           </div>
                                         </div>
@@ -1264,7 +1308,7 @@ export default function Contas() {
                                       <TableCell className="text-center">
                                         <div className="flex items-center justify-center gap-2">
                                           <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn("text-[10px]", tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : "")}>{tx.is_paid ? 'Pago' : 'Pendente'}</Badge>
-                                          {tx.is_paid && typeof tx.id !== 'string' && (
+                                          {tx.is_paid && (
                                             <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-red-500/10 hover:text-red-500" onClick={(e) => { e.stopPropagation(); handleTogglePayment(tx, false); }} title="Reverter Pagamento">
                                               <RefreshCw className="h-3 w-3" />
                                             </Button>
@@ -1331,16 +1375,17 @@ export default function Contas() {
                               const category = tx.category_id ? getCategoryById(tx.category_id) : null;
                               const isEntry = tx.type === 'Entrada';
                               const isTransfer = tx.payment_method === 'Transferência';
+                              const isTedFee = tx.name.includes("Taxa de TED/DOC");
 
                               return (
-                                <div key={tx.id} className={cn("p-4 space-y-3", isChild ? "bg-muted/10 border-t border-border/40 pl-6" : "bg-card/50 border border-border/50 rounded-xl")}>
+                                <div key={tx.id} className={cn("p-4 space-y-3", isChild ? "bg-muted/10 border-t border-border/40 pl-6" : isTedFee ? "bg-yellow-500/5 border border-yellow-500/30 rounded-xl" : "bg-card/50 border border-border/50 rounded-xl")}>
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="flex items-center gap-2">
-                                      <div className={cn("p-1.5 rounded-full flex-shrink-0", isTransfer ? "bg-blue-500/10 text-blue-500" : (isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"))}>
-                                        {isTransfer ? <RefreshCw className="h-3.5 w-3.5" /> : (isEntry ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />)}
+                                      <div className={cn("p-1.5 rounded-full flex-shrink-0", isTedFee ? "bg-yellow-500/20 text-yellow-600" : isTransfer ? "bg-blue-500/10 text-blue-500" : (isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"))}>
+                                        {isTedFee ? <Receipt className="h-3.5 w-3.5" /> : isTransfer ? <RefreshCw className="h-3.5 w-3.5" /> : (isEntry ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />)}
                                       </div>
                                       <div>
-                                        <p className="text-sm font-semibold text-foreground leading-snug">{tx.name}</p>
+                                        <p className={cn("text-sm leading-snug", isTedFee ? "font-bold text-yellow-600 dark:text-yellow-500" : "font-semibold text-foreground")}>{tx.name}</p>
                                         <span className="text-[10px] text-muted-foreground">{format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
                                       </div>
                                     </div>
@@ -1364,7 +1409,7 @@ export default function Contas() {
                                         <Badge variant={tx.is_paid ? 'default' : 'secondary'} className={cn("text-[10px] py-0 px-2 font-normal", tx.is_paid ? "bg-green-500/10 text-green-500 hover:bg-green-500/20" : "")}>
                                           {tx.is_paid ? 'Pago' : 'Pendente'}
                                         </Badge>
-                                        {tx.is_paid && typeof tx.id !== 'string' && (
+                                        {tx.is_paid && (
                                           <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-red-500/10 hover:text-red-500" onClick={(e) => { e.stopPropagation(); handleTogglePayment(tx, false); }} title="Reverter Pagamento">
                                             <RefreshCw className="h-3 w-3" />
                                           </Button>

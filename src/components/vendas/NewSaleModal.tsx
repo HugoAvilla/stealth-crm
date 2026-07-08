@@ -143,6 +143,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   const planCode = user?.planCode || 'basic';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [saleDate, setSaleDate] = useState<Date>(new Date());
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
@@ -562,6 +563,28 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       if (payments.some(p => !p.account_id && p.payment_method !== "Crédito" && p.payment_method !== "Débito")) {
         toast.error("Por favor, selecione a conta de destino para todos os pagamentos não-cartão.");
         return;
+      }
+
+      // Validação de métodos de pagamento suportados pelas contas informadas
+      const uniqueAccountIds = Array.from(new Set(payments.map(p => p.account_id).filter(Boolean)));
+      if (uniqueAccountIds.length > 0) {
+        const { data } = await supabase
+          .from("accounts")
+          .select("id, name, accepted_payment_methods")
+          .in("id", uniqueAccountIds);
+
+        const accountsToCheck = data as any[] | null;
+        if (accountsToCheck) {
+          for (const p of payments) {
+            if (p.account_id && p.payment_method !== "Crédito" && p.payment_method !== "Débito") {
+              const account = accountsToCheck.find(a => a.id === p.account_id);
+              if (account && account.accepted_payment_methods && !account.accepted_payment_methods.includes(p.payment_method)) {
+                toast.error(`A forma de pagamento "${p.payment_method}" não é aceita pela conta "${account.name}".`);
+                return;
+              }
+            }
+          }
+        }
       }
     }
 
@@ -1005,7 +1028,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
               {/* Date Picker */}
               <div className="space-y-2">
                 <Label>Data da Venda *</Label>
-                <Popover>
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -1019,7 +1042,12 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                     <Calendar
                       mode="single"
                       selected={saleDate}
-                      onSelect={(date) => date && setSaleDate(date)}
+                      onSelect={(date) => {
+                        if (date) {
+                          setSaleDate(date);
+                          setIsCalendarOpen(false);
+                        }
+                      }}
                       initialFocus
                       className="p-3 pointer-events-auto"
                     />
@@ -1090,9 +1118,9 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                     </PopoverContent>
                   </Popover>
                   <Button
-                    variant="outline"
+                    variant="default"
                     onClick={() => setIsNewClientModalOpen(true)}
-                    className="gap-1"
+                    className="gap-1 bg-green-600 hover:bg-green-700 text-white border-0"
                   >
                     <Plus className="h-4 w-4" />
                     Novo
@@ -1163,9 +1191,9 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                       )}
                     </div>
                     <Button
-                      variant="outline"
+                      variant="default"
                       onClick={() => setIsNewVehicleModalOpen(true)}
-                      className="gap-1 shrink-0"
+                      className="gap-1 shrink-0 bg-green-600 hover:bg-green-700 text-white border-0"
                     >
                       <Plus className="h-4 w-4" />
                       Novo
@@ -1245,8 +1273,8 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                       ))}
 
                       <Button
-                        variant="outline"
-                        className="w-full gap-2 border-dashed"
+                        variant="default"
+                        className="w-full gap-2 border-dashed bg-blue-600 hover:bg-blue-700 text-white"
                         onClick={handleAddDetailedItem}
                       >
                         <Plus className="h-4 w-4" />

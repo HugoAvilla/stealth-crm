@@ -122,6 +122,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saleDate, setSaleDate] = useState<Date>(new Date());
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [discountValue, setDiscountValue] = useState("");
@@ -534,6 +535,22 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
     if (invalidItems.length > 0) {
       toast.error("Preencha todos os campos de cada serviço (região, produto e metros).");
       return;
+    }
+
+    if (!isOpen && selectedAccountId && paymentMethod !== "Crédito" && paymentMethod !== "Débito") {
+      const { data } = await supabase
+        .from("accounts")
+        .select("id, name, accepted_payment_methods")
+        .eq("id", selectedAccountId);
+
+      const accountsToCheck = data as any[] | null;
+      if (accountsToCheck && accountsToCheck.length > 0) {
+        const account = accountsToCheck[0];
+        if (account.accepted_payment_methods && !account.accepted_payment_methods.includes(paymentMethod)) {
+          toast.error(`A forma de pagamento "${paymentMethod}" não é aceita pela conta "${account.name}".`);
+          return;
+        }
+      }
     }
 
     setSaving(true);
@@ -950,7 +967,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
               {/* Date Picker */}
               <div className="space-y-2">
                 <Label>Data da Venda *</Label>
-                <Popover>
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -964,7 +981,12 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
                     <Calendar
                       mode="single"
                       selected={saleDate}
-                      onSelect={(date) => date && setSaleDate(date)}
+                      onSelect={(date) => {
+                        if (date) {
+                          setSaleDate(date);
+                          setIsCalendarOpen(false);
+                        }
+                      }}
                       initialFocus
                       className="p-3 pointer-events-auto"
                     />

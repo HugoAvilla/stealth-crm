@@ -179,10 +179,17 @@ export default function Estoque() {
 
   const openRollsCount = materials.filter(m => m.is_open_roll).length;
 
-  const totalValue = materials.reduce(
-    (sum, m) => sum + ((m.current_stock || 0) * (m.product_types?.cost_per_meter || m.average_cost || 0)),
-    0
-  );
+  const closedStockValue = materials.reduce((sum, m) => {
+    if (m.is_open_roll) return sum;
+    const currentCost = m.product_types?.cost_per_meter || m.average_cost || 0;
+    return sum + ((m.current_stock || 0) * currentCost);
+  }, 0);
+
+  const openStockValue = materials.reduce((sum, m) => {
+    if (!m.is_open_roll) return sum;
+    const currentCost = m.product_types?.cost_per_meter || m.average_cost || 0;
+    return sum + ((m.open_roll_accumulated || 0) * currentCost);
+  }, 0);
 
   const handleEntry = (material: Material) => {
     setSelectedMaterial(material);
@@ -504,16 +511,16 @@ export default function Estoque() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card className="bg-card/50 border-border/50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-primary/10">
                     <Package className="h-5 w-5 text-primary" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total de Itens</p>
-                    <p className="text-2xl font-bold">{materials.length}</p>
+                  <div className="overflow-hidden">
+                    <p className="text-sm text-muted-foreground truncate">Total de Itens</p>
+                    <p className="text-2xl font-bold truncate">{materials.length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -525,10 +532,26 @@ export default function Estoque() {
                   <div className="p-2 rounded-lg bg-green-500/10">
                     <CheckCircle className="h-5 w-5 text-green-500" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Valor em Estoque</p>
-                    <p className="text-2xl font-bold">
-                      R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  <div className="overflow-hidden">
+                    <p className="text-sm text-muted-foreground truncate" title="Valor Est. Fechado">Valor Est. Fechado</p>
+                    <p className="text-2xl font-bold truncate" title={`R$ ${closedStockValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}>
+                      R$ {closedStockValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <CheckCircle className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="text-sm text-muted-foreground truncate" title="Valor Est. Aberto">Valor Est. Aberto</p>
+                    <p className="text-2xl font-bold text-blue-500 truncate" title={`R$ ${openStockValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}>
+                      R$ {openStockValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                 </div>
@@ -541,9 +564,9 @@ export default function Estoque() {
                   <div className="p-2 rounded-lg bg-yellow-500/10">
                     <AlertTriangle className="h-5 w-5 text-yellow-500" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Estoque Baixo</p>
-                    <p className="text-2xl font-bold text-yellow-500">{lowCount}</p>
+                  <div className="overflow-hidden">
+                    <p className="text-sm text-muted-foreground truncate">Estoque Baixo</p>
+                    <p className="text-2xl font-bold text-yellow-500 truncate">{lowCount}</p>
                   </div>
                 </div>
               </CardContent>
@@ -555,9 +578,9 @@ export default function Estoque() {
                   <div className="p-2 rounded-lg bg-red-500/10">
                     <AlertTriangle className="h-5 w-5 text-red-500" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Estoque Crítico</p>
-                    <p className="text-2xl font-bold text-red-500">{criticalCount}</p>
+                  <div className="overflow-hidden">
+                    <p className="text-sm text-muted-foreground truncate">Estoque Crítico</p>
+                    <p className="text-2xl font-bold text-red-500 truncate">{criticalCount}</p>
                   </div>
                 </div>
               </CardContent>
@@ -569,9 +592,9 @@ export default function Estoque() {
                   <div className="p-2 rounded-lg bg-blue-500/10">
                     <Package className="h-5 w-5 text-blue-500" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Bobinas Abertas</p>
-                    <p className="text-2xl font-bold text-blue-500">{openRollsCount}</p>
+                  <div className="overflow-hidden">
+                    <p className="text-sm text-muted-foreground truncate">Bobinas Abertas</p>
+                    <p className="text-2xl font-bold text-blue-500 truncate">{openRollsCount}</p>
                   </div>
                 </div>
               </CardContent>

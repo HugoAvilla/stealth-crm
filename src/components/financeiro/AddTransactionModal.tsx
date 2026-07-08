@@ -16,6 +16,7 @@ import { format } from "date-fns";
 interface Account {
   id: number;
   name: string;
+  accepted_payment_methods?: string[] | null;
 }
 
 interface Category {
@@ -81,7 +82,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
       // Fetch accounts
       const { data: accountsData } = await supabase
         .from("accounts")
-        .select("id, name")
+        .select("id, name, accepted_payment_methods")
         .eq("company_id", profile.company_id)
         .eq("is_active", true);
 
@@ -93,7 +94,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
         .eq("company_id", profile.company_id)
         .eq("type", typeFilter);
 
-      setAccounts(accountsData || []);
+      setAccounts((accountsData || []) as any);
       setCategories(categoriesData || []);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -109,6 +110,14 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
     if (type === 'saida' && includeInCac && !cacBucket) {
       toast.error("Para controle de CAC, informe se o custo foi Vendas ou Marketing.");
       return;
+    }
+
+    if (paymentMethod && paymentMethod !== "Crédito" && paymentMethod !== "Débito") {
+      const account = accounts.find(a => a.id.toString() === accountId.toString());
+      if (account && account.accepted_payment_methods && !account.accepted_payment_methods.includes(paymentMethod)) {
+        toast.error(`A forma de pagamento "${paymentMethod}" não é aceita pela conta selecionada.`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -275,6 +284,11 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
                   <SelectItem value="Transferência">Transferência</SelectItem>
                 </SelectContent>
               </Select>
+              {paymentMethod && accountId && !accounts.find(a => a.id.toString() === accountId)?.accepted_payment_methods?.includes(paymentMethod) && accounts.find(a => a.id.toString() === accountId)?.accepted_payment_methods && (
+                <div className="mt-2 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 p-2 rounded-md">
+                  Atenção: A conta selecionada não costuma aceitar a forma de pagamento "{paymentMethod}".
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

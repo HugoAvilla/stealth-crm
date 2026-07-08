@@ -143,6 +143,7 @@ export function PaymentBlock({
   const [accounts, setAccounts] = useState<any[]>([]);
   const [machines, setMachines] = useState<any[]>([]);
   const [rates, setRates] = useState<any[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -201,6 +202,11 @@ export function PaymentBlock({
   const netAmount = calculateCardMachineNetAmount(payment.amount, currentRate);
   const currentRateFormatted = formatCardMachineRatePercent(currentRate);
 
+  const selectedAccount = accounts.find(a => a.id === payment.account_id);
+  const availableMethods = selectedAccount?.accepted_payment_methods
+    ? PAYMENT_METHODS.filter(m => selectedAccount.accepted_payment_methods.includes(m.id) || m.id === "Crédito" || m.id === "Débito")
+    : PAYMENT_METHODS;
+
   return (
     <Card className="border-border/40 shadow-sm overflow-hidden bg-card/30">
       <CardContent className="p-4 space-y-4">
@@ -217,7 +223,7 @@ export function PaymentBlock({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PAYMENT_METHODS.map(m => (
+                    {availableMethods.map(m => (
                       <SelectItem key={m.id} value={m.id}>
                         <div className="flex items-center gap-2">
                           <m.icon className="h-4 w-4 text-primary/70" />
@@ -302,8 +308,8 @@ export function PaymentBlock({
           {isBoleto && (
             <>
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Data / Vencimento</Label>
-                <Popover>
+                <Label className="text-xs font-medium text-muted-foreground">{hideInstallments ? "Data do Pagamento" : "Data / Vencimento"}</Label>
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -320,7 +326,12 @@ export function PaymentBlock({
                     <Calendar
                       mode="single"
                       selected={new Date(payment.due_date)}
-                      onSelect={(date) => date && onUpdate({ ...payment, due_date: date.toISOString() })}
+                      onSelect={(date) => {
+                        if (date) {
+                          onUpdate({ ...payment, due_date: date.toISOString() });
+                          setIsCalendarOpen(false);
+                        }
+                      }}
                       initialFocus
                     />
                   </PopoverContent>

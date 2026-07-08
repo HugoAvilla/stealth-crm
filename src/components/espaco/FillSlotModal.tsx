@@ -67,8 +67,10 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [entryDate, setEntryDate] = useState<Date>(preselectedDate || new Date());
   const [entryTime, setEntryTime] = useState(format(new Date(), 'HH:mm'));
+  const [isEntryCalendarOpen, setIsEntryCalendarOpen] = useState(false);
   const [exitDate, setExitDate] = useState<Date | undefined>(undefined);
   const [exitTime, setExitTime] = useState("");
+  const [isExitCalendarOpen, setIsExitCalendarOpen] = useState(false);
   const [discount, setDiscount] = useState<number>(0);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
@@ -76,16 +78,16 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const [tag, setTag] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Detailed services state
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
   const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
-  
+
   // New vehicle modal
   const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [openClientPopover, setOpenClientPopover] = useState(false);
-  
+
   // Toggle states for optional fields
   const [showDiscount, setShowDiscount] = useState(false);
   const [showObservations, setShowObservations] = useState(false);
@@ -204,8 +206,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
 
   // Calculate totals
   const subtotal = detailedItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-  const calculatedDiscount = discountType === 'percent' 
-    ? (subtotal * (discountPercent / 100)) 
+  const calculatedDiscount = discountType === 'percent'
+    ? (subtotal * (discountPercent / 100))
     : (discount || 0);
   const finalTotal = subtotal - calculatedDiscount;
   const serviceCount = detailedItems.length;
@@ -352,7 +354,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
     if (region?.fixed_price && region.fixed_price > 0 && updatedItem.totalPrice === 0) {
       updatedItem = { ...updatedItem, totalPrice: region.fixed_price };
     }
-    
+
     setDetailedItems(items =>
       items.map(item => item.id === updatedItem.id ? updatedItem : item)
     );
@@ -373,22 +375,22 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      
+
       const validFiles: File[] = [];
       for (const file of newFiles) {
-        const validation = validateUpload(file, { 
-          type: 'checklist-photo', 
-          maxFiles: 20, 
-          currentFiles: photos.length + validFiles.length 
+        const validation = validateUpload(file, {
+          type: 'checklist-photo',
+          maxFiles: 20,
+          currentFiles: photos.length + validFiles.length
         });
-        
+
         if (!validation.valid) {
           toast.error(`Falha em ${file.name}: ${validation.error}`);
           continue;
         }
         validFiles.push(file);
       }
-      
+
       setPhotos([...photos, ...validFiles]);
     }
   };
@@ -492,7 +494,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             });
           }
         }
-        
+
         await supabase
           .from('spaces')
           .update({ services_data: servicesData } as any)
@@ -507,13 +509,13 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           const sanitizedName = sanitizeFilename(photo.name.replace(`.${fileExt}`, ''));
           const fileName = `${Date.now()}_${i}_${sanitizedName}.${fileExt}`;
           const filePath = `${companyId}/${spaceData.id}/${fileName}`;
-          
+
           const { error: uploadError } = await supabase.storage
             .from('checklists')
             .upload(filePath, photo, { upsert: true });
-            
+
           if (uploadError) {
-             console.error("Erro no upload da foto", photo.name, uploadError);
+            console.error("Erro no upload da foto", photo.name, uploadError);
           }
         }
       }
@@ -558,12 +560,12 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
 
         <div className="space-y-6">
           {totalSlots !== undefined && occupiedCount !== undefined && occupiedCount >= totalSlots && (
-            <Alert 
-              variant={occupiedCount > totalSlots ? "destructive" : "default"} 
+            <Alert
+              variant={occupiedCount > totalSlots ? "destructive" : "default"}
               className={cn(
                 "transition-all duration-300 shadow-md border-2",
-                occupiedCount > totalSlots 
-                  ? "bg-red-500/10 border-red-500/30 text-red-200" 
+                occupiedCount > totalSlots
+                  ? "bg-red-500/10 border-red-500/30 text-red-200"
                   : "bg-amber-500/10 border-amber-500/30 text-amber-200"
               )}
             >
@@ -582,8 +584,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           {/* Nome da vaga */}
           <div className="space-y-2">
             <Label>Nome da vaga (opcional)</Label>
-            <Input 
-              value={slotName} 
+            <Input
+              value={slotName}
               onChange={(e) => setSlotName(e.target.value)}
               placeholder="Ex: Vaga 1, Box A, etc."
             />
@@ -593,11 +595,11 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Cliente *</Label>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="default"
+                size="sm"
                 onClick={() => setShowNewClientModal(true)}
-                className="h-8 text-xs"
+                className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white border-0"
               >
                 <Plus className="h-3 w-3 mr-1" />
                 Novo
@@ -728,7 +730,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                       )}
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" onClick={() => setShowNewVehicleModal(true)}>
+                  <Button variant="default" className="bg-green-600 hover:bg-green-700 text-white border-0" onClick={() => setShowNewVehicleModal(true)}>
                     <Plus className="h-4 w-4 mr-1" /> Novo
                   </Button>
                 </div>
@@ -741,7 +743,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Serviços</Label>
-                <Button variant="outline" size="sm" onClick={handleAddDetailedItem}>
+                <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white border-0" onClick={handleAddDetailedItem}>
                   <Plus className="h-4 w-4 mr-1" /> Adicionar Serviço
                 </Button>
               </div>
@@ -815,7 +817,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                 <CalendarIcon className="h-4 w-4" />
                 Dia da entrada *
               </Label>
-              <Popover>
+              <Popover open={isEntryCalendarOpen} onOpenChange={setIsEntryCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -829,7 +831,12 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                   <CalendarPicker
                     mode="single"
                     selected={entryDate}
-                    onSelect={(date) => date && setEntryDate(date)}
+                    onSelect={(date) => {
+                      if (date) {
+                        setEntryDate(date);
+                        setIsEntryCalendarOpen(false);
+                      }
+                    }}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
@@ -841,9 +848,9 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                 <Clock className="h-4 w-4" />
                 Hora da entrada *
               </Label>
-              <Input 
-                type="time" 
-                value={entryTime} 
+              <Input
+                type="time"
+                value={entryTime}
                 onChange={(e) => setEntryTime(e.target.value)}
               />
             </div>
@@ -855,7 +862,7 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                 <CalendarIcon className="h-4 w-4" />
                 Dia da saída (previsão)
               </Label>
-              <Popover>
+              <Popover open={isExitCalendarOpen} onOpenChange={setIsExitCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -874,7 +881,10 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                   <CalendarPicker
                     mode="single"
                     selected={exitDate}
-                    onSelect={(date) => setExitDate(date)}
+                    onSelect={(date) => {
+                      setExitDate(date);
+                      setIsExitCalendarOpen(false);
+                    }}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
@@ -886,9 +896,9 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                 <Clock className="h-4 w-4" />
                 Hora da saída
               </Label>
-              <Input 
-                type="time" 
-                value={exitTime} 
+              <Input
+                type="time"
+                value={exitTime}
                 onChange={(e) => setExitTime(e.target.value)}
               />
             </div>
@@ -904,12 +914,12 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
               <span className="text-xs text-muted-foreground">{photos.length}/20</span>
             </div>
             <p className="text-sm text-muted-foreground">Opcional: Adicione fotos para referenciar a avaria ou condição de recebimento do veículo.</p>
-            
+
             {photos.length > 0 && (
               <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2">
                 {photos.map((photo, index) => (
                   <div key={index} className="relative min-w-[80px] h-[80px] rounded border overflow-hidden shrink-0">
-                    <img src={URL.createObjectURL(photo)} alt={`Foto ${index+1}`} className="w-full h-full object-cover" />
+                    <img src={URL.createObjectURL(photo)} alt={`Foto ${index + 1}`} className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setPhotos(photos.filter((_, i) => i !== index))}
@@ -922,16 +932,16 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
               </div>
             )}
 
-            <input 
-              type="file" 
-              multiple 
-              accept="image/png, image/jpeg, image/webp, image/heic" 
-              className="hidden" 
+            <input
+              type="file"
+              multiple
+              accept="image/png, image/jpeg, image/webp, image/heic"
+              className="hidden"
               ref={fileInputRef}
-              onChange={handlePhotoSelect} 
+              onChange={handlePhotoSelect}
             />
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full"
               onClick={() => fileInputRef.current?.click()}
               disabled={photos.length >= 20}
@@ -946,24 +956,24 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           <div className="space-y-2">
             <Label>Campos opcionais</Label>
             <div className="flex gap-2 flex-wrap">
-              <Button 
-                variant={showDiscount ? "default" : "outline"} 
+              <Button
+                variant={showDiscount ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowDiscount(!showDiscount)}
               >
                 <DollarSign className="h-4 w-4 mr-1" />
                 Desconto
               </Button>
-              <Button 
-                variant={showObservations ? "default" : "outline"} 
+              <Button
+                variant={showObservations ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowObservations(!showObservations)}
               >
                 <FileText className="h-4 w-4 mr-1" />
                 Observações
               </Button>
-              <Button 
-                variant={showTag ? "default" : "outline"} 
+              <Button
+                variant={showTag ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowTag(!showTag)}
               >
@@ -978,12 +988,11 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             <div className="space-y-3">
               {/* Seleção do tipo de desconto */}
               <div className="flex gap-2">
-                <Card 
-                  className={`flex-1 cursor-pointer transition-all ${
-                    discountType === 'fixed' 
-                      ? "border-primary bg-primary/10" 
-                      : "border-border/50 hover:border-muted-foreground"
-                  }`}
+                <Card
+                  className={`flex-1 cursor-pointer transition-all ${discountType === 'fixed'
+                    ? "border-primary bg-primary/10"
+                    : "border-border/50 hover:border-muted-foreground"
+                    }`}
                   onClick={() => setDiscountType('fixed')}
                 >
                   <CardContent className="p-3 text-center">
@@ -991,13 +1000,12 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                     <span className="text-sm font-medium">Valor (R$)</span>
                   </CardContent>
                 </Card>
-                
-                <Card 
-                  className={`flex-1 cursor-pointer transition-all ${
-                    discountType === 'percent' 
-                      ? "border-primary bg-primary/10" 
-                      : "border-border/50 hover:border-muted-foreground"
-                  }`}
+
+                <Card
+                  className={`flex-1 cursor-pointer transition-all ${discountType === 'percent'
+                    ? "border-primary bg-primary/10"
+                    : "border-border/50 hover:border-muted-foreground"
+                    }`}
                   onClick={() => setDiscountType('percent')}
                 >
                   <CardContent className="p-3 text-center">
@@ -1006,14 +1014,14 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                   </CardContent>
                 </Card>
               </div>
-              
+
               {/* Input baseado no tipo selecionado */}
               {discountType === 'fixed' ? (
                 <div className="space-y-2">
                   <Label>Desconto (R$)</Label>
-                  <Input 
-                    type="number" 
-                    value={discount || ""} 
+                  <Input
+                    type="number"
+                    value={discount || ""}
                     onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                     placeholder="0.00"
                   />
@@ -1021,9 +1029,9 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
               ) : (
                 <div className="space-y-2">
                   <Label>Desconto (%)</Label>
-                  <Input 
-                    type="number" 
-                    value={discountPercent || ""} 
+                  <Input
+                    type="number"
+                    value={discountPercent || ""}
                     onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
                     placeholder="0"
                     max={100}
@@ -1041,8 +1049,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           {showObservations && (
             <div className="space-y-2">
               <Label>Observações</Label>
-              <Textarea 
-                value={observations} 
+              <Textarea
+                value={observations}
                 onChange={(e) => setObservations(e.target.value)}
                 placeholder="Observações sobre a vaga..."
               />
@@ -1111,8 +1119,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
           )}
 
           {/* Botão de ação */}
-          <Button 
-            className="w-full" 
+          <Button
+            className="w-full"
             size="lg"
             onClick={handleSubmit}
             disabled={createMutation.isPending || !selectedClientId || !selectedVehicleId}

@@ -21,6 +21,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import BankSelect from "@/components/contas/BankSelect";
 import { getBankByCode } from "@/constants/bankCatalog";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const PAYMENT_METHODS = ["Pix", "Dinheiro", "Cartão de Crédito", "Cartão de Débito", "Boleto", "Transferência"];
 
 interface Account {
   id: number;
@@ -30,6 +33,7 @@ interface Account {
   is_main: boolean | null;
   is_active: boolean | null;
   bank_code?: string | null;
+  accepted_payment_methods?: string[] | null;
 }
 
 interface EditAccountModalProps {
@@ -41,9 +45,9 @@ interface EditAccountModalProps {
   canDelete: boolean;
 }
 
-export function EditAccountModal({ 
-  open, 
-  onOpenChange, 
+export function EditAccountModal({
+  open,
+  onOpenChange,
   account,
   onAccountUpdated,
   onAccountDeleted,
@@ -55,8 +59,15 @@ export function EditAccountModal({
   const [balance, setBalance] = useState("");
   const [bankCode, setBankCode] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
+  const [acceptedMethods, setAcceptedMethods] = useState<string[]>(PAYMENT_METHODS);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const toggleMethod = (method: string) => {
+    setAcceptedMethods(prev =>
+      prev.includes(method) ? prev.filter(m => m !== method) : [...prev, method]
+    );
+  };
 
   useEffect(() => {
     if (account) {
@@ -65,6 +76,11 @@ export function EditAccountModal({
       setBalance(account.current_balance ? account.current_balance.toString() : "");
       setBankCode(account.bank_code || null);
       setIsPrimary(account.is_main || false);
+      if (account.accepted_payment_methods) {
+        setAcceptedMethods(account.accepted_payment_methods);
+      } else {
+        setAcceptedMethods(PAYMENT_METHODS);
+      }
     }
   }, [account]);
 
@@ -105,6 +121,7 @@ export function EditAccountModal({
           is_main: isPrimary,
           bank_code: bankCode,
           bank_name: bankCode ? getBankByCode(bankCode)?.name : null,
+          accepted_payment_methods: acceptedMethods,
         })
         .eq("id", account.id);
 
@@ -123,7 +140,7 @@ export function EditAccountModal({
 
   const handleDelete = async () => {
     if (!account) return;
-    
+
     if (!canDelete) {
       toast.error("Não é possível excluir a única conta");
       return;
@@ -179,9 +196,9 @@ export function EditAccountModal({
 
             <div className="space-y-2">
               <Label>Banco (Opcional)</Label>
-              <BankSelect 
-                value={bankCode} 
-                onValueChange={setBankCode} 
+              <BankSelect
+                value={bankCode}
+                onValueChange={setBankCode}
               />
             </div>
 
@@ -210,14 +227,32 @@ export function EditAccountModal({
               />
             </div>
 
+            <div className="space-y-3">
+              <Label>Formas de Pagamento Aceitas</Label>
+              <div className="grid grid-cols-2 gap-3 mt-2 bg-muted/30 p-3 rounded-lg border">
+                {PAYMENT_METHODS.map((method) => (
+                  <div key={method} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`edit-method-${method}`}
+                      checked={acceptedMethods.includes(method)}
+                      onCheckedChange={() => toggleMethod(method)}
+                    />
+                    <label htmlFor={`edit-method-${method}`} className="text-sm font-medium leading-none cursor-pointer">
+                      {method}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <Label>Conta Principal</Label>
               <Switch checked={isPrimary} onCheckedChange={setIsPrimary} />
             </div>
 
             <div className="flex gap-2 pt-4">
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 size="icon"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={!canDelete || account.is_main || loading}
@@ -240,13 +275,13 @@ export function EditAccountModal({
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir a conta "{account?.name}"? 
+              Tem certeza que deseja excluir a conta "{account?.name}"?
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="border-border" disabled={loading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={loading}

@@ -13,6 +13,7 @@ import { DollarSign, Plus, Check, Loader2 } from "lucide-react";
 import { PaymentBlock, SalePayment } from "@/components/vendas/PaymentBlock";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ConfirmPurchasePaymentModalProps {
   open: boolean;
@@ -93,11 +94,30 @@ export function ConfirmPurchasePaymentModal({
     }
 
     const paidTotal = payments.reduce((acc, p) => acc + p.amount, 0);
-    if (Math.abs(paidTotal - installmentAmount) > 0.01) {
-      toast.error(
-        `O valor total pago (R$ ${paidTotal.toFixed(2)}) deve ser igual ao valor da parcela (R$ ${installmentAmount.toFixed(2)})`
-      );
+    if (paidTotal <= 0) {
+      toast.error("O valor total pago deve ser maior que zero.");
       return;
+    }
+
+    const uniqueAccountIds = Array.from(new Set(payments.map(p => p.account_id).filter(Boolean)));
+    if (uniqueAccountIds.length > 0) {
+      const { data } = await supabase
+        .from("accounts")
+        .select("id, name, accepted_payment_methods")
+        .in("id", uniqueAccountIds);
+
+      const accountsToCheck = data as any[] | null;
+      if (accountsToCheck) {
+        for (const p of payments) {
+          if (p.account_id && p.payment_method !== "Crédito" && p.payment_method !== "Débito") {
+            const account = accountsToCheck.find(a => a.id === p.account_id);
+            if (account && account.accepted_payment_methods && !account.accepted_payment_methods.includes(p.payment_method)) {
+              toast.error(`A forma de pagamento "${p.payment_method}" não é aceita pela conta "${account.name}".`);
+              return;
+            }
+          }
+        }
+      }
     }
 
     setIsPaying(true);
@@ -171,7 +191,7 @@ export function ConfirmPurchasePaymentModal({
                   isExcess ? "border-amber-500/20" : "border-red-500/20"
                 )}>
                   {isExcess ? (
-                    <span>⚠ Valor superior em <strong>R$ {Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+                    <span>⚠ Juros / Acréscimo de <strong>R$ {Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
                   ) : (
                     <span>⚠ Restam <strong>R$ {Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong> para concluir</span>
                   )}

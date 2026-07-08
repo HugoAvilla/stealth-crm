@@ -28,6 +28,7 @@ interface Account {
   bank_code: string | null;
   bank_name: string | null;
   account_type: string | null;
+  accepted_payment_methods?: string[] | null;
 }
 
 interface CardMachine {
@@ -89,11 +90,11 @@ export function AccountSelectCard({
       if (!profile) return;
 
       const [accountsRes, machinesRes] = await Promise.all([
-        supabase.from("accounts").select("*").eq("company_id", profile.company_id).eq("is_active", true).order("is_main", { ascending: false }),
+        supabase.from("accounts").select("id, name, bank_code, bank_name, account_type, is_main, accepted_payment_methods").eq("company_id", profile.company_id).eq("is_active", true).order("is_main", { ascending: false }),
         supabase.from("card_machines").select("*").eq("company_id", profile.company_id).eq("is_active", true).order("name")
       ]);
 
-      setAccounts(accountsRes.data || []);
+      setAccounts((accountsRes.data || []) as any);
       setMachines(machinesRes.data || []);
 
       // Auto-select main account if none selected
@@ -110,7 +111,7 @@ export function AccountSelectCard({
   useEffect(() => {
     if (selectedMachineId) {
       fetchRates(selectedMachineId);
-      
+
       // Auto-select linked account if machine has one
       const machine = machines.find(m => m.id === selectedMachineId);
       if (machine?.account_id && machine.account_id !== selectedAccountId) {
@@ -150,6 +151,11 @@ export function AccountSelectCard({
     return true;
   });
 
+  const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+  const isMethodAccepted = !selectedAccount ||
+    !selectedAccount.accepted_payment_methods ||
+    selectedAccount.accepted_payment_methods.includes(paymentMethod);
+
   if (loading) {
     return <Skeleton className="h-32 w-full rounded-xl" />;
   }
@@ -165,8 +171,8 @@ export function AccountSelectCard({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Conta</Label>
-            <Select 
-              value={selectedAccountId?.toString()} 
+            <Select
+              value={selectedAccountId?.toString()}
               onValueChange={(val) => onAccountChange(parseInt(val))}
             >
               <SelectTrigger className="bg-background">
@@ -177,9 +183,9 @@ export function AccountSelectCard({
                   <SelectItem key={acc.id} value={acc.id.toString()}>
                     <div className="flex items-center gap-2">
                       {acc.bank_code ? (
-                        <img 
-                          src={`/banks/${acc.bank_code}.svg`} 
-                          alt="" 
+                        <img
+                          src={`/banks/${acc.bank_code}.svg`}
+                          alt=""
                           className="w-4 h-4 object-contain rounded-sm"
                           onError={(e) => (e.target as any).style.display = 'none'}
                         />
@@ -190,13 +196,19 @@ export function AccountSelectCard({
                 ))}
               </SelectContent>
             </Select>
+
+            {!isMethodAccepted && (
+              <div className="mt-2 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 p-2 rounded-md">
+                Atenção: Forma de pagamento "{paymentMethod}" não aceita pela conta.
+              </div>
+            )}
           </div>
 
           {isCard && (
             <div className="space-y-2 animate-in fade-in slide-in-from-left-2">
               <Label className="text-xs text-muted-foreground">Maquininha</Label>
-              <Select 
-                value={selectedMachineId?.toString() || "none"} 
+              <Select
+                value={selectedMachineId?.toString() || "none"}
                 onValueChange={(val) => onMachineChange(val === "none" ? null : parseInt(val))}
               >
                 <SelectTrigger className="bg-background">

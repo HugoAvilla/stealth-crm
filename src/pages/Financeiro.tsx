@@ -250,6 +250,11 @@ export default function Financeiro() {
   const monthTransfers = transfers.filter(t => t.transfer_date >= monthStartStr && t.transfer_date <= monthEndStr);
   const totalTransferenciasMes = monthTransfers.reduce((sum, t) => sum + t.amount, 0);
 
+  // Total de taxas de TED/DOC no mês
+  const totalTaxasTedDocMes = monthTransactions
+    .filter(t => t.type === 'Saida' && t.is_paid && t.name.includes("Taxa de TED/DOC"))
+    .reduce((sum, t) => sum + t.amount, 0);
+
   // 2. Extrair todos os pagamentos em maquininha de vendas fechadas no mês corrente
   const closedMonthSales = monthSales.filter(s => s.status === 'Fechada');
   const maquininhaPayments = closedMonthSales.flatMap(sale => {
@@ -586,7 +591,7 @@ export default function Financeiro() {
           </div>
 
           {/* Novos Cards de Detalhes de Maquininha e Transferências */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mt-6 animate-in fade-in duration-500">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 mt-6 animate-in fade-in duration-500">
 
             {/* Total de Transferências */}
             <Card className="bg-card/50 border-border/50 relative overflow-hidden flex flex-col justify-between">
@@ -599,6 +604,20 @@ export default function Financeiro() {
                 </div>
                 <p className="text-2xl font-bold tracking-tight mt-1">{formatCurrency(totalTransferenciasMes)}</p>
                 <p className="text-[10px] text-muted-foreground mt-2">Volume movimentado entre contas</p>
+              </CardContent>
+            </Card>
+
+            {/* Total de Taxas TED/DOC */}
+            <Card className="bg-yellow-500/5 border-yellow-500/30 relative overflow-hidden flex flex-col justify-between">
+              <CardContent className="p-6 relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-yellow-600 dark:text-yellow-500 uppercase tracking-wider">Taxas de Transferência</span>
+                  <div className="p-1.5 rounded-lg bg-yellow-500/20 text-yellow-600 dark:text-yellow-500">
+                    <Receipt className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold tracking-tight mt-1 text-yellow-600 dark:text-yellow-500">{formatCurrency(totalTaxasTedDocMes)}</p>
+                <p className="text-[10px] text-yellow-600/70 dark:text-yellow-500/70 mt-2">Gasto com taxas de TED/DOC</p>
               </CardContent>
             </Card>
 

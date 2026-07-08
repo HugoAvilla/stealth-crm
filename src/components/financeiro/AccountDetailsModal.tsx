@@ -11,6 +11,7 @@ interface Account {
   account_type: string | null;
   current_balance: number | null;
   is_main: boolean | null;
+  accepted_payment_methods?: string[] | null;
 }
 
 interface Transaction {
@@ -49,7 +50,7 @@ export function AccountDetailsModal({ account, open, onOpenChange }: AccountDeta
         .eq("account_id", account.id)
         .order("transaction_date", { ascending: false })
         .limit(300); // Fetch more for client-side filtering
-      
+
       setTransactions(data || []);
     } catch (error) {
       console.error("Error fetching account transactions:", error);
@@ -89,7 +90,7 @@ export function AccountDetailsModal({ account, open, onOpenChange }: AccountDeta
         <DialogHeader>
           <DialogTitle>Detalhes da Conta</DialogTitle>
         </DialogHeader>
-        
+
         {account && (
           <div className="space-y-6">
             <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-xl border">
@@ -123,10 +124,26 @@ export function AccountDetailsModal({ account, open, onOpenChange }: AccountDeta
               </div>
             </div>
 
+            {/* Formas de pagamento */}
+            <div className="bg-card border p-4 rounded-xl">
+              <p className="text-sm text-muted-foreground mb-1 font-semibold">Formas de Pagamento Aceitas</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {account.accepted_payment_methods ? (
+                  account.accepted_payment_methods.map(method => (
+                    <span key={method} className="text-xs bg-muted text-foreground px-2 py-1 rounded-md border">
+                      {method}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground italic">Todas as formas (não configurado)</span>
+                )}
+              </div>
+            </div>
+
             <div>
               <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mb-3">
                 <h4 className="text-sm font-semibold">Transações da Conta</h4>
-                
+
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <div className="relative flex-1 sm:max-w-[200px]">
                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />

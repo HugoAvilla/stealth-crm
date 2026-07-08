@@ -28,25 +28,57 @@ interface NewVehicleModalProps {
 }
 
 const brands = [
-  "Volkswagen",
-  "Fiat",
+  "Alfa Romeo",
+  "Aston Martin",
+  "Audi",
+  "Bentley",
+  "BMW",
+  "Bugatti",
+  "BYD",
+  "Cadillac",
+  "Caoa Chery",
   "Chevrolet",
+  "Citroën",
+  "Cupra",
+  "Dodge",
+  "Ferrari",
+  "Fiat",
   "Ford",
-  "Toyota",
+  "Geely",
+  "Genesis Motor",
+  "GMC",
+  "GWM",
   "Honda",
   "Hyundai",
-  "Renault",
-  "Nissan",
+  "JAC Motors",
+  "Jaguar",
   "Jeep",
-  "BMW",
-  "Mercedes",
-  "Audi",
-  "Porsche",
-  "Land Rover",
-  "Mitsubishi",
-  "Peugeot",
-  "Citroën",
   "Kia",
+  "Koenigsegg",
+  "Lamborghini",
+  "Land Rover",
+  "Lexus",
+  "Maserati",
+  "Mazda",
+  "McLaren Automotive",
+  "Mercedes-Benz",
+  "Mini",
+  "Mitsubishi Motors",
+  "Nissan",
+  "Opel",
+  "Pagani",
+  "Peugeot",
+  "Polestar",
+  "Porsche",
+  "RAM",
+  "Renault",
+  "Rolls-Royce Motor Cars",
+  "Subaru",
+  "Suzuki",
+  "Tesla",
+  "Toyota",
+  "Volkswagen",
+  "Volvo",
   "Outro",
 ];
 
@@ -66,7 +98,7 @@ const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: 
         setModel(editVehicle.model);
         setYear(editVehicle.year.toString());
         setSize(editVehicle.size);
-        
+
         if (editVehicle.brand && !brands.includes(editVehicle.brand)) {
           setCustomBrand(editVehicle.brand);
           setBrand("Outro");
@@ -88,14 +120,14 @@ const NewVehicleModal = ({ open, onOpenChange, onVehicleCreated, editVehicle }: 
   const formatPlate = (value: string) => {
     // Accept both old format (ABC-1234) and Mercosul (ABC1D23)
     const clean = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7);
-    
+
     if (clean.length <= 3) return clean;
-    
+
     // Check if it's Mercosul format (letter at position 5)
     if (clean.length >= 5 && /[A-Z]/.test(clean[4])) {
       return clean;
     }
-    
+
     // Old format with hyphen
     return `${clean.slice(0, 3)}-${clean.slice(3)}`;
   };

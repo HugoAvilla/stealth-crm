@@ -79,7 +79,7 @@ interface SaleDetailsModalProps {
 const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   const [isPdfA4Open, setIsPdfA4Open] = useState(false);
   const [isPdfNotinhaOpen, setIsPdfNotinhaOpen] = useState(false);
   const [pdfNotinhaSize, setPdfNotinhaSize] = useState<"80mm" | "58mm">("80mm");
@@ -87,7 +87,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isEditSaleOpen, setIsEditSaleOpen] = useState(false);
   const [isIssueWarrantyOpen, setIsIssueWarrantyOpen] = useState(false);
-  
+
   // Soft Delete and Lixeira states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -224,7 +224,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
           region:vehicle_regions(name, description)
         `)
         .eq('sale_id', sale.id);
-      
+
       if (error) {
         console.error('Error fetching detailed items:', error);
         return [];
@@ -243,7 +243,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
         .from('sale_commissions')
         .select('id, person_name_snapshot, person_type, percentage_snapshot, commission_amount')
         .eq('sale_id', sale.id);
-      
+
       if (error) {
         console.error('Error fetching commissions:', error);
         return [];
@@ -270,7 +270,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
           )
         `)
         .eq('sale_id', sale.id);
-      
+
       if (error) {
         console.error('Error fetching sale payments:', error);
         return [];
@@ -309,7 +309,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
         .select('id, name')
         .eq('sale_id', sale.id)
         .maybeSingle();
-      
+
       if (error) {
         console.error('Error fetching linked space:', error);
         return null;
@@ -351,7 +351,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
         .select("id, name, phone, email, cpf_cnpj, birth_date, cep, street, number, complement, neighborhood, city, state, origem, created_at, company_id")
         .eq("id", client.id)
         .single();
-      
+
       if (clientError) throw clientError;
 
       const { data: vehiclesData } = await supabase
@@ -377,8 +377,8 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       setProfileClient(fullClient);
       setShowProfileModal(true);
     } catch (error) {
-       console.error(error);
-       toast({ title: "Erro", description: "Falha ao carregar perfil do cliente", variant: "destructive" });
+      console.error(error);
+      toast({ title: "Erro", description: "Falha ao carregar perfil do cliente", variant: "destructive" });
     } finally {
       setProfileLoading(false);
     }
@@ -405,7 +405,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       queryClient.invalidateQueries({ queryKey: ['sale-detailed-items'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      
+
       setIsDeleteDialogOpen(false);
       onOpenChange(false);
       setDeleteReason("");
@@ -441,7 +441,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       queryClient.invalidateQueries({ queryKey: ['sale-detailed-items'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      
+
       onOpenChange(false);
     } catch (error: any) {
       console.error("Erro ao restaurar venda:", error);
@@ -483,7 +483,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
       queryClient.invalidateQueries({ queryKey: ['sale-detailed-items'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      
+
       setIsPermanentDeleteDialogOpen(false);
       onOpenChange(false);
       setPermanentConfirmText("");
@@ -595,13 +595,13 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                     <Layers className="h-4 w-4" />
                     Serviços Detalhados
                   </div>
-                   {/* Tabela para Desktop */}
+                  {/* Tabela para Desktop */}
                   <div className="hidden sm:block w-full overflow-x-auto border rounded-md">
                     <Table className="w-full">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Região</TableHead>
-                          <TableHead>Produto</TableHead>
+                          <TableHead>Material</TableHead>
                           <TableHead className="text-right">Metros</TableHead>
                           <TableHead className="text-right">R$/m</TableHead>
                           <TableHead className="text-right">Total</TableHead>
@@ -626,7 +626,7 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                             <TableCell>
                               {item.product_type
                                 ? `${item.product_type.brand} ${item.product_type.name}${item.product_type.light_transmission ? ` ${item.product_type.light_transmission}` : ''}`
-                                : 'Produto'}
+                                : 'Material'}
                             </TableCell>
                             <TableCell className="text-right">
                               {item.meters_used.toFixed(2)}m
@@ -646,11 +646,10 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                   {/* Cards para Mobile */}
                   <div className="block sm:hidden space-y-3">
                     {detailedItems.map((item) => (
-                      <div 
-                        key={item.id} 
-                        className={`p-3 rounded-lg border text-sm space-y-2 bg-card ${
-                          (item as any).is_customized ? 'border-primary/30 bg-primary/5' : 'border-border'
-                        }`}
+                      <div
+                        key={item.id}
+                        className={`p-3 rounded-lg border text-sm space-y-2 bg-card ${(item as any).is_customized ? 'border-primary/30 bg-primary/5' : 'border-border'
+                          }`}
                       >
                         {/* Região e Badges */}
                         <div className="flex flex-wrap items-center gap-1.5 justify-between">
@@ -671,10 +670,10 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
 
                         {/* Produto */}
                         <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
-                          <span className="font-medium text-foreground block mb-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Produto:</span>
+                          <span className="font-medium text-foreground block mb-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Material:</span>
                           {item.product_type
                             ? `${item.product_type.brand} ${item.product_type.name}${item.product_type.light_transmission ? ` ${item.product_type.light_transmission}` : ''}`
-                            : 'Produto'}
+                            : 'Material'}
                         </div>
 
                         {/* Métricas */}
@@ -795,15 +794,15 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
                   salePayments.map((p: any, index: number) => {
                     const isCard = p.method === "Crédito" || p.method === "Débito";
                     if (!isCard || !p.machine_id) return null;
-                    
+
                     const machine = p.card_machines;
                     const rate = p.method === "Débito"
                       ? machine?.debit_rate || 0
                       : machineRates?.find(r => r.machine_id === p.machine_id && r.installments === p.installments)?.rate || 0;
-                    
+
                     const netAmount = calculateCardMachineNetAmount(p.amount, rate);
                     const isAnticipated = machine?.is_anticipated;
-                    
+
                     const methodLabel = p.method;
                     const installmentsLabel = p.method === "Crédito" ? `${p.installments}x no ` : "no ";
                     const antLabel = ` (${isAnticipated ? "antecipação" : "sem antecipação"})`;

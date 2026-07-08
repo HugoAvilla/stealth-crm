@@ -8,8 +8,11 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 import BankSelect from "@/components/contas/BankSelect";
 import { getBankByCode } from "@/constants/bankCatalog";
+
+const PAYMENT_METHODS = ["Pix", "Dinheiro", "Cartão de Crédito", "Cartão de Débito", "Boleto", "Transferência"];
 
 interface AddAccountModalProps {
   open: boolean;
@@ -24,7 +27,14 @@ export function AddAccountModal({ open, onOpenChange, onSuccess }: AddAccountMod
   const [balance, setBalance] = useState("");
   const [bankCode, setBankCode] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
+  const [acceptedMethods, setAcceptedMethods] = useState<string[]>(PAYMENT_METHODS);
   const [loading, setLoading] = useState(false);
+
+  const toggleMethod = (method: string) => {
+    setAcceptedMethods(prev =>
+      prev.includes(method) ? prev.filter(m => m !== method) : [...prev, method]
+    );
+  };
 
   const handleSubmit = async () => {
     if (!name || !type) {
@@ -71,6 +81,7 @@ export function AddAccountModal({ open, onOpenChange, onSuccess }: AddAccountMod
         company_id: profile.company_id,
         bank_code: bankCode,
         bank_name: bankCode ? getBankByCode(bankCode)?.name : null,
+        accepted_payment_methods: acceptedMethods,
       });
 
       if (error) throw error;
@@ -93,6 +104,7 @@ export function AddAccountModal({ open, onOpenChange, onSuccess }: AddAccountMod
     setBalance("");
     setBankCode(null);
     setIsPrimary(false);
+    setAcceptedMethods(PAYMENT_METHODS);
   };
 
   return (
@@ -114,9 +126,9 @@ export function AddAccountModal({ open, onOpenChange, onSuccess }: AddAccountMod
 
           <div className="space-y-2">
             <Label>Banco (Opcional)</Label>
-            <BankSelect 
-              value={bankCode} 
-              onValueChange={setBankCode} 
+            <BankSelect
+              value={bankCode}
+              onValueChange={setBankCode}
             />
           </div>
 
@@ -143,6 +155,24 @@ export function AddAccountModal({ open, onOpenChange, onSuccess }: AddAccountMod
               value={balance}
               onChange={(e) => setBalance(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-3">
+            <Label>Formas de Pagamento Aceitas</Label>
+            <div className="grid grid-cols-2 gap-3 mt-2 bg-muted/30 p-3 rounded-lg border">
+              {PAYMENT_METHODS.map((method) => (
+                <div key={method} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`method-${method}`}
+                    checked={acceptedMethods.includes(method)}
+                    onCheckedChange={() => toggleMethod(method)}
+                  />
+                  <label htmlFor={`method-${method}`} className="text-sm font-medium leading-none cursor-pointer">
+                    {method}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center justify-between">

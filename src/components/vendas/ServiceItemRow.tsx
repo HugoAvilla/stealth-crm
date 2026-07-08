@@ -258,7 +258,7 @@ const ServiceItemRow = ({
             onValueChange={handleProductChange}
           >
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Produto" />
+              <SelectValue placeholder="Material" />
             </SelectTrigger>
             <SelectContent>
               {renderProductSelect()}

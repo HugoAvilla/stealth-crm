@@ -148,17 +148,15 @@ export default function CustomizedServiceBlock({
   };
 
   return (
-    <div className={`rounded-lg border-2 overflow-hidden transition-all duration-300 ${
-      isConfirmed
+    <div className={`rounded-lg border-2 overflow-hidden transition-all duration-300 ${isConfirmed
         ? "border-success/40 bg-success/5"
         : "border-primary/30 bg-primary/5"
-    }`}>
+      }`}>
       {/* Header */}
-      <div className={`flex items-center justify-between px-4 py-2 border-b transition-all duration-300 ${
-        isConfirmed
+      <div className={`flex items-center justify-between px-4 py-2 border-b transition-all duration-300 ${isConfirmed
           ? "bg-success/10 border-success/20"
           : "bg-primary/10 border-primary/20"
-      }`}>
+        }`}>
         <div className="flex items-center gap-2">
           <Badge
             variant={isConfirmed ? "outline" : "default"}
@@ -203,7 +201,7 @@ export default function CustomizedServiceBlock({
               onValueChange={(v) => handleProductChange(index, v)}
             >
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Película / Tom" />
+                <SelectValue placeholder="Material" />
               </SelectTrigger>
               <SelectContent>
                 {(() => {
@@ -222,10 +220,10 @@ export default function CustomizedServiceBlock({
                   const renderProduct = (product: any) => {
                     let stockDisplay = "";
                     if (product.openRollsCount && product.openRollsCount > 0) {
-                       stockDisplay += `${product.openRollsCount} Aberta${product.openRollsCount === 1 ? '' : 's'}`;
+                      stockDisplay += `${product.openRollsCount} Aberta${product.openRollsCount === 1 ? '' : 's'}`;
                     }
                     if (product.hasClosedRoll) {
-                       stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
+                      stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
                     }
 
                     return (
@@ -281,39 +279,38 @@ export default function CustomizedServiceBlock({
       </div>
 
       {/* Footer com Metros Totais e Ajuste de Preço */}
-      <div className={`p-3 flex flex-wrap items-center justify-between border-t gap-4 transition-all duration-300 ${
-        isConfirmed
+      <div className={`p-3 flex flex-wrap items-center justify-between border-t gap-4 transition-all duration-300 ${isConfirmed
           ? "bg-success/5 border-success/20"
           : "bg-muted/40 border-primary/20"
-      }`}>
+        }`}>
         {/* Visualização da Distribuição */}
         <div className="flex items-center gap-2 text-xs">
           <span className="font-medium text-muted-foreground mr-2">
             Consumo Total: <span className="text-foreground ml-1">{totalMeters.toFixed(2)}m</span>
           </span>
           {items.map((item) => (
-             <Badge key={"badge-" + item.regionCode} variant="outline" className="bg-background">
-               {item.regionLabel.split(' ')[0]}: {item.metersUsed.toFixed(2)}m
-             </Badge>
+            <Badge key={"badge-" + item.regionCode} variant="outline" className="bg-background">
+              {item.regionLabel.split(' ')[0]}: {item.metersUsed.toFixed(2)}m
+            </Badge>
           ))}
         </div>
 
         {/* Input de Preço Total do Serviço & Botões de Confirmação/Edição */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
-             <span className="text-sm font-medium text-muted-foreground mr-1">Preço Serviço:</span>
-             <div className="flex items-center gap-1 min-w-[110px]">
-               <span className="text-sm text-muted-foreground">R$</span>
-               <Input
-                 type="number"
-                 step="0.01"
-                 disabled={isConfirmed}
-                 className="w-[90px] text-right font-medium text-success h-8 disabled:opacity-80"
-                 value={servicePrice || ""}
-                 onChange={(e) => onPriceChange?.(parseFloat(e.target.value) || 0)}
-                 placeholder="0.00"
-               />
-             </div>
+            <span className="text-sm font-medium text-muted-foreground mr-1">Preço Serviço:</span>
+            <div className="flex items-center gap-1 min-w-[110px]">
+              <span className="text-sm text-muted-foreground">R$</span>
+              <Input
+                type="number"
+                step="0.01"
+                disabled={isConfirmed}
+                className="w-[90px] text-right font-medium text-success h-8 disabled:opacity-80"
+                value={servicePrice || ""}
+                onChange={(e) => onPriceChange?.(parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

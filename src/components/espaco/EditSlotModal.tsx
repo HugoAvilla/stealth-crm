@@ -62,8 +62,10 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(space?.vehicle_id ? space.vehicle_id.toString() : "");
   const [entryDate, setEntryDate] = useState<Date>(space?.entry_date ? parseISO(space.entry_date) : new Date());
   const [entryTime, setEntryTime] = useState(space?.entry_time || format(new Date(), 'HH:mm'));
+  const [isEntryCalendarOpen, setIsEntryCalendarOpen] = useState(false);
   const [exitDate, setExitDate] = useState<Date | undefined>(space?.exit_date ? parseISO(space.exit_date) : undefined);
   const [exitTime, setExitTime] = useState(space?.exit_time || "");
+  const [isExitCalendarOpen, setIsExitCalendarOpen] = useState(false);
   const [discount, setDiscount] = useState<number>(space?.discount || 0);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
@@ -71,15 +73,15 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
   const [tag, setTag] = useState(space?.tag || "");
   const [photos, setPhotos] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Detailed services state
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
   const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
-  
+
   // New vehicle modal
   const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
-  
+
   // Toggle states for optional fields
   const [showDiscount, setShowDiscount] = useState(false);
   const [showObservations, setShowObservations] = useState(false);
@@ -196,8 +198,8 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
 
   // Calculate totals
   const subtotal = detailedItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-  const calculatedDiscount = discountType === 'percent' 
-    ? (subtotal * (discountPercent / 100)) 
+  const calculatedDiscount = discountType === 'percent'
+    ? (subtotal * (discountPercent / 100))
     : (discount || 0);
   const finalTotal = subtotal - calculatedDiscount;
   const serviceCount = detailedItems.length;
@@ -207,79 +209,79 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       setSlotName(space.name || "");
       if (space.client_id) setSelectedClientId(space.client_id.toString());
       if (space.vehicle_id) setSelectedVehicleId(space.vehicle_id.toString());
-      
+
       if (space.entry_date) setEntryDate(parseISO(space.entry_date));
       if (space.entry_time) setEntryTime(space.entry_time);
       if (space.exit_date) setExitDate(parseISO(space.exit_date));
       if (space.exit_time) setExitTime(space.exit_time);
-      
+
       if (space.discount) {
-         setDiscount(space.discount);
-         // calculate percentage based on services total later if needed, but for now fixed
-         setDiscountType('fixed');
+        setDiscount(space.discount);
+        // calculate percentage based on services total later if needed, but for now fixed
+        setDiscountType('fixed');
       }
       if (space.observations) {
-         setObservations(space.observations);
-         setShowObservations(true);
+        setObservations(space.observations);
+        setShowObservations(true);
       }
       if (space.tag) {
-         setTag(space.tag);
-         setShowTag(true);
+        setTag(space.tag);
+        setShowTag(true);
       }
-      
+
       if (space.discount > 0) setShowDiscount(true);
-      
+
       // Detailed items
       if (space.services_data && Array.isArray(space.services_data)) {
-         const loadedItems: DetailedServiceItem[] = [];
-         const loadedGroups = new Map<string, CustomizedRegionItem[]>();
+        const loadedItems: DetailedServiceItem[] = [];
+        const loadedGroups = new Map<string, CustomizedRegionItem[]>();
 
-         for (const item of space.services_data as any[]) {
-           if (item.isCustomized && item.customizationGroup && item.items) {
-             const groupId = item.customizationGroup;
-             loadedItems.push({
-               id: Math.random().toString(36).substr(2, 9),
-               category: item.category || 'INSULFILM' as ProductCategory,
-               regionId: null,
-               regionName: '',
-               productTypeId: null,
-               productTypeName: '',
-               metersUsed: 0,
-               totalPrice: item.totalPrice || 0,
-               serviceName: '',
-               regionCode: null,
-               displayName: '',
-               isCustomized: true,
-               customizationGroup: groupId,
-             });
-             loadedGroups.set(groupId, item.items.map((gi: any) => ({
-               regionCode: gi.regionCode,
-               regionLabel: gi.regionLabel,
-               productTypeId: gi.productTypeId,
-               productTypeName: gi.productTypeName || '',
-               metersUsed: gi.metersUsed || 0,
-               totalPrice: gi.totalPrice || 0,
-             })));
-           } else {
-             loadedItems.push({
-               id: Math.random().toString(36).substr(2, 9),
-               category: item.category || 'INSULFILM' as ProductCategory,
-               regionId: item.regionId || null,
-               regionName: item.regionName || '',
-               productTypeId: item.productTypeId || null,
-               productTypeName: item.productTypeName || '',
-               metersUsed: item.metersUsed || 0,
-               totalPrice: item.totalPrice || 0,
-               serviceName: item.serviceName || '',
-               regionCode: item.regionCode || null,
-               displayName: item.displayName || '',
-               isCustomized: false,
-               customizationGroup: null,
-             });
-           }
-         }
-         setDetailedItems(loadedItems);
-         setCustomizedGroups(loadedGroups);
+        for (const item of space.services_data as any[]) {
+          if (item.isCustomized && item.customizationGroup && item.items) {
+            const groupId = item.customizationGroup;
+            loadedItems.push({
+              id: Math.random().toString(36).substr(2, 9),
+              category: item.category || 'INSULFILM' as ProductCategory,
+              regionId: null,
+              regionName: '',
+              productTypeId: null,
+              productTypeName: '',
+              metersUsed: 0,
+              totalPrice: item.totalPrice || 0,
+              serviceName: '',
+              regionCode: null,
+              displayName: '',
+              isCustomized: true,
+              customizationGroup: groupId,
+            });
+            loadedGroups.set(groupId, item.items.map((gi: any) => ({
+              regionCode: gi.regionCode,
+              regionLabel: gi.regionLabel,
+              productTypeId: gi.productTypeId,
+              productTypeName: gi.productTypeName || '',
+              metersUsed: gi.metersUsed || 0,
+              totalPrice: gi.totalPrice || 0,
+            })));
+          } else {
+            loadedItems.push({
+              id: Math.random().toString(36).substr(2, 9),
+              category: item.category || 'INSULFILM' as ProductCategory,
+              regionId: item.regionId || null,
+              regionName: item.regionName || '',
+              productTypeId: item.productTypeId || null,
+              productTypeName: item.productTypeName || '',
+              metersUsed: item.metersUsed || 0,
+              totalPrice: item.totalPrice || 0,
+              serviceName: item.serviceName || '',
+              regionCode: item.regionCode || null,
+              displayName: item.displayName || '',
+              isCustomized: false,
+              customizationGroup: null,
+            });
+          }
+        }
+        setDetailedItems(loadedItems);
+        setCustomizedGroups(loadedGroups);
       }
     }
   }, [open, space]);
@@ -367,7 +369,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
     if (region?.fixed_price && region.fixed_price > 0 && updatedItem.totalPrice === 0) {
       updatedItem = { ...updatedItem, totalPrice: region.fixed_price };
     }
-    
+
     setDetailedItems(prev =>
       prev.map(item => item.id === updatedItem.id ? updatedItem : item)
     );
@@ -388,22 +390,22 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      
+
       const validFiles: File[] = [];
       for (const file of newFiles) {
-        const validation = validateUpload(file, { 
-          type: 'checklist-photo', 
-          maxFiles: 20, 
-          currentFiles: photos.length + validFiles.length 
+        const validation = validateUpload(file, {
+          type: 'checklist-photo',
+          maxFiles: 20,
+          currentFiles: photos.length + validFiles.length
         });
-        
+
         if (!validation.valid) {
           toast.error(`Falha em ${file.name}: ${validation.error}`);
           continue;
         }
         validFiles.push(file);
       }
-      
+
       setPhotos([...photos, ...validFiles]);
     }
   };
@@ -502,7 +504,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
             });
           }
         }
-        
+
         await supabase
           .from('spaces')
           .update({ services_data: servicesData } as any)
@@ -517,13 +519,13 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
           const sanitizedName = sanitizeFilename(photo.name.replace(`.${fileExt}`, ''));
           const fileName = `${Date.now()}_${i}_${sanitizedName}.${fileExt}`;
           const filePath = `${companyId}/${spaceData.id}/${fileName}`;
-          
+
           const { error: uploadError } = await supabase.storage
             .from('checklists')
             .upload(filePath, photo, { upsert: true });
-            
+
           if (uploadError) {
-             console.error("Erro no upload da foto", photo.name, uploadError);
+            console.error("Erro no upload da foto", photo.name, uploadError);
           }
         }
       }
@@ -570,8 +572,8 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
           {/* Nome da vaga */}
           <div className="space-y-2">
             <Label>Nome da vaga (opcional)</Label>
-            <Input 
-              value={slotName} 
+            <Input
+              value={slotName}
               onChange={(e) => setSlotName(e.target.value)}
               placeholder="Ex: Vaga 1, Box A, etc."
             />
@@ -581,11 +583,11 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Cliente *</Label>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="default"
+                size="sm"
                 onClick={() => setShowNewClientModal(true)}
-                className="h-8 text-xs"
+                className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white border-0"
               >
                 <Plus className="h-3 w-3 mr-1" />
                 Novo
@@ -645,7 +647,11 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                       )}
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" onClick={() => setShowNewVehicleModal(true)}>
+                  <Button
+                    variant="default"
+                    onClick={() => setShowNewVehicleModal(true)}
+                    className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white border-0"
+                  >
                     <Plus className="h-4 w-4 mr-1" /> Novo
                   </Button>
                 </div>
@@ -658,7 +664,12 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Serviços</Label>
-                <Button variant="outline" size="sm" onClick={handleAddDetailedItem}>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleAddDetailedItem}
+                  className="gap-2 bg-blue-600 hover:bg-blue-700 text-white border-0"
+                >
                   <Plus className="h-4 w-4 mr-1" /> Adicionar Serviço
                 </Button>
               </div>
@@ -732,7 +743,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                 <CalendarIcon className="h-4 w-4" />
                 Dia da entrada *
               </Label>
-              <Popover>
+              <Popover open={isEntryCalendarOpen} onOpenChange={setIsEntryCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -746,7 +757,12 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                   <CalendarPicker
                     mode="single"
                     selected={entryDate}
-                    onSelect={(date) => date && setEntryDate(date)}
+                    onSelect={(date) => {
+                      if (date) {
+                        setEntryDate(date);
+                        setIsEntryCalendarOpen(false);
+                      }
+                    }}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
@@ -758,9 +774,9 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                 <Clock className="h-4 w-4" />
                 Hora da entrada *
               </Label>
-              <Input 
-                type="time" 
-                value={entryTime} 
+              <Input
+                type="time"
+                value={entryTime}
                 onChange={(e) => setEntryTime(e.target.value)}
               />
             </div>
@@ -772,7 +788,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                 <CalendarIcon className="h-4 w-4" />
                 Dia da saída (previsão)
               </Label>
-              <Popover>
+              <Popover open={isExitCalendarOpen} onOpenChange={setIsExitCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -791,7 +807,10 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                   <CalendarPicker
                     mode="single"
                     selected={exitDate}
-                    onSelect={(date) => setExitDate(date)}
+                    onSelect={(date) => {
+                      setExitDate(date);
+                      setIsExitCalendarOpen(false);
+                    }}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
@@ -803,9 +822,9 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                 <Clock className="h-4 w-4" />
                 Hora da saída
               </Label>
-              <Input 
-                type="time" 
-                value={exitTime} 
+              <Input
+                type="time"
+                value={exitTime}
                 onChange={(e) => setExitTime(e.target.value)}
               />
             </div>
@@ -821,12 +840,12 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
               <span className="text-xs text-muted-foreground">{photos.length}/20</span>
             </div>
             <p className="text-sm text-muted-foreground">Opcional: Adicione fotos para referenciar a avaria ou condição de recebimento do veículo.</p>
-            
+
             {photos.length > 0 && (
               <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2">
                 {photos.map((photo, index) => (
                   <div key={index} className="relative min-w-[80px] h-[80px] rounded border overflow-hidden shrink-0">
-                    <img src={URL.createObjectURL(photo)} alt={`Foto ${index+1}`} className="w-full h-full object-cover" />
+                    <img src={URL.createObjectURL(photo)} alt={`Foto ${index + 1}`} className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setPhotos(photos.filter((_, i) => i !== index))}
@@ -839,16 +858,16 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
               </div>
             )}
 
-            <input 
-              type="file" 
-              multiple 
-              accept="image/png, image/jpeg, image/webp, image/heic" 
-              className="hidden" 
+            <input
+              type="file"
+              multiple
+              accept="image/png, image/jpeg, image/webp, image/heic"
+              className="hidden"
               ref={fileInputRef}
-              onChange={handlePhotoSelect} 
+              onChange={handlePhotoSelect}
             />
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full"
               onClick={() => fileInputRef.current?.click()}
               disabled={photos.length >= 20}
@@ -863,24 +882,24 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
           <div className="space-y-2">
             <Label>Campos opcionais</Label>
             <div className="flex gap-2 flex-wrap">
-              <Button 
-                variant={showDiscount ? "default" : "outline"} 
+              <Button
+                variant={showDiscount ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowDiscount(!showDiscount)}
               >
                 <DollarSign className="h-4 w-4 mr-1" />
                 Desconto
               </Button>
-              <Button 
-                variant={showObservations ? "default" : "outline"} 
+              <Button
+                variant={showObservations ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowObservations(!showObservations)}
               >
                 <FileText className="h-4 w-4 mr-1" />
                 Observações
               </Button>
-              <Button 
-                variant={showTag ? "default" : "outline"} 
+              <Button
+                variant={showTag ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowTag(!showTag)}
               >
@@ -895,12 +914,11 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
             <div className="space-y-3">
               {/* Seleção do tipo de desconto */}
               <div className="flex gap-2">
-                <Card 
-                  className={`flex-1 cursor-pointer transition-all ${
-                    discountType === 'fixed' 
-                      ? "border-primary bg-primary/10" 
-                      : "border-border/50 hover:border-muted-foreground"
-                  }`}
+                <Card
+                  className={`flex-1 cursor-pointer transition-all ${discountType === 'fixed'
+                    ? "border-primary bg-primary/10"
+                    : "border-border/50 hover:border-muted-foreground"
+                    }`}
                   onClick={() => setDiscountType('fixed')}
                 >
                   <CardContent className="p-3 text-center">
@@ -908,13 +926,12 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                     <span className="text-sm font-medium">Valor (R$)</span>
                   </CardContent>
                 </Card>
-                
-                <Card 
-                  className={`flex-1 cursor-pointer transition-all ${
-                    discountType === 'percent' 
-                      ? "border-primary bg-primary/10" 
-                      : "border-border/50 hover:border-muted-foreground"
-                  }`}
+
+                <Card
+                  className={`flex-1 cursor-pointer transition-all ${discountType === 'percent'
+                    ? "border-primary bg-primary/10"
+                    : "border-border/50 hover:border-muted-foreground"
+                    }`}
                   onClick={() => setDiscountType('percent')}
                 >
                   <CardContent className="p-3 text-center">
@@ -923,14 +940,14 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                   </CardContent>
                 </Card>
               </div>
-              
+
               {/* Input baseado no tipo selecionado */}
               {discountType === 'fixed' ? (
                 <div className="space-y-2">
                   <Label>Desconto (R$)</Label>
-                  <Input 
-                    type="number" 
-                    value={discount || ""} 
+                  <Input
+                    type="number"
+                    value={discount || ""}
                     onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                     placeholder="0.00"
                   />
@@ -938,9 +955,9 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
               ) : (
                 <div className="space-y-2">
                   <Label>Desconto (%)</Label>
-                  <Input 
-                    type="number" 
-                    value={discountPercent || ""} 
+                  <Input
+                    type="number"
+                    value={discountPercent || ""}
                     onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
                     placeholder="0"
                     max={100}
@@ -958,8 +975,8 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
           {showObservations && (
             <div className="space-y-2">
               <Label>Observações</Label>
-              <Textarea 
-                value={observations} 
+              <Textarea
+                value={observations}
                 onChange={(e) => setObservations(e.target.value)}
                 placeholder="Observações sobre a vaga..."
               />
@@ -1028,8 +1045,8 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
           )}
 
           {/* Botão de ação */}
-          <Button 
-            className="w-full" 
+          <Button
+            className="w-full"
             size="lg"
             onClick={handleSubmit}
             disabled={updateMutation.isPending || !selectedClientId || !selectedVehicleId}
