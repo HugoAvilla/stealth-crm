@@ -438,7 +438,7 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
       <Card className="bg-card/50 border-border/50 overflow-hidden">
         <CardContent className="p-0">
           {/* Desktop Table View */}
-          <div className="hidden sm:block w-full overflow-x-auto">
+          <div className="hidden md:block w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -459,7 +459,7 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
           </div>
 
           {/* Mobile Stacked View */}
-          <div className="block sm:hidden flex flex-col divide-y divide-border">
+          <div className="flex md:hidden flex-col divide-y divide-border">
             {items.map(renderMaterialCard)}
           </div>
         </CardContent>

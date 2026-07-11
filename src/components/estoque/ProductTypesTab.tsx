@@ -354,7 +354,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
           ) : (
             <>
               {/* 🖥️ Visualização Desktop: Tabela Completa */}
-              <div className="hidden sm:block w-full overflow-x-auto">
+              <div className="hidden md:block w-full overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -449,7 +449,7 @@ export function ProductTypesTab({ companyId }: ProductTypesTabProps) {
               </div>
 
               {/* 📱 Visualização Mobile: Cards Empilhados */}
-              <div className="block sm:hidden flex flex-col divide-y divide-border">
+              <div className="flex md:hidden flex-col gap-4">
                 {productTypes.map((product) => (
                   <div key={product.id} className={cn("p-4 text-sm space-y-3", !product.is_active && "opacity-50")}>
                     {/* 1. Título e Status */}

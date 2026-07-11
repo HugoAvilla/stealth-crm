@@ -132,7 +132,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="max-w-2xl w-[calc(100%-2rem)] sm:w-full p-4 sm:p-6 max-h-[85dvh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Nova Compra</DialogTitle>
         </DialogHeader>
@@ -215,9 +215,9 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
             onPdfsChange={setPdfs}
           />
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={loading || totalAmount <= 0}>
+          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" className="w-full sm:w-auto" disabled={loading || totalAmount <= 0}>
               {loading ? "Salvando..." : "Registrar Compra"}
             </Button>
           </div>

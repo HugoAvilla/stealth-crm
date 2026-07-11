@@ -1,12 +1,12 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { 
-  Receipt, 
-  Search, 
-  Filter, 
-  Calendar, 
-  CheckCircle2, 
-  Clock, 
+import {
+  Receipt,
+  Search,
+  Filter,
+  Calendar,
+  CheckCircle2,
+  Clock,
   AlertTriangle,
   ChevronDown,
   ChevronUp,
@@ -25,13 +25,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import {
   DropdownMenu,
@@ -287,7 +287,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
 
   const updateInstallmentStatus = async (inst: Installment, newStatus: string) => {
     try {
-      const updateData: any = { 
+      const updateData: any = {
         status: newStatus,
       };
 
@@ -319,7 +319,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
           await reverseTransaction(inst.transaction_id, 'unpay');
         }
       }
-      
+
       toast.success("Status atualizado");
       fetchInstallments(inst.boleto_id);
 
@@ -344,7 +344,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
             .select("status")
             .eq("id", inst.boleto_id)
             .single();
-          
+
           if (boletoCheck?.status === 'paid') {
             await supabase
               .from("boletos")
@@ -363,7 +363,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
   const handleOpenPaymentModal = async (inst: Installment, boleto: BoletoRow) => {
     setSelectedInstallment(inst);
     setSelectedBoletoRow(boleto);
-    
+
     // Set default payment item
     setPayments([
       {
@@ -377,33 +377,33 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
         status: 'received'
       }
     ]);
-    
+
     setPaymentModalOpen(true);
   };
 
   const handleConfirmPayment = async () => {
     if (!selectedInstallment || !selectedBoletoRow) return;
-    
+
     if (payments.length === 0) {
       toast.error("Adicione pelo menos uma forma de pagamento");
       return;
     }
-    
+
     if (payments.some(p => !p.account_id)) {
       toast.error("Selecione a conta de destino para todos os pagamentos");
       return;
     }
-    
+
     const totalToPay = selectedInstallment.amount;
     const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-    
+
     if (Math.abs(totalPaid - totalToPay) > 0.01) {
       toast.error(`O valor total pago (R$ ${totalPaid.toFixed(2)}) deve ser igual ao valor da parcela (R$ ${totalToPay.toFixed(2)})`);
       return;
     }
-    
+
     setIsPaying(true);
-    
+
     try {
       // 1. Update the installment status to 'paid'
       const updateData: any = {
@@ -411,18 +411,18 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
         payment_date: format(new Date(), 'yyyy-MM-dd'),
         paid_amount: totalToPay,
       };
-      
+
       const { error: instError } = await supabase
         .from("boleto_installments")
         .update(updateData)
         .eq("id", selectedInstallment.id);
-        
+
       if (instError) throw instError;
-      
+
       // 2. Handle the transactions and sale_payments
       for (let index = 0; index < payments.length; index++) {
         const p = payments[index];
-        
+
         // Calculate net amount if card
         let finalNetAmount = p.amount;
         if ((p.payment_method === "Crédito" || p.payment_method === "Débito") && p.machine_id) {
@@ -432,7 +432,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
             .eq("machine_id", p.machine_id)
             .eq("installments", p.installments)
             .single();
-          
+
           if (rateData) {
             finalNetAmount = p.amount * (1 - rateData.rate / 100);
           }
@@ -455,7 +455,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
           .single();
 
         if (salePaymentError) throw salePaymentError;
-        
+
         if (index === 0 && selectedInstallment.transaction_id) {
           // Update the main transaction
           const txUpdate: any = {
@@ -466,20 +466,20 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
             payment_method: p.payment_method,
             sale_payment_id: salePayment.id
           };
-          
+
           const { error: txError } = await supabase
             .from("transactions")
             .update(txUpdate)
             .eq("id", selectedInstallment.transaction_id);
-            
+
           if (txError) throw txError;
         } else {
           // Create a new transaction (either a split payment or because there was no transaction_id on the installment)
           const isFirstPaymentNoTx = index === 0 && !selectedInstallment.transaction_id;
-          const txName = isFirstPaymentNoTx 
+          const txName = isFirstPaymentNoTx
             ? `Boleto #${selectedBoletoRow.sale_id} - ${selectedBoletoRow.client_name} - Parcela ${selectedInstallment.installment_number}`
             : `Boleto #${selectedBoletoRow.sale_id} - ${selectedBoletoRow.client_name} - Parcela ${selectedInstallment.installment_number} (Split)`;
-            
+
           const txDescription = isFirstPaymentNoTx
             ? `Pagamento da Parcela ${selectedInstallment.installment_number}`
             : `Pagamento complementar da Parcela ${selectedInstallment.installment_number}`;
@@ -503,31 +503,31 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
             })
             .select("id")
             .single();
-            
+
           if (newTxError) throw newTxError;
-          
+
           // Update the first transaction_id on the installment if needed
           if (isFirstPaymentNoTx && newTx) {
             const { error: updateInstTxError } = await supabase
               .from("boleto_installments")
               .update({ transaction_id: newTx.id })
               .eq("id", selectedInstallment.id);
-              
+
             if (updateInstTxError) throw updateInstTxError;
           }
         }
       }
-      
+
       toast.success("Pagamento da parcela registrado!");
       setPaymentModalOpen(false);
       fetchInstallments(selectedInstallment.boleto_id);
-      
+
       // Check if all installments are paid to update the main boleto status
       const { data: allInstallments } = await supabase
         .from("boleto_installments")
         .select("status")
         .eq("boleto_id", selectedInstallment.boleto_id);
-        
+
       if (allInstallments) {
         const allPaid = allInstallments.every(i => i.status === 'paid');
         if (allPaid) {
@@ -543,7 +543,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
             .select("status")
             .eq("id", selectedInstallment.boleto_id)
             .single();
-            
+
           if (boletoCheck?.status === 'paid') {
             await supabase
               .from("boletos")
@@ -576,9 +576,9 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
           paid_amount: null
         })
         .eq("id", inst.id);
-        
+
       if (instError) throw instError;
-      
+
       // 2. Revert the transactions and delete associated sale_payments
       if (inst.transaction_id) {
         const salePaymentIdsToDelete: number[] = [];
@@ -608,7 +608,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
               salePaymentIdsToDelete.push(tx.sale_payment_id);
             }
           }
-          
+
           // Delete split transactions
           const splitIds = splitTxs.map(t => t.id);
           await supabase
@@ -639,17 +639,17 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
             .in("id", salePaymentIdsToDelete);
         }
       }
-      
+
       toast.success("Pagamento revertido com sucesso!");
       fetchInstallments(inst.boleto_id);
-      
+
       // 3. Update main boleto status if it was paid
       const { data: boletoCheck } = await supabase
         .from("boletos")
         .select("status")
         .eq("id", inst.boleto_id)
         .single();
-        
+
       if (boletoCheck?.status === 'paid') {
         await supabase
           .from("boletos")
@@ -683,11 +683,11 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
     const clientName = b.client_name || "";
     const saleId = b.sale_id?.toString() || "";
     const search = searchTerm.toLowerCase().replace("#", "").trim();
-    
+
     const matchesSearch = clientName.toLowerCase().includes(search) || saleId.includes(search);
     const matchesStatus = statusFilter === "all" || b.status === statusFilter;
     const matchesAccount = accountFilter === "all" || b.account_id.toString() === accountFilter;
-    
+
     return matchesSearch && matchesStatus && matchesAccount;
   });
 
@@ -706,8 +706,8 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por cliente ou venda..." 
+          <Input
+            placeholder="Buscar por cliente ou venda..."
             className="pl-9"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -739,7 +739,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
               <DropdownMenuItem onClick={() => setStatusFilter("overdue")} className={cn("cursor-pointer", statusFilter === "overdue" && "bg-muted font-medium")}>
                 Atrasado
               </DropdownMenuItem>
-              
+
               {uniqueAccounts.length > 0 && (
                 <>
                   <div className="p-2 text-xs font-semibold text-muted-foreground border-t border-border/50 border-b border-b-border/50">Conta</div>
@@ -747,9 +747,9 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
                     Todas as Contas
                   </DropdownMenuItem>
                   {uniqueAccounts.map(acc => (
-                    <DropdownMenuItem 
-                      key={acc.id} 
-                      onClick={() => setAccountFilter(acc.id.toString())} 
+                    <DropdownMenuItem
+                      key={acc.id}
+                      onClick={() => setAccountFilter(acc.id.toString())}
                       className={cn("cursor-pointer", accountFilter === acc.id.toString() && "bg-muted font-medium")}
                     >
                       {acc.name}
@@ -757,15 +757,15 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
                   ))}
                 </>
               )}
-              
+
               {(statusFilter !== "all" || accountFilter !== "all") && (
                 <>
                   <div className="border-t border-border/50 my-1" />
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => {
                       setStatusFilter("all");
                       setAccountFilter("all");
-                    }} 
+                    }}
                     className="text-destructive focus:text-destructive font-medium justify-center cursor-pointer"
                   >
                     Limpar Filtros
@@ -777,130 +777,255 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
         </div>
       </div>
 
-      <Card className="border-border/50">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10"></TableHead>
-              <TableHead>Venda</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Conta</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Parcelas</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead className="w-10"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredBoletos.length === 0 ? (
+      {/* Desktop Table */}
+      <div className="hidden md:block">
+        <Card className="border-border/50">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
-                  Nenhum boleto encontrado
-                </TableCell>
+                <TableHead className="w-10"></TableHead>
+                <TableHead>Venda</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Conta</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Parcelas</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
-            ) : (
-              filteredBoletos.map(boleto => (
-                <>
-                  <TableRow key={boleto.id} className="cursor-pointer hover:bg-muted/30" onClick={() => toggleExpand(boleto.id)}>
-                    <TableCell>
-                      {expandedBoleto === boleto.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </TableCell>
-                    <TableCell className="font-medium">#{boleto.sale_id}</TableCell>
-                    <TableCell>{boleto.client_name}</TableCell>
-                    <TableCell className="text-muted-foreground">{boleto.account_name}</TableCell>
-                    <TableCell>R$ {Number(boleto.total_amount).toFixed(2)}</TableCell>
-                    <TableCell>{boleto.installments_count}x</TableCell>
-                    <TableCell>{getStatusBadge(boleto.status)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {format(new Date(boleto.created_at), "dd/MM/yyyy")}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem 
-                            className="gap-2 cursor-pointer" 
-                            onClick={() => handleOpenSaleDetails(boleto.sale_id)}
-                            disabled={loadingSaleId === boleto.sale_id}
-                          >
-                            {loadingSaleId === boleto.sale_id ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                            ) : (
-                              <ExternalLink className="h-4 w-4" />
-                            )}
-                            Ver Venda
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
+            </TableHeader>
+            <TableBody>
+              {filteredBoletos.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                    Nenhum boleto encontrado
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredBoletos.map(boleto => (
+                  <>
+                    <TableRow key={boleto.id} className="cursor-pointer hover:bg-muted/30" onClick={() => toggleExpand(boleto.id)}>
+                      <TableCell>
+                        {expandedBoleto === boleto.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </TableCell>
+                      <TableCell className="font-medium">#{boleto.sale_id}</TableCell>
+                      <TableCell>{boleto.client_name}</TableCell>
+                      <TableCell className="text-muted-foreground">{boleto.account_name}</TableCell>
+                      <TableCell>R$ {Number(boleto.total_amount).toFixed(2)}</TableCell>
+                      <TableCell>{boleto.installments_count}x</TableCell>
+                      <TableCell>{getStatusBadge(boleto.status)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {format(new Date(boleto.created_at), "dd/MM/yyyy")}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => handleOpenSaleDetails(boleto.sale_id)}
+                              disabled={loadingSaleId === boleto.sale_id}
+                            >
+                              {loadingSaleId === boleto.sale_id ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              ) : (
+                                <ExternalLink className="h-4 w-4" />
+                              )}
+                              Ver Venda
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
 
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                  
-                  {expandedBoleto === boleto.id && (
-                    <TableRow className="bg-muted/10 border-b">
-                      <TableCell colSpan={9} className="p-0">
-                        <div className="p-4 bg-muted/5 animate-in slide-in-from-top-2 duration-200">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                            {!installments[boleto.id] ? (
-                              <div className="col-span-4 py-4 text-center text-xs text-muted-foreground">Carregando parcelas...</div>
-                            ) : installments[boleto.id].length === 0 ? (
-                              <div className="col-span-4 py-4 text-center text-xs text-muted-foreground">Nenhuma parcela registrada</div>
-                            ) : (
-                              installments[boleto.id].map(inst => (
-                                <Card key={inst.id} className="bg-background border-border/40">
-                                  <CardContent className="p-3 space-y-2">
-                                    <div className="flex justify-between items-start">
-                                      <span className="text-[10px] font-bold text-muted-foreground uppercase">Parcela {inst.installment_number}</span>
-                                      {getStatusBadge(inst.status)}
-                                    </div>
-                                    <div className="text-lg font-bold">R$ {Number(inst.amount).toFixed(2)}</div>
-                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                      <Calendar className="h-3 w-3" />
-                                      Venc: {format(new Date(inst.due_date + 'T12:00:00'), "dd/MM/yyyy")}
-                                    </div>
-                                    
-                                    {inst.status !== 'paid' ? (
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        className="w-full h-8 text-xs gap-1 mt-1 border-green-500/50 text-green-600 hover:bg-green-500/10"
-                                        onClick={() => handleOpenPaymentModal(inst, boleto)}
-                                      >
-                                        <Check className="h-3 w-3" /> Baixar Parcela
-                                      </Button>
-                                    ) : (
-                                      <div className="space-y-2 mt-1">
-                                        <div className="text-[10px] text-green-600 flex items-center gap-1 italic">
-                                          <CheckCircle2 className="h-3 w-3" /> Pago em {inst.payment_date ? format(new Date(inst.payment_date + 'T12:00:00'), "dd/MM/yy") : ''}
-                                        </div>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+
+                    {expandedBoleto === boleto.id && (
+                      <TableRow className="bg-muted/10 border-b">
+                        <TableCell colSpan={9} className="p-0">
+                          <div className="p-4 bg-muted/5 animate-in slide-in-from-top-2 duration-200">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                              {!installments[boleto.id] ? (
+                                <div className="col-span-4 py-4 text-center text-xs text-muted-foreground">Carregando parcelas...</div>
+                              ) : installments[boleto.id].length === 0 ? (
+                                <div className="col-span-4 py-4 text-center text-xs text-muted-foreground">Nenhuma parcela registrada</div>
+                              ) : (
+                                installments[boleto.id].map(inst => (
+                                  <Card key={inst.id} className="bg-background border-border/40">
+                                    <CardContent className="p-3 space-y-2">
+                                      <div className="flex justify-between items-start">
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Parcela {inst.installment_number}</span>
+                                        {getStatusBadge(inst.status)}
+                                      </div>
+                                      <div className="text-lg font-bold">R$ {Number(inst.amount).toFixed(2)}</div>
+                                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <Calendar className="h-3 w-3" />
+                                        Venc: {format(new Date(inst.due_date + 'T12:00:00'), "dd/MM/yyyy")}
+                                      </div>
+
+                                      {inst.status !== 'paid' ? (
                                         <Button
                                           variant="outline"
                                           size="sm"
-                                          className="w-full h-8 text-xs gap-1 mt-1 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
-                                          onClick={() => handleRevertPayment(inst, boleto)}
+                                          className="w-full h-8 text-xs gap-1 mt-1 border-green-500/50 text-green-600 hover:bg-green-500/10"
+                                          onClick={() => handleOpenPaymentModal(inst, boleto)}
                                         >
-                                          <RotateCcw className="h-3 w-3" /> Reverter Pagamento
+                                          <Check className="h-3 w-3" /> Baixar Parcela
                                         </Button>
-                                      </div>
-                                    )}
-                                  </CardContent>
-                                </Card>
-                              ))
+                                      ) : (
+                                        <div className="space-y-2 mt-1">
+                                          <div className="text-[10px] text-green-600 flex items-center gap-1 italic">
+                                            <CheckCircle2 className="h-3 w-3" /> Pago em {inst.payment_date ? format(new Date(inst.payment_date + 'T12:00:00'), "dd/MM/yy") : ''}
+                                          </div>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full h-8 text-xs gap-1 mt-1 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                                            onClick={() => handleRevertPayment(inst, boleto)}
+                                          >
+                                            <RotateCcw className="h-3 w-3" /> Reverter Pagamento
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="grid grid-cols-1 gap-3 md:hidden">
+        {filteredBoletos.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground border border-border/50 rounded-xl bg-card">
+            Nenhum boleto encontrado
+          </div>
+        ) : (
+          filteredBoletos.map(boleto => (
+            <div key={boleto.id} className="rounded-xl border border-border/50 bg-card/30 p-4 space-y-3 cursor-pointer select-none transition-colors hover:bg-card/40" onClick={() => toggleExpand(boleto.id)}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-foreground leading-snug">
+                    #{boleto.sale_id} — {boleto.client_name}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {format(new Date(boleto.created_at), "dd/MM/yyyy")}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  {getStatusBadge(boleto.status)}
+                  {expandedBoleto === boleto.id ? <ChevronUp className="h-4 w-4 text-muted-foreground mt-1" /> : <ChevronDown className="h-4 w-4 text-muted-foreground mt-1" />}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Receipt className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">
+                    {boleto.account_name}
+                  </p>
+                  <Badge variant="outline" className="text-[9px] mt-0.5 bg-muted text-muted-foreground border-border/50">
+                    {boleto.installments_count}x Boleto
+                  </Badge>
+                </div>
+                <p className="text-sm font-bold text-foreground whitespace-nowrap">
+                  R$ {Number(boleto.total_amount).toFixed(2)}
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-border/40 flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5 px-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenSaleDetails(boleto.sale_id);
+                  }}
+                  disabled={loadingSaleId === boleto.sale_id}
+                >
+                  {loadingSaleId === boleto.sale_id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  ) : (
+                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                  Ver Venda
+                </Button>
+              </div>
+
+              {expandedBoleto === boleto.id && (
+                <div className="pt-3 mt-3 border-t border-border/40 space-y-2 relative" onClick={(e) => e.stopPropagation()}>
+                  <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5 text-foreground">
+                    <Clock className="w-3.5 h-3.5" /> Detalhes das Parcelas
+                  </h4>
+                  {!installments[boleto.id] ? (
+                    <p className="py-4 text-center text-xs text-muted-foreground">Carregando parcelas...</p>
+                  ) : installments[boleto.id].length === 0 ? (
+                    <p className="py-4 text-center text-xs text-muted-foreground">Nenhuma parcela registrada</p>
+                  ) : (
+                    <div className="grid gap-2">
+                      {installments[boleto.id].map(inst => (
+                        <div key={inst.id} className="flex flex-col p-2.5 rounded-md bg-background border text-xs gap-2 shadow-sm">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-[10px] text-muted-foreground uppercase">Parcela {inst.installment_number}</span>
+                              <span className="text-[10px] text-muted-foreground mt-0.5">Venc: {format(new Date(inst.due_date + 'T12:00:00'), "dd/MM/yyyy")}</span>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              {getStatusBadge(inst.status)}
+                              <span className="font-semibold text-sm">R$ {Number(inst.amount).toFixed(2)}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col mt-1 pt-3 border-t border-border/50 space-y-2">
+                            {inst.status !== 'paid' ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full h-8 text-[10px] px-2 gap-1 border-green-500/50 text-green-600 hover:bg-green-500/10"
+                                onClick={() => handleOpenPaymentModal(inst, boleto)}
+                              >
+                                <Check className="h-3 w-3 inline" /> Baixar Parcela
+                              </Button>
+                            ) : (
+                              <>
+                                <div className="text-[10px] text-green-600 flex items-center justify-center gap-1 italic mb-1">
+                                  <CheckCircle2 className="h-3 w-3" /> Pago em {inst.payment_date ? format(new Date(inst.payment_date + 'T12:00:00'), "dd/MM/yy") : ''}
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full h-8 text-[10px] px-2 gap-1 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                                  onClick={() => handleRevertPayment(inst, boleto)}
+                                >
+                                  <RotateCcw className="h-3 w-3 inline" /> Reverter Pagamento
+                                </Button>
+                              </>
                             )}
                           </div>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      ))}
+                    </div>
                   )}
-                </>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
 
       <SaleDetailsModal
         open={!!selectedSaleDetails}
@@ -927,9 +1052,9 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold">Pagamentos</Label>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="h-8 gap-1 text-xs"
                     onClick={() => {
                       const totalToPay = selectedInstallment.amount;

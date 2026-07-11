@@ -28,13 +28,13 @@ function ConsumptionInput({ value, onChange, disabled }: ConsumptionInputProps) 
         type="number"
         step="0.1"
         min="0"
-        value={value}
+        value={value === 0 ? '' : value}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
         disabled={disabled}
-        className="w-24 text-center"
+        className="w-20 sm:w-24 text-center h-8 sm:h-10 text-sm"
         placeholder="0.0"
       />
-      <span className="text-sm text-muted-foreground">metros</span>
+      <span className="text-xs sm:text-sm text-muted-foreground">metros</span>
     </div>
   );
 }
@@ -215,55 +215,106 @@ export function ConsumptionRulesTab({ companyId }: ConsumptionRulesTabProps) {
           </CardContent>
         </Card>
       ) : (
-        <Card className="bg-card/50 border-border/50">
-          <CardContent className="p-0 overflow-x-auto">
-            <Table className="min-w-[500px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[250px]">Região</TableHead>
-                  <TableHead className="text-center">P (Pequeno)</TableHead>
-                  <TableHead className="text-center">M (Médio)</TableHead>
-                  <TableHead className="text-center">G (Grande)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {regions.map((region) => (
-                  <TableRow key={region.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{region.name}</p>
-                        {region.description && (
-                          <p className="text-sm text-muted-foreground">{region.description}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <ConsumptionInput
-                        value={formValues[region.id]?.P || 0}
-                        onChange={(val) => handleInputChange(region.id, "P", val)}
-                        disabled={isSaving}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <ConsumptionInput
-                        value={formValues[region.id]?.M || 0}
-                        onChange={(val) => handleInputChange(region.id, "M", val)}
-                        disabled={isSaving}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <ConsumptionInput
-                        value={formValues[region.id]?.G || 0}
-                        onChange={(val) => handleInputChange(region.id, "G", val)}
-                        disabled={isSaving}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <>
+          {/* Desktop View */}
+          <div className="hidden md:block">
+            <Card className="bg-card/50 border-border/50">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Região</TableHead>
+                      <TableHead className="text-center">P (Pequeno)</TableHead>
+                      <TableHead className="text-center">M (Médio)</TableHead>
+                      <TableHead className="text-center">G (Grande)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {regions.map((region) => (
+                      <TableRow key={region.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{region.name}</p>
+                            {region.description && (
+                              <p className="text-sm text-muted-foreground">{region.description}</p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            <ConsumptionInput
+                              value={formValues[region.id]?.P || 0}
+                              onChange={(val) => handleInputChange(region.id, "P", val)}
+                              disabled={isSaving}
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            <ConsumptionInput
+                              value={formValues[region.id]?.M || 0}
+                              onChange={(val) => handleInputChange(region.id, "M", val)}
+                              disabled={isSaving}
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            <ConsumptionInput
+                              value={formValues[region.id]?.G || 0}
+                              onChange={(val) => handleInputChange(region.id, "G", val)}
+                              disabled={isSaving}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Mobile View */}
+          <div className="grid grid-cols-1 gap-3 md:hidden">
+            {regions.map((region) => (
+              <Card key={region.id} className="bg-card/30 border-border/50 overflow-hidden">
+                <div className="p-3 bg-muted/20 border-b border-border/50">
+                  <p className="font-semibold text-sm">{region.name}</p>
+                  {region.description && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{region.description}</p>
+                  )}
+                </div>
+                <CardContent className="p-3 grid grid-cols-1 gap-2">
+                  <div className="flex items-center justify-between border-border/20 pb-2 border-b">
+                    <span className="text-xs font-semibold text-muted-foreground">P (Pequeno)</span>
+                    <ConsumptionInput
+                      value={formValues[region.id]?.P || 0}
+                      onChange={(val) => handleInputChange(region.id, "P", val)}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between border-border/20 pb-2 border-b">
+                    <span className="text-xs font-semibold text-muted-foreground">M (Médio)</span>
+                    <ConsumptionInput
+                      value={formValues[region.id]?.M || 0}
+                      onChange={(val) => handleInputChange(region.id, "M", val)}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">G (Grande)</span>
+                    <ConsumptionInput
+                      value={formValues[region.id]?.G || 0}
+                      onChange={(val) => handleInputChange(region.id, "G", val)}
+                      disabled={isSaving}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       {isDirty && (

@@ -66,7 +66,7 @@ export function CacTab() {
         .eq('type', 'VENDEDOR')
         .eq('is_active', true)
         .order('name');
-      
+
       if (error) throw error;
       setSellers(data || []);
     } catch (e) {
@@ -82,10 +82,10 @@ export function CacTab() {
         .eq('company_id', user.companyId)
         .eq('is_active', true)
         .order('name');
-      
+
       if (error) throw error;
       setAccounts(data || []);
-      
+
       // Define a conta principal como padrão inicial, ou a primeira da lista
       const mainAcc = data?.find(a => a.is_main);
       if (mainAcc) {
@@ -257,7 +257,7 @@ export function CacTab() {
       // 3. Fetch Closed Sales in the period to find paying clients and their revenue
       // (Cohort: clients created in this period who also bought in this period)
       const clientIds = clients.map(c => c.id);
-      
+
       let salesData: any[] = [];
       if (clientIds.length > 0) {
         const { data: sData, error: salesError } = await supabase
@@ -267,7 +267,7 @@ export function CacTab() {
           .gte('sale_date', startDate)
           .lte('sale_date', endDate)
           .eq('status', 'Fechada');
-          
+
         if (salesError) throw salesError;
         salesData = sData || [];
       }
@@ -275,7 +275,7 @@ export function CacTab() {
       // Aggregate revenue and count paying clients by origin
       const payingClientsByOrigin: Record<string, Set<number>> = {};
       const revenueByOrigin: Record<string, number> = {};
-      
+
       let totPayingClients = 0;
       let totRevenue = 0;
 
@@ -284,7 +284,7 @@ export function CacTab() {
       salesData.forEach(sale => {
         const client = clients.find(c => c.id === sale.client_id);
         const origin = client?.origem || 'Passante';
-        
+
         revenueByOrigin[origin] = (revenueByOrigin[origin] || 0) + Number(sale.total);
         totRevenue += Number(sale.total);
       });
@@ -313,14 +313,14 @@ export function CacTab() {
       const stats = CAC_ORIGIN_OPTIONS.filter(o => o !== 'Geral').map((origin) => {
         const pClients = payingClientsByOrigin[origin]?.size || 0;
         const rev = revenueByOrigin[origin] || 0;
-        
+
         // Direct cost for this origin
         const directCost = costByOrigin[origin] || 0;
         // Prorated general cost
         const proratedCost = pClients * geralCostPerClient;
-        
+
         const totCost = directCost + proratedCost;
-        
+
         const cac = pClients > 0 ? totCost / pClients : 0;
         const roas = totCost > 0 ? rev / totCost : 0;
 
@@ -430,13 +430,13 @@ export function CacTab() {
       if (updateError) throw updateError;
 
       toast.success(`Gasto com ${sellerName} registrado com sucesso!`);
-      
+
       // Reset form
       setSellerAmount("");
       setSellerDescription("");
       setSellerId("");
       setSellerDate(format(new Date(), "yyyy-MM-dd"));
-      
+
       // Refresh CAC data
       fetchCacData();
     } catch (error: any) {
@@ -451,15 +451,15 @@ export function CacTab() {
     if (!confirm("Tem certeza que deseja excluir esta despesa de CAC? Esta ação irá remover o lançamento do financeiro permanentemente.")) {
       return;
     }
-    
+
     try {
       const { error } = await supabase
         .from('transactions')
         .delete()
         .eq('id', id);
-        
+
       if (error) throw error;
-      
+
       toast.success("Despesa de CAC excluída com sucesso!");
       fetchCacData();
     } catch (e: any) {
@@ -474,7 +474,7 @@ export function CacTab() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      
+
       {/* Header and Filters */}
       <div className="flex flex-col gap-4 p-4 bg-muted/30 rounded-xl border">
         <div>
@@ -484,10 +484,10 @@ export function CacTab() {
             <Button size="sm" variant="outline" className="h-8 gap-1 bg-background w-full sm:w-auto" onClick={() => setIsRoasModalOpen(true)}>
               <Plus className="h-3.5 w-3.5" /> Registrar Gasto em Ads
             </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="h-8 gap-1 bg-background border-blue-500/30 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 transition-all w-full sm:w-auto" 
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1 bg-background border-blue-500/30 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 transition-all w-full sm:w-auto"
               onClick={() => {
                 const element = document.getElementById("quick-seller-expense-card");
                 if (element) {
@@ -503,9 +503,9 @@ export function CacTab() {
             </Button>
           </div>
         </div>
-        <div className="space-y-1.5 max-w-[280px]">
+        <div className="space-y-1.5 w-full sm:max-w-[280px]">
           <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Período de Análise</Label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full">
             <Button
               variant="outline"
               size="icon"
@@ -514,18 +514,18 @@ export function CacTab() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            
-            <div className="relative flex-1">
-              <Input 
-                type="month" 
-                value={format(currentMonth, "yyyy-MM")} 
+
+            <div className="relative flex-1 min-w-0">
+              <Input
+                type="month"
+                value={format(currentMonth, "yyyy-MM")}
                 onChange={(e) => {
                   if (e.target.value) {
                     const [year, month] = e.target.value.split("-").map(Number);
                     setCurrentMonth(new Date(year, month - 1, 1, 12, 0, 0));
                   }
-                }} 
-                className="h-9 w-full bg-background font-semibold text-center text-sm cursor-pointer"
+                }}
+                className="h-9 w-full bg-background font-semibold text-center text-xs sm:text-sm cursor-pointer"
               />
             </div>
 
@@ -543,99 +543,99 @@ export function CacTab() {
 
       {/* Main KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <Card className="p-5 flex flex-col justify-center space-y-2 relative overflow-hidden">
+        <Card className="p-3 sm:p-5 flex flex-col justify-center space-y-2 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-5">
-            <DollarSign className="w-16 h-16" />
+            <DollarSign className="w-12 h-12 sm:w-16 sm:h-16" />
           </div>
-          <p className="text-sm font-medium text-muted-foreground">Investimento (CAC)</p>
-          <h3 className="text-3xl font-bold text-red-500">
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Investimento (CAC)</p>
+          <h3 className="text-xl sm:text-3xl font-bold text-red-500 truncate" title={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCac)}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCac)}
           </h3>
-          <div className="flextext-xs text-muted-foreground gap-2 mt-1">
-            <span className="text-orange-500/80">Mkt: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(marketingCost)}</span>
-            {' • '}
-            <span className="text-blue-500/80">Vendas: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(salesCost)}</span>
+          <div className="flex flex-col sm:flex-row text-[10px] text-muted-foreground gap-0.5 sm:gap-2 mt-1">
+            <span className="text-orange-500/80 truncate">Mkt: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(marketingCost)}</span>
+            <span className="hidden sm:inline">•</span>
+            <span className="text-blue-500/80 truncate">Vendas: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(salesCost)}</span>
           </div>
         </Card>
 
-        <Card className="p-5 flex flex-col justify-center space-y-2 relative overflow-hidden">
+        <Card className="p-3 sm:p-5 flex flex-col justify-center space-y-2 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-5">
-            <Users className="w-16 h-16" />
+            <Users className="w-12 h-12 sm:w-16 sm:h-16" />
           </div>
-          <p className="text-sm font-medium text-muted-foreground">Novos Clientes (Pagantes)</p>
-          <h3 className="text-3xl font-bold text-foreground">
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Novos Clientes <span className="hidden sm:inline">(Pagantes)</span></p>
+          <h3 className="text-2xl sm:text-3xl font-bold text-foreground">
             {newPayingClients}
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
             Clientes que geraram vendas
           </p>
         </Card>
 
-        <Card className="p-5 flex flex-col justify-center space-y-2 relative overflow-hidden">
+        <Card className="p-3 sm:p-5 flex flex-col justify-center space-y-2 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-5">
-            <Target className="w-16 h-16" />
+            <Target className="w-12 h-12 sm:w-16 sm:h-16" />
           </div>
-          <p className="text-sm font-medium text-muted-foreground">CAC Médio Global</p>
-          <h3 className="text-3xl font-bold text-info">
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">CAC Médio Global</p>
+          <h3 className="text-xl sm:text-3xl font-bold text-info truncate" title={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(avgCac)}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(avgCac)}
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
             Custo médio por aquisição
           </p>
         </Card>
 
-        <Card className="p-5 flex flex-col justify-center space-y-2 relative overflow-hidden">
+        <Card className="p-3 sm:p-5 flex flex-col justify-center space-y-2 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-5">
-            <TrendingUp className="w-16 h-16" />
+            <TrendingUp className="w-12 h-12 sm:w-16 sm:h-16" />
           </div>
-          <p className="text-sm font-medium text-muted-foreground">Receita da Coorte</p>
-          <h3 className="text-3xl font-bold text-green-500">
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Receita da Coorte</p>
+          <h3 className="text-xl sm:text-3xl font-bold text-green-500 truncate" title={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cohortRevenue)}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cohortRevenue)}
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
             LTV Inicial gerado
           </p>
         </Card>
 
-        <Card className="p-5 flex flex-col justify-between space-y-2 relative overflow-hidden group min-h-[140px]">
+        <Card className="p-3 sm:p-5 flex flex-col justify-between space-y-2 relative overflow-hidden group min-h-[120px] sm:min-h-[140px]">
           <div className="absolute top-0 right-0 p-4 opacity-10">
-            <PieChart className="w-16 h-16 text-primary" />
+            <PieChart className="w-12 h-12 sm:w-16 sm:h-16 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-medium text-muted-foreground">ROAS Global</p>
-            <div className="flex items-baseline gap-2 mt-1">
-              <h3 className={`text-3xl font-bold ${globalRoas === 0 ? 'text-primary' : (globalRoas >= targetRoas ? 'text-green-500' : 'text-red-500')}`}>
+            <p className="text-xs sm:text-sm font-medium text-muted-foreground">ROAS Global</p>
+            <div className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2 mt-1">
+              <h3 className={`text-xl sm:text-3xl font-bold truncate ${globalRoas === 0 ? 'text-primary' : (globalRoas >= targetRoas ? 'text-green-500' : 'text-red-500')}`}>
                 {globalRoas === 0 ? '0.00x' : `${globalRoas.toFixed(2)}x`}
               </h3>
               {targetRoas > 0 && globalRoas > 0 && (
-                <span className="text-[10px] text-muted-foreground font-medium">
+                <span className="text-[10px] text-muted-foreground font-medium truncate">
                   ({roasProgress.toFixed(0)}% da meta)
                 </span>
               )}
             </div>
-            
+
             {/* Barra de Progresso da Meta */}
             {targetRoas > 0 && (
               <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden mt-2">
-                <div 
+                <div
                   className={`h-full transition-all duration-500 ${globalRoas >= targetRoas ? 'bg-green-500' : 'bg-red-500'}`}
                   style={{ width: `${roasProgress}%` }}
                 />
               </div>
             )}
           </div>
-          
+
           <div className="flex items-center justify-between pt-1 border-t border-border/10">
             <span className={`text-[10px] ${globalRoas === 0 ? 'text-muted-foreground' : (globalRoas >= targetRoas ? 'text-green-500/80 font-medium' : 'text-red-400/80 font-medium')}`}>
               {globalRoas === 0 ? 'Sem retorno' : (globalRoas >= targetRoas ? 'Meta atingida 🎉' : 'Abaixo da meta ⚠️')}
             </span>
             <div className="flex items-center gap-1 bg-muted/40 rounded px-1.5 py-0.5 border border-border/50">
               <span className="text-[9px] text-muted-foreground font-semibold uppercase">Meta:</span>
-              <input 
+              <input
                 type="number"
-                step="0.5" 
-                value={targetRoas || ''} 
-                onChange={(e) => handleTargetRoasChange(e.target.value)} 
+                step="0.5"
+                value={targetRoas || ''}
+                onChange={(e) => handleTargetRoasChange(e.target.value)}
                 className="w-8 h-4 bg-transparent text-foreground text-center rounded text-[10px] focus:outline-none border-none p-0 font-bold"
               />
               <span className="text-[9px] text-muted-foreground font-medium">x</span>
@@ -686,7 +686,7 @@ export function CacTab() {
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Ticket Médio <span className="text-green-500">Novo</span></p>
                   <p className="text-2xl font-bold text-green-500">
-                    {newClientSales > 0 
+                    {newClientSales > 0
                       ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(newClientRevenue / newClientSales)
                       : 'N/A'
                     }
@@ -696,7 +696,7 @@ export function CacTab() {
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Ticket Médio <span className="text-blue-500">Retorno</span></p>
                   <p className="text-2xl font-bold text-blue-500">
-                    {returningClientSales > 0 
+                    {returningClientSales > 0
                       ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(returningClientRevenue / returningClientSales)
                       : 'N/A'
                     }
@@ -709,13 +709,13 @@ export function CacTab() {
           {(newClientSales + returningClientSales) > 0 && (
             <div className="mt-4">
               <div className="flex h-2.5 rounded-full overflow-hidden bg-muted">
-                <div 
-                  className="bg-green-500 transition-all duration-500" 
-                  style={{ width: `${(newClientSales / (newClientSales + returningClientSales)) * 100}%` }} 
+                <div
+                  className="bg-green-500 transition-all duration-500"
+                  style={{ width: `${(newClientSales / (newClientSales + returningClientSales)) * 100}%` }}
                 />
-                <div 
-                  className="bg-blue-500 transition-all duration-500" 
-                  style={{ width: `${(returningClientSales / (newClientSales + returningClientSales)) * 100}%` }} 
+                <div
+                  className="bg-blue-500 transition-all duration-500"
+                  style={{ width: `${(returningClientSales / (newClientSales + returningClientSales)) * 100}%` }}
                 />
               </div>
               <div className="flex justify-between mt-1">
@@ -741,7 +741,7 @@ export function CacTab() {
             </div>
 
             <form onSubmit={handleSellerExpenseSubmit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="sellerId" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Vendedor *</Label>
                   {sellers.length > 0 ? (
@@ -758,9 +758,9 @@ export function CacTab() {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input 
-                      placeholder="Sem vendedores..." 
-                      disabled 
+                    <Input
+                      placeholder="Sem vendedores..."
+                      disabled
                       className="h-9 text-xs bg-background"
                     />
                   )}
@@ -781,7 +781,7 @@ export function CacTab() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="sellerDate" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Data *</Label>
                   <Input
@@ -810,9 +810,9 @@ export function CacTab() {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input 
-                      placeholder="Sem contas..." 
-                      disabled 
+                    <Input
+                      placeholder="Sem contas..."
+                      disabled
                       className="h-9 text-xs bg-background"
                     />
                   )}
@@ -830,9 +830,9 @@ export function CacTab() {
                 />
               </div>
 
-              <Button 
-                type="submit" 
-                size="sm" 
+              <Button
+                type="submit"
+                size="sm"
                 className="w-full h-9 mt-2 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all"
                 disabled={submittingSellerExpense || sellers.length === 0}
               >
@@ -850,7 +850,7 @@ export function CacTab() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Table representation */}
         <Card className="lg:col-span-2 p-1">
           <div className="p-4 border-b">
@@ -949,20 +949,20 @@ export function CacTab() {
                 margin={{ top: 20, right: 0, left: 10, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888833" />
-                <XAxis 
-                  dataKey="origem" 
-                  axisLine={false} 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="origem"
+                  axisLine={false}
+                  tickLine={false}
                   tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.7 }}
                 />
-                <YAxis 
-                  axisLine={false} 
+                <YAxis
+                  axisLine={false}
                   tickLine={false}
                   tickFormatter={(value) => `R$${value}`}
                   tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.7 }}
                   width={75}
                 />
-                <Tooltip 
+                <Tooltip
                   cursor={{ fill: '#88888811' }}
                   contentStyle={{ borderRadius: '8px', border: '1px solid #88888833', backgroundColor: 'var(--background)' }}
                   formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}
@@ -1018,9 +1018,9 @@ export function CacTab() {
                       -{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tx.amount)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleDeleteCacTransaction(tx.id)}
                         className="h-7 w-7 text-muted-foreground hover:text-red-500 transition-colors"
                         title="Excluir despesa"
@@ -1046,9 +1046,9 @@ export function CacTab() {
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${tx.cac_bucket === 'marketing' ? 'bg-orange-500/10 text-orange-600' : 'bg-blue-500/10 text-blue-600'}`}>
                       {tx.cac_bucket}
                     </span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => handleDeleteCacTransaction(tx.id)}
                       className="h-6 w-6 text-muted-foreground hover:text-red-500"
                     >
@@ -1095,11 +1095,10 @@ export function CacTab() {
                   {sellerRanking.map((seller, index) => (
                     <div key={seller.id} className="p-3 flex items-center justify-between text-xs hover:bg-muted/20 transition-all duration-200">
                       <div className="flex items-center gap-3">
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                          index === 0 ? 'bg-amber-500/20 text-amber-500' :
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${index === 0 ? 'bg-amber-500/20 text-amber-500' :
                           index === 1 ? 'bg-slate-400/20 text-slate-400' :
-                          index === 2 ? 'bg-amber-700/20 text-amber-700' : 'bg-muted text-muted-foreground'
-                        }`}>
+                            index === 2 ? 'bg-amber-700/20 text-amber-700' : 'bg-muted text-muted-foreground'
+                          }`}>
                           {index + 1}
                         </span>
                         <div>

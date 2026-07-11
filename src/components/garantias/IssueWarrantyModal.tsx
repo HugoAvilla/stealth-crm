@@ -135,7 +135,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
           region:vehicle_regions(name, description)
         `)
         .eq('sale_id', saleId);
-      
+
       if (error) {
         console.error('Error fetching detailed items:', error);
         return [];
@@ -165,12 +165,12 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
   ) => {
     if (currentSaleItems.length > 0) {
       let text = "";
-      
+
       // 1. Items and Validity Section
       text += `[ ITENS COBERTOS E VALIDADE DA GARANTIA ]\n`;
-      
+
       const usedTemplateIds = new Set<string>();
-      
+
       currentSaleItems.forEach(item => {
         const tId = currentItemTemplates[item.id];
         const tpl = tId && tId !== "none" ? currentTemplates.find(t => t.id === parseInt(tId)) : null;
@@ -185,7 +185,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
         }
       });
       text += `\n`;
-      
+
       // 2. Terms for each unique template used
       usedTemplateIds.forEach(tId => {
         const tpl = currentTemplates.find(t => t.id === parseInt(tId));
@@ -198,7 +198,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
           if (tpl.restrictions) text += `[ RESTRIÇÕES ]\n${tpl.restrictions}\n\n`;
         }
       });
-      
+
       setWarrantyTerms(text.trim());
     } else {
       const template = defaultTplId ? currentTemplates.find(t => t.id === parseInt(defaultTplId)) : null;
@@ -211,15 +211,15 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
       const detailedItems = await fetchDetailedItemsForSale(sale.id);
       let itemsList: any[] = [];
       let servicesText = "";
-      
+
       if (detailedItems && detailedItems.length > 0) {
         servicesText += `[ SERVIÇOS REALIZADOS - VENDA Nº ${sale.id} ]\n`;
         detailedItems.forEach((item: any) => {
-          const productName = item.product_type 
+          const productName = item.product_type
             ? `${item.product_type.brand} ${item.product_type.name}${item.product_type.light_transmission ? ` ${item.product_type.light_transmission}` : ''}`
             : 'Produto';
-          const name = item.display_name 
-            ? item.display_name 
+          const name = item.display_name
+            ? item.display_name
             : `${item.region?.name || "Geral"}: ${productName}`;
           servicesText += `• ${name}\n`;
           itemsList.push({
@@ -244,15 +244,15 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
         });
         servicesText += `\n`;
       }
-      
+
       setSaleServicesText(servicesText);
       setSaleItemsToMap(itemsList);
-      
+
       // Auto match templates
       const autoMatched: Record<string, string> = {};
       const tpls = currentTemplates && currentTemplates.length > 0 ? currentTemplates : templates;
       itemsList.forEach(item => {
-        const matched = tpls.find(t => 
+        const matched = tpls.find(t =>
           item.name.toLowerCase().includes(t.name.toLowerCase()) ||
           t.name.toLowerCase().includes(item.name.toLowerCase())
         );
@@ -265,7 +265,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
         }
       });
       setItemTemplates(autoMatched);
-      
+
       recalculateWarrantyTerms(tpls, autoMatched, itemsList, templateId);
     } catch (e) {
       console.error("Error loading services text:", e);
@@ -275,7 +275,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
   const handleSelectSale = async (sale: any) => {
     setSelectedSale(sale);
     setSaleId(sale.id.toString());
-    
+
     if (sale.client_id) {
       setClientId(sale.client_id.toString());
       const client = clients.find(c => c.id === sale.client_id);
@@ -353,7 +353,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
       let updatedAny = false;
       saleItemsToMap.forEach(item => {
         if (!autoMatched[item.id] || autoMatched[item.id] === "none" || autoMatched[item.id] === "") {
-          const matched = templates.find(t => 
+          const matched = templates.find(t =>
             item.name.toLowerCase().includes(t.name.toLowerCase()) ||
             t.name.toLowerCase().includes(item.name.toLowerCase())
           );
@@ -411,7 +411,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
   const selectedClient = clientId ? clients.find(c => c.id === parseInt(clientId)) : null;
   const selectedVehicle = vehicleId ? vehicles.find(v => v.id === parseInt(vehicleId)) : null;
 
-  const filteredVehicles = clientId 
+  const filteredVehicles = clientId
     ? vehicles.filter(v => v.client_id === parseInt(clientId))
     : vehicles;
 
@@ -421,10 +421,10 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
     const vehiclePlate = sale.vehicle?.plate?.toLowerCase() || "";
     const vehicleModel = sale.vehicle?.model?.toLowerCase() || "";
     const saleIdStr = sale.id.toString();
-    return clientName.includes(filteredSalesSearch) || 
-           vehiclePlate.includes(filteredSalesSearch) || 
-           vehicleModel.includes(filteredSalesSearch) || 
-           saleIdStr.includes(filteredSalesSearch);
+    return clientName.includes(filteredSalesSearch) ||
+      vehiclePlate.includes(filteredSalesSearch) ||
+      vehicleModel.includes(filteredSalesSearch) ||
+      saleIdStr.includes(filteredSalesSearch);
   });
 
   const handleTemplateChange = (value: string) => {
@@ -448,7 +448,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
         }
       });
       setItemTemplates(updated);
-      
+
       recalculateWarrantyTerms(templates, updated, saleItemsToMap, value);
     }
   };
@@ -545,7 +545,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
       }
 
       const certNumber = saleId ? String(saleId) : `${(inserted?.id || 0).toString().padStart(4, '0')}`;
-      
+
       try {
         const companyAddress = companyInfo ? [companyInfo.street, companyInfo.number, companyInfo.neighborhood, companyInfo.city, companyInfo.state, companyInfo.cep].filter(Boolean).join(', ') : undefined;
         const pdfData: WarrantyPDFData = {
@@ -692,14 +692,14 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
     toast.success("Certificado baixado com sucesso!");
   };
 
-  const isAnyTemplateSelected = selectedSale 
+  const isAnyTemplateSelected = selectedSale
     ? Object.values(itemTemplates).some(id => id && id !== "none")
     : !!templateId;
 
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto overflow-x-hidden p-0">
+        <DialogContent className="sm:max-w-4xl w-[calc(100%-2rem)] max-h-[85vh] overflow-y-auto overflow-x-hidden p-0">
           <DialogHeader className="px-6 pt-6">
             <DialogTitle>Emitir Garantia</DialogTitle>
           </DialogHeader>
@@ -730,10 +730,10 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button 
+                        <Button
                           type="button"
-                          variant="ghost" 
-                          size="sm" 
+                          variant="ghost"
+                          size="sm"
                           className="h-8 text-xs text-destructive hover:bg-destructive/10"
                           onClick={() => {
                             setSelectedSale(null);
@@ -752,10 +752,10 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
                         >
                           Remover
                         </Button>
-                        <Button 
+                        <Button
                           type="button"
-                          variant="outline" 
-                          size="sm" 
+                          variant="outline"
+                          size="sm"
                           className="h-8 text-xs"
                           onClick={() => setShowSelectSaleModal(true)}
                         >
@@ -787,7 +787,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
                         Selecione o material/modelo de garantia adequado para cada serviço realizado nesta venda.
                       </p>
                     </div>
-                    
+
                     <div className="space-y-3">
                       {saleItemsToMap.map((item) => (
                         <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-border bg-card">
@@ -797,7 +797,7 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
                             </span>
                             <span className="text-sm font-medium">{item.name}</span>
                           </div>
-                          
+
                           <div className="w-full sm:w-[240px]">
                             <Select
                               value={itemTemplates[item.id] || "none"}
@@ -922,24 +922,24 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
                   <Button variant="outline" className="flex-1" onClick={() => handleClose(false)}>
                     {issuedData ? 'Fechar' : 'Cancelar'}
                   </Button>
-                  
+
                   {!issuedData && (
                     <>
                       <Button variant="outline" onClick={handleDownload} disabled={!isAnyTemplateSelected || !selectedClient || !selectedVehicle}>
                         <Download className="h-4 w-4 mr-2" /> Baixar PDF
                       </Button>
-                      <Button 
-                        onClick={handleIssue} 
+                      <Button
+                        onClick={handleIssue}
                         disabled={!isAnyTemplateSelected || !selectedClient || !selectedVehicle || isSubmitting}
                       >
-                        <Shield className="h-4 w-4 mr-2" /> 
+                        <Shield className="h-4 w-4 mr-2" />
                         {isSubmitting ? 'Salvando...' : 'Emitir Garantia'}
                       </Button>
                     </>
                   )}
 
                   {issuedData && (
-                    <Button 
+                    <Button
                       onClick={() => setWhatsappModalOpen(true)}
                       className="bg-success hover:bg-success/90 text-white"
                     >
@@ -1079,23 +1079,23 @@ export function IssueWarrantyModal({ open, onOpenChange, preselectedSale }: Issu
                       <div>
                         <span className="text-[8px] text-gray-400 block uppercase font-medium">Válido Até</span>
                         <span className="text-[11px] font-semibold text-black">
-                          {selectedSale && saleItemsToMap.length > 0 
+                          {selectedSale && saleItemsToMap.length > 0
                             ? (() => {
-                                const activeTplIds = Object.values(itemTemplates).filter(id => id && id !== "none");
-                                const activeTpls = templates.filter(t => activeTplIds.includes(t.id.toString()));
-                                if (activeTpls.length > 0) {
-                                  const maxValidity = Math.max(...activeTpls.map(t => t.validity_months || 12));
-                                  const d = new Date();
-                                  d.setMonth(d.getMonth() + maxValidity);
-                                  return d.toLocaleDateString('pt-BR');
-                                }
-                                return "-";
-                              })()
-                            : (selectedTemplate ? (() => {
+                              const activeTplIds = Object.values(itemTemplates).filter(id => id && id !== "none");
+                              const activeTpls = templates.filter(t => activeTplIds.includes(t.id.toString()));
+                              if (activeTpls.length > 0) {
+                                const maxValidity = Math.max(...activeTpls.map(t => t.validity_months || 12));
                                 const d = new Date();
-                                d.setMonth(d.getMonth() + (selectedTemplate.validity_months || 12));
+                                d.setMonth(d.getMonth() + maxValidity);
                                 return d.toLocaleDateString('pt-BR');
-                              })() : "-")
+                              }
+                              return "-";
+                            })()
+                            : (selectedTemplate ? (() => {
+                              const d = new Date();
+                              d.setMonth(d.getMonth() + (selectedTemplate.validity_months || 12));
+                              return d.toLocaleDateString('pt-BR');
+                            })() : "-")
                           }
                         </span>
                       </div>

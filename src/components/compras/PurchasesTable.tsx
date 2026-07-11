@@ -119,75 +119,133 @@ export function PurchasesTable({
       </div>
 
       <Card className="border-border/50">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cód</TableHead>
-              <TableHead>Fornecedor</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Forma Pgto</TableHead>
-              <TableHead>Parcelas</TableHead>
-              <TableHead>Pagas</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Restante</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-10"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredPurchases.length === 0 ? (
+        <div className="hidden md:block overflow-x-auto rounded-lg">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
-                  Nenhuma compra encontrada
-                </TableCell>
+                <TableHead>Cód</TableHead>
+                <TableHead>Fornecedor</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Forma Pgto</TableHead>
+                <TableHead>Parcelas</TableHead>
+                <TableHead>Pagas</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Restante</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
-            ) : (
-              filteredPurchases.map(purchase => (
-                <TableRow
-                  key={purchase.id}
-                  className="cursor-pointer hover:bg-muted/30"
-                  onClick={() => onViewDetails(purchase.id)}
-                >
-                  <TableCell className="font-medium">#{purchase.id}</TableCell>
-                  <TableCell>{purchase.supplier_name_snapshot}</TableCell>
-                  <TableCell className="text-xs">
-                    {format(new Date(purchase.purchase_date + 'T12:00:00'), "dd/MM/yyyy")}
+            </TableHeader>
+            <TableBody>
+              {filteredPurchases.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
+                    Nenhuma compra encontrada
                   </TableCell>
-                  <TableCell>{purchase.payment_method}</TableCell>
-                  <TableCell>{purchase.installments_count}x</TableCell>
-                  <TableCell>
-                    {(() => {
+                </TableRow>
+              ) : (
+                filteredPurchases.map(purchase => (
+                  <TableRow
+                    key={`desktop-${purchase.id}`}
+                    className="cursor-pointer hover:bg-muted/30"
+                    onClick={() => onViewDetails(purchase.id)}
+                  >
+                    <TableCell className="font-medium">#{purchase.id}</TableCell>
+                    <TableCell>{purchase.supplier_name_snapshot}</TableCell>
+                    <TableCell className="text-xs">
+                      {format(new Date(purchase.purchase_date + 'T12:00:00'), "dd/MM/yyyy")}
+                    </TableCell>
+                    <TableCell>{purchase.payment_method}</TableCell>
+                    <TableCell>{purchase.installments_count}x</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const paidCount = purchase.purchase_installments
+                          ? purchase.purchase_installments.filter(inst => inst.status === "paga").length
+                          : purchase.status === "paga" ? purchase.installments_count : 0;
+                        return `${paidCount} / ${purchase.installments_count}`;
+                      })()}
+                    </TableCell>
+                    <TableCell>R$ {Number(purchase.total_amount).toFixed(2)}</TableCell>
+                    <TableCell>R$ {Number(purchase.remaining_amount).toFixed(2)}</TableCell>
+                    <TableCell>{getStatusBadge(purchase.status)}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem className="gap-2" onClick={() => onViewDetails(purchase.id)}>
+                            <Eye className="h-4 w-4" /> Ver Detalhes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete(purchase.id)}>
+                            <Trash2 className="h-4 w-4" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Visualização Mobile: Cards Empilhados */}
+        <div className="grid grid-cols-1 gap-3 md:hidden p-3 bg-muted/10">
+          {filteredPurchases.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              Nenhuma compra encontrada
+            </div>
+          ) : (
+            filteredPurchases.map(purchase => (
+              <div
+                key={`mobile-${purchase.id}`}
+                className="bg-card border border-border/50 rounded-xl p-4 space-y-3 cursor-pointer hover:bg-muted/30 active:scale-[0.99] transition-all shadow-sm"
+                onClick={() => onViewDetails(purchase.id)}
+              >
+                <div className="flex justify-between items-start gap-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">#{purchase.id}</span>
+                      <span className="font-bold text-sm text-foreground leading-none">{purchase.supplier_name_snapshot}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{format(new Date(purchase.purchase_date + 'T12:00:00'), "dd/MM/yyyy")}</span>
+                  </div>
+                  <div className="flex-shrink-0 scale-90 origin-top-right">{getStatusBadge(purchase.status)}</div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-border/40 text-sm">
+                  <div className="flex flex-col">
+                    <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-medium mb-0.5">Total</span>
+                    <span className="font-semibold text-sm">R$ {Number(purchase.total_amount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex flex-col text-right">
+                    <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-medium mb-0.5">Restante</span>
+                    <span className={purchase.remaining_amount > 0 ? "font-semibold text-sm text-red-500" : "font-semibold text-sm text-green-500"}>
+                      R$ {Number(purchase.remaining_amount).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
+                  <div className="bg-muted/50 border border-border/30 px-2 py-1 rounded-md mb-0 text-muted-foreground font-medium text-[11px]">
+                    {purchase.payment_method}
+                  </div>
+                  <div className="text-muted-foreground flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-md">
+                    <span>Parc:</span>
+                    <span className="font-medium text-foreground">{(() => {
                       const paidCount = purchase.purchase_installments
                         ? purchase.purchase_installments.filter(inst => inst.status === "paga").length
                         : purchase.status === "paga" ? purchase.installments_count : 0;
-                      return `${paidCount} / ${purchase.installments_count}`;
-                    })()}
-                  </TableCell>
-                  <TableCell>R$ {Number(purchase.total_amount).toFixed(2)}</TableCell>
-                  <TableCell>R$ {Number(purchase.remaining_amount).toFixed(2)}</TableCell>
-                  <TableCell>{getStatusBadge(purchase.status)}</TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="gap-2" onClick={() => onViewDetails(purchase.id)}>
-                          <Eye className="h-4 w-4" /> Ver Detalhes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete(purchase.id)}>
-                          <Trash2 className="h-4 w-4" /> Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                      return `${paidCount}/${purchase.installments_count}`;
+                    })()}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </Card>
     </div>
   );

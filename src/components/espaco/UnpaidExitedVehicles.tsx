@@ -406,7 +406,7 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
   return (
     <div className="space-y-4">
       {/* Header com busca */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-warning" />
@@ -416,7 +416,7 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
             {filteredVehicles.length} registro(s)
           </p>
         </div>
-        <div className="relative w-64">
+        <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por cliente, veículo..."
@@ -448,20 +448,20 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
               onClick={() => onSpaceClick?.(space)}
             >
               <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="space-y-2 flex-1">
                     {/* Cliente */}
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-info" />
-                      <span className="font-medium">
+                      <User className="h-4 w-4 text-info shrink-0" />
+                      <span className="font-medium text-sm sm:text-base leading-snug">
                         {space.client?.name || "Cliente não informado"}
                       </span>
                     </div>
 
                     {/* Veículo */}
                     <div className="flex items-center gap-2">
-                      <Car className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
+                      <Car className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-xs sm:text-sm">
                         {space.vehicle
                           ? `${space.vehicle.brand} ${space.vehicle.model} - ${space.vehicle.plate || "Sem placa"}`
                           : "Veículo não informado"}
@@ -469,24 +469,24 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
                     </div>
 
                     {/* Datas */}
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-muted-foreground pt-1 sm:pt-0">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5" />
                         Entrada: {formatDate(space.entry_date)}{" "}
-                        {space.entry_time && `às ${space.entry_time}`}
+                        {space.entry_time && `às ${space.entry_time.slice(0, 5)}`}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
                         Saída: {formatDate(space.exit_date)}{" "}
-                        {space.exit_time && `às ${space.exit_time}`}
+                        {space.exit_time && `às ${space.exit_time.slice(0, 5)}`}
                       </span>
                     </div>
 
                     {/* Observações */}
                     {space.observations && (
-                      <div className="flex items-start gap-2 mt-2">
-                        <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                        <p className="text-sm text-muted-foreground">
+                      <div className="flex items-start gap-2 mt-2 pt-2 border-t border-border/40 sm:border-0 sm:pt-0">
+                        <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           {space.observations}
                         </p>
                       </div>
@@ -494,21 +494,23 @@ const UnpaidExitedVehicles = ({ refreshTrigger, onSpaceClick }: UnpaidExitedVehi
                   </div>
 
                   {/* Status e Valor */}
-                  <div className="flex flex-col items-end gap-2">
-                    <Badge className="bg-warning/20 text-warning border-warning/30">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
-                      Não Pago
-                    </Badge>
-                    {space.sale && (
-                      <span className="text-lg font-bold text-warning flex items-center gap-1">
-                        <DollarSign className="h-4 w-4" />
-                        R$ {space.sale.total.toFixed(2)}
-                      </span>
-                    )}
+                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-0 border-border/40 shrink-0">
+                    <div className="flex flex-col sm:items-end">
+                      <Badge className="bg-warning/20 text-warning border-warning/30 w-fit mb-1 px-1.5 py-0">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Não Pago
+                      </Badge>
+                      {space.sale && (
+                        <span className="text-base sm:text-lg font-bold text-warning flex items-center gap-1">
+                          <DollarSign className="h-4 w-4" />
+                          R$ {space.sale.total.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-success border-success/30 hover:bg-success/10 mt-2"
+                      className="text-success border-success/30 hover:bg-success/10 self-center sm:self-auto h-10 sm:h-9"
                       onClick={(e) => {
                         e.stopPropagation();
                         openPaymentConfirmation(space);

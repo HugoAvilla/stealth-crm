@@ -789,7 +789,7 @@ export default function Contas() {
             </Button>
           </div>
         ) : (
-          <div className="flex md:flex-col gap-2 md:space-y-0">
+          <div className="flex md:flex-col gap-3 md:gap-2 md:space-y-0 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 scrollbar-hide">
             {accounts.map(account => (
               <button
                 key={account.id}
@@ -1503,20 +1503,20 @@ export default function Contas() {
                             <div key={group.name} className="border border-border/50 rounded-lg overflow-hidden">
                               {/* Header do Grupo */}
                               <div
-                                className="bg-muted/30 p-4 flex items-center justify-between cursor-pointer hover:bg-accent/50 transition-colors"
+                                className="bg-muted/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-accent/50 transition-colors"
                                 onClick={() => toggleFutureGroup(group.name)}
                               >
                                 <div>
-                                  <h4 className="font-semibold text-sm">{group.name}</h4>
+                                  <h4 className="font-semibold text-sm leading-snug">{group.name}</h4>
                                   <p className="text-xs text-muted-foreground mt-0.5">
                                     Próximo venc.: {format(new Date(group.nextDate), "dd/MM/yyyy")} • {group.installmentsCount} {group.installmentsCount === 1 ? 'parcela' : 'parcelas'}
                                   </p>
                                 </div>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t sm:border-0 pt-2 sm:pt-0 mt-1 sm:mt-0">
                                   <span className="font-bold text-sm text-foreground">
                                     {formatCurrency(group.totalAmount)}
                                   </span>
-                                  <div className="p-1.5 rounded-md bg-background border">
+                                  <div className="p-1.5 rounded-md bg-background border shrink-0">
                                     {isExpanded ? <ArrowDownRight className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                                   </div>
                                 </div>
@@ -1530,27 +1530,27 @@ export default function Contas() {
                                     const isEntry = tx.type === 'Entrada';
 
                                     return (
-                                      <div key={tx.id} className="p-3 pl-6 flex items-center justify-between hover:bg-muted/10 transition-colors">
-                                        <div className="flex items-center gap-3">
+                                      <div key={tx.id} className="p-3 pl-4 sm:pl-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/10 transition-colors">
+                                        <div className="flex items-start sm:items-center gap-3">
                                           <div className={cn(
-                                            "p-1.5 rounded-full flex-shrink-0",
+                                            "p-1.5 rounded-full flex-shrink-0 mt-0.5 sm:mt-0",
                                             isTransfer ? "bg-blue-500/10 text-blue-500" : (isEntry ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500")
                                           )}>
                                             {isTransfer ? <RefreshCw className="h-3 w-3" /> : (isEntry ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />)}
                                           </div>
                                           <div>
-                                            <p className="text-sm font-medium">{tx.name}</p>
-                                            <span className="text-[10px] text-muted-foreground">Vencimento: {format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
+                                            <p className="text-sm font-medium leading-snug">{tx.name}</p>
+                                            <span className="text-[10px] text-muted-foreground block mt-0.5">Vencimento: {format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
                                           </div>
                                         </div>
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pl-8 sm:pl-0 pt-2 sm:pt-0 border-t sm:border-0 border-border/40">
                                           <span className="font-semibold text-sm whitespace-nowrap">
                                             {formatCurrency(tx.amount)}
                                           </span>
                                           <Button
                                             size="sm"
                                             variant="outline"
-                                            className="h-7 text-xs bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white border-green-500/20"
+                                            className="h-7 text-xs bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white border-green-500/20 shrink-0"
                                             onClick={(e) => { e.stopPropagation(); handleOpenPaymentModal(tx); }}
                                           >
                                             <CheckCircle2 className="h-3.5 w-3.5 mr-1" />

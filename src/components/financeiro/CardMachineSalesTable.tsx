@@ -751,17 +751,20 @@ export function CardMachineSalesTable() {
                 </Table>
               </div>
 
-              {/* Mobile Cards */}
               <div className="grid grid-cols-1 gap-3 md:hidden">
                 {filtered.map((row) => {
                   const progressPct =
                     row.totalInstallments > 0
                       ? (row.paidInstallments / row.totalInstallments) * 100
                       : 100;
+                  const isExpanded = expandedRows.has(row.saleId);
+                  const txs = rowTransactions[row.saleId] || [];
+
                   return (
                     <div
                       key={row.paymentId}
-                      className="rounded-xl border border-border/50 bg-card/30 p-4 space-y-3"
+                      className="rounded-xl border border-border/50 bg-card/30 p-4 space-y-3 cursor-pointer select-none transition-colors hover:bg-card/40"
+                      onClick={() => toggleRow(row.saleId)}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -772,17 +775,20 @@ export function CardMachineSalesTable() {
                             {formatDate(row.saleDate)}
                           </p>
                         </div>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] shrink-0",
-                            row.status === "received"
-                              ? "bg-green-500/10 text-green-600 border-green-500/20"
-                              : "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
-                          )}
-                        >
-                          {row.status === "received" ? "Recebido" : "Pendente"}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] shrink-0",
+                              row.status === "received"
+                                ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                : "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
+                            )}
+                          >
+                            {row.status === "received" ? "Recebido" : "Pendente"}
+                          </Badge>
+                          {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground mt-1" /> : <ChevronDown className="h-4 w-4 text-muted-foreground mt-1" />}
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -851,6 +857,64 @@ export function CardMachineSalesTable() {
                           </div>
                         )}
                       </div>
+
+                      {isExpanded && (
+                        <div className="pt-3 mt-3 border-t border-border/40 space-y-2 relative" onClick={(e) => e.stopPropagation()}>
+                          <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5 text-foreground">
+                            <Clock className="w-3.5 h-3.5" /> Detalhes das Parcelas
+                          </h4>
+                          {txs.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">Nenhuma transação futura encontrada.</p>
+                          ) : (
+                            <div className="grid gap-2">
+                              {txs.map((tx: any, idx: number) => (
+                                <div key={idx} className="flex flex-col p-2.5 rounded-md bg-background border text-xs gap-2">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold">{tx.name || 'Parcela'}</span>
+                                      <span className="text-[10px] text-muted-foreground mt-0.5">Venc: {formatDate(tx.transaction_date)}</span>
+                                    </div>
+                                    <span className="font-semibold">{formatCurrency(tx.amount)}</span>
+                                  </div>
+
+                                  <div className="flex items-center justify-between mt-1 pt-2 border-t border-border/50">
+                                    <Badge
+                                      variant="outline"
+                                      className={cn(
+                                        "text-[9px]",
+                                        tx.is_paid
+                                          ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                          : "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
+                                      )}
+                                    >
+                                      {tx.is_paid ? "Pago" : "A Receber"}
+                                    </Badge>
+
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 px-2 text-[10px] gap-1"
+                                      onClick={() => toggleTransactionStatus(row.saleId, tx)}
+                                    >
+                                      {tx.is_paid ? (
+                                        <>
+                                          <Undo className="h-3 w-3 text-muted-foreground" />
+                                          <span className="text-muted-foreground">Desfazer</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Check className="h-3 w-3 text-green-500" />
+                                          <span className="text-green-500">Marcar Pago</span>
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
