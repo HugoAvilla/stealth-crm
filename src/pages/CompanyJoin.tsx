@@ -22,6 +22,8 @@ export default function CompanyJoin() {
   const [requestSent, setRequestSent] = useState(false);
   const [foundCompany, setFoundCompany] = useState<{ id: number; company_name: string } | null>(null);
   const [pendingRequest, setPendingRequest] = useState<any>(null);
+  const [isSearchingCode, setIsSearchingCode] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
     // Redirect if user already has company
@@ -79,7 +81,7 @@ export default function CompanyJoin() {
 
   const checkExistingRequest = async () => {
     if (!user) return;
-    
+
     setIsCheckingRequest(true);
     try {
       const { data, error } = await supabase
@@ -106,14 +108,29 @@ export default function CompanyJoin() {
     const code = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
     setCompanyCode(code);
     setFoundCompany(null);
+    setSearchError(null);
 
     if (code.length === 6) {
-      // Search for company by code
-      const { data, error } = await supabase
-        .rpc('get_company_by_code', { code_input: code });
+      setIsSearchingCode(true);
+      try {
+        // Search for company by code
+        const { data, error } = await supabase
+          .rpc('get_company_by_code', { code_input: code });
 
-      if (!error && data && data.length > 0) {
-        setFoundCompany({ id: data[0].id, company_name: data[0].company_name });
+        if (error) {
+          setSearchError(error.message);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setFoundCompany({ id: data[0].id, company_name: data[0].company_name });
+        } else {
+          setSearchError("Código de empresa não localizado.");
+        }
+      } catch (err: any) {
+        setSearchError(err.message || 'Erro de comunicação');
+      } finally {
+        setIsSearchingCode(false);
       }
     }
   };
@@ -148,19 +165,19 @@ export default function CompanyJoin() {
           setIsLoading(false);
           return;
         }
-        
+
         // If it was rejected or approved (but they were unlinked), they can try again.
         // We will just update the existing request back to pending.
         const { error: updateError } = await supabase
           .from('company_join_requests')
           .update({
-             status: 'pending',
-             requested_role: selectedRole,
-             rejected_reason: null,
-             updated_at: new Date().toISOString()
+            status: 'pending',
+            requested_role: selectedRole,
+            rejected_reason: null,
+            updated_at: new Date().toISOString()
           })
           .eq('id', existingRequest.id);
-          
+
         if (updateError) throw updateError;
       } else {
         // Create join request
@@ -234,7 +251,7 @@ export default function CompanyJoin() {
   // Show pending request screen
   if (pendingRequest || requestSent) {
     const companyName = pendingRequest?.companies?.company_name || foundCompany?.company_name;
-    
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 py-8 px-4">
         <div className="max-w-md mx-auto">
@@ -299,19 +316,26 @@ export default function CompanyJoin() {
               {/* Company Code */}
               <div className="space-y-2">
                 <Label htmlFor="companyCode">Código da Empresa *</Label>
-                <Input
-                  id="companyCode"
-                  value={companyCode}
-                  onChange={(e) => handleCodeChange(e.target.value)}
-                  placeholder="ABC123"
-                  className="text-center font-mono text-2xl tracking-widest"
-                  maxLength={6}
-                  required
-                />
-                {companyCode.length === 6 && !foundCompany && (
-                  <p className="text-sm text-destructive">Código não encontrado</p>
+                <div className="relative">
+                  <Input
+                    id="companyCode"
+                    value={companyCode}
+                    onChange={(e) => handleCodeChange(e.target.value)}
+                    placeholder="ABC123"
+                    className="text-center font-mono text-2xl tracking-widest uppercase"
+                    maxLength={6}
+                    required
+                  />
+                  {isSearchingCode && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                {searchError && !isSearchingCode && companyCode.length === 6 && (
+                  <p className="text-sm text-destructive">{searchError}</p>
                 )}
-                {foundCompany && (
+                {foundCompany && !isSearchingCode && (
                   <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
                     <Building2 className="h-4 w-4 text-green-500" />
                     <span className="text-sm text-green-600 dark:text-green-400">
