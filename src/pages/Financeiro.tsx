@@ -452,8 +452,8 @@ export default function Financeiro() {
             </div>
           )}
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="ghost" size="icon" onClick={() => setShowValues(!showValues)}>
+        <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setShowValues(!showValues)}>
             {showValues ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
           </Button>
           <DropdownMenu>

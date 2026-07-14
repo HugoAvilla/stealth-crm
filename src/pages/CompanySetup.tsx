@@ -7,18 +7,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Building2, CheckCircle, ArrowRight } from 'lucide-react';
+import { Loader2, Building2, CheckCircle, ArrowRight, LogOut } from 'lucide-react';
 import { CompanyCodeDisplay } from '@/components/team/CompanyCodeDisplay';
 
 export default function CompanySetup() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [companyCode, setCompanyCode] = useState<string | null>(null);
-  
+
   const [formData, setFormData] = useState({
     company_name: '',
     cnpj: '',
@@ -77,12 +77,12 @@ export default function CompanySetup() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     let formattedValue = value;
     if (name === 'cnpj') formattedValue = formatCNPJ(value);
     if (name === 'phone') formattedValue = formatPhone(value);
     if (name === 'cep') formattedValue = formatCEP(value);
-    
+
     setFormData(prev => ({ ...prev, [name]: formattedValue }));
 
     // Auto-fetch address when CEP is complete
@@ -96,7 +96,7 @@ export default function CompanySetup() {
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const data = await response.json();
-      
+
       if (!data.erro) {
         setFormData(prev => ({
           ...prev,
@@ -157,7 +157,7 @@ export default function CompanySetup() {
           { user_id: user.id, role: 'ADMIN' },
           { onConflict: 'user_id' }
         );
-        
+
       if (roleError) {
         console.error('Error setting ADMIN role:', roleError);
         // Don't throw - the trigger should have handled this
@@ -206,10 +206,25 @@ export default function CompanySetup() {
     navigate('/');
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   // Success screen with company code
   if (companyCode) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 py-8 px-4">
+      <div className="min-h-screen relative bg-gradient-to-br from-background via-background to-muted/30 py-8 px-4">
+        <div className="absolute top-4 right-4">
+          <Button variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Voltar para o Login
+          </Button>
+        </div>
         <div className="max-w-md mx-auto">
           <Card>
             <CardHeader className="text-center">
@@ -245,7 +260,13 @@ export default function CompanySetup() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 py-8 px-4">
+    <div className="min-h-screen relative bg-gradient-to-br from-background via-background to-muted/30 py-8 px-4">
+      <div className="absolute top-4 right-4">
+        <Button variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={handleSignOut}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Voltar para o Login
+        </Button>
+      </div>
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader className="text-center">

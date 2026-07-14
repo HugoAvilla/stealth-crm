@@ -505,7 +505,7 @@ export function CacTab() {
         </div>
         <div className="space-y-1.5 w-full sm:max-w-[280px]">
           <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Período de Análise</Label>
-          <div className="flex items-center gap-1.5 sm:gap-2 w-full">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full justify-center">
             <Button
               variant="outline"
               size="icon"
@@ -515,7 +515,10 @@ export function CacTab() {
               <ChevronLeft className="h-4 w-4" />
             </Button>
 
-            <div className="relative flex-1 min-w-0">
+            <div className="relative flex-1 min-w-0 h-9 bg-background border rounded-md flex items-center justify-center">
+              <span className="text-sm font-semibold capitalize text-center">
+                {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+              </span>
               <Input
                 type="month"
                 value={format(currentMonth, "yyyy-MM")}
@@ -525,7 +528,7 @@ export function CacTab() {
                     setCurrentMonth(new Date(year, month - 1, 1, 12, 0, 0));
                   }
                 }}
-                className="h-9 w-full bg-background font-semibold text-center text-xs sm:text-sm cursor-pointer"
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
               />
             </div>
 
@@ -548,7 +551,7 @@ export function CacTab() {
             <DollarSign className="w-12 h-12 sm:w-16 sm:h-16" />
           </div>
           <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Investimento (CAC)</p>
-          <h3 className="text-xl sm:text-3xl font-bold text-red-500 truncate" title={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCac)}>
+          <h3 className="text-lg sm:text-3xl font-bold text-red-500" title={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCac)}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCac)}
           </h3>
           <div className="flex flex-col sm:flex-row text-[10px] text-muted-foreground gap-0.5 sm:gap-2 mt-1">
@@ -576,7 +579,7 @@ export function CacTab() {
             <Target className="w-12 h-12 sm:w-16 sm:h-16" />
           </div>
           <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">CAC Médio Global</p>
-          <h3 className="text-xl sm:text-3xl font-bold text-info truncate" title={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(avgCac)}>
+          <h3 className="text-lg sm:text-3xl font-bold text-info" title={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(avgCac)}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(avgCac)}
           </h3>
           <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
@@ -589,7 +592,7 @@ export function CacTab() {
             <TrendingUp className="w-12 h-12 sm:w-16 sm:h-16" />
           </div>
           <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Receita da Coorte</p>
-          <h3 className="text-xl sm:text-3xl font-bold text-green-500 truncate" title={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cohortRevenue)}>
+          <h3 className="text-lg sm:text-3xl font-bold text-green-500" title={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cohortRevenue)}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cohortRevenue)}
           </h3>
           <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
@@ -604,7 +607,7 @@ export function CacTab() {
           <div>
             <p className="text-xs sm:text-sm font-medium text-muted-foreground">ROAS Global</p>
             <div className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2 mt-1">
-              <h3 className={`text-xl sm:text-3xl font-bold truncate ${globalRoas === 0 ? 'text-primary' : (globalRoas >= targetRoas ? 'text-green-500' : 'text-red-500')}`}>
+              <h3 className={`text-lg sm:text-3xl font-bold ${globalRoas === 0 ? 'text-primary' : (globalRoas >= targetRoas ? 'text-green-500' : 'text-red-500')}`}>
                 {globalRoas === 0 ? '0.00x' : `${globalRoas.toFixed(2)}x`}
               </h3>
               {targetRoas > 0 && globalRoas > 0 && (
