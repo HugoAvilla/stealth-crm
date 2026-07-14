@@ -139,6 +139,15 @@ export default function PlanSelection() {
       >
         <ArrowLeft className="w-6 h-6" />
       </button>
+      {!isUpgrade && (
+        <Button
+          variant="outline"
+          onClick={() => navigate('/empresa/entrar')}
+          className="absolute top-4 right-4 sm:top-6 sm:right-6"
+        >
+          Afiliar-se a uma empresa
+        </Button>
+      )}
       <div className="max-w-7xl mx-auto">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
