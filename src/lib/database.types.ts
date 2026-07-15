@@ -1,6 +1,4 @@
-// Database types for Supabase integration
-
-export type AppRole = 'ADMIN' | 'VENDEDOR' | 'PRODUCAO' | 'NENHUM';
+export type AppRole = 'ADMIN' | 'FUNCIONARIO' | 'PRODUCAO' | 'NENHUM';
 
 // Tipos para sistema de produtos INSULFILM/PPF
 export type ProductCategory = 'INSULFILM' | 'PPF';

@@ -42,11 +42,8 @@ interface NavItem {
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const location = useLocation();
   const { user, signOut } = useAuth();
-
-  // Fetch pending requests count for admin
   useEffect(() => {
     const fetchPendingCount = async () => {
       if (user?.role !== 'ADMIN' || !user?.companyId) return;
@@ -81,7 +78,7 @@ export function Sidebar() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      // Cleanup if any
     };
   }, [user?.role, user?.companyId]);
 
@@ -99,7 +96,7 @@ export function Sidebar() {
     { icon: Scissors, label: 'Perdas', path: '/perdas' },
     { icon: User, label: 'Perfil', path: '/perfil' },
     { icon: Building, label: 'Sua Empresa', path: '/empresa' },
-    { icon: UserPlus, label: 'Solicitações', path: '/equipe/solicitacoes', adminOnly: true, badge: pendingRequestsCount },
+    { icon: UserPlus, label: 'Funcionários', path: '/funcionarios', adminOnly: true },
     { icon: Crown, label: 'Painel Master', path: '/master', masterOnly: true },
   ];
 
@@ -128,22 +125,22 @@ export function Sidebar() {
       <div className="h-16 flex items-center justify-between px-4 border-b border-border">
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <img 
-              src={wfeLogo} 
-              alt="WFE Evolution" 
+            <img
+              src={wfeLogo}
+              alt="WFE Evolution"
               className="h-8 w-auto object-contain"
             />
             <span className="font-semibold text-sm tracking-tight">WFE EVOLUTION</span>
           </div>
         )}
         {isCollapsed && (
-          <img 
-            src={wfeLogo} 
-            alt="WFE" 
+          <img
+            src={wfeLogo}
+            alt="WFE"
             className="h-8 w-8 object-contain mx-auto"
           />
         )}
-        
+
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className={cn(
@@ -179,7 +176,7 @@ export function Sidebar() {
                 {isActive && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
                 )}
-                
+
                 <div className="relative">
                   <Icon className={cn(
                     "w-5 h-5 flex-shrink-0",
@@ -192,7 +189,7 @@ export function Sidebar() {
                     </span>
                   )}
                 </div>
-                
+
                 {!isCollapsed && (
                   <>
                     <span className={cn(

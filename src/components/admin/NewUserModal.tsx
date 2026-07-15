@@ -97,7 +97,7 @@ export function NewUserModal({ open, onOpenChange, onUserCreated }: NewUserModal
       // Update user role (the trigger creates NENHUM by default)
       const { error: roleError } = await supabase
         .from('user_roles')
-        .update({ role: role.toUpperCase() as 'ADMIN' | 'VENDEDOR' | 'PRODUCAO' | 'NENHUM' })
+        .update({ role: role.toUpperCase() as 'ADMIN' | 'FUNCIONARIO' | 'PRODUCAO' | 'NENHUM' })
         .eq('user_id', data.user.id);
 
       if (roleError) {
@@ -189,16 +189,16 @@ export function NewUserModal({ open, onOpenChange, onUserCreated }: NewUserModal
           </p>
 
           <div className="flex gap-2 pt-4">
-            <Button 
-              variant="outline" 
-              className="flex-1" 
+            <Button
+              variant="outline"
+              className="flex-1"
               onClick={() => onOpenChange(false)}
               disabled={isLoading}
             >
               Cancelar
             </Button>
-            <Button 
-              className="flex-1" 
+            <Button
+              className="flex-1"
               onClick={handleSubmit}
               disabled={isLoading}
             >

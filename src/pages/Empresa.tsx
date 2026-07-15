@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { EditCompanyModal } from "@/components/empresa/EditCompanyModal";
-import { CompanyCodeDisplay } from "@/components/team/CompanyCodeDisplay";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,7 +30,6 @@ export default function Empresa() {
   const [showEditModal, setShowEditModal] = useState(false);
 
   const [company, setCompany] = useState<CompanyData | null>(null);
-  const [memberCount, setMemberCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,16 +48,6 @@ export default function Empresa() {
 
     if (!companyError && companyData) {
       setCompany(companyData);
-    }
-
-    // Count current members
-    const { count, error: countError } = await supabase
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
-      .eq("company_id", user.companyId);
-
-    if (!countError && count !== null) {
-      setMemberCount(count);
     }
 
     setIsLoading(false);
@@ -211,33 +198,6 @@ export default function Empresa() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Team Stats & Company Code - Only for Admin */}
-      {user?.role === 'ADMIN' && (
-        <Card className="bg-card/50 border-border/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Users className="h-5 w-5 text-primary" />
-              Equipe
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Membros</span>
-                <span className="font-medium">{memberCount} de {company?.max_members || 5}</span>
-              </div>
-              <Progress
-                value={(memberCount / (company?.max_members || 5)) * 100}
-                className="h-2"
-              />
-            </div>
-            {company?.company_code && (
-              <CompanyCodeDisplay code={company.company_code} />
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Contact Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -36,9 +36,9 @@ import Servicos from "./pages/Servicos";
 
 import Perfil from "./pages/Perfil";
 import Empresa from "./pages/Empresa";
+import Funcionarios from "./pages/Funcionarios";
 import MaterialLosses from "./pages/MaterialLosses";
 import Master from "./pages/Master";
-import TeamRequests from "./pages/TeamRequests";
 import NotFound from "./pages/NotFound";
 
 import { MainLayout } from "./components/layout/MainLayout";
@@ -70,7 +70,7 @@ function AppRoutes() {
         const elapsed = Date.now() - startTime;
         const MIN_DISPLAY_TIME = 1500;
         const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
-        
+
         setTimeout(() => {
           loader.classList.add('hide-loader');
           setTimeout(() => {
@@ -88,26 +88,26 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route 
-        path="/login" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} 
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
       />
-      <Route 
-        path="/cadastro" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <SignUp />} 
+      <Route
+        path="/cadastro"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <SignUp />}
       />
-      <Route 
-        path="/esqueci-senha" 
-        element={isAuthenticated ? <Navigate to="/" replace /> : <ForgotPassword />} 
+      <Route
+        path="/esqueci-senha"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <ForgotPassword />}
       />
-      <Route 
-        path="/redefinir-senha" 
-        element={<ResetPassword />} 
+      <Route
+        path="/redefinir-senha"
+        element={<ResetPassword />}
       />
 
       {/* Subscription Flow Routes (authenticated but no company yet) */}
-      <Route 
-        path="/planos" 
+      <Route
+        path="/planos"
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
@@ -116,10 +116,10 @@ function AppRoutes() {
           ) : (
             <PlanSelection />
           )
-        } 
+        }
       />
-      <Route 
-        path="/assinatura" 
+      <Route
+        path="/assinatura"
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
@@ -128,14 +128,14 @@ function AppRoutes() {
           ) : (
             <Subscription />
           )
-        } 
+        }
       />
-      <Route 
-        path="/upgrade" 
-        element={<Navigate to="/planos?mode=upgrade" replace />} 
+      <Route
+        path="/upgrade"
+        element={<Navigate to="/planos?mode=upgrade" replace />}
       />
-      <Route 
-        path="/aguardando-liberacao" 
+      <Route
+        path="/aguardando-liberacao"
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
@@ -146,10 +146,10 @@ function AppRoutes() {
           ) : (
             <WaitingApproval />
           )
-        } 
+        }
       />
-      <Route 
-        path="/empresa/cadastro" 
+      <Route
+        path="/empresa/cadastro"
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
@@ -160,10 +160,10 @@ function AppRoutes() {
           ) : (
             <CompanySetup />
           )
-        } 
+        }
       />
-      <Route 
-        path="/empresa/entrar" 
+      <Route
+        path="/empresa/entrar"
         element={
           !isAuthenticated ? (
             <Navigate to="/login" replace />
@@ -172,80 +172,86 @@ function AppRoutes() {
           ) : (
             <CompanyJoin />
           )
-        } 
+        }
       />
 
-      {/* Protected Routes - ADMIN and VENDEDOR */}
+      {/* Protected Routes - ADMIN and FUNCIONARIO */}
       <Route path="/" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}>
           <MainLayout><Dashboard /></MainLayout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/vendas" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}>
           <MainLayout><Vendas /></MainLayout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/clientes" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}>
           <MainLayout><Clientes /></MainLayout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/espaco" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}>
           <MainLayout><Espaco /></MainLayout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/financeiro" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Financeiro /></MainLayout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/compras" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Compras /></MainLayout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/contas" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Contas /></MainLayout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/relatorios" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Relatorios /></MainLayout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/comissoes" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Comissoes /></MainLayout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/garantias" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}>
           <MainLayout><Garantias /></MainLayout>
         </ProtectedRoute>
       } />
-      
-      
+
+
       <Route path="/perfil" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR', 'PRODUCAO']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO', 'PRODUCAO']}>
           <MainLayout><Perfil /></MainLayout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/empresa" element={
         <ProtectedRoute allowedRoles={['ADMIN']}>
           <MainLayout><Empresa /></MainLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/funcionarios" element={
+        <ProtectedRoute allowedRoles={['ADMIN']}>
+          <MainLayout><Funcionarios /></MainLayout>
         </ProtectedRoute>
       } />
 
@@ -256,22 +262,15 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/perdas" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'PRODUCAO', 'VENDEDOR']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'PRODUCAO', 'FUNCIONARIO']}>
           <MainLayout><ErrorBoundary><MaterialLosses /></ErrorBoundary></MainLayout>
         </ProtectedRoute>
       } />
 
       {/* Protected Routes - Serviços */}
       <Route path="/servicos" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'VENDEDOR', 'PRODUCAO']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO', 'PRODUCAO']}>
           <MainLayout><Servicos /></MainLayout>
-        </ProtectedRoute>
-      } />
-
-       {/* Protected Routes - ADMIN only */}
-       <Route path="/equipe/solicitacoes" element={
-        <ProtectedRoute allowedRoles={['ADMIN']}>
-          <MainLayout><TeamRequests /></MainLayout>
         </ProtectedRoute>
       } />
 

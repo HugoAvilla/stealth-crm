@@ -16,7 +16,7 @@ export default function CompanyJoin() {
   const { toast } = useToast();
 
   const [companyCode, setCompanyCode] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'VENDEDOR' | 'PRODUCAO'>('VENDEDOR');
+  const [selectedRole, setSelectedRole] = useState<'FUNCIONARIO' | 'PRODUCAO'>('FUNCIONARIO');
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingRequest, setIsCheckingRequest] = useState(true);
   const [requestSent, setRequestSent] = useState(false);
@@ -350,14 +350,14 @@ export default function CompanyJoin() {
                 <Label>Solicitar acesso como *</Label>
                 <RadioGroup
                   value={selectedRole}
-                  onValueChange={(value) => setSelectedRole(value as 'VENDEDOR' | 'PRODUCAO')}
+                  onValueChange={(value) => setSelectedRole(value as 'FUNCIONARIO' | 'PRODUCAO')}
                   className="space-y-3"
                 >
                   <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <RadioGroupItem value="VENDEDOR" id="vendedor" className="mt-1" />
+                    <RadioGroupItem value="FUNCIONARIO" id="funcionario" className="mt-1" />
                     <div className="flex-1">
-                      <Label htmlFor="vendedor" className="font-medium cursor-pointer">
-                        Vendedor
+                      <Label htmlFor="funcionario" className="font-medium cursor-pointer">
+                        Funcionário
                       </Label>
                       <p className="text-sm text-muted-foreground">
                         Acesso a vendas, espaço, clientes e garantias

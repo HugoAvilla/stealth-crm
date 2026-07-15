@@ -45,49 +45,9 @@ interface NavItem {
 }
 
 export function TopNavigation() {
-  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const location = useLocation();
   const { user, signOut } = useAuth();
   const isReadOnly = user?.subscriptionStatus === 'pending_payment' && !user?.isMaster;
-
-  // Fetch pending requests count for admin
-  useEffect(() => {
-    const fetchPendingCount = async () => {
-      if (user?.role !== 'ADMIN' || !user?.companyId) return;
-
-      const { count, error } = await supabase
-        .from('company_join_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('company_id', user.companyId)
-        .eq('status', 'pending');
-
-      if (!error && count !== null) {
-        setPendingRequestsCount(count);
-      }
-    };
-
-    fetchPendingCount();
-
-    // Subscribe to changes
-    const channel = supabase
-      .channel('join_requests_changes_top')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'company_join_requests',
-        },
-        () => {
-          fetchPendingCount();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.role, user?.companyId]);
 
   const navItems: NavItem[] = [
     { icon: LayoutDashboard, label: 'Painel', path: '/' },
@@ -103,10 +63,10 @@ export function TopNavigation() {
     { icon: Wrench, label: 'Serviços', path: '/servicos' },
     { icon: Package, label: 'Estoque', path: '/estoque', productionOnly: true },
     { icon: Scissors, label: 'Perdas', path: '/perdas' },
-    { icon: UserPlus, label: 'Solicitações', path: '/equipe/solicitacoes', adminOnly: true, badge: pendingRequestsCount },
     { icon: Crown, label: 'Master', path: '/master', masterOnly: true },
     { icon: User, label: 'Perfil', path: '/perfil' },
     { icon: Building, label: 'Empresa', path: '/empresa' },
+    { icon: UserPlus, label: 'Funcionários', path: '/funcionarios', adminOnly: true },
   ];
 
   const filteredItems = navItems.filter(item => {

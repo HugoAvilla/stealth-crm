@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Check if user is company owner mapping and get company owner id if exists
       let isCompanyOwner = false;
       let companyOwnerId = userId; // Default to self
-      
+
       if (profile?.company_id) {
         const { data: companyData } = await supabase
           .from('companies')
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let calculatedStatus: SubscriptionStatus = 'pending_payment';
       if (subscriptionData) {
         const rawStatus = (subscriptionData.status as SubscriptionStatus) || 'pending_payment';
-        
+
         if (rawStatus === 'blocked') {
           calculatedStatus = 'blocked';
         } else if (rawStatus === 'expired') {
@@ -134,11 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           // If status is active, check if it has expired
           calculatedStatus = 'active';
-          
+
           if (subscriptionData.expires_at) {
             const expiresAtDate = new Date(subscriptionData.expires_at);
             const now = new Date();
-            
+
             if (expiresAtDate <= now) {
               // If the expiration date has passed, force expired status
               calculatedStatus = 'expired';
@@ -150,11 +150,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         calculatedStatus = 'active';
       }
 
+      let computedRole = roleData?.role as AppRole;
+      if (!computedRole || computedRole === 'NENHUM') {
+        if (profile?.company_id && !isCompanyOwner) {
+          computedRole = 'FUNCIONARIO';
+        } else {
+          computedRole = 'NENHUM';
+        }
+      }
+
       return {
         id: userId,
         email: profile?.email || '',
         profile: profile as Profile | null,
-        role: (roleData?.role as AppRole) || 'NENHUM',
+        role: computedRole,
         subscriptionStatus: isMaster ? 'active' : calculatedStatus,
         companyId: profile?.company_id || subscriptionData?.company_id || null,
         isMaster,

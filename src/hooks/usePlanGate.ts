@@ -17,7 +17,7 @@ export function usePlanGate(moduleName: ModuleName): GateResult {
 
   const plan = user.planCode || 'basic';
   const role = user.role;
-  const canUpgrade = user.isCompanyOwner || role === 'ADMIN' || role === 'VENDEDOR' || role === 'PRODUCAO';
+  const canUpgrade = user.isCompanyOwner || role === 'ADMIN' || role === 'FUNCIONARIO' || role === 'PRODUCAO';
 
   switch (moduleName) {
     case 'estoque':

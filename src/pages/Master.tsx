@@ -10,14 +10,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Plus, 
-  Trash2, 
-  ToggleLeft, 
-  ToggleRight, 
-  Crown, 
-  Tag, 
-  Percent, 
+import {
+  Plus,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  Crown,
+  Tag,
+  Percent,
   DollarSign,
   Calendar,
   Users,
@@ -44,6 +44,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import SubscriptionsManager from '@/components/master/SubscriptionsManager';
+import EmployeesManager from '@/components/master/EmployeesManager';
 
 interface TermsAcceptance {
   id: number;
@@ -118,12 +119,20 @@ export default function Master() {
             <FileCheck className="h-4 w-4" />
             Termos
           </TabsTrigger>
+          <TabsTrigger value="employees" className="gap-2">
+            <Users className="h-4 w-4" />
+            Funcionários
+          </TabsTrigger>
         </TabsList>
 
 
 
         <TabsContent value="subscriptions" className="mt-6">
           <SubscriptionsManager />
+        </TabsContent>
+
+        <TabsContent value="employees" className="mt-6">
+          <EmployeesManager />
         </TabsContent>
 
         <TabsContent value="terms" className="space-y-6 mt-6">
@@ -169,7 +178,7 @@ export default function Master() {
               size="sm"
               onClick={() => {
                 const csv = ['Nome,Email,Versão,Data do Aceite,IP']
-                  .concat(termsAcceptances.map(t => 
+                  .concat(termsAcceptances.map(t =>
                     `"${t.user_name}","${t.user_email}","${t.terms_version}","${new Date(t.accepted_at).toLocaleString('pt-BR')}","${t.ip_address || ''}"`
                   )).join('\n');
                 const blob = new Blob([csv], { type: 'text/csv' });
