@@ -5,11 +5,11 @@ import { usePlanGate } from '@/hooks/usePlanGate';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMaterialLosses } from '@/hooks/useMaterialLosses';
-import { useMaterialLossLimits } from '@/hooks/useMaterialLossLimits';
-import { MaterialLossFormModal } from '@/components/material-losses/MaterialLossFormModal';
-import { MaterialLossLimitsModal } from '@/components/material-losses/MaterialLossLimitsModal';
-import { StatsCard } from '@/components/dashboard/StatsCard';
+import { useMaterialLosses } from '@/pages/MaterialLosses/hooks/useMaterialLosses';
+import { useMaterialLossLimits } from '@/pages/MaterialLosses/hooks/useMaterialLossLimits';
+import { MaterialLossFormModal } from '@/pages/MaterialLosses/components/MaterialLossFormModal';
+import { MaterialLossLimitsModal } from '@/pages/MaterialLosses/components/MaterialLossLimitsModal';
+import { StatsCard } from '@/components/shared/StatsCard';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,7 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Plus, Settings, TrendingDown, DollarSign, Ruler, FileWarning, MoreHorizontal, Pencil, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import { format } from 'date-fns';
-import { useDeleteMaterialLoss } from '@/hooks/useMaterialLosses';
+import { useDeleteMaterialLoss } from '@/pages/MaterialLosses/hooks/useMaterialLosses';
 import { generateReportPDF } from '@/lib/pdfGenerator';
 import { cn } from '@/lib/utils';
 import {
@@ -53,7 +53,7 @@ export default function MaterialLosses() {
   const [showLimitsModal, setShowLimitsModal] = useState(false);
   const [selectedLoss, setSelectedLoss] = useState<any>(null);
   const [lossToCancel, setLossToCancel] = useState<any>(null);
-  
+
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'PPF' | 'INSULFILM'>('ALL');
 
@@ -71,7 +71,7 @@ export default function MaterialLosses() {
   const { data: losses, isLoading } = useMaterialLosses({
     category: categoryFilter !== 'ALL' ? categoryFilter : undefined,
   });
-  
+
   const { data: limits } = useMaterialLossLimits();
   const deleteMutation = useDeleteMaterialLoss();
 
@@ -93,20 +93,20 @@ export default function MaterialLosses() {
   // Alert calculations
   const alerts = useMemo(() => {
     if (!limits || !losses) return [];
-    
+
     const triggered: string[] = [];
-    
+
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
-    
+
     // Group losses by category for limit checking (only current month)
     const lossesByCategory = losses.reduce((acc, curr) => {
       if (curr.status === 'cancelled') return acc;
-      
+
       const lossDate = new Date(curr.created_at);
       if (lossDate < startOfMonth) return acc;
-      
+
       if (!acc[curr.category]) acc[curr.category] = { cost: 0, meters: 0, count: 0 };
       acc[curr.category].cost += Number(curr.cost);
       acc[curr.category].meters += Number(curr.lost_meters);
@@ -133,11 +133,10 @@ export default function MaterialLosses() {
       }
 
       if (valueToCheck > Number(limit.limit_value)) {
-        triggered.push(`Alerta de limite excedido: ${limit.category} ultrapassou o teto de ${limitLabel}. Atual: ${
-          limit.limit_type === 'cost' ? `R$ ${valueToCheck.toFixed(2)}` :
+        triggered.push(`Alerta de limite excedido: ${limit.category} ultrapassou o teto de ${limitLabel}. Atual: ${limit.limit_type === 'cost' ? `R$ ${valueToCheck.toFixed(2)}` :
           limit.limit_type === 'meters' ? `${valueToCheck.toFixed(2)}m` :
-          valueToCheck
-        }`);
+            valueToCheck
+          }`);
       }
     });
 
@@ -160,7 +159,7 @@ export default function MaterialLosses() {
 
   const exportToPDF = async () => {
     if (!losses) return;
-    
+
     const columns = ['Data', 'Instalador', 'Material', 'Categoria', 'Metros', 'Motivo', 'Custo'];
     const rows = losses
       .filter(loss => loss.status !== 'cancelled')
@@ -197,9 +196,9 @@ export default function MaterialLosses() {
 
   const exportToExcel = () => {
     if (!losses) return;
-    
+
     const activeLosses = losses.filter(loss => loss.status !== 'cancelled');
-    
+
     let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
     html += `<head><meta charset="utf-8" /><style>table { border-collapse: collapse; } th { background-color: #333333; color: #ffffff; font-weight: bold; } th, td { border: 1px solid #dddddd; padding: 8px; text-align: left; } .number { text-align: right; }</style></head>`;
     html += `<body>`;
@@ -209,7 +208,7 @@ export default function MaterialLosses() {
     html += `<thead><tr>`;
     html += `<th>Data</th><th>Instalador</th><th>Material</th><th>Categoria</th><th>Metros</th><th>Motivo</th><th>Custo</th>`;
     html += `</tr></thead><tbody>`;
-    
+
     activeLosses.forEach(loss => {
       html += `<tr>`;
       html += `<td>${formatSafeDate(loss.created_at)}</td>`;
@@ -221,9 +220,9 @@ export default function MaterialLosses() {
       html += `<td class="number">R$ ${Number(loss.cost).toFixed(2)}</td>`;
       html += `</tr>`;
     });
-    
+
     html += `</tbody></table>`;
-    
+
     // Resumo
     html += `<h3>Resumo</h3>`;
     html += `<ul>`;
@@ -232,9 +231,9 @@ export default function MaterialLosses() {
     html += `<li><strong>Custo Total Estimado:</strong> R$ ${stats.cost.toFixed(2)}</li>`;
     html += `<li><strong>Quantidade de Registros:</strong> ${stats.count}</li>`;
     html += `</ul>`;
-    
+
     html += `</body></html>`;
-    
+
     const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -322,10 +321,10 @@ export default function MaterialLosses() {
             </Button>
           )}
         </div>
-        
+
         {['PPF', 'INSULFILM'].map((cat) => {
           const limit = limits?.find(l => l.category === cat);
-          
+
           // Calculate usage for current month
           const startOfMonth = new Date();
           startOfMonth.setDate(1);
@@ -335,7 +334,7 @@ export default function MaterialLosses() {
             if (curr.status === 'cancelled' || curr.category !== cat) return acc;
             const lossDate = new Date(curr.created_at);
             if (lossDate < startOfMonth) return acc;
-            
+
             acc.cost += Number(curr.cost);
             acc.meters += Number(curr.lost_meters);
             acc.count += 1;
@@ -391,9 +390,9 @@ export default function MaterialLosses() {
             statusColorClass = "text-amber-500 border-amber-500/30 bg-amber-500/10";
           }
 
-          const limitTypeName = 
-            limit.limit_type === 'cost' ? 'Custo Financeiro' : 
-            limit.limit_type === 'meters' ? 'Metragem' : 'Registros';
+          const limitTypeName =
+            limit.limit_type === 'cost' ? 'Custo Financeiro' :
+              limit.limit_type === 'meters' ? 'Metragem' : 'Registros';
 
           return (
             <div key={cat} className="p-4 border border-border/50 rounded-lg bg-card/45 space-y-3">
@@ -414,7 +413,7 @@ export default function MaterialLosses() {
                 </div>
                 {/* Custom premium progress bar */}
                 <div className="relative w-full h-2 bg-muted/60 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className={`h-full rounded-full transition-all duration-500 ease-out ${barColorClass}`}
                     style={{ width: `${percentClamped}%` }}
                   />
@@ -444,7 +443,7 @@ export default function MaterialLosses() {
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={exportToPDF} disabled={!losses || losses.length === 0}>
               <FileText className="w-4 h-4 mr-2" />
@@ -455,170 +454,170 @@ export default function MaterialLosses() {
               Excel
             </Button>
           </div>
-            <div className="space-y-4">
-          {/* 🖥️ Visualização Desktop: Tabela Completa */}
-          <div className="hidden md:block rounded-md border bg-card overflow-x-auto">
-            <Table className="min-w-[700px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Instalador</TableHead>
-                  <TableHead>Material</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Metros</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead className="text-right">Custo</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {losses?.map((loss: any) => (
-                  <TableRow key={loss.id} className={loss.status === 'cancelled' ? 'opacity-50 line-through' : ''}>
-                    <TableCell>{formatSafeDate(loss.created_at)}</TableCell>
-                    <TableCell>{loss.installer?.name || 'Não identificado'}</TableCell>
-                    <TableCell>{loss.material?.name}</TableCell>
-                    <TableCell>{loss.category}</TableCell>
-                    <TableCell>{loss.lost_meters}m</TableCell>
-                    <TableCell>{loss.reason}</TableCell>
-                    <TableCell className="text-right">
-                      R$ {Number(loss.cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>
-                      {loss.status !== 'cancelled' && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Abrir menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedLoss(loss);
-                              setShowFormModal(true);
-                            }}>
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                            {isAdmin && (
-                              <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => setLossToCancel(loss)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Cancelar Registro
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!isLoading && (!losses || losses.length === 0) && (
+          <div className="space-y-4">
+            {/* 🖥️ Visualização Desktop: Tabela Completa */}
+            <div className="hidden md:block rounded-md border bg-card overflow-x-auto">
+              <Table className="min-w-[700px]">
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
-                      Nenhum registro de perda encontrado.
-                    </TableCell>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Instalador</TableHead>
+                    <TableHead>Material</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Metros</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead className="text-right">Custo</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* 📱 Visualização Mobile: Cards Empilhados */}
-          <div className="grid grid-cols-1 gap-3 md:hidden">
-            {losses?.map((loss: any) => (
-              <Card key={loss.id} className={cn("bg-card/50 border-border/50 p-4 space-y-3", loss.status === 'cancelled' ? 'opacity-50' : '')}>
-                {/* Topo: Data, Categoria e Ações */}
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block">{formatSafeDate(loss.created_at)}</span>
-                    <h4 className="font-semibold text-sm text-foreground leading-tight">{loss.material?.name || 'Material não identificado'}</h4>
-                  </div>
-                  {loss.status !== 'cancelled' && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => {
-                          setSelectedLoss(loss);
-                          setShowFormModal(true);
-                        }}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                        {isAdmin && (
-                          <DropdownMenuItem 
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setLossToCancel(loss)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Cancelar Registro
-                          </DropdownMenuItem>
+                </TableHeader>
+                <TableBody>
+                  {losses?.map((loss: any) => (
+                    <TableRow key={loss.id} className={loss.status === 'cancelled' ? 'opacity-50 line-through' : ''}>
+                      <TableCell>{formatSafeDate(loss.created_at)}</TableCell>
+                      <TableCell>{loss.installer?.name || 'Não identificado'}</TableCell>
+                      <TableCell>{loss.material?.name}</TableCell>
+                      <TableCell>{loss.category}</TableCell>
+                      <TableCell>{loss.lost_meters}m</TableCell>
+                      <TableCell>{loss.reason}</TableCell>
+                      <TableCell className="text-right">
+                        R$ {Number(loss.cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell>
+                        {loss.status !== 'cancelled' && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Abrir menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedLoss(loss);
+                                setShowFormModal(true);
+                              }}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Editar
+                              </DropdownMenuItem>
+                              {isAdmin && (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => setLossToCancel(loss)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Cancelar Registro
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!isLoading && (!losses || losses.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
+                        Nenhum registro de perda encontrado.
+                      </TableCell>
+                    </TableRow>
                   )}
-                </div>
+                </TableBody>
+              </Table>
+            </div>
 
-                {/* Informações do Instalador e Motivo */}
-                <div className="text-xs text-muted-foreground bg-muted/30 p-2.5 rounded space-y-1">
-                  <p className="flex justify-between">
-                    <span className="font-medium text-foreground">Instalador:</span>
-                    <span>{loss.installer?.name || 'Não identificado'}</span>
-                  </p>
-                  <p className="flex flex-col gap-0.5">
-                    <span className="font-medium text-foreground">Motivo:</span>
-                    <span className="text-muted-foreground text-left">{loss.reason}</span>
-                  </p>
-                </div>
+            {/* 📱 Visualização Mobile: Cards Empilhados */}
+            <div className="grid grid-cols-1 gap-3 md:hidden">
+              {losses?.map((loss: any) => (
+                <Card key={loss.id} className={cn("bg-card/50 border-border/50 p-4 space-y-3", loss.status === 'cancelled' ? 'opacity-50' : '')}>
+                  {/* Topo: Data, Categoria e Ações */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block">{formatSafeDate(loss.created_at)}</span>
+                      <h4 className="font-semibold text-sm text-foreground leading-tight">{loss.material?.name || 'Material não identificado'}</h4>
+                    </div>
+                    {loss.status !== 'cancelled' && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedLoss(loss);
+                            setShowFormModal(true);
+                          }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setLossToCancel(loss)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Cancelar Registro
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
 
-                {/* Métricas: Categoria, Metros, Custo */}
-                <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-border/40 text-center text-xs">
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block mb-0.5">Categoria</span>
-                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">{loss.category}</Badge>
+                  {/* Informações do Instalador e Motivo */}
+                  <div className="text-xs text-muted-foreground bg-muted/30 p-2.5 rounded space-y-1">
+                    <p className="flex justify-between">
+                      <span className="font-medium text-foreground">Instalador:</span>
+                      <span>{loss.installer?.name || 'Não identificado'}</span>
+                    </p>
+                    <p className="flex flex-col gap-0.5">
+                      <span className="font-medium text-foreground">Motivo:</span>
+                      <span className="text-muted-foreground text-left">{loss.reason}</span>
+                    </p>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block mb-0.5">Comprimento</span>
-                    <span className="font-semibold text-foreground">{loss.lost_meters}m</span>
+
+                  {/* Métricas: Categoria, Metros, Custo */}
+                  <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-border/40 text-center text-xs">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block mb-0.5">Categoria</span>
+                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">{loss.category}</Badge>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block mb-0.5">Comprimento</span>
+                      <span className="font-semibold text-foreground">{loss.lost_meters}m</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block mb-0.5">Custo</span>
+                      <span className="font-semibold text-destructive">
+                        R$ {Number(loss.cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block mb-0.5">Custo</span>
-                    <span className="font-semibold text-destructive">
-                      R$ {Number(loss.cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
+                </Card>
+              ))}
+              {!isLoading && (!losses || losses.length === 0) && (
+                <div className="text-center py-8 text-muted-foreground bg-card border rounded-md">
+                  Nenhum registro de perda encontrado.
                 </div>
-              </Card>
-            ))}
-            {!isLoading && (!losses || losses.length === 0) && (
-              <div className="text-center py-8 text-muted-foreground bg-card border rounded-md">
-                Nenhum registro de perda encontrado.
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
         </div>
       </div>
 
-      <MaterialLossFormModal 
-        open={showFormModal} 
+      <MaterialLossFormModal
+        open={showFormModal}
         onOpenChange={(open) => {
           setShowFormModal(open);
           if (!open) setSelectedLoss(null);
-        }} 
+        }}
         lossToEdit={selectedLoss}
       />
-      
+
       {isAdmin && (
-        <MaterialLossLimitsModal 
-          open={showLimitsModal} 
-          onOpenChange={setShowLimitsModal} 
+        <MaterialLossLimitsModal
+          open={showLimitsModal}
+          onOpenChange={setShowLimitsModal}
         />
       )}
 

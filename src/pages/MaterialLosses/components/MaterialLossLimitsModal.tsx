@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMaterialLossLimits, useUpdateMaterialLossLimit } from "@/hooks/useMaterialLossLimits";
+import { useMaterialLossLimits, useUpdateMaterialLossLimit } from "@/pages/MaterialLosses/hooks/useMaterialLossLimits";
 import { Database } from "@/integrations/supabase/types";
 
 type MaterialLossLimit = Database["public"]["Tables"]["material_loss_limits"]["Row"];
@@ -88,7 +88,7 @@ export function MaterialLossLimitsModal({ open, onOpenChange }: MaterialLossLimi
             <TabsTrigger value="PPF">PPF</TabsTrigger>
             <TabsTrigger value="INSULFILM">Insulfilm</TabsTrigger>
           </TabsList>
-          
+
           <div className="mt-4">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -121,18 +121,18 @@ export function MaterialLossLimitsModal({ open, onOpenChange }: MaterialLossLimi
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        Valor Teto 
+                        Valor Teto
                         {form.watch('limit_type') === 'cost' ? ' (R$)' : ''}
                         {form.watch('limit_type') === 'meters' ? ' (m)' : ''}
                       </FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           step={form.watch('limit_type') === 'count' ? '1' : '0.01'}
                           placeholder="0"
-                          {...field} 
+                          {...field}
                           value={field.value || ""}
-                          onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
+                          onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
                         />
                       </FormControl>
                       <FormMessage />

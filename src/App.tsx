@@ -10,35 +10,35 @@ import { PWAInstallPrompt } from "@/components/pwa/PWAInstallPrompt";
 import { usePWAUpdate } from "@/hooks/use-pwa-update";
 
 // Pages
-import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import PlanSelection from "./pages/PlanSelection";
-import Subscription from "./pages/Subscription";
-import Upgrade from "./pages/Upgrade";
-import WaitingApproval from "./pages/WaitingApproval";
-import CompanySetup from "./pages/CompanySetup";
-import CompanyJoin from "./pages/CompanyJoin";
-import Dashboard from "./pages/Dashboard";
-import Vendas from "./pages/Vendas";
-import Clientes from "./pages/Clientes";
-import Espaco from "./pages/Espaco";
-import Financeiro from "./pages/Financeiro";
-import Compras from "./pages/Compras";
-import Contas from "./pages/Contas";
-import Relatorios from "./pages/Relatorios";
-import Comissoes from "./pages/Comissoes";
+import Login from "./pages/Login/Login";
+import SignUp from "./pages/SignUp/SignUp";
+import ForgotPassword from "./pages/ForgotPassword/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword/ResetPassword";
+import PlanSelection from "./pages/PlanSelection/PlanSelection";
+import Subscription from "./pages/Subscription/Subscription";
+import Upgrade from "./pages/Upgrade/Upgrade";
+import WaitingApproval from "./pages/WaitingApproval/WaitingApproval";
+import CompanySetup from "./pages/CompanySetup/CompanySetup";
+import Dashboard from "./pages/Painel/Painel";
+import Vendas from "./pages/Vendas/Vendas";
+import Clientes from "./pages/Clientes/Clientes";
+import Espaco from "./pages/Espaco/Espaco";
+import Financeiro from "./pages/Financeiro/Financeiro";
+import Compras from "./pages/Compras/Compras";
+import Contas from "./pages/Contas/Contas";
+import Relatorios from "./pages/Relatorios/Relatorios";
+import Comissoes from "./pages/Comissoes/Comissoes";
+import Admin from "./pages/Admin/Admin";
 
-import Garantias from "./pages/Garantias";
-import Estoque from "./pages/Estoque";
-import Servicos from "./pages/Servicos";
+import Garantias from "./pages/Garantias/Garantias";
+import Estoque from "./pages/Estoque/Estoque";
+import Servicos from "./pages/Servicos/Servicos";
 
-import Perfil from "./pages/Perfil";
-import Empresa from "./pages/Empresa";
-import Funcionarios from "./pages/Funcionarios";
-import MaterialLosses from "./pages/MaterialLosses";
-import Master from "./pages/Master";
+import Perfil from "./pages/Perfil/Perfil";
+import Empresa from "./pages/Empresa/Empresa";
+import Funcionarios from "./pages/Funcionarios/Funcionarios";
+import MaterialLosses from "./pages/MaterialLosses/MaterialLosses";
+import Master from "./pages/Master/Master";
 import NotFound from "./pages/NotFound";
 
 import { MainLayout } from "./components/layout/MainLayout";
@@ -162,18 +162,7 @@ function AppRoutes() {
           )
         }
       />
-      <Route
-        path="/empresa/entrar"
-        element={
-          !isAuthenticated ? (
-            <Navigate to="/login" replace />
-          ) : user?.companyId ? (
-            <Navigate to="/" replace />
-          ) : (
-            <CompanyJoin />
-          )
-        }
-      />
+
 
       {/* Protected Routes - ADMIN and FUNCIONARIO */}
       <Route path="/" element={

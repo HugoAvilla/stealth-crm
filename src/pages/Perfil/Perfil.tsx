@@ -8,8 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
-import { EditInfoModal } from "@/components/perfil/EditInfoModal";
-import { ChangePasswordModal } from "@/components/perfil/ChangePasswordModal";
+import { EditInfoModal } from "@/pages/Perfil/components/EditInfoModal";
+import { ChangePasswordModal } from "@/pages/Perfil/components/ChangePasswordModal";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 

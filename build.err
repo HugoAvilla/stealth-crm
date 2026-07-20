@@ -1,0 +1,15 @@
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[31mx[39m Build failed in 28.91s
+[31merror during build:
+[31m[vite-plugin-pwa:build] [plugin vite-plugin-pwa:build] There was an error during the build:
+  Could not load C:\Users\hglav\OneDrive\Área de Trabalho\WFE\stealth-crm\src/components/contas/BankSelect (imported by src/shared/components/financeiro/AddAccountModal.tsx): ENOENT: no such file or directory, open 'C:\Users\hglav\OneDrive\Área de Trabalho\WFE\stealth-crm\src\components\contas\BankSelect'
+Additionally, handling the error in the 'buildEnd' hook caused the following error:
+  Could not load C:\Users\hglav\OneDrive\Área de Trabalho\WFE\stealth-crm\src/components/contas/BankSelect (imported by src/shared/components/financeiro/AddAccountModal.tsx): ENOENT: no such file or directory, open 'C:\Users\hglav\OneDrive\Área de Trabalho\WFE\stealth-crm\src\components\contas\BankSelect'[31m
+    at getRollupError (file:///C:/Users/hglav/OneDrive/%C3%81rea%20de%20Trabalho/WFE/stealth-crm/node_modules/vite/node_modules/rollup/dist/es/shared/parseAst.js:402:41)
+    at file:///C:/Users/hglav/OneDrive/%C3%81rea%20de%20Trabalho/WFE/stealth-crm/node_modules/vite/node_modules/rollup/dist/es/shared/node-entry.js:23467:39
+    at async catchUnfinishedHookActions (file:///C:/Users/hglav/OneDrive/%C3%81rea%20de%20Trabalho/WFE/stealth-crm/node_modules/vite/node_modules/rollup/dist/es/shared/node-entry.js:22925:16)
+    at async rollupInternal (file:///C:/Users/hglav/OneDrive/%C3%81rea%20de%20Trabalho/WFE/stealth-crm/node_modules/vite/node_modules/rollup/dist/es/shared/node-entry.js:23450:5)
+    at async build (file:///C:/Users/hglav/OneDrive/%C3%81rea%20de%20Trabalho/WFE/stealth-crm/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:65693:14)
+    at async CAC.<anonymous> (file:///C:/Users/hglav/OneDrive/%C3%81rea%20de%20Trabalho/WFE/stealth-crm/node_modules/vite/dist/node/cli.js:829:5)[39m

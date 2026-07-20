@@ -3,7 +3,7 @@ import { Phone, Mail, MapPin, Upload, Edit, Loader2, Users } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
-import { EditCompanyModal } from "@/components/empresa/EditCompanyModal";
+import { EditCompanyModal } from "@/pages/Empresa/components/EditCompanyModal";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";

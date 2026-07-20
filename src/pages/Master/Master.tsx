@@ -43,8 +43,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import SubscriptionsManager from '@/components/master/SubscriptionsManager';
-import EmployeesManager from '@/components/master/EmployeesManager';
+import SubscriptionsManager from '@/pages/Master/components/SubscriptionsManager';
+import EmployeesManager from '@/pages/Master/components/EmployeesManager';
 
 interface TermsAcceptance {
   id: number;

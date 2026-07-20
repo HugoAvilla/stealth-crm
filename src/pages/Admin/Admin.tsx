@@ -9,8 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { users, type User as UserType } from "@/lib/mockData";
 import { format } from "date-fns";
-import { NewUserModal } from "@/components/admin/NewUserModal";
-import { EditUserModal } from "@/components/admin/EditUserModal";
+import { NewUserModal } from "./components/NewUserModal";
+import { EditUserModal } from "./components/EditUserModal";
 import { toast } from "sonner";
 
 export default function Admin() {

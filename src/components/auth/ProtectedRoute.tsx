@@ -13,9 +13,9 @@ interface ProtectedRouteProps {
   requireMaster?: boolean;
 }
 
-export function ProtectedRoute({ 
-  children, 
-  allowedRoles, 
+export function ProtectedRoute({
+  children,
+  allowedRoles,
   requireCompany = true,
   requireActiveSubscription = true,
   requireMaster = false
@@ -54,7 +54,7 @@ export function ProtectedRoute({
     // Employees (users who aren't the company owner) bypass subscription checks
     // Their access is controlled by the owner's subscription, which should be handled at API level
     const isSubjectToSubscription = !user.companyId || user.isCompanyOwner;
-    
+
     if (isSubjectToSubscription) {
       if (user.subscriptionStatus === 'pending_payment') {
         if (!user.planCode) {
@@ -62,11 +62,11 @@ export function ProtectedRoute({
         }
         // Allow access to tabs in read-only mode, no redirect to /assinatura
       }
-      
+
       if (user.subscriptionStatus === 'payment_submitted') {
         return <Navigate to="/aguardando-liberacao" replace />;
       }
-      
+
       if (user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'blocked') {
         return <Navigate to="/planos" replace />;
       }
@@ -75,11 +75,6 @@ export function ProtectedRoute({
 
   // Check if company is required and user doesn't have one
   if (requireCompany && !user.companyId) {
-    // If user has pending join request, show waiting message
-    if (user.hasPendingJoinRequest) {
-      return <Navigate to="/empresa/entrar" replace />;
-    }
-    // Otherwise redirect to company setup or join
     return <Navigate to="/empresa/cadastro" replace />;
   }
 
@@ -93,8 +88,8 @@ export function ProtectedRoute({
           <p className="text-muted-foreground">
             Estamos finalizando a configuração das suas permissões. Por favor, aguarde um momento.
           </p>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={async () => {
               await refreshUser();
               window.location.reload();
@@ -121,7 +116,7 @@ export function ProtectedRoute({
           <div className="text-center p-8 max-w-md">
             <h2 className="text-xl font-semibold mb-2">Acesso Restrito</h2>
             <p className="text-muted-foreground mb-4">
-              Você não tem permissão para acessar esta área. 
+              Você não tem permissão para acessar esta área.
               Entre em contato com o administrador da sua empresa.
             </p>
             <Button onClick={() => signOut()}>Sair</Button>

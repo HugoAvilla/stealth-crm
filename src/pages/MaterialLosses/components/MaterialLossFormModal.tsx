@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCreateMaterialLoss, useUpdateMaterialLoss } from "@/hooks/useMaterialLosses";
+import { useCreateMaterialLoss, useUpdateMaterialLoss } from "@/pages/MaterialLosses/hooks/useMaterialLosses";
 import { Database } from "@/integrations/supabase/types";
 
 type MaterialLoss = Database["public"]["Tables"]["material_losses"]["Row"];

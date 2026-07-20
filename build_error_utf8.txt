@@ -1,0 +1,103 @@
+
+> vite_react_shadcn_ts@0.0.0 build
+> vite build
+
+[36mvite v5.4.19 [32mbuilding for production...[36m[39m
+transforming...
+node.exe : Browserslist: 
+browsers data (caniuse-lite) 
+is 6 months old. Please run:
+No linha:1 caractere:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified    : 
+(Browserslist: b.    ..ld. 
+Please run::S    tring) [], 
+RemoteEx    ception
+    + FullyQualifiedErr    
+orId : NativeComman    dError
+ 
+  npx 
+update-browserslist-db@latest
+  Why you should do it 
+regularly: https://github.com
+/browserslist/update-db#readm
+e
+[32m???[39m 2189 modules transformed.
+
+PWA v0.20.5
+mode      generateSW
+precache  69 entries (12671.89 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-3e722498.js
+[31mx[39m Build failed in 
+12.52s
+[31merror during build:
+[31m[vite-plugin-pwa:build] 
+[plugin 
+vite-plugin-pwa:build] src/co
+mponents/espaco/SlotDetailsDr
+awer.tsx: There was an error 
+during the build:
+  Could not resolve 
+"../vendas/NewSaleModal" 
+from "src/components/espaco/S
+lotDetailsDrawer.tsx"
+Additionally, handling the 
+error in the 'buildEnd' hook 
+caused the following error:
+  Could not resolve 
+"../vendas/NewSaleModal" 
+from "src/components/espaco/S
+lotDetailsDrawer.tsx"[31m
+file: [36mC:/Users/hglav/One
+Drive/??rea de Trabalho/WFE/s
+tealth-crm/src/components/esp
+aco/SlotDetailsDrawer.tsx[31
+m
+    at getRollupError (file:/
+//C:/Users/hglav/OneDrive/%C3
+%81rea%20de%20Trabalho/WFE/st
+ealth-crm/node_modules/vite/n
+ode_modules/rollup/dist/es/sh
+ared/parseAst.js:402:41)
+    at file:///C:/Users/hglav
+/OneDrive/%C3%81rea%20de%20Tr
+abalho/WFE/stealth-crm/node_m
+odules/vite/node_modules/roll
+up/dist/es/shared/node-entry.
+js:23467:39
+    at async 
+catchUnfinishedHookActions (f
+ile:///C:/Users/hglav/OneDriv
+e/%C3%81rea%20de%20Trabalho/W
+FE/stealth-crm/node_modules/v
+ite/node_modules/rollup/dist/
+es/shared/node-entry.js:22925
+:16)
+    at async rollupInternal (
+file:///C:/Users/hglav/OneDri
+ve/%C3%81rea%20de%20Trabalho/
+WFE/stealth-crm/node_modules/
+vite/node_modules/rollup/dist
+/es/shared/node-entry.js:2345
+0:5)
+    at async build (file:///C
+:/Users/hglav/OneDrive/%C3%81
+rea%20de%20Trabalho/WFE/steal
+th-crm/node_modules/vite/dist
+/node/chunks/dep-C6uTJdX2.js:
+65693:14)
+    at async CAC.<anonymous> 
+(file:///C:/Users/hglav/OneDr
+ive/%C3%81rea%20de%20Trabalho
+/WFE/stealth-crm/node_modules
+/vite/dist/node/cli.js:829:5)
+[39m
