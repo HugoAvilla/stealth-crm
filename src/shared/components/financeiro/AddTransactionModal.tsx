@@ -49,7 +49,8 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
   const [newCategoryModalOpen, setNewCategoryModalOpen] = useState(false);
   const [isPaid, setIsPaid] = useState(true);
   const [isRecurring, setIsRecurring] = useState(false);
-  const [recurringMonths, setRecurringMonths] = useState(1);
+  const [installmentsCount, setInstallmentsCount] = useState(2);
+  const [installments, setInstallments] = useState<{ date: string, value: string }[]>([]);
   const [includeInCac, setIncludeInCac] = useState(false);
   const [cacBucket, setCacBucket] = useState<'marketing' | 'vendas' | ''>('');
   const [cacOrigin, setCacOrigin] = useState<CacOrigin | ''>('');
@@ -101,6 +102,46 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
     }
   };
 
+  const generateInstallments = (count: number, currentAmount: string, currentDate: string) => {
+    const totalAmount = parseFloat(currentAmount) || 0;
+    const baseAmount = Number((totalAmount / count).toFixed(2));
+
+    let sum = 0;
+    const newInstallments = Array.from({ length: count }).map((_, i) => {
+      let dStr = currentDate;
+      if (currentDate) {
+        const d = new Date(currentDate + "T12:00:00");
+        d.setMonth(d.getMonth() + i);
+        dStr = d.toISOString().split('T')[0];
+      }
+
+      let val = baseAmount;
+      if (i === count - 1) {
+        val = Number((totalAmount - sum).toFixed(2));
+      } else {
+        sum += baseAmount;
+      }
+
+      return {
+        date: dStr,
+        value: val.toString()
+      };
+    });
+    setInstallments(newInstallments);
+  };
+
+  useEffect(() => {
+    if (isRecurring && type === 'saida') {
+      generateInstallments(installmentsCount, amount, date);
+    }
+  }, [amount, date, isRecurring, installmentsCount, type]);
+
+  const handleInstallmentChange = (index: number, field: 'date' | 'value', val: string) => {
+    const newInst = [...installments];
+    newInst[index][field] = val;
+    setInstallments(newInst);
+  };
+
   const handleSubmit = async () => {
     if (!amount || !name || !categoryId || !accountId || !companyId) {
       toast.error("Preencha todos os campos obrigatórios");
@@ -127,24 +168,40 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
       const amountValue = parseFloat(amount);
 
       const transactionsToInsert = [];
-      const monthsCount = (type === 'saida' && isRecurring) ? recurringMonths : 1;
+      const isSaidaRecurring = type === 'saida' && isRecurring;
 
-      for (let i = 0; i < monthsCount; i++) {
-        const d = new Date(date + "T12:00:00");
-        d.setMonth(d.getMonth() + i);
-        const nextDate = d.toISOString().split('T')[0];
-
+      if (isSaidaRecurring && installments.length > 0) {
+        let currentInstallment = 1;
+        for (const inst of installments) {
+          transactionsToInsert.push({
+            company_id: companyId,
+            name: installmentsCount > 1 ? `${name} (${currentInstallment}/${installmentsCount})` : name,
+            description: description || null,
+            amount: parseFloat(inst.value) || 0,
+            type: transactionType,
+            category_id: parseInt(categoryId),
+            account_id: parseInt(accountId),
+            payment_method: paymentMethod || null,
+            transaction_date: inst.date,
+            is_paid: currentInstallment === 1 ? isPaid : false,
+            include_in_cac: includeInCac,
+            cac_bucket: includeInCac ? cacBucket : null,
+            cac_origin: includeInCac ? cacOrigin : null,
+          });
+          currentInstallment++;
+        }
+      } else {
         transactionsToInsert.push({
           company_id: companyId,
-          name: monthsCount > 1 ? `${name} (${i + 1}/${monthsCount})` : name,
+          name: name,
           description: description || null,
           amount: amountValue,
           type: transactionType,
           category_id: parseInt(categoryId),
           account_id: parseInt(accountId),
           payment_method: paymentMethod || null,
-          transaction_date: nextDate,
-          is_paid: i === 0 ? isPaid : false,
+          transaction_date: date,
+          is_paid: isPaid,
           include_in_cac: type === 'saida' ? includeInCac : false,
           cac_bucket: (type === 'saida' && includeInCac) ? cacBucket : null,
           cac_origin: (type === 'saida' && includeInCac) ? cacOrigin : null,
@@ -177,7 +234,8 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
     setDate(format(new Date(), 'yyyy-MM-dd'));
     setIsPaid(true);
     setIsRecurring(false);
-    setRecurringMonths(1);
+    setInstallmentsCount(2);
+    setInstallments([]);
     setIncludeInCac(false);
     setCacBucket('');
     setCacOrigin('');
@@ -185,7 +243,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
+      <DialogContent className="w-[calc(100%-1rem)] sm:max-w-md p-4 sm:p-6 max-h-[90dvh] overflow-y-auto overflow-x-hidden flex flex-col gap-4">
         <DialogHeader>
           <DialogTitle className={type === 'entrada' ? 'text-green-500' : 'text-red-500'}>
             Nova {type === 'entrada' ? 'Entrada' : 'Saída'}
@@ -302,29 +360,31 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
           </div>
 
           {type === 'entrada' && (
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <Label>A entrada foi paga?</Label>
+            <div className="flex flex-row items-center justify-between rounded-lg border p-3 gap-3">
+              <div className="flex-1 space-y-0.5 min-w-0">
+                <Label className="text-sm font-semibold truncate block">A entrada foi paga?</Label>
               </div>
               <Switch
                 checked={isPaid}
                 onCheckedChange={setIsPaid}
+                className="shrink-0"
               />
             </div>
           )}
 
           {type === 'saida' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/20">
-                <div className="space-y-0.5">
-                  <Label>Custo de Aquisição de Cliente (CAC) ?</Label>
-                  <p className="text-[11px] text-muted-foreground w-[90%]">
-                    Se for um custo de comissão ou marketing que deve ser rateado para os novos clientes deste mês, ative esta opção.
+              <div className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/20 gap-3">
+                <div className="flex-1 space-y-0.5 min-w-0">
+                  <Label className="text-sm font-semibold truncate block">Custo Aquisição (CAC)?</Label>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2">
+                    Se for comissão/marketing a ser rateado, ative.
                   </p>
                 </div>
                 <Switch
                   checked={includeInCac}
                   onCheckedChange={setIncludeInCac}
+                  className="shrink-0"
                 />
               </div>
 
@@ -361,51 +421,79 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
                 </div>
               )}
 
-              <div className="flex items-center justify-between rounded-lg border p-3 mt-4">
-                <div className="space-y-0.5">
-                  <Label>Essa saída vai se repetir nos próximos meses?</Label>
+              <div className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 gap-3">
+                <div className="flex-1 space-y-0.5 min-w-0">
+                  <Label className="text-sm font-semibold truncate block">Essa saída será parcelada?</Label>
                 </div>
                 <Switch
                   checked={isRecurring}
                   onCheckedChange={setIsRecurring}
+                  className="shrink-0"
                 />
               </div>
 
               {isRecurring && (
-                <div className="space-y-3 p-3 border rounded-lg bg-muted/50">
-                  <Label>A saída irá se repetir por quantos meses?</Label>
-                  <div className="flex items-center gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setRecurringMonths(Math.max(1, recurringMonths - 1))}
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+                  <div className="space-y-3">
+                    <Label>Quantidade de vezes</Label>
+                    <Select
+                      value={installmentsCount.toString()}
+                      onValueChange={(val) => setInstallmentsCount(parseInt(val))}
                     >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <span className="font-semibold min-w-[3ch] text-center">
-                      {recurringMonths} {recurringMonths === 1 ? 'mês' : 'meses'}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setRecurringMonths(recurringMonths + 1)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                      <SelectTrigger className="w-full bg-background border-input">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 36 }).map((_, i) => (
+                          <SelectItem key={i + 1} value={(i + 1).toString()}>
+                            {i + 1}x
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+
+                  {installments.length > 0 && (
+                    <div className="space-y-3 mt-4">
+                      <Label className="text-sm font-medium">Datas e Valores das Parcelas</Label>
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                        {installments.map((inst, idx) => (
+                          <div key={idx} className="flex flex-row items-center gap-2">
+                            <div className="flex items-center justify-center bg-muted/50 rounded-md w-8 sm:w-10 h-10 border border-input text-xs font-semibold shrink-0">
+                              {idx + 1}x
+                            </div>
+                            <Input
+                              type="date"
+                              value={inst.date}
+                              onChange={(e) => handleInstallmentChange(idx, 'date', e.target.value)}
+                              className="flex-1 bg-background min-w-[100px] text-xs sm:text-sm px-2 sm:px-3"
+                            />
+                            <div className="relative w-[100px] sm:flex-1 shrink-0">
+                              <span className="absolute left-2.5 top-2.5 text-xs sm:text-sm text-muted-foreground font-medium">R$</span>
+                              <Input
+                                type="number"
+                                className="pl-7 bg-background font-medium text-xs sm:text-sm w-full"
+                                value={inst.value}
+                                onChange={(e) => handleInstallmentChange(idx, 'value', e.target.value)}
+                                step="0.01"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          <div className="flex gap-2 pt-4">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>
+          <div className="flex flex-col sm:flex-row gap-2 pt-4 mt-auto">
+            <Button variant="outline" className="w-full sm:w-auto sm:flex-1" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
             <Button
-              className={`flex-1 ${type === 'entrada' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+              className={`w-full sm:w-auto sm:flex-1 ${type === 'entrada' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
               onClick={handleSubmit}
               disabled={loading}
             >
