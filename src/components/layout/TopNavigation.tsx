@@ -23,6 +23,7 @@ import {
   Percent,
   Scissors,
   ShoppingCart,
+  Bot
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -93,6 +94,7 @@ export function TopNavigation() {
     { icon: LayoutDashboard, label: 'Painel', path: '/' },
     { icon: DollarSign, label: 'Vendas', path: '/vendas' },
     { icon: Building2, label: 'Espaço', path: '/espaco' },
+    { icon: Bot, label: 'Atendimento', path: '/atendimento' },
     { icon: CreditCard, label: 'Financeiro', path: '/financeiro' },
     { icon: ShoppingCart, label: 'Compras', path: '/compras', adminOnly: true },
     { icon: Landmark, label: 'Contas', path: '/contas' },

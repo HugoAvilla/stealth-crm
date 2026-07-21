@@ -178,6 +178,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   ]);
 
   const [clients, setClients] = useState<Client[]>([]);
+  const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
   const [vehicleRegions, setVehicleRegions] = useState<VehicleRegion[]>([]);
@@ -246,17 +247,19 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
 
       setCompanyId(profile.company_id);
 
-      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes, machinesRes, ratesRes] = await Promise.all([
+      const [clientsRes, productTypesRes, regionsRes, rulesRes, materialsRes, machinesRes, ratesRes, allVehiclesRes] = await Promise.all([
         supabase.from('clients').select('id, name, phone, email').eq('company_id', profile.company_id).order('name'),
         supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
         supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
         supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
         supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true),
         supabase.from('card_machines').select('*').eq('company_id', profile.company_id).eq('is_active', true),
-        supabase.from('card_machine_rates').select('*')
+        supabase.from('card_machine_rates').select('*'),
+        supabase.from('vehicles').select('id, brand, model, plate, size, client_id').eq('company_id', profile.company_id)
       ]);
       setCardMachines(machinesRes.data || []);
       setCardRates(ratesRes.data || []);
+      setAllVehicles(allVehiclesRes.data || []);
       const regionsList = regionsRes.data || [];
       const materialsList = materialsRes.data || [];
       const productsList = (productTypesRes.data || []).map(pt => {
@@ -315,31 +318,22 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
     }
   };
 
-  // Fetch vehicles when client changes
+  // Update vehicles list when client changes
   useEffect(() => {
-    const fetchVehicles = async () => {
-      if (!selectedClientId || !companyId) {
-        setVehicles([]);
-        return;
-      }
+    if (!selectedClientId || !companyId || allVehicles.length === 0) {
+      if (allVehicles.length === 0) setVehicles([]);
+      return;
+    }
 
-      const { data } = await supabase
-        .from('vehicles')
-        .select('id, brand, model, plate, size, client_id')
-        .eq('client_id', parseInt(selectedClientId))
-        .eq('company_id', companyId);
+    const clientVehicles = allVehicles.filter(v => v.client_id === parseInt(selectedClientId));
+    setVehicles(clientVehicles);
 
-      setVehicles(data || []);
-
-      if (data && data.length === 1) {
-        setSelectedVehicleId(data[0].id.toString());
-      } else {
-        setSelectedVehicleId("");
-      }
-    };
-
-    fetchVehicles();
-  }, [selectedClientId, companyId]);
+    if (clientVehicles.length === 1) {
+      setSelectedVehicleId(clientVehicles[0].id.toString());
+    } else if (clientVehicles.length === 0 || !clientVehicles.find(v => v.id.toString() === selectedVehicleId)) {
+      setSelectedVehicleId("");
+    }
+  }, [selectedClientId, companyId, allVehicles]);
 
   // Auto-detect if client is new or returning
   useEffect(() => {
@@ -986,6 +980,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       if (error) throw error;
 
       // Update vehicles list and select the new one
+      setAllVehicles(prev => [...prev, data]);
       setVehicles(prev => [...prev, data]);
       setSelectedVehicleId(data.id.toString());
       setIsNewVehicleModalOpen(false);
@@ -1082,14 +1077,15 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                     </PopoverTrigger>
                     <PopoverContent className="w-[400px] max-w-[calc(100vw-32px)] p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Buscar cliente por nome..." />
+                        <CommandInput placeholder="Buscar por Nome do Cliente, Telefone ou Placa..." />
                         <CommandList>
-                          <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                          <CommandGroup>
+                          <CommandEmpty>Nenhum cliente ou veículo encontrado.</CommandEmpty>
+
+                          <CommandGroup heading="Clientes">
                             {clients?.map((client) => (
                               <CommandItem
-                                key={client.id}
-                                value={client.name}
+                                key={`client-${client.id}`}
+                                value={`${client.name} ${client.phone || ''} ${client.email || ''}`}
                                 onSelect={() => {
                                   setSelectedClientId(client.id.toString());
                                   setOpenClientPopover(false);
@@ -1112,6 +1108,37 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                                 </div>
                               </CommandItem>
                             ))}
+                          </CommandGroup>
+
+                          <CommandGroup heading="Veículos / Placas">
+                            {allVehicles?.filter(v => v.plate).map((vehicle) => {
+                              const owner = clients.find(c => c.id === vehicle.client_id);
+                              if (!owner) return null;
+                              return (
+                                <CommandItem
+                                  key={`veh-${vehicle.id}`}
+                                  value={`${vehicle.plate} ${vehicle.brand} ${vehicle.model} ${owner.name}`}
+                                  onSelect={() => {
+                                    setSelectedClientId(owner.id.toString());
+                                    // Set timeout to allow client change effect to run and set list of vehicles
+                                    setTimeout(() => setSelectedVehicleId(vehicle.id.toString()), 50);
+                                    setOpenClientPopover(false);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 w-full">
+                                    <Car className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-semibold bg-muted px-2 py-0.5 rounded text-xs border border-border">
+                                      {vehicle.plate}
+                                    </span>
+                                    <span className="text-sm text-foreground">{vehicle.brand} {vehicle.model}</span>
+                                    <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap flex items-center gap-1">
+                                      <User className="h-3 w-3" />
+                                      {owner.name}
+                                    </span>
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
                           </CommandGroup>
                         </CommandList>
                       </Command>

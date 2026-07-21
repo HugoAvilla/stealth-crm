@@ -46,7 +46,7 @@ export function usePlanGate(moduleName: ModuleName): GateResult {
       }
 
     case 'ia':
-      if (plan === 'premium') {
+      if (plan === 'premium' || user.isMaster) {
         return { hasAccess: true, redirectTo: null };
       }
 

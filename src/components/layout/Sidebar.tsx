@@ -21,7 +21,8 @@ import {
   Crown,
   UserPlus,
   Scissors,
-  ShoppingCart
+  ShoppingCart,
+  Bot
 } from 'lucide-react';
 import {
   Tooltip,
@@ -89,6 +90,7 @@ export function Sidebar() {
     { icon: LayoutDashboard, label: 'Painel', path: '/' },
     { icon: DollarSign, label: 'Vendas', path: '/vendas' },
     { icon: Building2, label: 'Espaço', path: '/espaco' },
+    { icon: Bot, label: 'Atendimento', path: '/atendimento' },
     { icon: CreditCard, label: 'Financeiro', path: '/financeiro', adminOnly: true },
     { icon: ShoppingCart, label: 'Compras', path: '/compras', adminOnly: true },
     { icon: Landmark, label: 'Contas', path: '/contas', adminOnly: true },
@@ -128,22 +130,22 @@ export function Sidebar() {
       <div className="h-16 flex items-center justify-between px-4 border-b border-border">
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <img 
-              src={wfeLogo} 
-              alt="WFE Evolution" 
+            <img
+              src={wfeLogo}
+              alt="WFE Evolution"
               className="h-8 w-auto object-contain"
             />
             <span className="font-semibold text-sm tracking-tight">WFE EVOLUTION</span>
           </div>
         )}
         {isCollapsed && (
-          <img 
-            src={wfeLogo} 
-            alt="WFE" 
+          <img
+            src={wfeLogo}
+            alt="WFE"
             className="h-8 w-8 object-contain mx-auto"
           />
         )}
-        
+
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className={cn(
@@ -179,7 +181,7 @@ export function Sidebar() {
                 {isActive && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
                 )}
-                
+
                 <div className="relative">
                   <Icon className={cn(
                     "w-5 h-5 flex-shrink-0",
@@ -192,7 +194,7 @@ export function Sidebar() {
                     </span>
                   )}
                 </div>
-                
+
                 {!isCollapsed && (
                   <>
                     <span className={cn(
