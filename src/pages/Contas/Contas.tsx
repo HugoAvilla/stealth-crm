@@ -96,7 +96,7 @@ export default function Contas() {
 
   const formatCurrency = (value: number) => {
     if (!showValues) return "••••••";
-    return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const fetchData = useCallback(async () => {

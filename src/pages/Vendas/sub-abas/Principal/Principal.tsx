@@ -11,6 +11,8 @@ import SalesDayDrawer from "@/pages/Vendas/components/SalesDayDrawer";
 import SalesChartsModal from "@/pages/Vendas/components/SalesChartsModal";
 import SaleDetailsModal from "@/pages/Vendas/components/SaleDetailsModal";
 
+import { useAuth } from "@/contexts/AuthContext";
+import { useSalesRecognition } from "@/hooks/useSalesRecognition";
 import { useSalesData } from "./hooks/useSalesData";
 import { useInstantSearch } from "./hooks/useInstantSearch";
 import { PrincipalHeader } from "./components/PrincipalHeader";
@@ -30,7 +32,16 @@ export function Principal() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [selectedDetailedSale, setSelectedDetailedSale] = useState<SaleWithDetails | null>(null);
 
+    const { user } = useAuth();
     const { sales, setSales, loading, fetchSales } = useSalesData(currentDate);
+    const {
+        valorTodas,
+        valorFechadas,
+        valorEmAberto,
+        qtdFechadas,
+        qtdEmAberto,
+        refetch: refetchRecognition
+    } = useSalesRecognition(user?.companyId, currentDate);
 
     const {
         showSearchResults,
@@ -60,6 +71,7 @@ export function Principal() {
             }
         }
         fetchSales(true);
+        refetchRecognition();
     };
 
     const monthSales = sales.filter((sale) => {
@@ -149,7 +161,14 @@ export function Principal() {
                 </div>
             </div>
 
-            <SalesKPIBar sales={monthSales} />
+            <SalesKPIBar
+                sales={monthSales}
+                valorTodas={valorTodas}
+                valorFechadas={valorFechadas}
+                valorEmAberto={valorEmAberto}
+                qtdFechadas={qtdFechadas}
+                qtdEmAberto={qtdEmAberto}
+            />
 
             {loading ? (
                 <Card className="p-4">

@@ -6,6 +6,7 @@ import {
   Search,
   StopCircle,
   XCircle,
+  Filter,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -81,8 +82,8 @@ const STATUS_MAP: Record<OperationalStatus, StatusConfig> = {
     bg: "bg-blue-500/10",
     icon: Activity,
   },
-  open_closed: {
-    label: "Aberta Encerrada",
+  closed: {
+    label: "Encerradas",
     color: "text-orange-500",
     bg: "bg-orange-500/10",
     icon: StopCircle,
@@ -92,12 +93,6 @@ const STATUS_MAP: Record<OperationalStatus, StatusConfig> = {
     color: "text-green-500",
     bg: "bg-green-500/10",
     icon: Package,
-  },
-  inactive: {
-    label: "Inativo",
-    color: "text-gray-500",
-    bg: "bg-gray-500/10",
-    icon: XCircle,
   },
 };
 
@@ -110,6 +105,7 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
     useState<ProductCategory>("INSULFILM");
   const [historyRange, setHistoryRange] = useState<HistoryRange>("1y");
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<OperationalStatus | "all">("all");
   const [selectedMaterial, setSelectedMaterial] =
     useState<HistoryMaterial | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -212,13 +208,20 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
     });
   }, [activeCategory, allMaterials, lastMovementMap, rangeStart, searchTerm]);
 
+  const displayedMaterials = useMemo(() => {
+    if (statusFilter === "all") return filteredMaterials;
+    return filteredMaterials.filter(
+      (material) => getOperationalStatus(material) === statusFilter
+    );
+  }, [filteredMaterials, statusFilter]);
+
   const activeMaterials = useMemo(
-    () => filteredMaterials.filter((material) => material.is_active !== false),
-    [filteredMaterials]
+    () => displayedMaterials.filter((material) => material.is_active !== false),
+    [displayedMaterials]
   );
   const inactiveMaterials = useMemo(
-    () => filteredMaterials.filter((material) => material.is_active === false),
-    [filteredMaterials]
+    () => displayedMaterials.filter((material) => material.is_active === false),
+    [displayedMaterials]
   );
 
   const activeOpenRolls = useMemo(
@@ -230,21 +233,13 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
     [activeMaterials]
   );
 
-  const inactiveOpenRolls = useMemo(
-    () => inactiveMaterials.filter((material) => material.is_open_roll),
-    [inactiveMaterials]
-  );
-  const inactiveClosedRolls = useMemo(
-    () => inactiveMaterials.filter((material) => !material.is_open_roll),
-    [inactiveMaterials]
-  );
+
 
   const statusCounts = useMemo(() => {
     const counts: Record<OperationalStatus, number> = {
       open_in_use: 0,
-      open_closed: 0,
+      closed: 0,
       closed_in_stock: 0,
-      inactive: 0,
     };
 
     filteredMaterials.forEach((material) => {
@@ -273,14 +268,31 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
     );
   }
 
+  const toggleStatusFilter = (status: OperationalStatus) => {
+    setStatusFilter((prev) => (prev === status ? "all" : status));
+  };
+
   const renderSummaryCards = () => (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
       {(Object.entries(STATUS_MAP) as [OperationalStatus, StatusConfig][]).map(
         ([key, config]) => {
           const Icon = config.icon;
+          const isActive = statusFilter === key;
 
           return (
-            <Card key={key} className="bg-card/50 border-border/50">
+            <Card
+              key={key}
+              className={cn(
+                "bg-card/50 cursor-pointer transition-all hover:bg-card/80 flex flex-col relative",
+                isActive
+                  ? "border-primary shadow-sm shadow-primary/20"
+                  : "border-border/50 hover:border-primary/50"
+              )}
+              onClick={() => toggleStatusFilter(key)}
+            >
+              <div className={cn("absolute top-2 right-2 flex items-center justify-center p-1 rounded transition-opacity", isActive ? "opacity-100 bg-primary/10" : "opacity-0 group-hover:opacity-50")}>
+                <Filter className={cn("h-3 w-3", isActive ? "text-primary" : "text-muted-foreground")} title="Filtrar por este status" />
+              </div>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className={cn("rounded-lg p-2", config.bg)}>
@@ -585,37 +597,18 @@ export function MaterialHistoryTab({ companyId }: MaterialHistoryTabProps) {
             </div>
           )}
 
-          {/* Materiais / Bobinas Desativados (Inativos) */}
+          {/* Materiais / Bobinas Encerrados */}
           {inactiveMaterials.length > 0 && (
-            <div className="space-y-6 border border-gray-500/10 bg-gray-500/5 p-5 rounded-2xl">
-              <h3 className="text-lg font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2 border-b border-gray-500/20 pb-2">
-                <XCircle className="h-5 w-5" />
-                Bobinas / Materiais Desativados (Excluídos) ({inactiveMaterials.length})
+            <div className="space-y-6 border border-orange-500/10 bg-orange-500/5 p-5 rounded-2xl">
+              <h3 className="text-lg font-bold text-orange-500 flex items-center gap-2 border-b border-orange-500/20 pb-2">
+                <StopCircle className="h-5 w-5" />
+                Matériais / Bobinas Encerradas ({inactiveMaterials.length})
               </h3>
 
               <div className="space-y-6">
-                {inactiveOpenRolls.length > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="flex items-center gap-2 text-sm font-semibold text-blue-500/70 pl-1">
-                      <StopCircle className="h-4 w-4" /> Bobinas Abertas Desativadas ({inactiveOpenRolls.length})
-                    </h4>
-                    {renderTable(
-                      inactiveOpenRolls,
-                      "Nenhuma bobina aberta desativada no período selecionado."
-                    )}
-                  </div>
-                )}
-
-                {inactiveClosedRolls.length > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-400 pl-1">
-                      <Package className="h-4 w-4" /> Bobinas Fechadas Desativadas ({inactiveClosedRolls.length})
-                    </h4>
-                    {renderTable(
-                      inactiveClosedRolls,
-                      "Nenhuma bobina fechada desativada no período selecionado."
-                    )}
-                  </div>
+                {renderTable(
+                  inactiveMaterials,
+                  "Nenhuma bobina encerrada no período selecionado."
                 )}
               </div>
             </div>

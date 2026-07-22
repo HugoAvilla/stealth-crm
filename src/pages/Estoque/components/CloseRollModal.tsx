@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Car, Ruler, AlertTriangle, Loader2, DollarSign } from "lucide-react";
+import { Car, Ruler, AlertTriangle, Loader2, DollarSign, Package } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -29,6 +29,8 @@ interface RollStats {
   sizeP: number;
   sizeM: number;
   sizeG: number;
+  totalUsed: number;
+  totalEntries: number;
 }
 
 export function CloseRollModal({ open, onOpenChange, material, onSuccess }: CloseRollModalProps) {
@@ -54,40 +56,46 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
   const { data: stats, isLoading } = useQuery({
     queryKey: ["roll-stats", material?.id],
     queryFn: async (): Promise<RollStats> => {
-      if (!material?.id) return { totalCars: 0, sizeP: 0, sizeM: 0, sizeG: 0 };
+      if (!material?.id) return { totalCars: 0, sizeP: 0, sizeM: 0, sizeG: 0, totalUsed: 0, totalEntries: 0 };
 
       const { data, error } = await supabase
         .from("stock_movements")
-        .select("reason")
-        .eq("material_id", material.id)
-        .in("movement_type", ["Saida", "open_roll_use"])
-        .like("reason", "Consumo automático - Venda%");
+        .select("reason, movement_type, quantity")
+        .eq("material_id", material.id);
 
       if (error) {
         console.error("Error fetching roll stats:", error);
-        return { totalCars: 0, sizeP: 0, sizeM: 0, sizeG: 0 };
+        return { totalCars: 0, sizeP: 0, sizeM: 0, sizeG: 0, totalUsed: 0, totalEntries: 0 };
       }
 
       let totalCars = 0;
       let sizeP = 0;
       let sizeM = 0;
       let sizeG = 0;
+      let totalUsed = 0;
+      let totalEntries = 0;
 
       data?.forEach((movement) => {
-        if (!movement.reason) return;
-        totalCars++;
+        if (movement.movement_type === "Saida" || movement.movement_type === "open_roll_use") {
+          totalUsed += Number(movement.quantity || 0);
 
-        // Extract size from reason string (e.g. "... - P)", "... - M)", "... - G)")
-        const match = movement.reason.match(/- ([PMG])\)$/i);
-        if (match && match[1]) {
-          const size = match[1].toUpperCase();
-          if (size === "P") sizeP++;
-          if (size === "M") sizeM++;
-          if (size === "G") sizeG++;
+          if (movement.reason?.includes("Consumo automático - Venda")) {
+            totalCars++;
+            // Extract size from reason string (e.g. "... - P)", "... - M)", "... - G)")
+            const match = movement.reason.match(/- ([PMG])\)$/i);
+            if (match && match[1]) {
+              const size = match[1].toUpperCase();
+              if (size === "P") sizeP++;
+              if (size === "M") sizeM++;
+              if (size === "G") sizeG++;
+            }
+          }
+        } else if (movement.movement_type === "Entrada") {
+          totalEntries++;
         }
       });
 
-      return { totalCars, sizeP, sizeM, sizeG };
+      return { totalCars, sizeP, sizeM, sizeG, totalUsed, totalEntries };
     },
     enabled: !!material?.id && open,
   });
@@ -137,13 +145,34 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
           <div className="grid grid-cols-2 gap-4">
             <Card className="bg-muted/50">
               <CardContent className="p-4 flex flex-col items-center justify-center text-center space-y-2">
+                <Package className="h-8 w-8 text-indigo-500" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Entradas</p>
+                  {isLoading ? (
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mt-1" />
+                  ) : (
+                    <p className="text-2xl font-bold">
+                      {stats?.totalEntries || 0}
+                      <span className="text-sm font-normal text-muted-foreground ml-1">Bobinas</span>
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-muted/50">
+              <CardContent className="p-4 flex flex-col items-center justify-center text-center space-y-2">
                 <Ruler className="h-8 w-8 text-blue-500" />
                 <div>
                   <p className="text-sm text-muted-foreground">Total Usado</p>
-                  <p className="text-2xl font-bold">
-                    {material.open_roll_accumulated || 0}
-                    <span className="text-sm font-normal text-muted-foreground ml-1">{material.unit}</span>
-                  </p>
+                  {isLoading ? (
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mt-1" />
+                  ) : (
+                    <p className="text-2xl font-bold">
+                      {stats?.totalUsed || material.open_roll_accumulated || 0}
+                      <span className="text-sm font-normal text-muted-foreground ml-1">{material.unit}</span>
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -174,14 +203,18 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
               </CardContent>
             </Card>
 
-            <Card className="bg-muted/50">
+            <Card className="bg-muted/50 col-span-2">
               <CardContent className="p-4 flex flex-col items-center justify-center text-center space-y-2">
                 <DollarSign className="h-8 w-8 text-emerald-500" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Valor Total</p>
-                  <p className="text-lg font-bold truncate max-w-full">
-                    {((material.open_roll_accumulated || 0) * (material.product_types?.cost_per_meter || material.average_cost || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Valor Total Usado</p>
+                  {isLoading ? (
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mt-1" />
+                  ) : (
+                    <p className="text-lg font-bold truncate max-w-full">
+                      {((stats?.totalUsed || material.open_roll_accumulated || 0) * (material.product_types?.cost_per_meter || material.average_cost || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>

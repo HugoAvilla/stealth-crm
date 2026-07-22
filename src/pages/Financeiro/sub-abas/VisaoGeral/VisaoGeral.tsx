@@ -16,6 +16,7 @@ import { AddTransferModal } from "@/shared/components/financeiro/AddTransferModa
 import { AddAccountModal } from "@/shared/components/financeiro/AddAccountModal";
 import { ManageCategoriesModal } from "@/shared/components/financeiro/ManageCategoriesModal";
 import { AccountDetailsModal } from "@/pages/Financeiro/components/AccountDetailsModal";
+import { useSalesRecognition } from "@/hooks/useSalesRecognition";
 import { toast } from "sonner";
 
 interface Account {
@@ -84,6 +85,10 @@ export function VisaoGeral() {
     const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+    const [companyId, setCompanyId] = useState<number | null>(null);
+
+    // Regra única de reconhecimento (líquido). Entradas = vendas fechadas reconhecidas no mês.
+    const { valorFechadas: entradasVendasReconhecidas } = useSalesRecognition(companyId, currentMonth);
 
     const fetchData = async () => {
         if (!user?.id) return;
@@ -99,6 +104,8 @@ export function VisaoGeral() {
                 setLoading(false);
                 return;
             }
+
+            setCompanyId(profile.company_id);
 
             // Fetch accounts
             const { data: accountsData } = await supabase
@@ -147,6 +154,7 @@ export function VisaoGeral() {
           )
         `)
                 .eq("company_id", profile.company_id)
+                .is("deleted_at", null)
                 .gte("sale_date", queryStart)
                 .lte("sale_date", monthEnd);
 
@@ -203,21 +211,21 @@ export function VisaoGeral() {
 
     // === ENTRADAS ===
     const entradasTransactions = monthTransactions.filter(t => t.type === 'Entrada' && t.is_paid);
-    const totalEntradas = entradasTransactions.reduce((sum, t) => sum + t.amount, 0);
 
-    // Vendas do mês (from sales table, para garantir contagem correta)
+    // Vendas do mês (contagem — lixeira já excluída na query)
     const totalVendasMes = monthSales.reduce((sum, s) => sum + s.total, 0);
     const qtdVendasMes = monthSales.length;
 
-    // Entradas que vieram de vendas (transações com sale_id)
-    const entradasDeVendas = entradasTransactions
-        .filter(t => t.sale_id !== null)
-        .reduce((sum, t) => sum + t.amount, 0);
+    // Entradas de vendas: regra ÚNICA de reconhecimento (líquido, apenas vendas fechadas).
+    // Mesma base usada pelo card "Total de vendas fechadas" da aba Vendas.
+    const entradasDeVendas = entradasVendasReconhecidas;
 
-    // Outras entradas manuais (transações sem sale_id)
+    // Outras entradas manuais (transações pagas sem vínculo de venda)
     const outrasEntradas = entradasTransactions
         .filter(t => t.sale_id === null)
         .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalEntradas = entradasDeVendas + outrasEntradas;
 
     // === SAÍDAS ===
     const saidasTransactions = monthTransactions.filter(t => t.type === 'Saida' && t.is_paid);
@@ -376,7 +384,7 @@ export function VisaoGeral() {
 
     const formatCurrency = (value: number) => {
         if (!showValues) return "••••••";
-        return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
 
     const openTransactionModal = (type: 'entrada' | 'saida') => {

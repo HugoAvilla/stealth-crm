@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
 
 import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X, Sliders, CalendarIcon } from "lucide-react";
@@ -774,10 +775,9 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                 <Clock className="h-4 w-4" />
                 Hora da entrada *
               </Label>
-              <Input
-                type="time"
+              <TimePicker
                 value={entryTime}
-                onChange={(e) => setEntryTime(e.target.value)}
+                onChange={(val) => setEntryTime(val)}
               />
             </div>
           </div>
@@ -822,10 +822,9 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
                 <Clock className="h-4 w-4" />
                 Hora da saída
               </Label>
-              <Input
-                type="time"
+              <TimePicker
                 value={exitTime}
-                onChange={(e) => setExitTime(e.target.value)}
+                onChange={(val) => setExitTime(val)}
               />
             </div>
           </div>

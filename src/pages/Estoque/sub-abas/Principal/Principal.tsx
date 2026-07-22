@@ -399,6 +399,16 @@ export function Principal() {
                   </Button>
                 )}
               </div>
+              {!material.is_open_roll && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCloseOpenRoll(material)}
+                  className="w-full h-9 text-xs border-blue-500/20 text-blue-600 hover:bg-blue-500/5"
+                >
+                  <StopCircle className="mr-1 h-3.5 w-3.5 text-blue-500" /> Encerrar Bobina
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"

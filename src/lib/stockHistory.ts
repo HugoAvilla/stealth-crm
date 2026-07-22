@@ -16,9 +16,8 @@ export interface HistoryMaterialLike {
 
 export type OperationalStatus =
   | "open_in_use"
-  | "open_closed"
   | "closed_in_stock"
-  | "inactive";
+  | "closed";
 
 export const HISTORY_RANGE_LABELS: Record<HistoryRange, string> = {
   "1m": "1 mes",
@@ -39,10 +38,10 @@ const HISTORY_RANGE_MONTHS: Record<HistoryRange, number> = {
 export function getOperationalStatus(
   material: HistoryMaterialLike
 ): OperationalStatus {
-  if (material.is_open_roll && material.is_active) return "open_in_use";
-  if (material.is_open_roll && !material.is_active) return "open_closed";
-  if (!material.is_open_roll && material.is_active) return "closed_in_stock";
-  return "inactive";
+  if (material.is_active) {
+    return material.is_open_roll ? "open_in_use" : "closed_in_stock";
+  }
+  return "closed";
 }
 
 export function getCategoryFromMaterial(

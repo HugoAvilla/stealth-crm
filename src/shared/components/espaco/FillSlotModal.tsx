@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
 
 import { Calendar, Clock, Car, User, Camera, Tag, FileText, DollarSign, Package, Plus, RefreshCw, Loader2, Check, Percent, X, Sliders, ChevronsUpDown, CalendarIcon, AlertTriangle } from "lucide-react";
@@ -848,10 +849,9 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                 <Clock className="h-4 w-4" />
                 Hora da entrada *
               </Label>
-              <Input
-                type="time"
+              <TimePicker
                 value={entryTime}
-                onChange={(e) => setEntryTime(e.target.value)}
+                onChange={(val) => setEntryTime(val)}
               />
             </div>
           </div>
@@ -896,10 +896,9 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
                 <Clock className="h-4 w-4" />
                 Hora da saída
               </Label>
-              <Input
-                type="time"
+              <TimePicker
                 value={exitTime}
-                onChange={(e) => setExitTime(e.target.value)}
+                onChange={(val) => setExitTime(val)}
               />
             </div>
           </div>
