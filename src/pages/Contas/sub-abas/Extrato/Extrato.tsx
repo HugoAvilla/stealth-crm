@@ -47,7 +47,6 @@ export function Extrato({
     };
 
     const [filterType, setFilterType] = useState<string>("todos");
-    const [filterStatus, setFilterStatus] = useState<string>("todos");
 
     type SortField = 'date' | 'name' | 'amount' | 'status';
     const [sortField, setSortField] = useState<SortField>('date');
@@ -168,13 +167,10 @@ export function Extrato({
         );
     }
     if (filterType !== "todos") {
-        filteredTransactions = filteredTransactions.filter(t => t.type.toLowerCase() === filterType.toLowerCase());
-    }
-    if (filterStatus !== "todos") {
-        if (filterStatus === "pago") {
-            filteredTransactions = filteredTransactions.filter(t => t.is_paid === true);
-        } else if (filterStatus === "pendente") {
-            filteredTransactions = filteredTransactions.filter(t => t.is_paid === false);
+        if (filterType === "transferencia") {
+            filteredTransactions = filteredTransactions.filter(t => t.payment_method === 'Transferência');
+        } else {
+            filteredTransactions = filteredTransactions.filter(t => t.type.toLowerCase() === filterType.toLowerCase());
         }
     }
 
@@ -433,7 +429,7 @@ export function Extrato({
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" size="sm" className="gap-2 h-9">
                                         <Filter className="h-4 w-4" /> Filtros
-                                        {(filterType !== 'todos' || filterStatus !== 'todos') && (
+                                        {(filterType !== 'todos') && (
                                             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">Ativo</Badge>
                                         )}
                                     </Button>
@@ -457,19 +453,7 @@ export function Extrato({
                                                         <SelectItem value="todos">Todos</SelectItem>
                                                         <SelectItem value="entrada">Entradas</SelectItem>
                                                         <SelectItem value="saida">Saídas</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Status</Label>
-                                                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                                                    <SelectTrigger className="w-full bg-background">
-                                                        <SelectValue placeholder="Status" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="todos">Todos</SelectItem>
-                                                        <SelectItem value="pago">Conciliado</SelectItem>
-                                                        <SelectItem value="pendente">Pendente</SelectItem>
+                                                        <SelectItem value="transferencia">Transferências</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -524,9 +508,9 @@ export function Extrato({
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="hidden md:block rounded-md border border-border/50 overflow-x-auto overscroll-x-contain">
+                            <div className="hidden md:block rounded-md border border-border/50 overflow-x-auto overscroll-x-contain max-h-[600px] overflow-y-auto">
                                 <Table>
-                                    <TableHeader>
+                                    <TableHeader className="sticky top-0 z-10 bg-card">
                                         <TableRow>
                                             <TableHead
                                                 className="min-w-[200px] cursor-pointer hover:bg-muted/50 transition-colors select-none"

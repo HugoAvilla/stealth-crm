@@ -1,5 +1,5 @@
 ﻿// @ts-nocheck
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -172,7 +172,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       account_id: null,
       machine_id: null,
       installments: 1,
-      due_date: new Date().toISOString(),
+      due_date: (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString(); })(),
       status: 'received'
     }
   ]);
@@ -365,26 +365,33 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
   // Get selected vehicle
   const selectedVehicle = vehicles.find(v => v.id === parseInt(selectedVehicleId));
 
+  const lastProcessedVehicleRef = useRef<string | null>(prefillData?.vehicleId?.toString() || null);
+
   // Recalculate meters when vehicle changes (mantém o preço do serviço)
   useEffect(() => {
-    if (selectedVehicle?.size && detailedItems.length > 0) {
-      const updatedItems = detailedItems.map(item => {
-        if (item.regionId) {
-          const rule = consumptionRules.find(
-            r => r.region_id === item.regionId &&
-              r.vehicle_size === selectedVehicle.size &&
-              r.category === item.category
-          );
-          const meters = rule?.meters_consumed || item.metersUsed;
-          return {
-            ...item,
-            metersUsed: meters,
-            // Mantém totalPrice - preço vem do serviço, não recalcula
-          };
+    if (selectedVehicle?.size && consumptionRules.length > 0) {
+      if (lastProcessedVehicleRef.current !== null && lastProcessedVehicleRef.current !== selectedVehicleId) {
+        if (detailedItems.length > 0) {
+          const updatedItems = detailedItems.map(item => {
+            if (item.regionId) {
+              const rule = consumptionRules.find(
+                r => r.region_id === item.regionId &&
+                  r.vehicle_size === selectedVehicle.size &&
+                  r.category === item.category
+              );
+              const meters = rule?.meters_consumed || item.metersUsed;
+              return {
+                ...item,
+                metersUsed: meters,
+                // Mantém totalPrice - preço vem do serviço, não recalcula
+              };
+            }
+            return item;
+          });
+          setDetailedItems(updatedItems);
         }
-        return item;
-      });
-      setDetailedItems(updatedItems);
+      }
+      lastProcessedVehicleRef.current = selectedVehicleId;
     }
   }, [selectedVehicleId, consumptionRules]);
 
@@ -763,7 +770,8 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
             finalNetAmount = calculateCardMachineNetAmount(p.amount, rate);
           }
 
-          let initialStatus = p.status || 'received';
+          const isBoletoPayment = p.payment_method === "Boleto";
+          let initialStatus = isBoletoPayment ? 'pending' : (p.status || 'received');
           let transactionDueDate = format(new Date(), 'yyyy-MM-dd');
 
           if (isCard && machine) {
@@ -884,8 +892,9 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
               const installmentAmount = p.amount / (p.installments || 1);
 
               for (let i = 1; i <= (p.installments || 1); i++) {
-                const dueDate = new Date(saleDate);
-                dueDate.setMonth(dueDate.getMonth() + i);
+                const dueDate = p.due_date ? new Date(p.due_date) : new Date(saleDate);
+                // A primeira parcela (i=1) = data selecionada. As próximas somam meses.
+                dueDate.setMonth(dueDate.getMonth() + (i - 1));
 
                 installmentsToInsert.push({
                   boleto_id: boletoData.id,

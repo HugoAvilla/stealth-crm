@@ -74,9 +74,10 @@ interface SaleDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sale: SaleWithDetails | null;
+  onSaleUpdated?: () => void;
 }
 
-const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) => {
+const SaleDetailsModal = ({ open, onOpenChange, sale, onSaleUpdated }: SaleDetailsModalProps) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -1254,6 +1255,15 @@ const SaleDetailsModal = ({ open, onOpenChange, sale }: SaleDetailsModalProps) =
         open={isEditSaleOpen}
         onOpenChange={setIsEditSaleOpen}
         sale={sale}
+        onSaved={() => {
+          // Atualiza os cards de detalhe que ainda estão abertos (itens, comissões, pagamentos)
+          queryClient.invalidateQueries({ queryKey: ['sale-detailed-items', sale.id] });
+          queryClient.invalidateQueries({ queryKey: ['sale-commissions', sale.id] });
+          queryClient.invalidateQueries({ queryKey: ['sale-payments-details', sale.id] });
+          // Fecha o modal de detalhes (que mostra dados antigos) e avisa a lista pra recarregar em silêncio
+          onOpenChange(false);
+          onSaleUpdated?.();
+        }}
       />
 
       <IssueWarrantyModal

@@ -232,10 +232,14 @@ export function Principal() {
                 onOpenChange={(open) => {
                     if (!open) {
                         setSelectedDetailedSale(null);
-                        fetchSales();
+                        fetchSales(true);
                     }
                 }}
                 sale={selectedDetailedSale}
+                onSaleUpdated={() => {
+                    fetchSales(true);
+                    refetchRecognition();
+                }}
             />
         </div>
     );

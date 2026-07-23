@@ -115,9 +115,10 @@ interface EditSaleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sale: SaleWithDetails;
+  onSaved?: () => void;
 }
 
-const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
+const EditSaleModal = ({ open, onOpenChange, sale, onSaved }: EditSaleModalProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -887,6 +888,7 @@ const EditSaleModal = ({ open, onOpenChange, sale }: EditSaleModalProps) => {
       setNotes("");
       setIsOpen(false);
       onOpenChange(false);
+      onSaved?.();
     } catch (error) {
       console.error('Error creating sale:', error);
       toast.error("Erro ao cadastrar venda");

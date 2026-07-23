@@ -447,28 +447,8 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
         throw new Error("Dados inválidos");
       }
 
-      // Update space
-      const { data: spaceData, error: spaceError } = await supabase
-        .from('spaces')
-        .update({
-          name: slotName || `Vaga de ${selectedClient?.name}`,
-          client_id: parseInt(selectedClientId),
-          vehicle_id: parseInt(selectedVehicleId),
-          entry_date: format(entryDate, 'yyyy-MM-dd'),
-          entry_time: entryTime,
-          exit_date: exitDate ? format(exitDate, 'yyyy-MM-dd') : null,
-          exit_time: exitTime || null,
-          discount: calculatedDiscount || null,
-          observations: observations || null,
-          tag: tag || null,
-        })
-        .eq('id', space.id)
-        .select()
-        .single();
-
-      if (spaceError) throw spaceError;
-
-      // Save services data as JSONB
+      // Prepare services data
+      let servicesDataToSave = null;
       if (detailedItems.length > 0) {
         const servicesData: any[] = [];
         for (const item of detailedItems) {
@@ -505,12 +485,34 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
             });
           }
         }
-
-        await supabase
-          .from('spaces')
-          .update({ services_data: servicesData } as any)
-          .eq('id', spaceData.id);
+        servicesDataToSave = servicesData;
+      } else {
+        servicesDataToSave = [];
       }
+
+      // Update space in a single query
+      const updatePayload: any = {
+        name: slotName || `Vaga de ${selectedClient?.name}`,
+        client_id: parseInt(selectedClientId),
+        vehicle_id: parseInt(selectedVehicleId),
+        entry_date: format(entryDate, 'yyyy-MM-dd'),
+        entry_time: entryTime,
+        exit_date: exitDate ? format(exitDate, 'yyyy-MM-dd') : null,
+        exit_time: exitTime || null,
+        discount: calculatedDiscount || null,
+        observations: observations || null,
+        tag: tag || null,
+        services_data: servicesDataToSave,
+      };
+
+      const { data: spaceData, error: spaceError } = await supabase
+        .from('spaces')
+        .update(updatePayload)
+        .eq('id', space.id)
+        .select()
+        .single();
+
+      if (spaceError) throw spaceError;
 
       // Upload photos (validated locally, but Storage RLS ensures bounds too)
       if (photos.length > 0) {
@@ -533,8 +535,27 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
 
       return spaceData;
     },
-    onSuccess: () => {
+    onSuccess: (spaceData) => {
       toast.success("Vaga atualizada com sucesso!");
+
+      // Update cache instantly to avoid visual lag in SlotDetailsDrawer
+      if (spaceData) {
+        queryClient.setQueryData(['space-exact', spaceData.id], (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            ...spaceData,
+            // the returned spaceData includes the updated primitives and services_data
+          };
+        });
+
+        // Also enthusiastically update the main spaces list
+        queryClient.setQueryData(['spaces', companyId], (old: any) => {
+          if (!old) return old;
+          return old.map((s: any) => s.id === spaceData.id ? { ...s, ...spaceData } : s);
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: ['spaces'] });
       onSlotUpdated?.();
       onOpenChange(false);

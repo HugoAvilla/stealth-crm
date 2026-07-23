@@ -111,7 +111,7 @@ export function AddTransactionModal({ open, onOpenChange, type, onSuccess, defau
       let dStr = currentDate;
       if (currentDate) {
         const d = new Date(currentDate + "T12:00:00");
-        d.setMonth(d.getMonth() + i);
+        d.setMonth(d.getMonth() + i + 1);
         dStr = d.toISOString().split('T')[0];
       }
 

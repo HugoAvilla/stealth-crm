@@ -432,33 +432,8 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
         throw new Error("Dados inválidos");
       }
 
-      // Insert space without sale_id
-      const { data: spaceData, error: spaceError } = await supabase
-        .from('spaces')
-        .insert({
-          name: slotName || `Vaga de ${selectedClient?.name}`,
-          client_id: parseInt(selectedClientId),
-          vehicle_id: parseInt(selectedVehicleId),
-          sale_id: null, // No sale yet - will be created later
-          company_id: companyId,
-          entry_date: format(entryDate, 'yyyy-MM-dd'),
-          entry_time: entryTime,
-          exit_date: exitDate ? format(exitDate, 'yyyy-MM-dd') : null,
-          exit_time: exitTime || null,
-          discount: calculatedDiscount || null,
-          observations: observations || null,
-          tag: tag || null,
-          status: 'ocupado',
-          payment_status: 'pending',
-          has_exited: false,
-          is_new_client: isNewClient,
-        })
-        .select()
-        .single();
-
-      if (spaceError) throw spaceError;
-
-      // Save services data as JSONB
+      // Prepare services data
+      let servicesDataToSave = null;
       if (detailedItems.length > 0) {
         const servicesData: any[] = [];
         for (const item of detailedItems) {
@@ -495,12 +470,37 @@ export function FillSlotModal({ open, onOpenChange, onSlotFilled, preselectedDat
             });
           }
         }
-
-        await supabase
-          .from('spaces')
-          .update({ services_data: servicesData } as any)
-          .eq('id', spaceData.id);
+        servicesDataToSave = servicesData;
       }
+
+      // Insert space without sale_id but with services_data
+      const insertPayload: any = {
+        name: slotName || `Vaga de ${selectedClient?.name}`,
+        client_id: parseInt(selectedClientId),
+        vehicle_id: parseInt(selectedVehicleId),
+        sale_id: null, // No sale yet - will be created later
+        company_id: companyId,
+        entry_date: format(entryDate, 'yyyy-MM-dd'),
+        entry_time: entryTime,
+        exit_date: exitDate ? format(exitDate, 'yyyy-MM-dd') : null,
+        exit_time: exitTime || null,
+        discount: calculatedDiscount || null,
+        observations: observations || null,
+        tag: tag || null,
+        status: 'ocupado',
+        payment_status: 'pending',
+        has_exited: false,
+        is_new_client: isNewClient,
+        services_data: servicesDataToSave,
+      };
+
+      const { data: spaceData, error: spaceError } = await supabase
+        .from('spaces')
+        .insert(insertPayload)
+        .select()
+        .single();
+
+      if (spaceError) throw spaceError;
 
       // Upload photos (validated locally, but Storage RLS ensures bounds too)
       if (photos.length > 0) {

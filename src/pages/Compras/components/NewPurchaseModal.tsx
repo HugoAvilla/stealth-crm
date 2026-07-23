@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,11 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
 
   // Installments
   const [installmentsCount, setInstallmentsCount] = useState(1);
-  const [firstDueDate, setFirstDueDate] = useState(new Date().toISOString().split("T")[0]);
+  const [firstDueDate, setFirstDueDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().split("T")[0];
+  });
   const [installments, setInstallments] = useState<any[]>([]);
 
   // Items & Attachments
@@ -44,6 +48,15 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
   const [pdfs, setPdfs] = useState<File[]>([]);
 
   const isImmediate = ["Pix", "Débito", "Dinheiro"].includes(paymentMethod);
+
+  // Sincronizar 1º vencimento com data da compra (+1 mês)
+  useEffect(() => {
+    if (purchaseDate) {
+      const d = new Date(purchaseDate + "T12:00:00");
+      d.setMonth(d.getMonth() + 1);
+      setFirstDueDate(d.toISOString().split("T")[0]);
+    }
+  }, [purchaseDate]);
 
   // Auto-selecionar conta principal se não houver
   React.useEffect(() => {
@@ -125,6 +138,9 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
     setTotalAmount(0);
     setPaymentMethod("Boleto");
     setInstallmentsCount(1);
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    setFirstDueDate(d.toISOString().split("T")[0]);
     setItems([]);
     setImages([]);
     setPdfs([]);
