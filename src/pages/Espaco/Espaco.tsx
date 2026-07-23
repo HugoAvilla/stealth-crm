@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Car, CheckCircle, AlertTriangle, Download, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,16 +63,69 @@ export default function Espaco() {
 
   const totalSlots = companySettings?.total_slots || 10;
 
+  // Real-time Database Subscription (WebSockets)
+  useEffect(() => {
+    if (!companyId) return;
+
+    const channel = supabase
+      .channel('spaces_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'spaces',
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          // Whenever ANY update happens in the database, we automatically fetch the newest data
+          queryClient.invalidateQueries({ queryKey: ['spaces'] });
+          queryClient.invalidateQueries({ queryKey: ['spaces-deleted'] });
+          queryClient.invalidateQueries({ queryKey: ['unpaid-exited-count'] });
+          queryClient.invalidateQueries({ queryKey: ['space-exact'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [companyId, queryClient]);
+
   // Real-time Space selected logic
-  const { data: spaces } = useQuery({ queryKey: ['spaces', companyId] });
-  const { data: deletedSpaces } = useQuery({ queryKey: ['spaces-deleted', companyId] });
-  const selectedSpace = (spaces as any[])?.find(s => s.id === selectedSpaceId)
-    || (deletedSpaces as any[])?.find(s => s.id === selectedSpaceId)
-    || fallbackSpace || null;
+  const { data: exactSpace } = useQuery({
+    queryKey: ['space-exact', selectedSpaceId],
+    queryFn: async () => {
+      if (!selectedSpaceId) return null;
+      const { data, error } = await supabase
+        .from('spaces')
+        .select(`
+          *,
+          client:clients(id, name, phone, birth_date, email),
+          vehicle:vehicles(id, brand, model, plate, year),
+          sale:sales(
+            id, total, subtotal, discount,
+            sale_items(
+              id,
+              total_price,
+              service:services(id, name)
+            )
+          )
+        `)
+        .eq('id', selectedSpaceId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedSpaceId,
+  });
+
+  const selectedSpace = exactSpace || fallbackSpace || null;
 
   const handleSlotFilled = () => {
     queryClient.invalidateQueries({ queryKey: ['spaces'] });
     queryClient.invalidateQueries({ queryKey: ['spaces-deleted'] });
+    queryClient.invalidateQueries({ queryKey: ['space-exact'] });
     queryClient.invalidateQueries({ queryKey: ['unpaid-exited-count'] });
     setRefreshTrigger(prev => prev + 1);
   };
@@ -200,7 +253,16 @@ export default function Espaco() {
         onSlotFilled={handleSlotFilled}
         preselectedDate={selectedDay || undefined}
         totalSlots={totalSlots}
-        occupiedCount={(spaces as any[])?.filter(s => !s.has_exited).length || 0}
+        occupiedCount={(() => {
+          const cached = queryClient.getQueriesData({ queryKey: ['spaces'] });
+          let count = 0;
+          for (const [, data] of cached) {
+            if (Array.isArray(data)) {
+              count = Math.max(count, data.filter(s => !s.has_exited).length);
+            }
+          }
+          return count;
+        })()}
       />
       <SlotDetailsDrawer
         open={showDetailsDrawer}
