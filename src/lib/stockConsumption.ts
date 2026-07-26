@@ -398,6 +398,28 @@ export async function consumeStockForDetailedSale(
 }
 
 /**
+ * Reverses the stock consumption previously registered for a sale.
+ * Used before re-consuming on edit, so the sale's stock stays in sync
+ * without double counting. Delegates to the DB function that mirrors the
+ * deletion reversal (physical rolls, open rolls and simple materials) and
+ * marks the reversed movements so they are never reversed twice.
+ */
+export async function reverseStockForSale(
+  saleId: number,
+  reasonNote: string = "Estorno de Edição"
+): Promise<void> {
+  const { error } = await supabase.rpc("reverse_sale_stock_consumption", {
+    p_sale_id: saleId,
+    p_reason_note: reasonNote,
+  });
+
+  if (error) {
+    logger.error("Error reversing stock for sale:", error);
+    toast.error("Erro ao estornar estoque da venda");
+  }
+}
+
+/**
  * Creates an automatic financial transaction when a sale is closed.
  * Delegates to the centralized financialTransactions service.
  * @param isPaid - Defaults to true for backward compatibility. Set to false for boleto.

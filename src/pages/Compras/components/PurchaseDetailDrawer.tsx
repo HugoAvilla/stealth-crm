@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Check, Download, Paperclip, Undo2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { payInstallment, payInstallmentWithDetails, reverseInstallment } from "@/pages/Compras/services/purchaseService";
 import { toast } from "sonner";
@@ -157,12 +158,16 @@ export function PurchaseDetailDrawer({ purchaseId, open, onOpenChange, onUpdate 
             <div className="space-y-2">
               <h3 className="font-semibold text-sm">Parcelas ({purchase.installments_count})</h3>
               <div className="space-y-3">
-                {installments.map(inst => (
-                  <div key={inst.id} className="p-3 border rounded-md shadow-sm">
+                {installments.map(inst => {
+                  const isOverdue = inst.status !== 'paga' && inst.due_date < format(new Date(), 'yyyy-MM-dd');
+                  return (
+                  <div key={inst.id} className={cn("p-3 border rounded-md shadow-sm", isOverdue && "border-red-500/40 bg-red-500/5")}>
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-xs font-bold text-muted-foreground uppercase">Parcela {inst.installment_number}</span>
                       {inst.status === 'paga' ? (
                         <Badge className="bg-green-500 hover:bg-green-600">Paga</Badge>
+                      ) : isOverdue ? (
+                        <Badge variant="destructive">Atrasada</Badge>
                       ) : (
                         <Badge variant="outline" className="text-amber-600 border-amber-600">Pendente</Badge>
                       )}
@@ -170,7 +175,7 @@ export function PurchaseDetailDrawer({ purchaseId, open, onOpenChange, onUpdate 
                     <div className="flex justify-between items-end">
                       <div>
                         <div className="text-lg font-bold">R$ {Number(inst.amount).toFixed(2)}</div>
-                        <div className="text-xs text-muted-foreground">Venc: {format(new Date(inst.due_date + 'T12:00:00'), "dd/MM/yyyy")}</div>
+                        <div className={cn("text-xs", isOverdue ? "text-red-500 font-medium" : "text-muted-foreground")}>Venc: {format(new Date(inst.due_date + 'T12:00:00'), "dd/MM/yyyy")}</div>
                       </div>
                       <div>
                         {inst.status !== 'paga' ? (
@@ -185,7 +190,8 @@ export function PurchaseDetailDrawer({ purchaseId, open, onOpenChange, onUpdate 
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

@@ -70,7 +70,7 @@ export default function Compras() {
     if (!user?.companyId) return;
     const { data } = await supabase
       .from("purchases")
-      .select("*, purchase_installments(id, status)")
+      .select("*, purchase_installments(id, status, due_date)")
       .eq("company_id", user.companyId)
       .order("created_at", { ascending: false });
 

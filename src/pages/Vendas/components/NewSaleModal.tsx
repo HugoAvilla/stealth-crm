@@ -55,8 +55,6 @@ import {
   CreditCard,
   Banknote,
   Settings,
-  Shield,
-  ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,8 +67,9 @@ import {
 } from "@/lib/cardMachineFees";
 import NewClientModal from "@/pages/Vendas/components/NewClientModal";
 import NewVehicleModal from "@/pages/Vendas/components/NewVehicleModal";
-import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/pages/Vendas/components/ServiceItemRow";
+import ServiceItemRow, { DetailedServiceItem, ProductCategory, distributeTotalToItems } from "@/pages/Vendas/components/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/pages/Vendas/components/CustomizedServiceBlock";
+import { extractLotes } from "@/pages/Vendas/components/StockBadges";
 import CommissionSelectors from "@/pages/Vendas/components/CommissionSelectors";
 import { AccountSelectCard } from "@/pages/Vendas/components/AccountSelectCard";
 import { PaymentBlock, SalePayment } from "@/pages/Vendas/components/PaymentBlock";
@@ -102,6 +101,7 @@ interface ProductType {
   // unit_price removido - preço vem do serviço
   openRollsCount?: number;
   hasClosedRoll?: boolean;
+  lotes?: string[];
 }
 
 interface VehicleRegion {
@@ -251,7 +251,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
         supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
         supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
         supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
-        supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true),
+        supabase.from('materials').select('product_type_id, is_open_roll, current_stock, name').eq('company_id', profile.company_id).eq('is_active', true),
         supabase.from('card_machines').select('*').eq('company_id', profile.company_id).eq('is_active', true),
         supabase.from('card_machine_rates').select('*')
       ]);
@@ -262,11 +262,14 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
       const productsList = (productTypesRes.data || []).map(pt => {
         const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
         const openRolls = ptMaterials.filter(m => m.is_open_roll);
-        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
+        const closedRolls = ptMaterials.filter(m => !m.is_open_roll && (m.current_stock || 0) > 0);
+        // Lote serve para identificação — mostra o de todos os rolos, inclusive sem estoque.
+        const lotes = extractLotes(ptMaterials);
         return {
           ...pt,
           openRollsCount: openRolls.length,
-          hasClosedRoll: closedRolls.length > 0
+          hasClosedRoll: closedRolls.length > 0,
+          lotes
         };
       });
 
@@ -435,10 +438,14 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
     }
   }, [total]);
 
-  // Update service price when calculated subtotal changes
+  // Mantém "Preço do Serviço" sempre igual à soma dos itens ("Valor calculado").
+  // Só reescreve quando de fato divergem, para não atrapalhar a digitação no
+  // campo (a digitação já redistribui o valor nos itens, mantendo a igualdade).
   useEffect(() => {
     if (calculatedSubtotal > 0) {
-      setServicePrice(calculatedSubtotal.toFixed(2));
+      if (Math.abs(parseFloat(servicePrice || "0") - calculatedSubtotal) >= 0.005) {
+        setServicePrice(calculatedSubtotal.toFixed(2));
+      }
     } else if (detailedItems.length === 0) {
       setServicePrice("");
     }
@@ -1410,6 +1417,8 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                     value={servicePrice}
                     onChange={(e) => {
                       setServicePrice(e.target.value);
+                      // Replica o preço nos itens para manter "Valor calculado" igual
+                      setDetailedItems(prev => distributeTotalToItems(prev, parseFloat(e.target.value) || 0));
                       // Reset discount when price changes
                       if (e.target.value) {
                         const newSubtotal = parseFloat(e.target.value);
@@ -1543,15 +1552,6 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="p-1.5 rounded bg-muted">
-                      <Shield className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <span>
-                      Valor total da venda ficou <span className="font-semibold text-primary">{formatCurrency(total)}</span>
-                    </span>
-                  </div>
-
                   {isOpen ? (
                     <div className="flex items-center gap-3 pt-2 border-t border-dashed border-border">
                       <div className="p-1.5 rounded bg-muted">
@@ -1600,7 +1600,7 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                                 </div>
                                 <span>
-                                  Valor total com desconto da maquininha{" "}
+                                  Valor total que você vai receber{" "}
                                   <span className="font-semibold text-primary">{formatCurrency(payment.netAmount)}</span>
                                 </span>
                               </div>
@@ -1611,20 +1611,16 @@ const NewSaleModal = ({ open, onOpenChange, defaultClientId, initialDate, prefil
                     })
                   )}
 
-                  <div className="flex items-center gap-3 pt-2 border-t border-dashed border-border">
-                    <div className="p-1.5 rounded bg-muted">
-                      <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <span>
-                      {prefillData?.spaceId ? "Vinculado a uma vaga" : "Não vinculado a nenhuma vaga"}
-                    </span>
-                  </div>
                 </div>
               </Card>
             </div>
           )}
 
           {/* Footer */}
+          <div className="flex items-center justify-between rounded-lg border border-success/30 bg-success/10 px-4 py-3">
+            <span className="text-sm font-medium text-success">Valor total da venda</span>
+            <span className="text-base font-semibold text-success">{formatCurrency(total)}</span>
+          </div>
           <Button
             onClick={handleSubmit}
             className={cn(

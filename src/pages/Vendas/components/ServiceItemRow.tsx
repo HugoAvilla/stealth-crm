@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
+import { StockBadges } from "./StockBadges";
 
 export type ProductCategory = 'INSULFILM' | 'PPF';
 
@@ -30,6 +31,32 @@ export interface DetailedServiceItem {
   customizationGroup: string | null;
 }
 
+// Distribui um preço total entre os itens de serviço para manter o campo
+// "Preço do Serviço" e os preços individuais sempre com o mesmo valor.
+// 1 item: usa o valor cheio. Vários: rateio proporcional ao preço atual
+// (ou igualitário se todos estiverem zerados), com o último item absorvendo
+// o arredondamento para que a soma bata exatamente com o total.
+export const distributeTotalToItems = (
+  items: DetailedServiceItem[],
+  target: number
+): DetailedServiceItem[] => {
+  if (items.length === 0) return items;
+  if (items.length === 1) return items.map((i) => ({ ...i, totalPrice: target }));
+
+  const currentSum = items.reduce((sum, i) => sum + i.totalPrice, 0);
+  let allocated = 0;
+  return items.map((item, idx) => {
+    if (idx === items.length - 1) {
+      return { ...item, totalPrice: Math.round((target - allocated) * 100) / 100 };
+    }
+    const share = currentSum > 0
+      ? Math.round((item.totalPrice / currentSum) * target * 100) / 100
+      : Math.round((target / items.length) * 100) / 100;
+    allocated += share;
+    return { ...item, totalPrice: share };
+  });
+};
+
 interface ProductType {
   id: number;
   category: string;
@@ -39,6 +66,7 @@ interface ProductType {
   light_transmission: string | null;
   openRollsCount?: number;
   hasClosedRoll?: boolean;
+  lotes?: string[];
 }
 
 interface VehicleRegion {
@@ -175,19 +203,19 @@ const ServiceItemRow = ({
     const outOfStock = filteredProducts.filter((p) => !p.openRollsCount && !p.hasClosedRoll);
 
     const renderProduct = (product: ProductType) => {
-      let stockDisplay = "";
-      if (product.openRollsCount && product.openRollsCount > 0) {
-        stockDisplay += `${product.openRollsCount} Aberta${product.openRollsCount === 1 ? '' : 's'}`;
-      }
-      if (product.hasClosedRoll) {
-        stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
-      }
-
+      const isOutOfStock = !product.openRollsCount && !product.hasClosedRoll;
       return (
-        <SelectItem key={product.id} value={product.id.toString()}>
+        <SelectItem
+          key={product.id}
+          value={product.id.toString()}
+          disabled={isOutOfStock}
+          endSlot={<StockBadges openRollsCount={product.openRollsCount} hasClosedRoll={product.hasClosedRoll} />}
+        >
           {product.brand} {product.name}
           {product.light_transmission ? ` ${product.light_transmission}` : ""}
-          {stockDisplay ? ` [${stockDisplay}]` : ""}
+          {product.lotes && product.lotes.length > 0 && (
+            <span className="text-muted-foreground"> · Lote {product.lotes.join(", ")}</span>
+          )}
         </SelectItem>
       );
     };

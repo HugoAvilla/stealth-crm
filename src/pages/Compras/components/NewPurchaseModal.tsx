@@ -12,6 +12,42 @@ import { SupplierAutocomplete } from "./SupplierAutocomplete";
 import { InstallmentGenerator } from "./InstallmentGenerator";
 import { ItemsInput } from "./ItemsInput";
 import { AttachmentsBlock } from "./AttachmentsBlock";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { cn } from "@/lib/utils";
+
+function DatePickerField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {value ? format(parseISO(value), "dd/MM/yyyy") : <span>dd/mm/aaaa</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={value ? parseISO(value) : undefined}
+          onSelect={(date) => {
+            if (date) {
+              onChange(format(date, "yyyy-MM-dd"));
+              setOpen(false);
+            }
+          }}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 interface NewPurchaseModalProps {
   open: boolean;
@@ -77,8 +113,19 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
       toast.error("O valor total deve ser maior que zero.");
       return;
     }
-    if (!accountId || !categoryId) {
-      toast.error("Conta e Categoria são obrigatórias.");
+    if (!categoryId) {
+      toast.error("A categoria é obrigatória.");
+      return;
+    }
+
+    // A conta do banco não é escolhida aqui: ela é definida na confirmação do
+    // pagamento de cada parcela. Usamos a conta principal apenas como vínculo
+    // padrão da compra (a coluna account_id é obrigatória no banco).
+    const resolvedAccountId =
+      accountId ?? accounts.find(a => a.is_main)?.id ?? accounts[0]?.id ?? null;
+
+    if (!resolvedAccountId) {
+      toast.error("Cadastre uma conta bancária antes de registrar compras.");
       return;
     }
 
@@ -95,7 +142,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
         totalAmount,
         paymentMethod,
         installmentsCount: isImmediate ? 1 : installmentsCount,
-        accountId,
+        accountId: resolvedAccountId,
         categoryId,
         createdBy: user?.id || "",
         installments: isImmediate
@@ -166,7 +213,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
             </div>
             <div className="space-y-2">
               <Label>Data da Compra *</Label>
-              <Input type="date" required value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} className="[color-scheme:dark]" />
+              <DatePickerField value={purchaseDate} onChange={setPurchaseDate} />
             </div>
           </div>
 
@@ -205,7 +252,7 @@ export function NewPurchaseModal({ open, onOpenChange, onSuccess, accounts, cate
                 </div>
                 <div className="space-y-2">
                   <Label>1º Vencimento</Label>
-                  <Input type="date" value={firstDueDate} onChange={e => setFirstDueDate(e.target.value)} className="[color-scheme:dark]" />
+                  <DatePickerField value={firstDueDate} onChange={setFirstDueDate} />
                 </div>
               </div>
               <InstallmentGenerator

@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/pages/Vendas/components/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/pages/Vendas/components/CustomizedServiceBlock";
+import { extractLotes } from "@/pages/Vendas/components/StockBadges";
 import NewVehicleModal from "@/pages/Vendas/components/NewVehicleModal";
 import NewClientModal from "@/pages/Vendas/components/NewClientModal";
 import { validateUpload, sanitizeFilename } from "@/lib/uploadValidator";
@@ -125,7 +126,7 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       // 1. Fetch materials (bobinas) from stock
       const { data: materialsData, error: materialsError } = await supabase
         .from('materials')
-        .select('product_type_id, is_open_roll')
+        .select('product_type_id, is_open_roll, current_stock, name')
         .eq('company_id', companyId)
         .eq('is_active', true);
 
@@ -145,11 +146,14 @@ export function EditSlotModal({ open, onOpenChange, onSlotUpdated, space }: Edit
       const enrichedProducts = (productsData || []).map(pt => {
         const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
         const openRolls = ptMaterials.filter(m => m.is_open_roll);
-        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
+        const closedRolls = ptMaterials.filter(m => !m.is_open_roll && (m.current_stock || 0) > 0);
+        // Lote serve para identificação — mostra o de todos os rolos, inclusive sem estoque.
+        const lotes = extractLotes(ptMaterials);
         return {
           ...pt,
           openRollsCount: openRolls.length,
-          hasClosedRoll: closedRolls.length > 0
+          hasClosedRoll: closedRolls.length > 0,
+          lotes
         };
       });
 

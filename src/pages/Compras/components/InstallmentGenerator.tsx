@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { format, addMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, AlertCircle, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon, AlertCircle, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 export interface InstallmentDraft {
   installmentNumber: number;
@@ -28,6 +31,7 @@ export function InstallmentGenerator({
   onChange,
 }: InstallmentGeneratorProps) {
   const [localErrors, setLocalErrors] = useState<string | null>(null);
+  const [openDateIndex, setOpenDateIndex] = useState<number | null>(null);
 
   // Efeito para gerar as parcelas iniciais quando as dependências básicas mudam
   useEffect(() => {
@@ -173,14 +177,34 @@ export function InstallmentGenerator({
             <div className="space-y-3 mt-1">
               <div className="space-y-1">
                 <span className="text-[10px] font-medium text-muted-foreground">Vencimento</span>
-                <div className="relative">
-                  <Input
-                    type="date"
-                    value={inst.dueDate}
-                    onChange={(e) => handleDateChange(index, e.target.value)}
-                    className="h-8 text-xs px-2 [color-scheme:dark] w-full"
-                  />
-                </div>
+                <Popover open={openDateIndex === index} onOpenChange={(open) => setOpenDateIndex(open ? index : null)}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "h-8 w-full justify-start text-left text-xs font-normal px-2",
+                        !inst.dueDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                      {inst.dueDate ? format(parseISO(inst.dueDate), "dd/MM/yyyy") : <span>dd/mm/aaaa</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={inst.dueDate ? parseISO(inst.dueDate) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          handleDateChange(index, format(date, "yyyy-MM-dd"));
+                          setOpenDateIndex(null);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-1">
