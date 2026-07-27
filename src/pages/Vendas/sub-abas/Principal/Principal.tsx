@@ -41,7 +41,7 @@ export function Principal() {
         qtdFechadas,
         qtdEmAberto,
         refetch: refetchRecognition
-    } = useSalesRecognition(user?.companyId, currentDate);
+    } = useSalesRecognition(user?.companyId, currentDate, "gross");
 
     const {
         showSearchResults,

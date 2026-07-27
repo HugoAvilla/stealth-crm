@@ -7,6 +7,7 @@ import {
   type MachineForRecognition,
   type RateForRecognition,
   type RecognitionContext,
+  type RecognitionMode,
   type SaleForRecognition,
 } from "@/lib/salesRecognition";
 
@@ -32,7 +33,10 @@ export interface SalesRecognitionResult {
  */
 export function useSalesRecognition(
   companyId: number | null | undefined,
-  month: Date
+  month: Date,
+  /** "net" (padrão, ex.: Entradas do Financeiro) desconta a taxa da maquininha;
+   *  "gross" (cards da aba Vendas) mostra o valor mais bruto, sem descontar a taxa. */
+  mode: RecognitionMode = "net"
 ): SalesRecognitionResult {
   const [loading, setLoading] = useState(true);
   const [valorTodas, setValorTodas] = useState(0);
@@ -111,9 +115,9 @@ export function useSalesRecognition(
         monthEnd,
       };
 
-      const todas = aggregateRecognizedInMonth(sales, ctx, "all");
-      const fechadas = aggregateRecognizedInMonth(sales, ctx, "closed");
-      const emAberto = aggregateRecognizedInMonth(sales, ctx, "open");
+      const todas = aggregateRecognizedInMonth(sales, ctx, "all", mode);
+      const fechadas = aggregateRecognizedInMonth(sales, ctx, "closed", mode);
+      const emAberto = aggregateRecognizedInMonth(sales, ctx, "open", mode);
 
       setValorTodas(todas.valor);
       setValorFechadas(fechadas.valor);
@@ -126,7 +130,7 @@ export function useSalesRecognition(
     } finally {
       setLoading(false);
     }
-  }, [companyId, monthStart, monthEnd]);
+  }, [companyId, monthStart, monthEnd, mode]);
 
   useEffect(() => {
     fetchAndCompute();
