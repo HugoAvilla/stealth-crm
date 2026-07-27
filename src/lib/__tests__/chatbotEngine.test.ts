@@ -111,6 +111,23 @@ describe("chatbot engine — message buttons", () => {
     const res = advance(schema, parked, { text: "blablabla" });
     expect(res.outbound[0]).toMatchObject({ text: "Não entendi." });
   });
+
+  it("routes by button synonyms", () => {
+    const synSchema: FlowSchema = {
+      nodes: [
+        node("t", "trigger", { triggerType: "manual" }),
+        node("ask", "message", {
+          text: "Escolha:",
+          buttons: [{ id: "b_sim", label: "Sim", synonyms: ["claro", "quero", "pode ser"] }],
+        }),
+        node("mSim", "message", { text: "Ótimo!" }),
+      ],
+      edges: [edge("t", "ask"), edge("ask", "mSim", "b_sim")],
+    };
+    const parked = startFlow(synSchema).state;
+    const res = advance(synSchema, parked, { text: "Claro" });
+    expect(res.outbound[0]).toMatchObject({ text: "Ótimo!" });
+  });
 });
 
 describe("chatbot engine — question capture & validation", () => {

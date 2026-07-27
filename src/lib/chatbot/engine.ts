@@ -35,6 +35,8 @@ export interface FlowButton {
   label: string;
   /** When set, this is a URL button (opens a link) instead of a branching reply. */
   url?: string;
+  /** Alternative texts that also match this button (Kommo-style synonyms). */
+  synonyms?: string[];
 }
 
 export type AttachmentType = "image" | "document" | "video" | "audio";
@@ -360,10 +362,13 @@ function resolveWaiting(
       const buttons = data.buttons ?? [];
       let handle = incoming.buttonId;
       if (!handle && incoming.text) {
-        const byLabel = buttons.find(
-          (b) => b.label.trim().toLowerCase() === incoming.text.trim().toLowerCase(),
+        const t = incoming.text.trim().toLowerCase();
+        const match = buttons.find(
+          (b) =>
+            b.label.trim().toLowerCase() === t ||
+            (b.synonyms ?? []).some((s) => s.trim().toLowerCase() === t),
         );
-        if (byLabel) handle = byLabel.id;
+        if (match) handle = match.id;
       }
       const target = handle ? nextByHandle(schema, node.id, handle) : null;
       return target ?? nextByHandle(schema, node.id, FALLBACK_HANDLE) ?? defaultNext(schema, node.id);

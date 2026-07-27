@@ -68,6 +68,11 @@ function MessageNode({ id, data, selected }: NP) {
   const addUrl = () => setButtons([...buttons, { id: genId("url"), label: "", url: "" }]);
   const patchButton = (i: number, patch: any) => setButtons(buttons.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
   const removeButton = (i: number) => setButtons(buttons.filter((_, idx) => idx !== i));
+  const addSynonym = (i: number) => patchButton(i, { synonyms: [...(buttons[i].synonyms ?? []), ""] });
+  const patchSynonym = (i: number, si: number, val: string) =>
+    patchButton(i, { synonyms: (buttons[i].synonyms ?? []).map((s: string, idx: number) => (idx === si ? val : s)) });
+  const removeSynonym = (i: number, si: number) =>
+    patchButton(i, { synonyms: (buttons[i].synonyms ?? []).filter((_: string, idx: number) => idx !== si) });
 
   return (
     <div
@@ -132,6 +137,26 @@ function MessageNode({ id, data, selected }: NP) {
                     placeholder="https://…"
                     onChange={(e) => patchButton(i, { url: e.target.value })}
                   />
+                )}
+                {b.url === undefined && (
+                  <div className="mt-1 pt-1 border-t flex flex-wrap items-center gap-1">
+                    {(b.synonyms ?? []).map((syn: string, si: number) => (
+                      <span key={si} className="inline-flex items-center gap-0.5 rounded bg-blue-500/10 px-1 py-0.5">
+                        <input
+                          className="nodrag bg-transparent outline-none text-[10px] text-blue-600 dark:text-blue-400 w-14"
+                          value={syn}
+                          placeholder="sinônimo"
+                          onChange={(e) => patchSynonym(i, si, e.target.value)}
+                        />
+                        <button className="nodrag text-blue-600/60 hover:text-destructive" onClick={() => removeSynonym(i, si)}>
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                    <button className="nodrag text-[10px] text-blue-600 dark:text-blue-400 hover:underline" onClick={() => addSynonym(i)}>
+                      + sinônimo
+                    </button>
+                  </div>
                 )}
               </div>
               {b.url === undefined && (

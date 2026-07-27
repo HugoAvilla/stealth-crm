@@ -37,7 +37,7 @@ import { NodeEditContext } from "@/components/atendimento/nodes/NodeEditContext"
 import { NodePalette } from "@/components/atendimento/NodePalette";
 import { NodeConfigPanel } from "@/components/atendimento/NodeConfigPanel";
 import { WhatsAppPreview } from "@/components/atendimento/WhatsAppPreview";
-import { NODE_CATALOG, genId } from "@/lib/chatbot/nodeCatalog";
+import { NODE_CATALOG, PALETTE_NODES, genId } from "@/lib/chatbot/nodeCatalog";
 import {
   useChatbotFlow,
   useCreateChatbotFlow,
@@ -78,6 +78,7 @@ function EditorInner() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
+  const [addMenu, setAddMenu] = useState<any>(null);
   const initialized = useRef(false);
 
   // Load an existing flow once
@@ -99,6 +100,45 @@ function EditorInner() {
   const onConnect = useCallback(
     (params: any) => setEdges((eds) => addEdge({ ...params, ...defaultEdgeOptions }, eds)),
     [setEdges],
+  );
+
+  // Kommo-style "Adicionar próximo passo": drag from an output to empty canvas
+  // opens a node-type menu; the chosen node is created already connected.
+  const onConnectEnd = useCallback(
+    (event: any, connectionState: any) => {
+      if (connectionState?.isValid) return; // landed on a real target
+      const source = connectionState?.fromNode?.id;
+      if (!source) return;
+      const point = "changedTouches" in event ? event.changedTouches[0] : event;
+      const position = screenToFlowPosition({ x: point.clientX, y: point.clientY });
+      setAddMenu({
+        x: point.clientX,
+        y: point.clientY,
+        position,
+        source,
+        sourceHandle: connectionState?.fromHandle?.id ?? null,
+      });
+    },
+    [screenToFlowPosition],
+  );
+
+  const addStepFromMenu = useCallback(
+    (type: string) => {
+      setAddMenu((menu: any) => {
+        if (!menu) return null;
+        const newNode = { id: genId(type), type, position: menu.position, data: NODE_CATALOG[type].defaultData() };
+        setNodes((nds) => nds.concat(newNode));
+        setEdges((eds) =>
+          addEdge(
+            { source: menu.source, sourceHandle: menu.sourceHandle, target: newNode.id, targetHandle: null, ...defaultEdgeOptions },
+            eds,
+          ),
+        );
+        setSelectedId(newNode.id);
+        return null;
+      });
+    },
+    [setNodes, setEdges],
   );
 
   const onDrop = useCallback(
@@ -313,6 +353,7 @@ function EditorInner() {
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              onConnectEnd={onConnectEnd}
               onDrop={onDrop}
               onDragOver={onDragOver}
               onNodeClick={(_, n) => setSelectedId(n.id)}
@@ -326,6 +367,35 @@ function EditorInner() {
               <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
             </ReactFlow>
           </NodeEditContext.Provider>
+
+          {addMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setAddMenu(null)} />
+              <div
+                className="fixed z-50 w-56 rounded-lg border bg-popover text-popover-foreground shadow-lg overflow-hidden"
+                style={{ left: Math.min(addMenu.x, window.innerWidth - 240), top: Math.min(addMenu.y, window.innerHeight - 320) }}
+              >
+                <div className="px-3 py-2 text-[11px] font-semibold text-muted-foreground border-b">
+                  Adicionar próximo passo
+                </div>
+                <div className="max-h-72 overflow-y-auto py-1">
+                  {PALETTE_NODES.map((n) => (
+                    <button
+                      key={n.type}
+                      onClick={() => addStepFromMenu(n.type)}
+                      className="w-full flex items-start gap-2.5 px-3 py-1.5 text-left hover:bg-accent"
+                    >
+                      <n.icon className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium">{n.label}</span>
+                        <span className="block text-[11px] text-muted-foreground leading-tight">{n.description}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {previewOpen ? (
