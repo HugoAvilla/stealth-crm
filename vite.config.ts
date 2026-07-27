@@ -48,14 +48,18 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("recharts") || id.includes("d3")) {
-              return "vendor-recharts";
-            }
             if (id.includes("lucide-react")) {
               return "vendor-lucide";
             }
             if (id.includes("@supabase")) {
               return "vendor-supabase";
+            }
+            // recharts, d3 and @xyflow/react all share d3 internals. They MUST
+            // live in the same chunk — splitting d3 away from its consumers
+            // creates a circular chunk and a runtime TDZ ("Cannot access '…'
+            // before initialization" -> black screen in the production build).
+            if (id.includes("recharts") || id.includes("d3") || id.includes("@xyflow")) {
+              return "vendor-viz";
             }
             return "vendor";
           }

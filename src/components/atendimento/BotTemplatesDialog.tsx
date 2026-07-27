@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, X, MessageCircle, Instagram, Facebook, Mail, Monitor, Hash, ShoppingCart, Bot, Heart, Send } from "lucide-react";
+import { Sparkles, X, MessageCircle, Instagram, Facebook, Mail, Monitor, Hash, ShoppingCart, Bot, Heart, Send, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useCreateChatbotFlow } from "@/hooks/useChatbotFlows";
+import { getTemplateFlow, hasTemplateFlow } from "@/lib/chatbot/templates";
 
 interface BotTemplate {
     id: string;
@@ -63,6 +65,25 @@ const CHANNELS = [
 export function BotTemplatesDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
     const navigate = useNavigate();
     const [selectedCategory, setSelectedCategory] = useState("Todos os modelos");
+    const [creatingId, setCreatingId] = useState<string | null>(null);
+    const createFlow = useCreateChatbotFlow();
+
+    const handleSelectTemplate = async (template: BotTemplate) => {
+        if (createFlow.isPending) return;
+        setCreatingId(template.id);
+        const tpl = getTemplateFlow(template.id);
+        try {
+            const flow = await createFlow.mutateAsync({ name: tpl?.name || template.title, flow_schema: tpl?.schema });
+            onOpenChange(false);
+            navigate(`/atendimento/editor/${flow.id}`);
+        } catch {
+            // Table not migrated / offline: still let the user build.
+            onOpenChange(false);
+            navigate('/atendimento/editor/new?type=salesbot');
+        } finally {
+            setCreatingId(null);
+        }
+    };
 
     const categories = ["Todos os modelos", "Gerar leads", "Informações comerciais", "Engajar leads", "Reduzir retrabalho"];
 
@@ -70,9 +91,16 @@ export function BotTemplatesDialog({ open, onOpenChange }: { open: boolean, onOp
         ? TEMPLATES
         : TEMPLATES.filter(t => t.category === selectedCategory || selectedCategory === "Todos os modelos"); // Simple mock filter
 
-    const handleCreateZero = () => {
-        onOpenChange(false);
-        navigate('/atendimento/editor/new?type=salesbot');
+    const handleCreateZero = async () => {
+        try {
+            const flow = await createFlow.mutateAsync({ name: "Novo bot" });
+            onOpenChange(false);
+            navigate(`/atendimento/editor/${flow.id}`);
+        } catch {
+            // Table not migrated yet / offline: still let the user build locally.
+            onOpenChange(false);
+            navigate('/atendimento/editor/new?type=salesbot');
+        }
     };
 
     const renderCardVisual = (template: BotTemplate) => {
@@ -100,9 +128,11 @@ export function BotTemplatesDialog({ open, onOpenChange }: { open: boolean, onOp
                     <div className="p-6 pb-4">
                         <h2 className="text-xl font-medium text-foreground mb-6">Criar um bot</h2>
                         <Button
-                            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium shadow-sm transition-all"
+                            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium shadow-sm transition-all gap-2"
                             onClick={handleCreateZero}
+                            disabled={createFlow.isPending}
                         >
+                            {createFlow.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                             Começar do zero
                         </Button>
                     </div>
@@ -181,7 +211,11 @@ export function BotTemplatesDialog({ open, onOpenChange }: { open: boolean, onOp
                         {/* Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {filteredTemplates.map(template => (
-                                <div key={template.id} className="group cursor-pointer flex flex-col">
+                                <div
+                                    key={template.id}
+                                    className="group cursor-pointer flex flex-col"
+                                    onClick={() => handleSelectTemplate(template)}
+                                >
                                     <div className="aspect-[1.6/1] bg-muted/30 border border-border/50 rounded-lg overflow-hidden mb-3 relative flex items-center justify-center transition-all group-hover:shadow-md group-hover:border-border">
                                         <div className="w-full h-full bg-gradient-to-br from-muted/50 to-muted/20 relative">
                                             {renderCardVisual(template)}
@@ -192,6 +226,16 @@ export function BotTemplatesDialog({ open, onOpenChange }: { open: boolean, onOp
                                                 </span>
                                             </div>
                                         </div>
+                                        {hasTemplateFlow(template.id) && (
+                                            <span className="absolute top-2 left-2 z-20 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow">
+                                                Pronto
+                                            </span>
+                                        )}
+                                        {creatingId === template.id && (
+                                            <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/70 backdrop-blur-sm">
+                                                <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                                            </div>
+                                        )}
                                     </div>
                                     <h4 className="text-sm font-medium text-foreground tracking-tight leading-snug group-hover:text-blue-500 transition-colors">
                                         {template.title}

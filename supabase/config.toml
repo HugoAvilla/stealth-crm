@@ -8,3 +8,22 @@ verify_jwt = false
 
 [functions.serve-pdf]
 verify_jwt = false
+
+# WhatsApp chatbot (Fase 2)
+# Public webhook called by the WhatsApp provider (uazapi) — must be unauthenticated.
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+# Called by logged-in users (JWT forwarded by supabase.functions.invoke).
+[functions.whatsapp-connect]
+verify_jwt = true
+
+[functions.whatsapp-send]
+verify_jwt = true
+
+[functions.chatbot-start]
+verify_jwt = true
+
+# Invoked by pg_cron (pg_net) to resume timed "wait" nodes.
+[functions.chatbot-scheduler]
+verify_jwt = false
