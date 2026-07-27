@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StockBadges } from "./StockBadges";
 import { Undo2, Check, Pencil } from "lucide-react";
 import {
   AlertDialog,
@@ -217,19 +218,19 @@ export default function CustomizedServiceBlock({
                   const outOfStock = filteredProducts.filter((p: any) => !p.openRollsCount && !p.hasClosedRoll);
 
                   const renderProduct = (product: any) => {
-                    let stockDisplay = "";
-                    if (product.openRollsCount && product.openRollsCount > 0) {
-                      stockDisplay += `${product.openRollsCount} Aberta${product.openRollsCount === 1 ? '' : 's'}`;
-                    }
-                    if (product.hasClosedRoll) {
-                      stockDisplay += (stockDisplay ? " | " : "") + "Fechada em estoque";
-                    }
-
+                    const isOutOfStock = !product.openRollsCount && !product.hasClosedRoll;
                     return (
-                      <SelectItem key={product.id} value={product.id.toString()}>
+                      <SelectItem
+                        key={product.id}
+                        value={product.id.toString()}
+                        disabled={isOutOfStock}
+                        endSlot={<StockBadges openRollsCount={product.openRollsCount} hasClosedRoll={product.hasClosedRoll} />}
+                      >
                         {product.brand} {product.name}
                         {product.light_transmission ? ` ${product.light_transmission}` : ""}
-                        {stockDisplay ? ` [${stockDisplay}]` : ""}
+                        {product.lotes && product.lotes.length > 0 && (
+                          <span className="text-muted-foreground"> · Lote {product.lotes.join(", ")}</span>
+                        )}
                       </SelectItem>
                     );
                   };

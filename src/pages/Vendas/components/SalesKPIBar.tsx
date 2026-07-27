@@ -49,21 +49,21 @@ const SalesKPIBar = ({
 
   const kpis = [
     {
-      label: "Total de vendas em aberto/fechado",
+      label: "Total de vendas em aberto/fechado (valor bruto)",
       value: `R$ ${vTodas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
       icon: DollarSign,
       color: "text-success",
       bgColor: "bg-success/20"
     },
     {
-      label: "Total de vendas fechadas",
+      label: "Total de vendas fechadas (valor bruto)",
       value: `${nFechadas} | R$ ${vFechadas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
       icon: DollarSign,
       color: "text-success",
       bgColor: "bg-success/20"
     },
     {
-      label: "Total de vendas em aberto",
+      label: "Total de vendas em aberto (valor bruto)",
       value: `${nEmAberto} | R$ ${vEmAberto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
       icon: Clock,
       color: "text-warning",

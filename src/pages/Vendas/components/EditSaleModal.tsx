@@ -1,5 +1,5 @@
 ﻿// @ts-nocheck
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -51,7 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { consumeStockForDetailedSale, createTransactionFromSale } from "@/lib/stockConsumption";
+import { consumeStockForDetailedSale, createTransactionFromSale, reverseStockForSale } from "@/lib/stockConsumption";
 import { reverseAllSaleTransactions, createBoletoInstallmentTransactions } from "@/lib/financialTransactions";
 import {
   calculateCardMachineNetAmount,
@@ -59,8 +59,9 @@ import {
 } from "@/lib/cardMachineFees";
 import NewClientModal from "@/pages/Vendas/components/NewClientModal";
 import NewVehicleModal from "@/pages/Vendas/components/NewVehicleModal";
-import ServiceItemRow, { DetailedServiceItem, ProductCategory } from "@/pages/Vendas/components/ServiceItemRow";
+import ServiceItemRow, { DetailedServiceItem, ProductCategory, distributeTotalToItems } from "@/pages/Vendas/components/ServiceItemRow";
 import CustomizedServiceBlock, { CustomizedRegionItem, createInitialCustomItems } from "@/pages/Vendas/components/CustomizedServiceBlock";
+import { extractLotes } from "@/pages/Vendas/components/StockBadges";
 import CommissionSelectors from "@/pages/Vendas/components/CommissionSelectors";
 import { toast } from "sonner";
 import { SaleWithDetails } from "@/types/sales";
@@ -91,6 +92,7 @@ interface ProductType {
   // unit_price removido - preço vem do serviço
   openRollsCount?: number;
   hasClosedRoll?: boolean;
+  lotes?: string[];
 }
 
 interface VehicleRegion {
@@ -148,6 +150,8 @@ const EditSaleModal = ({ open, onOpenChange, sale, onSaved }: EditSaleModalProps
   const [detailedItems, setDetailedItems] = useState<DetailedServiceItem[]>([]);
   const [customizedGroups, setCustomizedGroups] = useState<Map<string, CustomizedRegionItem[]>>(new Map());
   const [companyId, setCompanyId] = useState<number | null>(null);
+  // Veículo carregado da venda em edição — usado para preservar os metros salvos
+  const loadedVehicleIdRef = useRef<string | null>(null);
   const [originalAccountId, setOriginalAccountId] = useState<number | null>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [machines, setMachines] = useState<any[]>([]);
@@ -160,6 +164,7 @@ const EditSaleModal = ({ open, onOpenChange, sale, onSaved }: EditSaleModalProps
     if (open && sale) {
       setSaleDate(new Date(sale.sale_date + 'T12:00:00'));
       if (sale.client_id) setSelectedClientId(sale.client_id.toString());
+      loadedVehicleIdRef.current = sale.vehicle_id ? sale.vehicle_id.toString() : null;
       if (sale.vehicle_id) setSelectedVehicleId(sale.vehicle_id.toString());
       if (sale.discount) {
         setDiscountValue(sale.discount.toString());
@@ -243,7 +248,7 @@ const EditSaleModal = ({ open, onOpenChange, sale, onSaved }: EditSaleModalProps
         supabase.from('product_types').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('brand'),
         supabase.from('vehicle_regions').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('sort_order'),
         supabase.from('region_consumption_rules').select('*').eq('company_id', profile.company_id),
-        supabase.from('materials').select('product_type_id, is_open_roll, current_stock').eq('company_id', profile.company_id).eq('is_active', true),
+        supabase.from('materials').select('product_type_id, is_open_roll, current_stock, name').eq('company_id', profile.company_id).eq('is_active', true),
         supabase.from('sale_payments').select('*').eq('sale_id', sale.id),
         supabase.from('accounts').select('*').eq('company_id', profile.company_id).eq('is_active', true).order('is_main', { ascending: false }),
         supabase.from('card_machines').select('id, name, debit_rate, is_anticipated').eq('company_id', profile.company_id),
@@ -256,11 +261,14 @@ const EditSaleModal = ({ open, onOpenChange, sale, onSaved }: EditSaleModalProps
       const productsList = (productTypesRes.data || []).map(pt => {
         const ptMaterials = materialsList.filter(m => m.product_type_id === pt.id);
         const openRolls = ptMaterials.filter(m => m.is_open_roll);
-        const closedRolls = ptMaterials.filter(m => !m.is_open_roll);
+        const closedRolls = ptMaterials.filter(m => !m.is_open_roll && (m.current_stock || 0) > 0);
+        // Lote serve para identificação — mostra o de todos os rolos, inclusive sem estoque.
+        const lotes = extractLotes(ptMaterials);
         return {
           ...pt,
           openRollsCount: openRolls.length,
-          hasClosedRoll: closedRolls.length > 0
+          hasClosedRoll: closedRolls.length > 0,
+          lotes
         };
       });
 
@@ -357,6 +365,10 @@ const EditSaleModal = ({ open, onOpenChange, sale, onSaved }: EditSaleModalProps
 
   // Recalculate meters when vehicle changes (mantém o preço do serviço)
   useEffect(() => {
+    // Na carga inicial (e quando as regras de consumo terminam de carregar) mantém
+    // os metros salvos da venda — só recalcula se o usuário trocar de veículo.
+    if (selectedVehicleId === loadedVehicleIdRef.current) return;
+
     if (selectedVehicle?.size && detailedItems.length > 0) {
       const updatedItems = detailedItems.map(item => {
         if (item.regionId) {
@@ -410,12 +422,18 @@ const EditSaleModal = ({ open, onOpenChange, sale, onSaved }: EditSaleModalProps
     return null;
   })();
 
-  // Update service price when calculated subtotal changes (only if not manually set)
+  // Mantém "Preço do Serviço" sempre igual à soma dos itens ("Valor calculado").
+  // Só reescreve quando de fato divergem, para não atrapalhar a digitação no
+  // campo (a digitação já redistribui o valor nos itens, mantendo a igualdade).
   useEffect(() => {
-    if (calculatedSubtotal > 0 && !servicePrice) {
-      setServicePrice(calculatedSubtotal.toFixed(2));
+    if (calculatedSubtotal > 0) {
+      if (Math.abs(parseFloat(servicePrice || "0") - calculatedSubtotal) >= 0.005) {
+        setServicePrice(calculatedSubtotal.toFixed(2));
+      }
+    } else if (detailedItems.length === 0) {
+      setServicePrice("");
     }
-  }, [calculatedSubtotal]);
+  }, [calculatedSubtotal, detailedItems.length]);
 
   // Handle discount changes
   const handleDiscountValueChange = (value: string) => {
@@ -577,24 +595,10 @@ const EditSaleModal = ({ open, onOpenChange, sale, onSaved }: EditSaleModalProps
 
       if (saleError) throw saleError;
 
-      // Find old stock movements to reverse
-      const { data: oldMovements } = await supabase
-        .from('stock_movements')
-        .select('*')
-        .like('reason', `Consumo automático - Venda #${sale.id}%`)
-        .eq('movement_type', 'Saida');
-
-      if (oldMovements && oldMovements.length > 0) {
-        const estornoData = oldMovements.map(m => ({
-          material_id: m.material_id,
-          movement_type: 'Entrada',
-          quantity: m.quantity,
-          reason: `Estorno de Edição - Venda #${sale.id}`,
-          user_id: user?.id,
-          company_id: companyId,
-        }));
-        await supabase.from('stock_movements').insert(estornoData);
-      }
+      // Estorna o consumo de estoque anterior (bobinas físicas, rolo aberto e
+      // materiais simples) antes de reconsumir com os itens editados, evitando
+      // baixa em dobro. Marca os movimentos revertidos para não estornar 2x.
+      await reverseStockForSale(sale.id, 'Estorno de Edição');
 
       await supabase.from('service_items_detailed').delete().eq('sale_id', sale.id);
       // RF-08: Reverter transações antigas via serviço financeiro (trigger reverte saldo)
@@ -1197,7 +1201,7 @@ const EditSaleModal = ({ open, onOpenChange, sale, onSaved }: EditSaleModalProps
                         <SelectContent>
                           {accounts.map(acc => (
                             <SelectItem key={acc.id} value={acc.id.toString()}>
-                              {acc.name} (Saldo: R$ {acc.current_balance?.toFixed(2)})
+                              {acc.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1269,6 +1273,8 @@ const EditSaleModal = ({ open, onOpenChange, sale, onSaved }: EditSaleModalProps
                     value={servicePrice}
                     onChange={(e) => {
                       setServicePrice(e.target.value);
+                      // Replica o preço nos itens para manter "Valor calculado" igual
+                      setDetailedItems(prev => distributeTotalToItems(prev, parseFloat(e.target.value) || 0));
                       // Reset discount when price changes
                       if (e.target.value) {
                         const newSubtotal = parseFloat(e.target.value);

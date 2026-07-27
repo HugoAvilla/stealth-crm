@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, TrendingDown, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag, ShoppingCart, Receipt, FileText, DollarSign, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, TrendingDown, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag, ShoppingCart, Receipt, FileText, DollarSign, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -86,6 +86,9 @@ export function VisaoGeral() {
     const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
     const [companyId, setCompanyId] = useState<number | null>(null);
+    const [boletoView, setBoletoView] = useState<'receber' | 'pagar' | 'atrasado'>('receber');
+    const [pendingReceber, setPendingReceber] = useState<{ amount: number; due_date: string }[]>([]);
+    const [pendingPagar, setPendingPagar] = useState<{ amount: number; due_date: string }[]>([]);
 
     // Regra única de reconhecimento (líquido). Entradas = vendas fechadas reconhecidas no mês.
     const { valorFechadas: entradasVendasReconhecidas } = useSalesRecognition(companyId, currentMonth);
@@ -179,6 +182,23 @@ export function VisaoGeral() {
                 .select("id, machine_id, brand, installments, rate")
                 .eq("company_id", profile.company_id);
 
+            // Boletos a RECEBER: todas as parcelas de venda pendentes (mesma fonte da aba Conta / Boletos)
+            const { data: receberInstallments } = await supabase
+                .from("boleto_installments")
+                .select("amount, due_date, boletos!inner(company_id)")
+                .eq("boletos.company_id", profile.company_id)
+                .neq("status", "paid");
+
+            // Boletos a PAGAR: todas as parcelas de compra pendentes (mesma fonte da aba Compras)
+            const { data: pagarInstallments } = await supabase
+                .from("purchase_installments")
+                .select("amount, due_date, purchases!inner(company_id)")
+                .eq("purchases.company_id", profile.company_id)
+                .eq("status", "pendente");
+
+            setPendingReceber((receberInstallments || []).map(i => ({ amount: Number(i.amount), due_date: i.due_date })));
+            setPendingPagar((pagarInstallments || []).map(i => ({ amount: Number(i.amount), due_date: i.due_date })));
+
             setAccounts(accountsData || []);
             setTransactions(transactionsData || []);
             setTransfers(transfersData || []);
@@ -248,6 +268,33 @@ export function VisaoGeral() {
     const futureSaidas = futureTransactions
         .filter(t => t.type === 'Saida')
         .reduce((sum, t) => sum + t.amount, 0);
+
+    // === BOLETOS FUTUROS ===
+    // Não pagos (em dia): vencimento dentro do mês selecionado e ainda NÃO vencido (>= hoje)
+    // Atrasado: qualquer parcela pendente já vencida (< hoje), de qualquer mês — NÃO se mistura com os "não pagos"
+    const sumAmount = (arr: { amount: number }[]) => arr.reduce((s, i) => s + i.amount, 0);
+
+    const receberEmDia = pendingReceber.filter(i => i.due_date >= monthStartStr && i.due_date <= monthEndStr && i.due_date >= todayStr);
+    const pagarEmDia = pendingPagar.filter(i => i.due_date >= monthStartStr && i.due_date <= monthEndStr && i.due_date >= todayStr);
+    const atrasados = [...pendingReceber, ...pendingPagar].filter(i => i.due_date < todayStr);
+
+    const boletoBuckets = {
+        receber: { total: sumAmount(receberEmDia), count: receberEmDia.length },
+        pagar: { total: sumAmount(pagarEmDia), count: pagarEmDia.length },
+        atrasado: { total: sumAmount(atrasados), count: atrasados.length },
+    };
+
+    const isReceber = boletoView === 'receber';
+    const isPagar = boletoView === 'pagar';
+    const isAtrasado = boletoView === 'atrasado';
+    const boletosTotal = boletoBuckets[boletoView].total;
+    const boletosCount = boletoBuckets[boletoView].count;
+
+    const boletoTheme = {
+        receber: { text: 'text-green-600 dark:text-green-500', bg: 'bg-green-500/5', border: 'border-green-500/30', iconBg: 'bg-green-500/10', label: 'Total a receber', sub: 'Valores a receber neste mês' },
+        pagar: { text: 'text-red-600 dark:text-red-500', bg: 'bg-red-500/5', border: 'border-red-500/30', iconBg: 'bg-red-500/10', label: 'Total a pagar', sub: 'Valores a pagar neste mês' },
+        atrasado: { text: 'text-amber-600 dark:text-amber-500', bg: 'bg-amber-500/5', border: 'border-amber-500/30', iconBg: 'bg-amber-500/10', label: 'Total atrasado', sub: 'Boletos vencidos e não pagos' },
+    }[boletoView];
 
     // === NOVOS INDICADORES DE MAQUININHA E TRANSFERÊNCIAS ===
 
@@ -556,6 +603,84 @@ export function VisaoGeral() {
                     </div>
                 </Card>
 
+            </div>
+
+            {/* Card de Boletos Futuros (A receber / A pagar / Atrasado) */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
+                <Card className={cn(
+                    "md:col-span-12 lg:col-span-6 relative overflow-hidden transition-colors duration-300",
+                    boletoTheme.bg, boletoTheme.border
+                )}>
+                    <div className="absolute right-4 bottom-2 opacity-[0.07]">
+                        {isAtrasado ? <AlertTriangle size={110} /> : <FileText size={110} />}
+                    </div>
+                    <CardContent className="p-6 relative z-10">
+                        <div className="flex items-start justify-between mb-5 gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className={cn("p-2 rounded-lg", boletoTheme.iconBg, boletoTheme.text)}>
+                                    {isAtrasado ? <AlertTriangle className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-foreground leading-tight">Boletos Futuros</p>
+                                    <p className="text-xs text-muted-foreground">{boletoTheme.sub}</p>
+                                </div>
+                            </div>
+
+                            {/* Botão de alternância A receber / A pagar / Atrasado */}
+                            <div className="inline-flex items-center rounded-full border border-border/60 bg-background/60 backdrop-blur-sm p-0.5 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setBoletoView('receber')}
+                                    className={cn(
+                                        "px-2.5 py-1 text-xs font-medium rounded-full transition-colors",
+                                        isReceber ? "bg-green-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    A receber
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setBoletoView('pagar')}
+                                    className={cn(
+                                        "px-2.5 py-1 text-xs font-medium rounded-full transition-colors",
+                                        isPagar ? "bg-red-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    A pagar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setBoletoView('atrasado')}
+                                    className={cn(
+                                        "px-2.5 py-1 text-xs font-medium rounded-full transition-colors",
+                                        isAtrasado ? "bg-amber-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    Atrasado
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex items-end justify-between gap-4">
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{boletoTheme.label}</p>
+                                <p className={cn("text-3xl font-bold tracking-tight", boletoTheme.text)}>
+                                    {formatCurrency(boletosTotal)}
+                                </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <p className={cn("text-2xl font-bold tracking-tight", boletoTheme.text)}>
+                                    {boletosCount}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {isAtrasado
+                                        ? (boletosCount === 1 ? "boleto atrasado" : "boletos atrasados")
+                                        : (boletosCount === 1 ? "boleto no mês" : "boletos no mês")}
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Novos Cards de Detalhes de Maquininha e Transferências */}

@@ -6,7 +6,10 @@ import { calculateCardMachineNetAmount } from "./cardMachineFees";
 // Usada tanto pela aba Vendas quanto pelo card Entradas
 // do Financeiro para nunca mais divergirem.
 //
-// Valores são LÍQUIDOS (descontada a taxa da maquininha).
+// Valores são LÍQUIDOS por padrão (mode="net": descontada a taxa da
+// maquininha). No mode="gross" a taxa da maquininha NÃO é descontada
+// (valor mais bruto) — usado só pelos cards da aba Vendas. O desconto da
+// venda e as regras de mês abaixo valem igual nos dois modos.
 // Regras por forma de pagamento (quanto "cai" no mês M):
 //   - Dinheiro / Pix / Débito .......... valor cheio, no mês da venda
 //   - Crédito (maquininha antecipada) .. valor cheio, no mês da venda
@@ -59,6 +62,9 @@ export interface RecognitionContext {
   monthEnd: string; // 'yyyy-MM-dd'
 }
 
+/** "net" = líquido (desconta taxa da maquininha); "gross" = bruto (não desconta). */
+export type RecognitionMode = "net" | "gross";
+
 function inMonth(dateStr: string, start: string, end: string): boolean {
   return dateStr >= start && dateStr <= end;
 }
@@ -83,7 +89,8 @@ function findCreditRate(
 export function recognizedPaymentInMonth(
   sale: SaleForRecognition,
   p: PaymentForRecognition,
-  ctx: RecognitionContext
+  ctx: RecognitionContext,
+  mode: RecognitionMode = "net"
 ): number {
   const saleInMonth = inMonth(sale.sale_date, ctx.monthStart, ctx.monthEnd);
 
@@ -94,14 +101,17 @@ export function recognizedPaymentInMonth(
 
     case "Débito": {
       const machine = p.machine_id != null ? ctx.machinesById.get(p.machine_id) : undefined;
-      const net = calculateCardMachineNetAmount(p.amount, machine?.debit_rate ?? 0);
+      const net =
+        mode === "gross"
+          ? p.amount
+          : calculateCardMachineNetAmount(p.amount, machine?.debit_rate ?? 0);
       return saleInMonth ? net : 0;
     }
 
     case "Crédito": {
       const machine = p.machine_id != null ? ctx.machinesById.get(p.machine_id) : undefined;
       const rate = findCreditRate(ctx, p.machine_id, p.installments, p.brand);
-      const net = calculateCardMachineNetAmount(p.amount, rate);
+      const net = mode === "gross" ? p.amount : calculateCardMachineNetAmount(p.amount, rate);
 
       // Antecipada: valor cheio (líquido) no mês da venda.
       if (machine?.is_anticipated) {
@@ -136,7 +146,8 @@ export function recognizedPaymentInMonth(
 /** Valor líquido reconhecido no mês para uma venda inteira. */
 export function recognizedSaleValueInMonth(
   sale: SaleForRecognition,
-  ctx: RecognitionContext
+  ctx: RecognitionContext,
+  mode: RecognitionMode = "net"
 ): number {
   const payments = sale.sale_payments ?? [];
 
@@ -147,7 +158,7 @@ export function recognizedSaleValueInMonth(
     return inMonth(sale.sale_date, ctx.monthStart, ctx.monthEnd) ? sale.total : 0;
   }
 
-  return payments.reduce((sum, p) => sum + recognizedPaymentInMonth(sale, p, ctx), 0);
+  return payments.reduce((sum, p) => sum + recognizedPaymentInMonth(sale, p, ctx, mode), 0);
 }
 
 export type SaleScope = "all" | "closed" | "open";
@@ -162,11 +173,12 @@ function matchesScope(sale: SaleForRecognition, scope: SaleScope): boolean {
 export function sumRecognizedInMonth(
   sales: SaleForRecognition[],
   ctx: RecognitionContext,
-  scope: SaleScope = "all"
+  scope: SaleScope = "all",
+  mode: RecognitionMode = "net"
 ): number {
   return sales
     .filter((s) => matchesScope(s, scope))
-    .reduce((sum, s) => sum + recognizedSaleValueInMonth(s, ctx), 0);
+    .reduce((sum, s) => sum + recognizedSaleValueInMonth(s, ctx, mode), 0);
 }
 
 export interface RecognitionAggregate {
@@ -183,13 +195,14 @@ export interface RecognitionAggregate {
 export function aggregateRecognizedInMonth(
   sales: SaleForRecognition[],
   ctx: RecognitionContext,
-  scope: SaleScope = "all"
+  scope: SaleScope = "all",
+  mode: RecognitionMode = "net"
 ): RecognitionAggregate {
   let valor = 0;
   let quantidade = 0;
   for (const s of sales) {
     if (!matchesScope(s, scope)) continue;
-    const v = recognizedSaleValueInMonth(s, ctx);
+    const v = recognizedSaleValueInMonth(s, ctx, mode);
     if (v > 0) {
       valor += v;
       quantidade += 1;

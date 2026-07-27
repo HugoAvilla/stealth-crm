@@ -100,8 +100,8 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName;
 
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item> & { endSlot?: React.ReactNode }
+>(({ className, children, endSlot, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
@@ -116,7 +116,9 @@ const SelectItem = React.forwardRef<
       </SelectPrimitive.ItemIndicator>
     </span>
 
+    {/* Só o conteúdo de ItemText é espelhado no trigger; endSlot fica só na lista. */}
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    {endSlot ? <span className="ml-auto pl-2 shrink-0">{endSlot}</span> : null}
   </SelectPrimitive.Item>
 ));
 SelectItem.displayName = SelectPrimitive.Item.displayName;

@@ -20,10 +20,11 @@ import {
 } from "@/components/ui/popover";
 import { Purchase } from "@/lib/database.types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export interface PurchaseRow extends Purchase {
   supplier_name: string;
-  purchase_installments?: { id: number; status: string }[];
+  purchase_installments?: { id: number; status: string; due_date: string }[];
 }
 
 export interface PurchaseFilters {
@@ -54,6 +55,15 @@ export function PurchasesTable({
       default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  const isPurchaseOverdue = (p: PurchaseRow) =>
+    p.status !== 'paga' &&
+    (p.purchase_installments?.some(inst => inst.status !== 'paga' && inst.due_date < today) ?? false);
+
+  const getRowStatusBadge = (p: PurchaseRow) =>
+    isPurchaseOverdue(p) ? <Badge variant="destructive">Atrasada</Badge> : getStatusBadge(p.status);
 
   const filteredPurchases = purchases.filter(p => {
     const searchMatch = p.supplier_name_snapshot.toLowerCase().includes(filters.search.toLowerCase());
@@ -146,7 +156,7 @@ export function PurchasesTable({
                 filteredPurchases.map(purchase => (
                   <TableRow
                     key={`desktop-${purchase.id}`}
-                    className="cursor-pointer hover:bg-muted/30"
+                    className={cn("cursor-pointer hover:bg-muted/30", isPurchaseOverdue(purchase) && "bg-red-500/5 hover:bg-red-500/10")}
                     onClick={() => onViewDetails(purchase.id)}
                   >
                     <TableCell className="font-medium">#{purchase.id}</TableCell>
@@ -166,7 +176,7 @@ export function PurchasesTable({
                     </TableCell>
                     <TableCell>R$ {Number(purchase.total_amount).toFixed(2)}</TableCell>
                     <TableCell>R$ {Number(purchase.remaining_amount).toFixed(2)}</TableCell>
-                    <TableCell>{getStatusBadge(purchase.status)}</TableCell>
+                    <TableCell>{getRowStatusBadge(purchase)}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -201,7 +211,7 @@ export function PurchasesTable({
             filteredPurchases.map(purchase => (
               <div
                 key={`mobile-${purchase.id}`}
-                className="bg-card border border-border/50 rounded-xl p-4 space-y-3 cursor-pointer hover:bg-muted/30 active:scale-[0.99] transition-all shadow-sm"
+                className={cn("bg-card border border-border/50 rounded-xl p-4 space-y-3 cursor-pointer hover:bg-muted/30 active:scale-[0.99] transition-all shadow-sm", isPurchaseOverdue(purchase) && "border-red-500/40 bg-red-500/5")}
                 onClick={() => onViewDetails(purchase.id)}
               >
                 <div className="flex justify-between items-start gap-2">
@@ -212,7 +222,7 @@ export function PurchasesTable({
                     </div>
                     <span className="text-xs text-muted-foreground">{format(new Date(purchase.purchase_date + 'T12:00:00'), "dd/MM/yyyy")}</span>
                   </div>
-                  <div className="flex-shrink-0 scale-90 origin-top-right">{getStatusBadge(purchase.status)}</div>
+                  <div className="flex-shrink-0 scale-90 origin-top-right">{getRowStatusBadge(purchase)}</div>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-border/40 text-sm">

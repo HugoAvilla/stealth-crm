@@ -138,6 +138,8 @@ export function Extrato({
         return groups;
     }, {} as Record<string, any[]>);
 
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+
     const futureGroupsArray = Object.entries(groupedFuture).map(([name, txs]) => {
         txs.sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
         return {
@@ -145,7 +147,8 @@ export function Extrato({
             transactions: txs,
             totalAmount: txs.reduce((sum, t) => sum + t.amount, 0),
             installmentsCount: txs.length,
-            nextDate: txs[0]?.transaction_date
+            nextDate: txs[0]?.transaction_date,
+            hasOverdue: txs.some((t: any) => t.transaction_date < todayStr)
         };
     }).sort((a, b) => new Date(a.nextDate).getTime() - new Date(b.nextDate).getTime());
 
@@ -762,8 +765,11 @@ export function Extrato({
                                             onClick={() => toggleFutureGroup(group.name)}
                                         >
                                             <div>
-                                                <h4 className="font-semibold text-sm leading-snug">{group.name}</h4>
-                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-semibold text-sm leading-snug">{group.name}</h4>
+                                                    {group.hasOverdue && <Badge variant="destructive" className="text-[10px] py-0 px-1.5">Atrasado</Badge>}
+                                                </div>
+                                                <p className={cn("text-xs mt-0.5", group.hasOverdue ? "text-red-500" : "text-muted-foreground")}>
                                                     Próximo venc.: {format(new Date(group.nextDate), "dd/MM/yyyy")} • {group.installmentsCount} {group.installmentsCount === 1 ? 'parcela' : 'parcelas'}
                                                 </p>
                                             </div>
@@ -782,6 +788,7 @@ export function Extrato({
                                                 {group.transactions.map((tx: any) => {
                                                     const isTransfer = tx.payment_method === 'Transferência';
                                                     const isEntry = tx.type === 'Entrada';
+                                                    const isOverdue = tx.transaction_date < todayStr;
 
                                                     return (
                                                         <div key={tx.id} className="p-3 pl-4 sm:pl-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/10 transition-colors">
@@ -793,8 +800,11 @@ export function Extrato({
                                                                     {isTransfer ? <RefreshCw className="h-3 w-3" /> : (isEntry ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />)}
                                                                 </div>
                                                                 <div>
-                                                                    <p className="text-sm font-medium leading-snug">{tx.name}</p>
-                                                                    <span className="text-[10px] text-muted-foreground block mt-0.5">Vencimento: {format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <p className="text-sm font-medium leading-snug">{tx.name}</p>
+                                                                        {isOverdue && <Badge variant="destructive" className="text-[9px] py-0 px-1.5">Atrasado</Badge>}
+                                                                    </div>
+                                                                    <span className={cn("text-[10px] block mt-0.5", isOverdue ? "text-red-500 font-medium" : "text-muted-foreground")}>Vencimento: {format(new Date(tx.transaction_date), "dd/MM/yyyy")}</span>
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pl-8 sm:pl-0 pt-2 sm:pt-0 border-t sm:border-0 border-border/40">

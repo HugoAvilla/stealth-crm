@@ -80,6 +80,7 @@ interface BoletoRow {
   company_id: number;
   client_name: string;
   installments_count: number;
+  is_overdue: boolean;
 }
 
 interface Installment {
@@ -167,16 +168,21 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
       // Now fetch installment counts for each boleto
       const boletoIds = (data || []).map(b => b.id);
       let installmentCounts: Record<number, number> = {};
+      let overdueMap: Record<number, boolean> = {};
+      const today = format(new Date(), 'yyyy-MM-dd');
 
       if (boletoIds.length > 0) {
         const { data: installData } = await supabase
           .from("boleto_installments")
-          .select("boleto_id")
+          .select("boleto_id, due_date, status")
           .in("boleto_id", boletoIds);
 
         if (installData) {
           installData.forEach(inst => {
             installmentCounts[inst.boleto_id] = (installmentCounts[inst.boleto_id] || 0) + 1;
+            if (inst.status !== 'paid' && inst.due_date < today) {
+              overdueMap[inst.boleto_id] = true;
+            }
           });
         }
       }
@@ -194,6 +200,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
         company_id: b.company_id,
         client_name: (b.clients as any)?.name || 'Cliente N/A',
         installments_count: installmentCounts[b.id] || 0,
+        is_overdue: overdueMap[b.id] || false,
       }));
 
       setBoletos(mappedBoletos);
@@ -678,6 +685,19 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
     }
   };
 
+  const isInstallmentOverdue = (inst: Installment) =>
+    inst.status !== 'paid' && inst.due_date < format(new Date(), 'yyyy-MM-dd');
+
+  const getInstallmentStatusBadge = (inst: Installment) =>
+    isInstallmentOverdue(inst)
+      ? <Badge variant="destructive">Atrasado</Badge>
+      : getStatusBadge(inst.status);
+
+  const getBoletoStatusBadge = (boleto: BoletoRow) =>
+    boleto.status !== 'paid' && boleto.is_overdue
+      ? <Badge variant="destructive">Atrasado</Badge>
+      : getStatusBadge(boleto.status);
+
   const uniqueAccounts = Array.from(
     new Map(boletos.map(b => [b.account_id, b.account_name])).entries()
   ).map(([id, name]) => ({ id, name }));
@@ -816,7 +836,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
                       <TableCell className="text-muted-foreground">{boleto.account_name}</TableCell>
                       <TableCell>R$ {Number(boleto.total_amount).toFixed(2)}</TableCell>
                       <TableCell>{boleto.installments_count}x</TableCell>
-                      <TableCell>{getStatusBadge(boleto.status)}</TableCell>
+                      <TableCell>{getBoletoStatusBadge(boleto)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {format(new Date(boleto.created_at), "dd/MM/yyyy")}
                       </TableCell>
@@ -855,11 +875,11 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
                                 <div className="col-span-4 py-4 text-center text-xs text-muted-foreground">Nenhuma parcela registrada</div>
                               ) : (
                                 installments[boleto.id].map(inst => (
-                                  <Card key={inst.id} className="bg-background border-border/40">
+                                  <Card key={inst.id} className={cn("bg-background border-border/40", isInstallmentOverdue(inst) && "border-red-500/40 bg-red-500/5")}>
                                     <CardContent className="p-3 space-y-2">
                                       <div className="flex justify-between items-start">
                                         <span className="text-[10px] font-bold text-muted-foreground uppercase">Parcela {inst.installment_number}</span>
-                                        {getStatusBadge(inst.status)}
+                                        {getInstallmentStatusBadge(inst)}
                                       </div>
                                       <div className="text-lg font-bold">R$ {Number(inst.amount).toFixed(2)}</div>
                                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -927,7 +947,7 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
-                  {getStatusBadge(boleto.status)}
+                  {getBoletoStatusBadge(boleto)}
                   {expandedBoleto === boleto.id ? <ChevronUp className="h-4 w-4 text-muted-foreground mt-1" /> : <ChevronDown className="h-4 w-4 text-muted-foreground mt-1" />}
                 </div>
               </div>
@@ -981,14 +1001,14 @@ export function BoletoManagement({ accountId, onRefreshRequired }: BoletoManagem
                   ) : (
                     <div className="grid gap-2">
                       {installments[boleto.id].map(inst => (
-                        <div key={inst.id} className="flex flex-col p-2.5 rounded-md bg-background border text-xs gap-2 shadow-sm">
+                        <div key={inst.id} className={cn("flex flex-col p-2.5 rounded-md bg-background border text-xs gap-2 shadow-sm", isInstallmentOverdue(inst) && "border-red-500/40 bg-red-500/5")}>
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex flex-col">
                               <span className="font-semibold text-[10px] text-muted-foreground uppercase">Parcela {inst.installment_number}</span>
                               <span className="text-[10px] text-muted-foreground mt-0.5">Venc: {format(new Date(inst.due_date + 'T12:00:00'), "dd/MM/yyyy")}</span>
                             </div>
                             <div className="flex flex-col items-end gap-1">
-                              {getStatusBadge(inst.status)}
+                              {getInstallmentStatusBadge(inst)}
                               <span className="font-semibold text-sm">R$ {Number(inst.amount).toFixed(2)}</span>
                             </div>
                           </div>
