@@ -794,7 +794,20 @@ const SaleDetailsModal = ({ open, onOpenChange, sale, onSaleUpdated }: SaleDetai
                 {salePayments && salePayments.length > 0 ? (
                   salePayments.map((p: any, index: number) => {
                     const isCard = p.method === "Crédito" || p.method === "Débito";
-                    if (!isCard || !p.machine_id) return null;
+
+                    // Non-card payments (Dinheiro, PIX, etc.) or card without machine: show a simple payment method line
+                    if (!isCard || !p.machine_id) {
+                      return (
+                        <div key={p.id || index} className="flex items-center gap-3 pt-2 border-t border-dashed border-border">
+                          <div className="p-1.5 rounded bg-muted">
+                            <CreditCard className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <span>
+                            Forma de pagamento é <span className="font-semibold text-primary">{p.method}{salePayments.length > 1 ? ` (R$ ${p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})` : ''}</span>
+                          </span>
+                        </div>
+                      );
+                    }
 
                     const machine = p.card_machines;
                     const rate = p.method === "Débito"

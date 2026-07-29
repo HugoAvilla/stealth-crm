@@ -32,14 +32,18 @@ export function TopClientsRanking() {
           return;
         }
 
-        // Fetch sales grouped by client
+        // Fetch sales grouped by client — apenas vendas reais:
+        // status 'Fechada' e não excluídas. Entradas financeiras/patrimônio
+        // ficam na tabela transactions e não entram aqui.
         const { data: salesData } = await supabase
           .from('sales')
           .select(`
             total,
             client:clients(id, name)
           `)
-          .eq('company_id', profile.company_id);
+          .eq('company_id', profile.company_id)
+          .eq('status', 'Fechada')
+          .is('deleted_at', null);
 
         // Aggregate by client
         const clientMap = new Map<number, ClientRanking>();

@@ -15,6 +15,11 @@ interface SalesKPIBarProps {
   /** Contagens que acompanham os valores (mesmo conjunto de vendas que contribuem no mês). */
   qtdFechadas?: number;
   qtdEmAberto?: number;
+  /**
+   * Taxa real de maquininha (R$) das vendas fechadas no mês — mesma regra do
+   * card do Financeiro. Ausente (ex.: drawer por dia): cai numa estimativa.
+   */
+  taxaMaquininha?: number;
 }
 
 const SalesKPIBar = ({
@@ -25,6 +30,7 @@ const SalesKPIBar = ({
   valorEmAberto,
   qtdFechadas,
   qtdEmAberto,
+  taxaMaquininha,
 }: SalesKPIBarProps) => {
   // Use is_open field: false = closed, true = open
   const closedSales = sales.filter((s) => s.is_open === false);
@@ -42,10 +48,13 @@ const SalesKPIBar = ({
   const nFechadas = qtdFechadas ?? closedSales.length;
   const nEmAberto = qtdEmAberto ?? openSales.length;
 
-  // Simulated card fees (2.5% average)
-  const cardFees = closedSales
-    .filter((s) => s.payment_method === "Crédito" || s.payment_method === "Débito")
-    .reduce((sum, s) => sum + s.total * 0.025, 0);
+  // Taxa real de maquininha (mesma base do card do Financeiro). Fallback só
+  // quando o valor não é fornecido (ex.: drawer por dia): estimativa de 2.5%.
+  const cardFees =
+    taxaMaquininha ??
+    closedSales
+      .filter((s) => s.payment_method === "Crédito" || s.payment_method === "Débito")
+      .reduce((sum, s) => sum + s.total * 0.025, 0);
 
   const kpis = [
     {

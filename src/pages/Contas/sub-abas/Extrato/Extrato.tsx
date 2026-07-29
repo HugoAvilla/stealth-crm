@@ -3,7 +3,7 @@ import React, { useState, Fragment } from "react";
 import { format, subDays, parse, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
-import { Search, Calendar as CalendarIcon, Filter, ArrowUpRight, ArrowDownRight, RefreshCw, CheckCircle2, ChevronRight, ChevronLeft, ChevronsUpDown, ChevronUp, ChevronDown, Landmark, Receipt } from "lucide-react";
+import { Search, Calendar as CalendarIcon, Filter, ArrowUpRight, ArrowDownRight, RefreshCw, CheckCircle2, ChevronRight, ChevronLeft, ChevronsUpDown, ChevronUp, ChevronDown, Landmark, Receipt, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip as UITooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
@@ -124,7 +125,7 @@ export function Extrato({
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
 
-    const futureTransactions = accountTransactions.filter(t => !t.is_paid);
+    const futureTransactions = accountTransactions.filter(t => !t.is_paid && t.type === 'Saida');
     const currentTransactions = accountTransactions.filter(t => t.is_paid);
 
     const groupedFuture = futureTransactions.reduce((groups, t) => {
@@ -310,13 +311,30 @@ export function Extrato({
                 </Card>
                 <Card className="bg-card/50 border-border/50">
                     <CardContent className="p-4">
-                        <p className="text-xs text-muted-foreground mb-1">Saldo inicial</p>
+                        <div className="flex items-center gap-1 mb-1">
+                            <p className="text-xs text-muted-foreground">Saldo no início do período</p>
+                            <UITooltip>
+                                <TooltipTrigger asChild>
+                                    <button type="button" className="text-muted-foreground/70 hover:text-muted-foreground">
+                                        <HelpCircle size={13} />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-[260px]">
+                                    <p className="mb-1">Quanto a conta tinha quando o período começou. É calculado a partir do saldo de hoje:</p>
+                                    <p className="font-mono text-xs">
+                                        {formatCurrency(saldoFinal)} (saldo no fim)
+                                        <br />− {formatCurrency(geracaoCaixa)} (geração de caixa)
+                                        <br />= <span className="font-semibold">{formatCurrency(saldoInicial)}</span>
+                                    </p>
+                                </TooltipContent>
+                            </UITooltip>
+                        </div>
                         <p className="text-lg font-bold">{formatCurrency(saldoInicial)}</p>
                     </CardContent>
                 </Card>
                 <Card className="bg-card/50 border-border/50">
                     <CardContent className="p-4">
-                        <p className="text-xs text-muted-foreground mb-1">Saldo final</p>
+                        <p className="text-xs text-muted-foreground mb-1">Saldo no fim do período</p>
                         <p className="text-lg font-bold">{formatCurrency(saldoFinal)}</p>
                     </CardContent>
                 </Card>
@@ -745,15 +763,20 @@ export function Extrato({
                 </CardContent>
             </Card>
 
-            {futureGroupsArray.length > 0 && (
-                <Card className="bg-card/50 border-border/50 mt-6">
+            <Card className="bg-card/50 border-border/50 mt-6">
                     <CardHeader>
                         <CardTitle className="text-sm flex items-center gap-2">
                             <CalendarIcon className="h-4 w-4 text-orange-500" />
-                            Lançamentos Futuros e Parcelamentos
+                            Contas a Pagar e Parcelamentos
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
+                        {futureGroupsArray.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-8 text-center">
+                                <CalendarIcon className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                                <p className="text-sm text-muted-foreground">Nenhuma conta a pagar pendente</p>
+                            </div>
+                        ) : (
                         <div className="space-y-3">
                             {futureGroupsArray.map(group => {
                                 const isExpanded = expandedFutureGroups[group.name];
@@ -830,9 +853,9 @@ export function Extrato({
                                 );
                             })}
                         </div>
+                        )}
                     </CardContent>
                 </Card>
-            )}
         </>
     );
 }

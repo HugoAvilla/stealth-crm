@@ -10,6 +10,7 @@ import {
   type RecognitionMode,
   type SaleForRecognition,
 } from "@/lib/salesRecognition";
+import { cardMachinePaymentFee, roundCurrency } from "@/lib/cardMachineFees";
 
 export interface SalesRecognitionResult {
   loading: boolean;
@@ -23,6 +24,10 @@ export interface SalesRecognitionResult {
   qtdTodas: number;
   qtdFechadas: number;
   qtdEmAberto: number;
+  /** Taxa total (R$) de maquininha das vendas fechadas com data no mês. */
+  taxaMaquininhaFechadas: number;
+  /** Taxa (R$) de maquininha das vendas fechadas por dia ('yyyy-MM-dd'). */
+  taxaMaquininhaByDay: Record<string, number>;
   refetch: () => void;
 }
 
@@ -45,6 +50,8 @@ export function useSalesRecognition(
   const [qtdTodas, setQtdTodas] = useState(0);
   const [qtdFechadas, setQtdFechadas] = useState(0);
   const [qtdEmAberto, setQtdEmAberto] = useState(0);
+  const [taxaMaquininhaFechadas, setTaxaMaquininhaFechadas] = useState(0);
+  const [taxaMaquininhaByDay, setTaxaMaquininhaByDay] = useState<Record<string, number>>({});
 
   const monthStart = format(startOfMonth(month), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(month), "yyyy-MM-dd");
@@ -57,6 +64,8 @@ export function useSalesRecognition(
       setQtdTodas(0);
       setQtdFechadas(0);
       setQtdEmAberto(0);
+      setTaxaMaquininhaFechadas(0);
+      setTaxaMaquininhaByDay({});
       setLoading(false);
       return;
     }
@@ -67,7 +76,7 @@ export function useSalesRecognition(
         supabase
           .from("sales")
           .select(
-            `id, sale_date, is_open, total,
+            `id, sale_date, is_open, status, total,
              sale_payments ( method, amount, installments, machine_id, brand )`
           )
           .eq("company_id", companyId)
@@ -119,12 +128,37 @@ export function useSalesRecognition(
       const fechadas = aggregateRecognizedInMonth(sales, ctx, "closed", mode);
       const emAberto = aggregateRecognizedInMonth(sales, ctx, "open", mode);
 
+      // Taxa real de maquininha por dia (vendas fechadas) — mesma regra do card
+      // "Taxas de Maquininha" do Financeiro: status 'Fechada' (exclui canceladas)
+      // e taxa real por máquina. Soma-se a taxa CRUA por pagamento e arredonda-se
+      // uma vez por agregação (por dia p/ o drawer, no mês p/ o card mensal).
+      const feeByDayRaw: Record<string, number> = {};
+      sales
+        .filter((s) => s.status === "Fechada")
+        .forEach((s) => {
+          const dayFee = (s.sale_payments ?? [])
+            .filter((p) => (p.method === "Crédito" || p.method === "Débito") && p.machine_id != null)
+            .reduce((sum, p) => sum + cardMachinePaymentFee(p, machinesById, rates), 0);
+          if (dayFee > 0) feeByDayRaw[s.sale_date] = (feeByDayRaw[s.sale_date] ?? 0) + dayFee;
+        });
+
+      // Restrito ao mês, para casar com a janela de vendas do drawer (mensal).
+      const taxaByDay: Record<string, number> = {};
+      let taxaFechadasMes = 0;
+      for (const [day, valor] of Object.entries(feeByDayRaw)) {
+        if (day < monthStart || day > monthEnd) continue;
+        taxaByDay[day] = roundCurrency(valor);
+        taxaFechadasMes += valor;
+      }
+
       setValorTodas(todas.valor);
       setValorFechadas(fechadas.valor);
       setValorEmAberto(emAberto.valor);
       setQtdTodas(todas.quantidade);
       setQtdFechadas(fechadas.quantidade);
       setQtdEmAberto(emAberto.quantidade);
+      setTaxaMaquininhaFechadas(roundCurrency(taxaFechadasMes));
+      setTaxaMaquininhaByDay(taxaByDay);
     } catch (error) {
       console.error("Error computing sales recognition:", error);
     } finally {
@@ -144,6 +178,8 @@ export function useSalesRecognition(
     qtdTodas,
     qtdFechadas,
     qtdEmAberto,
+    taxaMaquininhaFechadas,
+    taxaMaquininhaByDay,
     refetch: fetchAndCompute,
   };
 }

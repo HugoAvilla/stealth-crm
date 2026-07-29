@@ -30,9 +30,11 @@ interface SalesDayDrawerProps {
   selectedDate: Date | null;
   allSales: SaleWithDetails[];
   onNewSale?: (date: Date) => void;
+  /** Taxa real (R$) de maquininha das vendas fechadas do dia informado. */
+  feeForDay?: (date: Date) => number;
 }
 
-const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales, onNewSale }: SalesDayDrawerProps) => {
+const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales, onNewSale, feeForDay }: SalesDayDrawerProps) => {
   const [currentDate, setCurrentDate] = useState(selectedDate || new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSale, setSelectedSale] = useState<SaleWithDetails | null>(null);
@@ -122,7 +124,11 @@ const SalesDayDrawer = ({ open, onOpenChange, selectedDate, allSales, onNewSale 
 
           <div className="mt-6 space-y-6">
             {/* KPIs */}
-            <SalesKPIBar sales={daySales} className="grid grid-cols-2 sm:grid-cols-3 gap-3" />
+            <SalesKPIBar
+              sales={daySales}
+              taxaMaquininha={feeForDay ? feeForDay(currentDate) : undefined}
+              className="grid grid-cols-2 sm:grid-cols-3 gap-3"
+            />
 
             {/* Sales List */}
             <div className="space-y-3">
