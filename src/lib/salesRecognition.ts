@@ -31,6 +31,9 @@ export interface SaleForRecognition {
   sale_date: string; // 'yyyy-MM-dd'
   is_open: boolean;
   total: number;
+  /** Status da venda. Opcional: as regras de reconhecimento usam is_open;
+   *  presente só para consumidores que precisam alinhar com o Financeiro. */
+  status?: "Fechada" | "Aberta" | "Cancelada" | null;
   sale_payments?: PaymentForRecognition[] | null;
 }
 

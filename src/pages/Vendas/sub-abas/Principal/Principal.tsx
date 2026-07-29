@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { isSameMonth } from "date-fns";
+import { isSameMonth, format } from "date-fns";
 import { List, Calendar, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,6 +40,8 @@ export function Principal() {
         valorEmAberto,
         qtdFechadas,
         qtdEmAberto,
+        taxaMaquininhaFechadas,
+        taxaMaquininhaByDay,
         refetch: refetchRecognition
     } = useSalesRecognition(user?.companyId, currentDate, "gross");
 
@@ -168,6 +170,7 @@ export function Principal() {
                 valorEmAberto={valorEmAberto}
                 qtdFechadas={qtdFechadas}
                 qtdEmAberto={qtdEmAberto}
+                taxaMaquininha={taxaMaquininhaFechadas}
             />
 
             {loading ? (
@@ -214,6 +217,7 @@ export function Principal() {
                 onOpenChange={(open) => !open && setSelectedDay(null)}
                 selectedDate={selectedDay}
                 allSales={sales}
+                feeForDay={(date) => taxaMaquininhaByDay[format(date, "yyyy-MM-dd")] ?? 0}
                 onNewSale={(date) => {
                     setSelectedDay(null);
                     setInitialSaleDate(date);

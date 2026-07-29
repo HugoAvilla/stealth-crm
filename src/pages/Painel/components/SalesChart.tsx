@@ -137,6 +137,7 @@ export function SalesChart() {
                     borderRadius: '8px',
                     color: 'hsl(var(--foreground))',
                   }}
+                  itemStyle={{ color: 'hsl(var(--foreground))' }}
                   formatter={(value: number) => [
                     `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
                     'Valor'
