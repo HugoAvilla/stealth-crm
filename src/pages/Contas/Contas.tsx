@@ -387,8 +387,9 @@ export default function Contas() {
           <h2 className="font-semibold">Contas</h2>
           <div className="flex gap-1">
             <Button variant="ghost" size="icon" onClick={() => setShowAddModal(true)}><Plus className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => setShowValues(!showValues)}>
+            <Button variant="outline" size="sm" className="gap-2 border-primary/50 hover:bg-primary/10 hover:border-primary font-medium" onClick={() => setShowValues(!showValues)}>
               {showValues ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              {showValues ? 'Ocultar' : 'Mostrar'}
             </Button>
           </div>
         </div>
