@@ -23,7 +23,7 @@ const paymentColors: Record<string, string> = {
   Transferência: 'hsl(var(--muted-foreground))',
 };
 
-export function SalesChart() {
+export function SalesChart({ showValues = true }: { showValues?: boolean }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [paymentBreakdown, setPaymentBreakdown] = useState<Record<string, number>>({});
@@ -51,18 +51,18 @@ export function SalesChart() {
         const startDateStr = format(monthStart, 'yyyy-MM-dd');
         const endDateStr = format(monthEnd, 'yyyy-MM-dd');
 
-        const { data: salesData } = await supabase
-          .from('sales')
-          .select('total, payment_method')
+        const { data: paymentsData } = await supabase
+          .from('sale_payments')
+          .select('method, amount, sales!inner(sale_date, deleted_at)')
           .eq('company_id', profile.company_id)
-          .is('deleted_at', null)
-          .gte('sale_date', startDateStr)
-          .lte('sale_date', endDateStr);
+          .is('sales.deleted_at', null)
+          .gte('sales.sale_date', startDateStr)
+          .lte('sales.sale_date', endDateStr);
 
         const breakdown: Record<string, number> = {};
-        (salesData || []).forEach(sale => {
-          const method = sale.payment_method || 'Pix';
-          breakdown[method] = (breakdown[method] || 0) + sale.total;
+        (paymentsData || []).forEach(payment => {
+          const method = payment.method || 'Pix';
+          breakdown[method] = (breakdown[method] || 0) + payment.amount;
         });
 
         setPaymentBreakdown(breakdown);
@@ -102,7 +102,7 @@ export function SalesChart() {
           Resumo de Vendas por Método
         </h3>
         <span className="text-lg font-semibold text-success">
-          R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          {showValues ? `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '••••••'}
         </span>
       </div>
 
@@ -120,7 +120,7 @@ export function SalesChart() {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  tickFormatter={(value) => `R$ ${value.toLocaleString('pt-BR')}`}
+                  tickFormatter={(value) => showValues ? `R$ ${value.toLocaleString('pt-BR')}` : '••••'}
                 />
                 <YAxis 
                   type="category" 
@@ -139,7 +139,7 @@ export function SalesChart() {
                   }}
                   itemStyle={{ color: 'hsl(var(--foreground))' }}
                   formatter={(value: number) => [
-                    `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                    showValues ? `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '••••••',
                     'Valor'
                   ]}
                 />

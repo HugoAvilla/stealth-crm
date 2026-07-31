@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, TrendingDown, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag, ShoppingCart, Receipt, FileText, DollarSign, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, TrendingUp, TrendingDown, Eye, EyeOff, Landmark, PiggyBank, CreditCard, Tag, ShoppingCart, Receipt, FileText, DollarSign, ChevronLeft, ChevronRight, AlertTriangle, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -41,6 +41,7 @@ interface Transaction {
 interface Sale {
     id: number;
     total: number;
+    discount: number | null;
     sale_date: string;
     status: string | null;
 }
@@ -143,9 +144,10 @@ export function VisaoGeral() {
             const { data: salesData } = await supabase
                 .from("sales")
                 .select(`
-          id, 
-          total, 
-          sale_date, 
+          id,
+          total,
+          discount,
+          sale_date,
           status,
           sale_payments (
             id,
@@ -235,6 +237,11 @@ export function VisaoGeral() {
     // Vendas do mês (contagem — lixeira já excluída na query)
     const totalVendasMes = monthSales.reduce((sum, s) => sum + s.total, 0);
     const qtdVendasMes = monthSales.length;
+
+    // Descontos concedidos em vendas do mês (valor absoluto por venda)
+    const salesComDesconto = monthSales.filter(s => (s.discount || 0) > 0);
+    const totalDescontosMes = salesComDesconto.reduce((sum, s) => sum + (s.discount || 0), 0);
+    const qtdVendasComDesconto = salesComDesconto.length;
 
     // Entradas de vendas: regra ÚNICA de reconhecimento (líquido, apenas vendas fechadas).
     // Mesma base usada pelo card "Total de vendas fechadas" da aba Vendas.
@@ -472,8 +479,9 @@ export function VisaoGeral() {
                     )}
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
-                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setShowValues(!showValues)}>
+                    <Button variant="outline" className="gap-2 shrink-0 border-primary/50 hover:bg-primary/10 hover:border-primary font-medium" onClick={() => setShowValues(!showValues)}>
                         {showValues ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                        {showValues ? 'Ocultar valores' : 'Mostrar valores'}
                     </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -676,6 +684,41 @@ export function VisaoGeral() {
                                     {isAtrasado
                                         ? (boletosCount === 1 ? "boleto atrasado" : "boletos atrasados")
                                         : (boletosCount === 1 ? "boleto no mês" : "boletos no mês")}
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Card de Descontos Mensais */}
+                <Card className="md:col-span-12 lg:col-span-6 bg-orange-500/5 border-orange-500/30 relative overflow-hidden">
+                    <div className="absolute right-4 bottom-2 opacity-[0.07]">
+                        <Percent size={110} />
+                    </div>
+                    <CardContent className="p-6 relative z-10">
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-500">
+                                <Percent className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-foreground leading-tight">Descontos Mensais</p>
+                                <p className="text-xs text-muted-foreground">Descontos concedidos em vendas neste mês</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-end justify-between gap-4">
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total em descontos</p>
+                                <p className="text-3xl font-bold tracking-tight text-orange-600 dark:text-orange-500">
+                                    {formatCurrency(totalDescontosMes)}
+                                </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <p className="text-2xl font-bold tracking-tight text-orange-600 dark:text-orange-500">
+                                    {qtdVendasComDesconto}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {qtdVendasComDesconto === 1 ? "venda com desconto" : "vendas com desconto"}
                                 </p>
                             </div>
                         </div>

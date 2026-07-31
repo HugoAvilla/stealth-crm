@@ -13,7 +13,7 @@ interface Account {
   current_balance: number | null;
 }
 
-export function FinancialSummary() {
+export function FinancialSummary({ showValues = true }: { showValues?: boolean }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -106,7 +106,7 @@ export function FinancialSummary() {
           Saldo Atual
         </p>
         <p className={`text-3xl font-bold ${totalBalance >= 0 ? 'text-success' : 'text-destructive'}`}>
-          R$ {totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          {showValues ? `R$ ${totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '••••••'}
         </p>
       </div>
 
@@ -120,7 +120,7 @@ export function FinancialSummary() {
             <div>
               <p className="text-xs text-muted-foreground">Entradas hoje</p>
               <p className="text-sm font-semibold text-success">
-                + R$ {entriesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {showValues ? `+ R$ ${entriesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '••••••'}
               </p>
             </div>
           </div>
@@ -134,7 +134,7 @@ export function FinancialSummary() {
             <div>
               <p className="text-xs text-muted-foreground">Saídas hoje</p>
               <p className="text-sm font-semibold text-destructive">
-                - R$ {expensesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {showValues ? `- R$ ${expensesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '••••••'}
               </p>
             </div>
           </div>

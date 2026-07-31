@@ -9,7 +9,7 @@ import { SalesChart } from './components/SalesChart';
 import { CapacityWidget } from './components/CapacityWidget';
 import { FinancialSummary } from './components/FinancialSummary';
 import { HelpOverlay } from '@/components/help/HelpOverlay';
-import { Search, DollarSign, TrendingUp, Users, Phone, Settings, Save, X, Car, User, Loader2 } from 'lucide-react';
+import { Search, DollarSign, TrendingUp, Users, Phone, Settings, Save, X, Car, User, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ const Dashboard = () => {
   const [showFillSlotModal, setShowFillSlotModal] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showValues, setShowValues] = useState(true);
 
   // State for search
   const [searchQuery, setSearchQuery] = useState("");
@@ -156,6 +157,9 @@ const Dashboard = () => {
   });
 
   const userName = user?.profile?.name || user?.email?.split('@')[0] || 'Usuário';
+
+  // Máscara aplicada quando o usuário oculta os valores monetários do painel
+  const maskMoney = (formatted: string) => (showValues ? formatted : '••••••');
 
   const today = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long',
@@ -338,6 +342,17 @@ const Dashboard = () => {
           <p className="text-muted-foreground capitalize">{today}</p>
         </div>
 
+        {/* Toggle de visibilidade dos valores */}
+        <Button
+          variant="outline"
+          onClick={() => setShowValues(!showValues)}
+          className="gap-2 h-11 px-4 self-start lg:self-auto border-primary/50 hover:bg-primary/10 hover:border-primary font-medium animate-fade-in"
+          style={{ animationDelay: '0.05s' }}
+        >
+          {showValues ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+          {showValues ? 'Ocultar valores' : 'Mostrar valores'}
+        </Button>
+
         {/* Search Bar */}
         <div className="relative max-w-md w-full search-container z-50 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <div className="relative">
@@ -490,7 +505,7 @@ const Dashboard = () => {
           <>
             <StatsCard
               title="Faturamento do Mês"
-              value={`R$ ${stats.totalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              value={maskMoney(`R$ ${stats.totalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)}
               subtitle={`${stats.salesCount} vendas realizadas`}
               icon={<DollarSign className="w-5 h-5" />}
               variant="success"
@@ -498,7 +513,7 @@ const Dashboard = () => {
             />
             <StatsCard
               title="Ticket Médio"
-              value={`R$ ${stats.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              value={maskMoney(`R$ ${stats.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)}
               subtitle="Valor médio por venda"
               icon={<TrendingUp className="w-5 h-5" />}
               variant="info"
@@ -519,11 +534,11 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.4s' }}>
         {/* Sales Chart - Takes 2 columns */}
         <div className="lg:col-span-2">
-          <SalesChart />
+          <SalesChart showValues={showValues} />
         </div>
 
         {/* Financial Summary - Only for ADMIN */}
-        {user?.role === 'ADMIN' && <FinancialSummary />}
+        {user?.role === 'ADMIN' && <FinancialSummary showValues={showValues} />}
       </div>
 
       {/* Secondary Widgets */}
@@ -601,10 +616,10 @@ const Dashboard = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
-                  R$ {stats.monthlyProgress.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {maskMoney(`R$ ${stats.monthlyProgress.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)}
                 </span>
                 <span className="font-medium">
-                  R$ {stats.monthlyGoal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {maskMoney(`R$ ${stats.monthlyGoal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)}
                 </span>
               </div>
             </>
@@ -614,7 +629,7 @@ const Dashboard = () => {
 
       {/* Top Clients */}
       <div className="animate-fade-in" style={{ animationDelay: '0.6s' }}>
-        <TopClientsRanking />
+        <TopClientsRanking showValues={showValues} />
       </div>
 
       {/* Modals */}

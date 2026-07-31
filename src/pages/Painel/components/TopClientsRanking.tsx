@@ -11,7 +11,7 @@ interface ClientRanking {
   sales_count: number;
 }
 
-export function TopClientsRanking() {
+export function TopClientsRanking({ showValues = true }: { showValues?: boolean }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [topClients, setTopClients] = useState<ClientRanking[]>([]);
@@ -139,7 +139,7 @@ export function TopClientsRanking() {
               {/* Value */}
               <div className="text-right">
                 <p className="text-sm font-semibold text-success">
-                  R$ {client.total_spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  {showValues ? `R$ ${client.total_spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '••••••'}
                 </p>
               </div>
             </div>
