@@ -36,7 +36,7 @@ as $$
        where p.user_id = auth.uid() and c.owner_id = auth.uid()
     ) then false
     else coalesce(
-      (select action_key = any(coalesce(pr.locked_modules, '{}'))
+      (select action_key = any(coalesce(pr.locked_modules, '{}'::text[]))
          from public.profiles pr
         where pr.user_id = auth.uid()),
       false
