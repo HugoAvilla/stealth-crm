@@ -21,6 +21,7 @@ import {
 import { Purchase } from "@/lib/database.types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export interface PurchaseRow extends Purchase {
   supplier_name: string;
@@ -46,6 +47,7 @@ interface PurchasesTableProps {
 export function PurchasesTable({
   purchases, loading, onViewDetails, onDelete, filters, onFiltersChange
 }: PurchasesTableProps) {
+  const { can } = usePermissions();
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -188,9 +190,11 @@ export function PurchasesTable({
                           <DropdownMenuItem className="gap-2" onClick={() => onViewDetails(purchase.id)}>
                             <Eye className="h-4 w-4" /> Ver Detalhes
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete(purchase.id)}>
-                            <Trash2 className="h-4 w-4" /> Excluir
-                          </DropdownMenuItem>
+                          {can("compras_delete") && (
+                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete(purchase.id)}>
+                              <Trash2 className="h-4 w-4" /> Excluir
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

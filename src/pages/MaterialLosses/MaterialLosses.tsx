@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { usePlanGate } from '@/hooks/usePlanGate';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -47,6 +48,7 @@ const formatSafeDate = (dateStr: string | null | undefined): string => {
 
 export default function MaterialLosses() {
   const { user, isLoading: authLoading } = useAuth();
+  const { can } = usePermissions();
   const gate = usePlanGate('perdas');
   const navigate = useNavigate();
   const [showFormModal, setShowFormModal] = useState(false);
@@ -259,10 +261,12 @@ export default function MaterialLosses() {
               Limites
             </Button>
           )}
-          <Button onClick={() => setShowFormModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nova Perda
-          </Button>
+          {can("perdas_add") && (
+            <Button onClick={() => setShowFormModal(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Perda
+            </Button>
+          )}
         </div>
       </div>
 
@@ -492,13 +496,15 @@ export default function MaterialLosses() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => {
-                                setSelectedLoss(loss);
-                                setShowFormModal(true);
-                              }}>
-                                <Pencil className="h-4 w-4 mr-2" />
-                                Editar
-                              </DropdownMenuItem>
+                              {can("perdas_edit") && (
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedLoss(loss);
+                                  setShowFormModal(true);
+                                }}>
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                              )}
                               {isAdmin && (
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
@@ -543,13 +549,15 @@ export default function MaterialLosses() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {
-                            setSelectedLoss(loss);
-                            setShowFormModal(true);
-                          }}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
+                          {can("perdas_edit") && (
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedLoss(loss);
+                              setShowFormModal(true);
+                            }}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                          )}
                           {isAdmin && (
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"

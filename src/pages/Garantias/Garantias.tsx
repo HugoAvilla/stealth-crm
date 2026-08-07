@@ -4,9 +4,11 @@ import { FileCheck, Download } from "lucide-react";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { DownloadedPDFsTab } from "@/components/shared/DownloadedPDFsTab";
 import { Principal } from "./sub-abas/Principal/Principal";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const Garantias = () => {
     const [activeTab, setActiveTab] = useState("garantias");
+    const { can } = usePermissions();
 
     return (
         <div className="p-4 sm:p-6 space-y-6 max-w-[100vw] overflow-x-hidden">
@@ -48,10 +50,12 @@ const Garantias = () => {
                         <FileCheck className="h-4 w-4" />
                         Garantias
                     </TabsTrigger>
-                    <TabsTrigger value="pdfs" className="gap-2">
-                        <Download className="h-4 w-4" />
-                        PDFs Baixados
-                    </TabsTrigger>
+                    {can("garantias_ver_pdf") && (
+                        <TabsTrigger value="pdfs" className="gap-2">
+                            <Download className="h-4 w-4" />
+                            PDFs Baixados
+                        </TabsTrigger>
+                    )}
                 </TabsList>
 
                 <TabsContent value="garantias" className="space-y-6 mt-4">

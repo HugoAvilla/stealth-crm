@@ -20,6 +20,7 @@ interface AuthUser {
   isCompanyOwner: boolean;
   planCode: string | null;
   billingPeriod: string | null;
+  lockedModules: string[];
 }
 
 interface AuthContextType {
@@ -170,7 +171,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasPendingJoinRequest,
         isCompanyOwner,
         planCode: subscriptionData?.plan_code || null,
-        billingPeriod: subscriptionData?.billing_period || null
+        billingPeriod: subscriptionData?.billing_period || null,
+        lockedModules: Array.isArray(profile?.locked_modules) ? profile.locked_modules : []
       };
     } catch (error) {
       console.error('Error fetching user data:', error);

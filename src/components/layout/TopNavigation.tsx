@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import wfeLogo from '@/assets/wfe-logo.png';
 import {
@@ -38,8 +39,8 @@ interface NavItem {
   icon: React.ElementType;
   label: string;
   path: string;
+  moduleId?: string;
   adminOnly?: boolean;
-  productionOnly?: boolean;
   masterOnly?: boolean;
   badge?: number;
 }
@@ -47,37 +48,37 @@ interface NavItem {
 export function TopNavigation() {
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const { canAccessModule } = usePermissions();
   const isReadOnly = user?.subscriptionStatus === 'pending_payment' && !user?.isMaster;
 
   const navItems: NavItem[] = [
-    { icon: LayoutDashboard, label: 'Painel', path: '/' },
-    { icon: DollarSign, label: 'Vendas', path: '/vendas' },
-    { icon: Building2, label: 'Espaço', path: '/espaco' },
-    { icon: CreditCard, label: 'Financeiro', path: '/financeiro' },
-    { icon: ShoppingCart, label: 'Compras', path: '/compras', adminOnly: true },
-    { icon: Landmark, label: 'Contas', path: '/contas' },
-    { icon: Users, label: 'Clientes', path: '/clientes' },
-    { icon: BarChart3, label: 'Relatórios', path: '/relatorios' },
-    { icon: Percent, label: 'Comissões', path: '/comissoes', adminOnly: true },
-    { icon: Shield, label: 'Garantias', path: '/garantias' },
-    { icon: Wrench, label: 'Serviços', path: '/servicos' },
-    { icon: Package, label: 'Estoque', path: '/estoque', productionOnly: true },
-    { icon: Scissors, label: 'Perdas', path: '/perdas' },
+    { icon: LayoutDashboard, label: 'Painel', path: '/', moduleId: 'painel' },
+    { icon: DollarSign, label: 'Vendas', path: '/vendas', moduleId: 'vendas' },
+    { icon: Building2, label: 'Espaço', path: '/espaco', moduleId: 'espaco' },
+    { icon: CreditCard, label: 'Financeiro', path: '/financeiro', moduleId: 'financeiro', adminOnly: true },
+    { icon: ShoppingCart, label: 'Compras', path: '/compras', moduleId: 'compras' },
+    { icon: Landmark, label: 'Contas', path: '/contas', moduleId: 'contas', adminOnly: true },
+    { icon: Users, label: 'Clientes', path: '/clientes', moduleId: 'clientes' },
+    { icon: BarChart3, label: 'Relatórios', path: '/relatorios', moduleId: 'relatorios', adminOnly: true },
+    { icon: Percent, label: 'Comissões', path: '/comissoes', moduleId: 'comissoes', adminOnly: true },
+    { icon: Shield, label: 'Garantias', path: '/garantias', moduleId: 'garantias' },
+    { icon: Wrench, label: 'Serviços', path: '/servicos', moduleId: 'servicos' },
+    { icon: Package, label: 'Estoque', path: '/estoque', moduleId: 'estoque' },
+    { icon: Scissors, label: 'Perdas', path: '/perdas', moduleId: 'perdas' },
     { icon: Crown, label: 'Master', path: '/master', masterOnly: true },
-    { icon: User, label: 'Perfil', path: '/perfil' },
-    { icon: Building, label: 'Empresa', path: '/empresa' },
-    { icon: UserPlus, label: 'Funcionários', path: '/funcionarios', adminOnly: true },
+    { icon: User, label: 'Perfil', path: '/perfil', moduleId: 'perfil' },
+    { icon: Building, label: 'Empresa', path: '/empresa', moduleId: 'empresa', adminOnly: true },
+    { icon: UserPlus, label: 'Funcionários', path: '/funcionarios', moduleId: 'funcionarios', adminOnly: true },
   ];
 
   const filteredItems = navItems.filter(item => {
     // Master only pages
-    if (item.masterOnly && !user?.isMaster) return false;
-    // Admin only pages
+    if (item.masterOnly) return !!user?.isMaster;
+    // Abas restritas ao ADMIN (Financeiro, Contas, Relatórios, Comissões, Empresa, Funcionários)
     if (item.adminOnly && user?.role !== 'ADMIN') return false;
-    // Estoque - only for ADMIN and PRODUCAO
-    if (item.productionOnly && user?.role !== 'ADMIN' && user?.role !== 'PRODUCAO') return false;
-    // PRODUCAO can only see Estoque, Perdas, Perfil and Serviços
-    if (user?.role === 'PRODUCAO' && !item.productionOnly && item.path !== '/perfil' && item.path !== '/servicos' && item.path !== '/perdas') return false;
+    // Permissões por funcionário (deny-list): esconde aba com "view" bloqueado.
+    // Privilegiados (admin/dono/master) sempre passam via canAccessModule.
+    if (item.moduleId && !canAccessModule(item.moduleId)) return false;
     return true;
   });
 

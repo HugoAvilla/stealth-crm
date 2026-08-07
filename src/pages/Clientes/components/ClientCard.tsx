@@ -27,9 +27,10 @@ import { Button } from "@/components/ui/button";
 interface ClientCardProps {
   client: Client;
   onViewProfile: (client: Client) => void;
-  onEdit: (client: Client) => void;
-  onDelete: (client: Client) => void;
-  onWhatsApp: (phone: string) => void;
+  // Opcionais: quando ausentes (permissão bloqueada), a ação some do card.
+  onEdit?: (client: Client) => void;
+  onDelete?: (client: Client) => void;
+  onWhatsApp?: (phone: string) => void;
 }
 
 export function ClientCard({
@@ -105,7 +106,7 @@ export function ClientCard({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onWhatsApp(client.phone);
+                    onWhatsApp?.(client.phone);
                   }}
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-green-500 mt-1 transition-colors"
                 >
@@ -131,21 +132,27 @@ export function ClientCard({
                   <Eye className="h-4 w-4 mr-2" />
                   Ver Perfil
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onWhatsApp(client.phone)}>
-                  <MessageCircle className="h-4 w-4 mr-2 text-green-500" />
-                  WhatsApp
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onEdit(client)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => onDelete(client)}
-                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir
-                </DropdownMenuItem>
+                {onWhatsApp && (
+                  <DropdownMenuItem onClick={() => onWhatsApp(client.phone)}>
+                    <MessageCircle className="h-4 w-4 mr-2 text-green-500" />
+                    WhatsApp
+                  </DropdownMenuItem>
+                )}
+                {onEdit && (
+                  <DropdownMenuItem onClick={() => onEdit(client)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem
+                    onClick={() => onDelete(client)}
+                    className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

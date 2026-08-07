@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
 import { ProductCategory } from "@/lib/database.types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,7 @@ interface SortableRegionCardProps {
 }
 
 function SortableRegionCard({ region, onEdit, onDelete }: SortableRegionCardProps) {
+  const { can } = usePermissions();
   const {
     attributes,
     listeners,
@@ -120,22 +122,26 @@ function SortableRegionCard({ region, onEdit, onDelete }: SortableRegionCardProp
 
         {/* Ações */}
         <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onEdit(region)}
-            className="h-8 w-8 sm:h-9 sm:w-9"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-destructive hover:text-destructive h-8 w-8 sm:h-9 sm:w-9"
-            onClick={() => onDelete(region)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {can("servicos_edit") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onEdit(region)}
+              className="h-8 w-8 sm:h-9 sm:w-9"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
+          {can("servicos_delete") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-destructive hover:text-destructive h-8 w-8 sm:h-9 sm:w-9"
+              onClick={() => onDelete(region)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -143,6 +149,7 @@ function SortableRegionCard({ region, onEdit, onDelete }: SortableRegionCardProp
 }
 
 export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
+  const { can } = usePermissions();
   const queryClient = useQueryClient();
   const [activeCategory, setActiveCategory] = useState<ProductCategory>("INSULFILM");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -426,9 +433,11 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
           </TabsList>
         </Tabs>
 
-        <Button onClick={() => handleOpenModal()}>
-          <Plus className="h-4 w-4 mr-2" /> Novo Serviço
-        </Button>
+        {can("servicos_add") && (
+          <Button onClick={() => handleOpenModal()}>
+            <Plus className="h-4 w-4 mr-2" /> Novo Serviço
+          </Button>
+        )}
       </div>
 
       {/* Lista de serviços */}
@@ -440,9 +449,11 @@ export function VehicleRegionsTab({ companyId }: VehicleRegionsTabProps) {
             <p className="text-muted-foreground mb-4">
               Cadastre os serviços para {activeCategory}
             </p>
-            <Button onClick={() => handleOpenModal()}>
-              <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Serviço
-            </Button>
+            {can("servicos_add") && (
+              <Button onClick={() => handleOpenModal()}>
+                <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Serviço
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (

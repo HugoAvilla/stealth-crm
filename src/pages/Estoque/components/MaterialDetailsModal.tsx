@@ -3,13 +3,40 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Package, ArrowDown, ArrowUp, Activity } from "lucide-react";
+import { Package, ArrowDown, ArrowUp, Activity, TrendingUp, TrendingDown, Minus, DollarSign } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMemo } from "react";
+import { Bar, BarChart, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
+
+const brl = (v: number) => (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+// Cores de status: custo subiu = vermelho (ruim), custo caiu = verde (bom), primeira/estável = primária
+const PRICE_UP = "#ef4444";
+const PRICE_DOWN = "#10b981";
+
+function PriceTooltip({ active, payload }: any) {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="rounded-lg border bg-background p-2 shadow-md text-xs">
+      <div className="font-medium">{d.fullDate}</div>
+      <div className="mt-1">
+        Preço: <span className="font-semibold">{brl(d.price)}</span>
+      </div>
+      {d.prev != null && (
+        <div className={d.delta > 0 ? "text-red-500" : d.delta < 0 ? "text-emerald-500" : "text-muted-foreground"}>
+          {d.delta > 0 ? "▲ subiu " : d.delta < 0 ? "▼ caiu " : "— estável "}
+          {brl(Math.abs(d.delta))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Material {
   id: number;
@@ -67,6 +94,49 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
     enabled: !!material?.id && open && material?.unit === "Metros" && !material?.is_open_roll,
   });
 
+  // Série de preços por entrada (ordenada da mais antiga para a mais recente)
+  const priceHistory = useMemo(() => {
+    if (!movements) return [];
+    const entries = movements
+      .filter((m: any) => (m.movement_type === "Entrada" || m.movement_type === "Saldo Inicial") && m.unit_cost != null && Number(m.unit_cost) > 0)
+      .slice()
+      .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    return entries.map((m: any, i: number, arr: any[]) => {
+      const price = Number(m.unit_cost);
+      const prev = i > 0 ? Number(arr[i - 1].unit_cost) : null;
+      const delta = prev != null ? price - prev : 0;
+      return {
+        key: m.id,
+        date: format(new Date(m.created_at), "dd/MM/yy", { locale: ptBR }),
+        fullDate: format(new Date(m.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }),
+        price,
+        prev,
+        delta,
+        direction: prev == null ? "first" : delta > 0 ? "up" : delta < 0 ? "down" : "same",
+      };
+    });
+  }, [movements]);
+
+  const priceStats = useMemo(() => {
+    if (!priceHistory.length) return null;
+    const prices = priceHistory.map((p) => p.price);
+    const avg = prices.reduce((s, v) => s + v, 0) / prices.length;
+    const last = priceHistory[priceHistory.length - 1];
+    const variation = last.prev != null ? last.price - last.prev : 0;
+    const variationPct = last.prev ? (variation / last.prev) * 100 : 0;
+    return {
+      current: prices[prices.length - 1],
+      avg,
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+      variation,
+      variationPct,
+      direction: last.direction,
+      count: priceHistory.length,
+    };
+  }, [priceHistory]);
+
   if (!material) return null;
 
   const getStockStatus = (material: Material) => {
@@ -83,7 +153,8 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
   };
 
   const status = getStockStatus(material);
-  const currentCost = material.product_types?.cost_per_meter || material.average_cost || 0;
+  // Custo por metro informado no material (average_cost) tem prioridade sobre o custo genérico do tipo de produto
+  const currentCost = material.average_cost || material.product_types?.cost_per_meter || 0;
   const totalVal = (material.is_open_roll
     ? (material.open_roll_accumulated || 0)
     : (material.current_stock || 0)) * currentCost;
@@ -160,6 +231,104 @@ export function MaterialDetailsModal({ open, onOpenChange, material }: MaterialD
             <span className="text-xs text-muted-foreground mt-1">
               {currentCost.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} / {material.unit}
             </span>
+          </div>
+        </div>
+
+        {/* Histórico de Preços */}
+        <div className="mt-2 mb-6 border rounded-xl overflow-hidden bg-card shadow-sm">
+          <div className="bg-muted/50 p-4 border-b flex items-center justify-between">
+            <h3 className="font-semibold flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-primary" />
+              Histórico de Preços
+            </h3>
+            {priceStats && (
+              <span className="text-xs text-muted-foreground">{priceStats.count} entrada(s) com preço</span>
+            )}
+          </div>
+
+          <div className="p-4">
+            {priceStats ? (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                  <div className="bg-muted/40 border p-3 rounded-xl">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Último Preço</span>
+                    <div className="text-xl font-bold mt-1">{brl(priceStats.current)}</div>
+                    <span className="text-[10px] text-muted-foreground">última compra / {material.unit}</span>
+                  </div>
+
+                  <div className="bg-muted/40 border p-3 rounded-xl">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Preço Médio</span>
+                    <div className="text-xl font-bold mt-1">{brl(priceStats.avg)}</div>
+                    <span className="text-[10px] text-muted-foreground">média das compras</span>
+                  </div>
+
+                  <div className="bg-muted/40 border p-3 rounded-xl">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Variação (última)</span>
+                    <div className={cn(
+                      "text-xl font-bold mt-1 flex items-center gap-1",
+                      priceStats.direction === "up" ? "text-red-500" : priceStats.direction === "down" ? "text-emerald-500" : "text-muted-foreground"
+                    )}>
+                      {priceStats.direction === "up" ? <TrendingUp className="h-4 w-4" /> : priceStats.direction === "down" ? <TrendingDown className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
+                      {priceStats.direction === "up" ? "+" : priceStats.direction === "down" ? "-" : ""}{brl(Math.abs(priceStats.variation))}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      {priceStats.count < 2
+                        ? "primeira entrada"
+                        : `${priceStats.variationPct > 0 ? "+" : ""}${priceStats.variationPct.toFixed(1)}% vs. anterior`}
+                    </span>
+                  </div>
+
+                  <div className="bg-muted/40 border p-3 rounded-xl">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Menor / Maior</span>
+                    <div className="text-sm font-semibold mt-1">
+                      {brl(priceStats.min)} <span className="text-muted-foreground">–</span> {brl(priceStats.max)}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">faixa registrada</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 mb-2 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm" style={{ background: PRICE_UP }} /> Subiu</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm" style={{ background: PRICE_DOWN }} /> Caiu</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-primary" /> 1ª / estável</span>
+                </div>
+
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={priceHistory} margin={{ top: 24, right: 16, left: 8, bottom: 4 }} barCategoryGap="25%">
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
+                      <YAxis tickFormatter={(v: number) => brl(v)} tick={{ fontSize: 11 }} width={72} tickLine={false} axisLine={false} />
+                      <RTooltip content={<PriceTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} />
+                      <ReferenceLine
+                        y={priceStats.avg}
+                        stroke="hsl(var(--muted-foreground))"
+                        strokeDasharray="4 4"
+                        label={{ value: `Média ${brl(priceStats.avg)}`, position: "insideTopRight", fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                      />
+                      <Bar dataKey="price" radius={[4, 4, 0, 0]} maxBarSize={72}>
+                        <LabelList dataKey="price" position="top" formatter={(v: number) => brl(v)} style={{ fontSize: 10, fontWeight: 600, fill: "hsl(var(--foreground))" }} />
+                        {priceHistory.map((entry) => (
+                          <Cell
+                            key={entry.key}
+                            fill={entry.direction === "up" ? PRICE_UP : entry.direction === "down" ? PRICE_DOWN : "hsl(var(--primary))"}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
+            ) : (
+              <div className="py-10 text-center">
+                <DollarSign className="mx-auto mb-2 h-8 w-8 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">
+                  Nenhum preço de entrada registrado ainda.
+                </p>
+                <p className="text-xs text-muted-foreground/70 mt-1">
+                  Ao registrar entradas informando o custo, a evolução dos preços aparece aqui.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

@@ -12,6 +12,7 @@ import SalesChartsModal from "@/pages/Vendas/components/SalesChartsModal";
 import SaleDetailsModal from "@/pages/Vendas/components/SaleDetailsModal";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useSalesRecognition } from "@/hooks/useSalesRecognition";
 import { useSalesData } from "./hooks/useSalesData";
 import { useInstantSearch } from "./hooks/useInstantSearch";
@@ -33,6 +34,7 @@ export function Principal() {
     const [selectedDetailedSale, setSelectedDetailedSale] = useState<SaleWithDetails | null>(null);
 
     const { user } = useAuth();
+    const { can } = usePermissions();
     const { sales, setSales, loading, fetchSales } = useSalesData(currentDate);
     const {
         valorTodas,
@@ -147,10 +149,12 @@ export function Principal() {
                             </Select>
                         </div>
 
-                        <Button onClick={() => setIsNewSaleModalOpen(true)} className="gap-2 w-full sm:w-auto">
-                            <Plus className="h-4 w-4" />
-                            Nova venda
-                        </Button>
+                        {can("vendas_add") && (
+                            <Button onClick={() => setIsNewSaleModalOpen(true)} className="gap-2 w-full sm:w-auto">
+                                <Plus className="h-4 w-4" />
+                                Nova venda
+                            </Button>
+                        )}
                     </div>
 
                     <PrincipalHeader

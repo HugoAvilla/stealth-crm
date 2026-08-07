@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ProductCategory, VehicleRegion, RegionConsumptionRule, VehicleSize } from "@/lib/database.types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ConsumptionRulesTabProps {
   companyId: number | null;
@@ -55,6 +56,7 @@ function ConsumptionInput({ value, onChange, disabled }: ConsumptionInputProps) 
 }
 
 export function ConsumptionRulesTab({ companyId }: ConsumptionRulesTabProps) {
+  const { can } = usePermissions();
   const [activeCategory, setActiveCategory] = useState<ProductCategory>("INSULFILM");
   const [formValues, setFormValues] = useState<Record<number, Record<VehicleSize, number>>>({});
   const [isDirty, setIsDirty] = useState(false);
@@ -200,6 +202,7 @@ export function ConsumptionRulesTab({ companyId }: ConsumptionRulesTabProps) {
           </TabsList>
         </Tabs>
 
+        {can("servicos_regras_consumo") && (
         <Button onClick={handleSaveAllRules} disabled={!isDirty || isSaving} className="w-full sm:w-auto">
           {isSaving ? (
             <>
@@ -213,6 +216,7 @@ export function ConsumptionRulesTab({ companyId }: ConsumptionRulesTabProps) {
             </>
           )}
         </Button>
+        )}
       </div>
 
       {/* Tabela de regras */}

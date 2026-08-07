@@ -99,7 +99,7 @@ export function ItemsInput({
         const selectedMaterial = materials.find((m) => m.id === matId);
         if (selectedMaterial) {
           currentItem.unit = selectedMaterial.unit || "un";
-          currentItem.unitPrice = selectedMaterial.product_types?.cost_per_meter || selectedMaterial.average_cost || 0;
+          currentItem.unitPrice = selectedMaterial.average_cost || selectedMaterial.product_types?.cost_per_meter || 0;
           currentItem.description = null;
         }
       } else {

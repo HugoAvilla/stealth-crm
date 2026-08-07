@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { format } from "date-fns";
 import { IssueWarrantyModal } from "@/shared/components/garantias/IssueWarrantyModal";
 import { NewWarrantyTemplateModal } from "@/pages/Garantias/components/NewWarrantyTemplateModal";
@@ -57,6 +58,7 @@ interface WarrantyTemplate {
 
 export function Principal() {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [showIssueModal, setShowIssueModal] = useState(false);
@@ -261,12 +263,16 @@ export function Principal() {
 
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row justify-end gap-2">
-        <Button variant="outline" onClick={() => setShowTemplateModal(true)} className="w-full sm:w-auto">
-          <FilePlus className="h-4 w-4 mr-2" /> Criar Garantia Produto
-        </Button>
-        <Button onClick={() => setShowIssueModal(true)} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" /> Emitir Garantia
-        </Button>
+        {can("garantias_add") && (
+          <Button variant="outline" onClick={() => setShowTemplateModal(true)} className="w-full sm:w-auto">
+            <FilePlus className="h-4 w-4 mr-2" /> Criar Garantia Produto
+          </Button>
+        )}
+        {can("garantias_emitir") && (
+          <Button onClick={() => setShowIssueModal(true)} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4 mr-2" /> Emitir Garantia
+          </Button>
+        )}
       </div>
 
 
@@ -422,12 +428,14 @@ export function Principal() {
                                     <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
                                   </a>
                                 </DropdownMenuItem>
+                                {can("garantias_delete") && (
                                 <DropdownMenuItem
                                   onClick={() => handleDelete(warranty.id)}
                                   className="text-red-500 focus:text-red-500"
                                 >
                                   <Trash2 className="h-4 w-4 mr-2" /> Excluir
                                 </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -479,12 +487,14 @@ export function Principal() {
                                 <MessageCircle className="h-4 w-4 mr-2" /> Enviar WhatsApp
                               </a>
                             </DropdownMenuItem>
+                            {can("garantias_delete") && (
                             <DropdownMenuItem
                               onClick={() => handleDelete(warranty.id)}
                               className="text-red-500 focus:text-red-500"
                             >
                               <Trash2 className="h-4 w-4 mr-2" /> Excluir
                             </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

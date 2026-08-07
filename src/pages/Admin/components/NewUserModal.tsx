@@ -179,7 +179,6 @@ export function NewUserModal({ open, onOpenChange, onUserCreated }: NewUserModal
               <SelectContent>
                 <SelectItem value="admin">Administrador</SelectItem>
                 <SelectItem value="vendedor">Vendedor</SelectItem>
-                <SelectItem value="producao">Produção</SelectItem>
               </SelectContent>
             </Select>
           </div>

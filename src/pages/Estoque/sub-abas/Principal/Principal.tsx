@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { usePlanGate } from "@/hooks/usePlanGate";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ interface Material {
 
 export function Principal() {
   const { user, isLoading: authLoading } = useAuth();
+  const { can } = usePermissions();
   const gate = usePlanGate('estoque');
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -180,13 +182,14 @@ export function Principal() {
 
   const closedStockValue = materials.reduce((sum, m) => {
     if (m.is_open_roll) return sum;
-    const currentCost = m.product_types?.cost_per_meter || m.average_cost || 0;
+    // Custo por metro informado no material (average_cost) tem prioridade sobre o custo genérico do tipo de produto
+    const currentCost = m.average_cost || m.product_types?.cost_per_meter || 0;
     return sum + ((m.current_stock || 0) * currentCost);
   }, 0);
 
   const openStockValue = materials.reduce((sum, m) => {
     if (!m.is_open_roll) return sum;
-    const currentCost = m.product_types?.cost_per_meter || m.average_cost || 0;
+    const currentCost = m.average_cost || m.product_types?.cost_per_meter || 0;
     return sum + ((m.open_roll_accumulated || 0) * currentCost);
   }, 0);
 
@@ -268,7 +271,7 @@ export function Principal() {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {items.map((material) => {
         const stockStatus = getStockStatus(material);
-        const currentCost = material.product_types?.cost_per_meter || material.average_cost || 0;
+        const currentCost = material.average_cost || material.product_types?.cost_per_meter || 0;
         const totalVal = (material.is_open_roll
           ? (material.open_roll_accumulated || 0)
           : (material.current_stock || 0)) * currentCost;
@@ -297,15 +300,17 @@ export function Principal() {
                     <span className="text-xs text-muted-foreground">{material.brand}</span>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(material)}
-                  title="Excluir"
-                  className="text-muted-foreground hover:text-destructive h-8 w-8 -mt-1 -mr-1 shrink-0"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {can("estoque_delete") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDelete(material)}
+                    title="Excluir"
+                    className="text-muted-foreground hover:text-destructive h-8 w-8 -mt-1 -mr-1 shrink-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
 
               {/* Informações de Bobina / Transmissão */}
@@ -371,24 +376,29 @@ export function Principal() {
               <div className="flex gap-2">
                 {!material.is_open_roll ? (
                   <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEntry(material)}
-                      className="flex-1 h-9 text-xs border-green-500/20 hover:bg-green-500/5 hover:text-green-600"
-                    >
-                      <ArrowDown className="mr-1 h-3.5 w-3.5 text-green-500" /> Entrada
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleExit(material)}
-                      className="flex-1 h-9 text-xs border-red-500/20 hover:bg-red-500/5 hover:text-red-600"
-                    >
-                      <ArrowUp className="mr-1 h-3.5 w-3.5 text-red-500" /> Saída
-                    </Button>
+                    {can("estoque_entrada_metros") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEntry(material)}
+                        className="flex-1 h-9 text-xs border-green-500/20 hover:bg-green-500/5 hover:text-green-600"
+                      >
+                        <ArrowDown className="mr-1 h-3.5 w-3.5 text-green-500" /> Entrada
+                      </Button>
+                    )}
+                    {can("estoque_saida_metros") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExit(material)}
+                        className="flex-1 h-9 text-xs border-red-500/20 hover:bg-red-500/5 hover:text-red-600"
+                      >
+                        <ArrowUp className="mr-1 h-3.5 w-3.5 text-red-500" /> Saída
+                      </Button>
+                    )}
                   </>
                 ) : (
+                  can("estoque_fechar_bobina") && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -397,9 +407,10 @@ export function Principal() {
                   >
                     <StopCircle className="mr-1 h-3.5 w-3.5 text-blue-500" /> Encerrar Bobina
                   </Button>
+                  )
                 )}
               </div>
-              {!material.is_open_roll && (
+              {!material.is_open_roll && can("estoque_fechar_bobina") && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -487,9 +498,11 @@ export function Principal() {
     <div className="space-y-6">
       {/* Header da aba */}
       <div className="flex items-center justify-end gap-2">
-        <Button onClick={() => setShowNewMaterial(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Adicionar Metros
-        </Button>
+        {can("estoque_add") && (
+          <Button onClick={() => setShowNewMaterial(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Adicionar Metros
+          </Button>
+        )}
       </div>
 
       {/* Stats */}
@@ -632,9 +645,11 @@ export function Principal() {
             <p className="text-muted-foreground mb-4">
               Comece adicionando os materiais utilizados nos seus serviços
             </p>
-            <Button onClick={() => setShowNewMaterial(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Material
-            </Button>
+            {can("estoque_add") && (
+              <Button onClick={() => setShowNewMaterial(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Material
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (

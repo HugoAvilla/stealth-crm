@@ -190,19 +190,19 @@ function AppRoutes() {
       } />
 
       <Route path="/financeiro" element={
-        <ProtectedRoute allowedRoles={['ADMIN']}>
+        <ProtectedRoute allowedRoles={['ADMIN']} requiredModule="financeiro">
           <MainLayout><Financeiro /></MainLayout>
         </ProtectedRoute>
       } />
 
       <Route path="/compras" element={
-        <ProtectedRoute allowedRoles={['ADMIN']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']} requiredModule="compras">
           <MainLayout><Compras /></MainLayout>
         </ProtectedRoute>
       } />
 
       <Route path="/contas" element={
-        <ProtectedRoute allowedRoles={['ADMIN']}>
+        <ProtectedRoute allowedRoles={['ADMIN']} requiredModule="contas">
           <MainLayout><Contas /></MainLayout>
         </ProtectedRoute>
       } />
@@ -214,26 +214,26 @@ function AppRoutes() {
       } />
 
       <Route path="/comissoes" element={
-        <ProtectedRoute allowedRoles={['ADMIN']}>
+        <ProtectedRoute allowedRoles={['ADMIN']} requiredModule="comissoes">
           <MainLayout><Comissoes /></MainLayout>
         </ProtectedRoute>
       } />
 
       <Route path="/garantias" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']} requiredModule="garantias">
           <MainLayout><Garantias /></MainLayout>
         </ProtectedRoute>
       } />
 
 
       <Route path="/perfil" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO', 'PRODUCAO']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']} requiredModule="perfil">
           <MainLayout><Perfil /></MainLayout>
         </ProtectedRoute>
       } />
 
       <Route path="/empresa" element={
-        <ProtectedRoute allowedRoles={['ADMIN']}>
+        <ProtectedRoute allowedRoles={['ADMIN']} requiredModule="empresa">
           <MainLayout><Empresa /></MainLayout>
         </ProtectedRoute>
       } />
@@ -244,21 +244,21 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      {/* Protected Routes - ADMIN and PRODUCAO (Estoque) */}
+      {/* Protected Routes - Estoque (ADMIN e FUNCIONARIO conforme permissão) */}
       <Route path="/estoque" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'PRODUCAO']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']} requiredModule="estoque">
           <MainLayout><Estoque /></MainLayout>
         </ProtectedRoute>
       } />
       <Route path="/perdas" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'PRODUCAO', 'FUNCIONARIO']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']}>
           <MainLayout><ErrorBoundary><MaterialLosses /></ErrorBoundary></MainLayout>
         </ProtectedRoute>
       } />
 
       {/* Protected Routes - Serviços */}
       <Route path="/servicos" element={
-        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO', 'PRODUCAO']}>
+        <ProtectedRoute allowedRoles={['ADMIN', 'FUNCIONARIO']} requiredModule="servicos">
           <MainLayout><Servicos /></MainLayout>
         </ProtectedRoute>
       } />
