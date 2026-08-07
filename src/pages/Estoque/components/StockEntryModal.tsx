@@ -15,6 +15,8 @@ interface Material {
   unit: string;
   current_stock: number | null;
   company_id: number | null;
+  average_cost?: number | null;
+  product_types?: { cost_per_meter: number | null } | null;
 }
 
 interface StockEntryModalProps {
@@ -27,8 +29,13 @@ interface StockEntryModalProps {
 export function StockEntryModal({ open, onOpenChange, material, onSuccess }: StockEntryModalProps) {
   const { user } = useAuth();
   const [quantity, setQuantity] = useState("");
+  const [unitCost, setUnitCost] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Custo atual do material (preço da última entrada) para servir de referência
+  const currentCost = material?.average_cost || material?.product_types?.cost_per_meter || 0;
+  const costLabel = material?.unit === "Metros" ? "Custo / Metro (R$)" : "Custo Unitário (R$)";
 
   const handleSubmit = async () => {
     if (!quantity || parseFloat(quantity) <= 0) {
@@ -55,6 +62,10 @@ export function StockEntryModal({ open, onOpenChange, material, onSuccess }: Sto
         return;
       }
 
+      // Preço informado nesta entrada (opcional). Quando informado, vira o custo atual do material.
+      const parsedCost = unitCost ? parseFloat(unitCost.toString().replace(",", ".")) : NaN;
+      const unitCostVal = !isNaN(parsedCost) && parsedCost > 0 ? parsedCost : null;
+
       let error;
       if (material.unit === "Metros") {
         // Para materiais medidos em metros, registrar a entrada como uma nova bobina física
@@ -65,6 +76,7 @@ export function StockEntryModal({ open, onOpenChange, material, onSuccess }: Sto
           p_notes: notes || "Entrada manual",
           p_user_id: user.id,
           p_company_id: profile.company_id,
+          p_unit_cost: unitCostVal,
         });
         error = rpcError;
       } else {
@@ -76,8 +88,11 @@ export function StockEntryModal({ open, onOpenChange, material, onSuccess }: Sto
           reason: notes || "Entrada manual",
           user_id: user.id,
           company_id: profile.company_id,
+          unit_cost: unitCostVal,
         });
         error = insertError;
+        // O custo médio ponderado é recalculado pelo trigger update_stock_on_movement
+        // a partir do unit_cost informado — não sobrescrever average_cost aqui.
       }
 
       if (error) throw error;
@@ -85,6 +100,7 @@ export function StockEntryModal({ open, onOpenChange, material, onSuccess }: Sto
       toast.success(`Entrada de ${quantity} ${material.unit} registrada!`);
       onOpenChange(false);
       setQuantity("");
+      setUnitCost("");
       setNotes("");
       onSuccess?.();
     } catch (error) {
@@ -122,6 +138,23 @@ export function StockEntryModal({ open, onOpenChange, material, onSuccess }: Sto
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>{costLabel}</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder={currentCost > 0 ? currentCost.toFixed(2) : "Ex: 119.00"}
+              value={unitCost}
+              onChange={(e) => setUnitCost(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              {currentCost > 0
+                ? `Preço atual: ${currentCost.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}. Informe o preço desta entrada — se deixar em branco, o preço atual é mantido.`
+                : "Informe o preço pago nesta entrada para acompanhar a evolução dos preços."}
+            </p>
           </div>
 
           <div className="space-y-2">

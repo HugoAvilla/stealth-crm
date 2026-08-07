@@ -123,11 +123,11 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
 
       const rolesMap = new Map((rolesData || []).map(r => [r.user_id, r.role]));
 
-      // Filtrar e mapear apenas membros PRODUCAO ou ADMIN
+      // Membros que podem ter causado a perda: funcionários e admin
       return profilesData
         .filter(p => {
           const role = rolesMap.get(p.user_id);
-          return role === 'PRODUCAO' || role === 'ADMIN';
+          return role === 'FUNCIONARIO' || role === 'ADMIN';
         })
         .map(p => ({
           id: p.user_id, // installer_id uuid do auth.users(id)
@@ -187,7 +187,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
   const activeWidth = lostWidthVal !== null && lostWidthVal !== undefined ? lostWidthVal : widthVal;
 
   const previewM2 = lostMetersVal * activeWidth;
-  const currentCost = (selectedMaterial as any)?.product_types?.cost_per_meter || selectedMaterial?.average_cost || 0;
+  const currentCost = selectedMaterial?.average_cost || (selectedMaterial as any)?.product_types?.cost_per_meter || 0;
   const previewCost = lostMetersVal * currentCost;
 
   const onSubmit = async (values: FormValues) => {
@@ -206,7 +206,7 @@ export function MaterialLossFormModal({ open, onOpenChange, lossToEdit, onSucces
     const bobbinWidth = selectedMaterial && 'width' in selectedMaterial ? (selectedMaterial.width as number || 1.52) : 1.52;
     const activeWidthSubmit = values.lost_width !== null && values.lost_width !== undefined ? values.lost_width : bobbinWidth;
     const lost_m2 = values.lost_meters * activeWidthSubmit;
-    const currentCostSubmit = (selectedMaterial as any)?.product_types?.cost_per_meter || selectedMaterial?.average_cost || 0;
+    const currentCostSubmit = selectedMaterial?.average_cost || (selectedMaterial as any)?.product_types?.cost_per_meter || 0;
     const cost = values.lost_meters * currentCostSubmit;
 
     try {

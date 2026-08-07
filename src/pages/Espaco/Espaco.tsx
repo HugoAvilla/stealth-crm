@@ -16,9 +16,11 @@ import VeiculosPagos from "./sub-abas/VeiculosPagos/VeiculosPagos";
 import VeiculosNaoPagos from "./sub-abas/VeiculosNaoPagos/VeiculosNaoPagos";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function Espaco() {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const queryClient = useQueryClient();
   const companyId = user?.companyId;
 
@@ -182,10 +184,12 @@ export default function Espaco() {
           <h1 className="text-2xl font-bold">Espaço (Vagas)</h1>
           <p className="text-muted-foreground">Gerencie a ocupação das vagas do seu estabelecimento</p>
         </div>
-        <Button onClick={() => setShowFillSlotModal(true)} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Preencher Vaga
-        </Button>
+        {can("espaco_add") && (
+          <Button onClick={() => setShowFillSlotModal(true)} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Preencher Vaga
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -195,28 +199,36 @@ export default function Espaco() {
             <Car className="h-4 w-4" />
             Vagas Ativas
           </TabsTrigger>
-          <TabsTrigger value="pagos-saida" className="gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Veículos Pagos
-          </TabsTrigger>
-          <TabsTrigger value="nao-pagos-saida" className="gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Não Pagos
-            {unpaidCount !== undefined && unpaidCount > 0 && (
-              <Badge variant="destructive" className="ml-1 px-1.5 py-0.5 text-xs bg-destructive text-destructive-foreground animate-pulse flex items-center gap-0.5">
-                <AlertTriangle className="h-3 w-3" />
-                {unpaidCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="pdfs" className="gap-2">
-            <Download className="h-4 w-4" />
-            PDFs Baixados
-          </TabsTrigger>
-          <TabsTrigger value="lixeira" className="gap-2">
-            <Trash2 className="h-4 w-4" />
-            Lixeira
-          </TabsTrigger>
+          {can("espaco_ver_pagos") && (
+            <TabsTrigger value="pagos-saida" className="gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Veículos Pagos
+            </TabsTrigger>
+          )}
+          {can("espaco_ver_nao_pagos") && (
+            <TabsTrigger value="nao-pagos-saida" className="gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Não Pagos
+              {unpaidCount !== undefined && unpaidCount > 0 && (
+                <Badge variant="destructive" className="ml-1 px-1.5 py-0.5 text-xs bg-destructive text-destructive-foreground animate-pulse flex items-center gap-0.5">
+                  <AlertTriangle className="h-3 w-3" />
+                  {unpaidCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+          )}
+          {can("espaco_ver_pdf") && (
+            <TabsTrigger value="pdfs" className="gap-2">
+              <Download className="h-4 w-4" />
+              PDFs Baixados
+            </TabsTrigger>
+          )}
+          {can("espaco_ver_lixeira") && (
+            <TabsTrigger value="lixeira" className="gap-2">
+              <Trash2 className="h-4 w-4" />
+              Lixeira
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="vagas">

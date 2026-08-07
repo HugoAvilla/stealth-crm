@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { StatsCard } from '@/components/shared/StatsCard';
 import { QuickActions } from './components/QuickActions';
@@ -30,6 +31,7 @@ interface DashboardStats {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [showFillSlotModal, setShowFillSlotModal] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
@@ -551,7 +553,7 @@ const Dashboard = () => {
             <h3 className="text-sm font-medium text-muted-foreground">
               Meta do Mês
             </h3>
-            {!isEditingGoal && (
+            {!isEditingGoal && can("painel_editar_meta") && (
               <Button
                 variant="ghost"
                 size="sm"

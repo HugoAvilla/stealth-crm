@@ -33,6 +33,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ClientCard } from "@/pages/Clientes/components/ClientCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import NewClientModal from "@/pages/Vendas/components/NewClientModal";
 import NewSaleModal from "@/pages/Vendas/components/NewSaleModal";
@@ -81,6 +82,7 @@ type SortOption = 'name-asc' | 'name-desc' | 'recent' | 'spent';
 
 export default function Clientes() {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [sales, setSales] = useState<any[]>([]);
@@ -410,13 +412,15 @@ export default function Clientes() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            onClick={() => setShowNewClientModal(true)}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo cliente
-          </Button>
+          {can("clientes_add") && (
+            <Button
+              onClick={() => setShowNewClientModal(true)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo cliente
+            </Button>
+          )}
         </div>
       </div>
 
@@ -562,9 +566,11 @@ export default function Clientes() {
               <p className="text-muted-foreground mb-4">
                 Comece cadastrando seu primeiro cliente
               </p>
-              <Button onClick={() => setShowNewClientModal(true)}>
-                <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Cliente
-              </Button>
+              {can("clientes_add") && (
+                <Button onClick={() => setShowNewClientModal(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> Cadastrar Primeiro Cliente
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -573,9 +579,9 @@ export default function Clientes() {
                   key={client.id}
                   client={client}
                   onViewProfile={handleViewProfile}
-                  onEdit={handleEditClient}
-                  onDelete={handleDeleteClient}
-                  onWhatsApp={(phone) => window.open(openWhatsApp(phone), "_blank")}
+                  onEdit={can("clientes_edit") ? handleEditClient : undefined}
+                  onDelete={can("clientes_delete") ? handleDeleteClient : undefined}
+                  onWhatsApp={can("clientes_enviar_wpp") ? (phone) => window.open(openWhatsApp(phone), "_blank") : undefined}
                 />
               ))}
               {filteredAndSortedClients.length === 0 && clients.length > 0 && (

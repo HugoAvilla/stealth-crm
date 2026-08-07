@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Phone, Briefcase, Calendar, MapPin, Mail, Key, Shield, AlertTriangle, Search, X, Check, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,200 +7,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PERMISSION_MODULES, DEFAULT_LOCKED_MODULES } from "@/lib/permissions";
+
+export interface EmployeeForEdit {
+    user_id: string;
+    name: string;
+    role_title: string;
+    whatsapp: string;
+    email: string;
+    locked_modules: string[];
+}
 
 interface FuncionarioFormModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSaved: () => void;
     companyId: string;
+    employee?: EmployeeForEdit | null;
 }
 
-const PERMISSION_MODULES = [
-    {
-        id: "painel", label: "Aba Painel (Dashboard)", actions: [
-            { id: "visualizar_numeros", label: "Visualizar números" },
-            { id: "preencher_vagas", label: "Preencher vaga" },
-            { id: "add_cliente", label: "Adicionar novo cliente" },
-            { id: "ver_financeiro", label: "Ver financeiro completo" },
-            { id: "editar_meta", label: "Editar meta do mês" },
-        ]
-    },
-    {
-        id: "vendas", label: "Aba Vendas", actions: [
-            { id: "view_numeros", label: "Ver números de venda" },
-            { id: "add", label: "Adicionar venda" },
-            { id: "edit", label: "Editar venda" },
-            { id: "delete", label: "Excluir venda" },
-            { id: "emitir_garantia", label: "Emitir garantia" },
-            { id: "imprimir", label: "Imprimir notinha" },
-            { id: "enviar_wpp", label: "Enviar mensagem no WhatsApp" },
-            { id: "ver_pdf", label: "Ver sub-aba PDFs baixados" },
-            { id: "ver_lixeira", label: "Ver sub-aba de lixeira" },
-        ]
-    },
-    {
-        id: "espaco", label: "Aba Espaço", actions: [
-            { id: "add", label: "Adicionar vaga" },
-            { id: "edit", label: "Editar vaga" },
-            { id: "delete", label: "Excluir vaga" },
-            { id: "concluir_vaga", label: "Concluir vaga e liberar espaço" },
-            { id: "exportar_venda", label: "Exportar venda" },
-            { id: "enviar_msg", label: "Enviar mensagem de entrada/saída" },
-            { id: "baixar_pdf", label: "Baixar PDF" },
-            { id: "configurar_total", label: "Configurar total de vagas" },
-            { id: "alterar_limite", label: "Alterar limite de vagas" },
-            { id: "ver_pagos", label: "Ver sub-aba Veículos Pagos" },
-            { id: "ver_nao_pagos", label: "Ver sub-aba Veículos Não Pagos" },
-            { id: "ver_pdf", label: "Ver sub-aba PDFs Baixados" },
-            { id: "ver_lixeira", label: "Ver sub-aba de Lixeira" },
-        ]
-    },
-    {
-        id: "financeiro", label: "Aba Financeiro", actions: [
-            { id: "visualizar_numeros", label: "Visualizar números" },
-            { id: "add_entrada", label: "Adicionar entrada" },
-            { id: "add_saida", label: "Adicionar saída" },
-            { id: "transferencia", label: "Fazer transferência" },
-            { id: "add_conta", label: "Adicionar conta" },
-            { id: "add_categoria", label: "Adicionar categoria" },
-            { id: "gerenciar_categoria", label: "Gerenciar categoria" },
-            { id: "ver_cac", label: "Visualizar aba de CAC" },
-            { id: "add_gasto_ads", label: "Adicionar gastos por ADS" },
-            { id: "add_gasto_vendedor", label: "Adicionar gastos por Vendedor" },
-        ]
-    },
-    {
-        id: "compras", label: "Aba Compras", actions: [
-            { id: "visualizar_numeros", label: "Visualizar números" },
-            { id: "add", label: "Adicionar compra" },
-            { id: "edit", label: "Editar compra" },
-            { id: "delete", label: "Excluir compra" },
-            { id: "add_fornecedor", label: "Adicionar fornecedor" },
-        ]
-    },
-    {
-        id: "contas", label: "Aba Contas", actions: [
-            { id: "visualizar_numeros", label: "Visualizar números" },
-            { id: "add_entrada", label: "Adicionar entrada" },
-            { id: "add_saida", label: "Adicionar saída" },
-            { id: "transferencia", label: "Fazer transferência" },
-            { id: "add_conta", label: "Adicionar conta" },
-            { id: "add_categoria", label: "Adicionar categoria" },
-            { id: "gerenciar_categoria", label: "Gerenciar categoria" },
-            { id: "ver_maquininha", label: "Visualizar aba de Maquininha" },
-            { id: "add_maquininha", label: "Adicionar nova maquininha" },
-            { id: "edit_maquininha", label: "Editar maquininha" },
-            { id: "delete_maquininha", label: "Excluir maquininha" },
-            { id: "marcar_paga", label: "Marcar venda como paga" },
-            { id: "reverter_maquininha", label: "Reverter venda das maquininhas" },
-            { id: "ver_boletos", label: "Visualizar aba de Boletos" },
-            { id: "pagar_boleto", label: "Fazer pagamento de boletos" },
-            { id: "reverter_boleto", label: "Reverter pagamento de boletos" },
-        ]
-    },
-    {
-        id: "clientes", label: "Aba Clientes", actions: [
-            { id: "add", label: "Adicionar novo cliente" },
-            { id: "add_veiculo", label: "Adicionar veículo" },
-            { id: "edit", label: "Editar cliente" },
-            { id: "delete", label: "Excluir cliente" },
-            { id: "criar_venda", label: "Criar nova venda com cliente" },
-            { id: "criar_vaga", label: "Criar nova vaga com cliente" },
-            { id: "enviar_wpp", label: "Enviar mensagem WhatsApp do cliente" },
-        ]
-    },
-    {
-        id: "relatorios", label: "Aba Relatórios", actions: [
-            { id: "dfc", label: "DFC - Demonstração de Fluxo de Caixa" },
-            { id: "saidas_fin", label: "Saídas Financeiro (Pagos e Pendentes)" },
-            { id: "dre", label: "DRE - Demonstração de Resultado" },
-            { id: "extrato", label: "Extrato de Conta" },
-            { id: "vendas_periodo", label: "Vendas por Período (Fechadas)" },
-            { id: "vendas_servico", label: "Vendas por Serviço" },
-            { id: "vendas_vendedor", label: "Vendas por Vendedor" },
-            { id: "vendas_pelicula", label: "Vendas por Película" },
-            { id: "clientes_ativos", label: "Clientes Ativos" },
-            { id: "clientes_inativos", label: "Clientes Inativos" },
-            { id: "marketing", label: "Lista de Marketing" },
-            { id: "backup", label: "Lista Completa (Backup)" },
-            { id: "ocupacao", label: "Ocupação de Vagas" },
-            { id: "mov_estoque", label: "Movimentação de Estoque" },
-            { id: "perdas_mat", label: "Perdas de Material" },
-        ]
-    },
-    {
-        id: "comissoes", label: "Aba Comissões", actions: [
-            { id: "view", label: "Visualizar aba de comissões" },
-            { id: "add", label: "Adicionar novo comissionado" },
-            { id: "edit", label: "Editar comissionado" },
-            { id: "delete", label: "Excluir comissionado" },
-        ]
-    },
-    {
-        id: "garantias", label: "Aba Garantias", actions: [
-            { id: "view", label: "Visualizar aba de garantia" },
-            { id: "add", label: "Criar uma nova garantia" },
-            { id: "edit", label: "Editar garantia" },
-            { id: "delete", label: "Excluir garantia" },
-            { id: "emitir", label: "Emitir garantia" },
-            { id: "ver_pdf", label: "Visualizar PDFs baixados" },
-        ]
-    },
-    {
-        id: "servicos", label: "Aba Serviços", actions: [
-            { id: "view", label: "Visualizar aba de serviços" },
-            { id: "add", label: "Adicionar novo serviço" },
-            { id: "edit", label: "Editar serviços" },
-            { id: "delete", label: "Excluir serviços" },
-            { id: "ver_regras", label: "Visualizar aba regras de consumo" },
-            { id: "regras_consumo", label: "Alterar regras de consumo" },
-        ]
-    },
-    {
-        id: "estoque", label: "Aba Estoque", actions: [
-            { id: "add", label: "Adicionar novo material" },
-            { id: "edit", label: "Editar material" },
-            { id: "delete", label: "Excluir material" },
-            { id: "toggle_ativo", label: "Ativar / Desativar material" },
-            { id: "add_metros", label: "Adicionar metros" },
-            { id: "edit_metros", label: "Editar metros" },
-            { id: "del_metros", label: "Excluir metros" },
-            { id: "entrada_metros", label: "Dar entrada em metros de material" },
-            { id: "saida_metros", label: "Dar saída em metros de material" },
-            { id: "fechar_bobina", label: "Encerrar bobina aberta de material" },
-            { id: "ver_tipos", label: "Ver aba Tipos de Materiais" },
-            { id: "ver_metragem", label: "Ver aba Metragem de Materiais" },
-            { id: "ver_historico", label: "Ver aba Histórico de Material" },
-        ]
-    },
-    {
-        id: "perdas", label: "Aba Perdas", actions: [
-            { id: "add", label: "Adicionar nova perda" },
-            { id: "edit", label: "Editar perda" },
-            { id: "delete", label: "Excluir perda" },
-            { id: "alterar_limite", label: "Alterar limite de perda" },
-        ]
-    },
-    {
-        id: "perfil", label: "Aba Perfil", actions: [
-            { id: "view", label: "Visualizar aba de perfil" },
-        ]
-    },
-    {
-        id: "empresa", label: "Aba Empresa", actions: [
-            { id: "view", label: "Visualizar aba de empresa" },
-        ]
-    },
-    {
-        id: "funcionarios", label: "Aba Funcionários", actions: [
-            { id: "add", label: "Adicionar funcionários" },
-            { id: "edit", label: "Editar funcionários" },
-            { id: "delete", label: "Excluir funcionário" },
-        ]
-    }
-];
-
-export function FuncionarioFormModal({ open, onOpenChange, onSaved, companyId }: FuncionarioFormModalProps) {
+export function FuncionarioFormModal({ open, onOpenChange, onSaved, companyId, employee = null }: FuncionarioFormModalProps) {
+    const isEditMode = !!employee;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSearchingCep, setIsSearchingCep] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -225,6 +52,31 @@ export function FuncionarioFormModal({ open, onOpenChange, onSaved, companyId }:
     function generatePassword() {
         return Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-2).toUpperCase() + "!";
     }
+
+    // Prefill em modo edição; reset em modo criação. Roda ao abrir/trocar de funcionário.
+    useEffect(() => {
+        if (!open) return;
+        if (employee) {
+            setFormData({
+                name: employee.name || "",
+                role_title: employee.role_title || "",
+                whatsapp: employee.whatsapp || "",
+                birth_date: "",
+                cep: "", street: "", number: "", neighborhood: "", city: "", state: "",
+                email: employee.email || "",
+                password: "",
+            });
+            setLockedModules(Array.isArray(employee.locked_modules) ? employee.locked_modules : []);
+        } else {
+            setFormData({
+                name: "", role_title: "", whatsapp: "", birth_date: "",
+                cep: "", street: "", number: "", neighborhood: "", city: "", state: "",
+                email: "", password: generatePassword(),
+            });
+            // Novo funcionário nasce com as abas sensíveis (financeiras) já bloqueadas.
+            setLockedModules([...DEFAULT_LOCKED_MODULES]);
+        }
+    }, [open, employee]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -272,6 +124,28 @@ export function FuncionarioFormModal({ open, onOpenChange, onSaved, companyId }:
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Modo edição: atualiza apenas as permissões via RPC segura.
+        if (isEditMode && employee) {
+            setIsSubmitting(true);
+            try {
+                const { error } = await supabase.rpc("update_member_locked_modules", {
+                    target_user_id: employee.user_id,
+                    modules: lockedModules,
+                });
+                if (error) throw error;
+                toast.success("Permissões atualizadas com sucesso!");
+                onSaved();
+                onOpenChange(false);
+            } catch (error: any) {
+                console.error(error);
+                toast.error(error.message || "Erro ao atualizar permissões.");
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
         if (!formData.name || !formData.email || !formData.password || !formData.role_title) {
             toast.error("Preencha os campos obrigatórios");
             return;
@@ -333,7 +207,7 @@ export function FuncionarioFormModal({ open, onOpenChange, onSaved, companyId }:
                 <DialogHeader className="p-6 pb-4 border-b border-border">
                     <DialogTitle className="text-xl flex items-center gap-2">
                         <User className="w-5 h-5 text-primary" />
-                        Adicionar Novo Funcionário
+                        {isEditMode ? "Editar Permissões do Funcionário" : "Adicionar Novo Funcionário"}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -349,22 +223,23 @@ export function FuncionarioFormModal({ open, onOpenChange, onSaved, companyId }:
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>Nome Completo*</Label>
-                                        <Input name="name" value={formData.name} onChange={handleChange} required />
+                                        <Input name="name" value={formData.name} onChange={handleChange} required disabled={isEditMode} />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Cargo / Ocupação*</Label>
                                         <div className="relative">
                                             <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                            <Input name="role_title" value={formData.role_title} onChange={handleChange} className="pl-9" placeholder="Ex: Vendedor, Instalador..." required />
+                                            <Input name="role_title" value={formData.role_title} onChange={handleChange} className="pl-9" placeholder="Ex: Vendedor, Instalador..." required disabled={isEditMode} />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label>WhatsApp</Label>
                                         <div className="relative">
                                             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                            <Input name="whatsapp" value={formData.whatsapp} onChange={handleChange} className="pl-9" placeholder="(00) 00000-0000" />
+                                            <Input name="whatsapp" value={formData.whatsapp} onChange={handleChange} className="pl-9" placeholder="(00) 00000-0000" disabled={isEditMode} />
                                         </div>
                                     </div>
+                                    {!isEditMode && (
                                     <div className="space-y-2">
                                         <Label>Data de Nascimento</Label>
                                         <div className="relative">
@@ -372,9 +247,11 @@ export function FuncionarioFormModal({ open, onOpenChange, onSaved, companyId }:
                                             <Input name="birth_date" type="date" value={formData.birth_date} onChange={handleChange} className="pl-9" />
                                         </div>
                                     </div>
+                                    )}
                                 </div>
                             </div>
 
+                            {!isEditMode && (<>
                             {/* Address */}
                             <div className="space-y-4">
                                 <h3 className="text-sm font-semibold text-muted-foreground uppercase flex items-center gap-2">
@@ -469,6 +346,7 @@ export function FuncionarioFormModal({ open, onOpenChange, onSaved, companyId }:
                                     </div>
                                 </div>
                             </div>
+                            </>)}
 
                             {/* Permissions */}
                             <div className="space-y-6 pt-4">
@@ -478,6 +356,7 @@ export function FuncionarioFormModal({ open, onOpenChange, onSaved, companyId }:
                                     </h3>
                                     <p className="text-xs text-muted-foreground">
                                         Marque com um <strong className="text-destructive font-bold">'X'</strong> vermelho as ações que este funcionário <strong className="text-foreground">NÃO</strong> deve ter acesso.
+                                        {!isEditMode && <span className="block mt-1">As abas financeiras já começam bloqueadas por segurança — desmarque para liberar.</span>}
                                     </p>
                                 </div>
                                 <div className="space-y-6">
@@ -519,7 +398,7 @@ export function FuncionarioFormModal({ open, onOpenChange, onSaved, companyId }:
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={isSubmitting} className="min-w-[120px]">
-                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar Funcionário"}
+                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (isEditMode ? "Salvar Permissões" : "Salvar Funcionário")}
                         </Button>
                     </div>
                 </form>

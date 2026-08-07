@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { BrazilCalendarLegend } from "@/components/calendar/BrazilCalendarLegend";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
     BRAZIL_CALENDAR_EVENT_STYLES,
     getBrazilCalendarTitle,
@@ -85,6 +86,8 @@ export function VagasAtivas({
     totalSlots,
 }: VagasAtivasProps) {
     const { user } = useAuth();
+    const { can } = usePermissions();
+    const canConfigTotal = can("espaco_configurar_total");
     const companyId = user?.companyId;
 
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -157,8 +160,8 @@ export function VagasAtivas({
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card
-                    className="bg-card/50 border-border/50 cursor-pointer hover:bg-card/80 transition-colors"
-                    onClick={() => setShowConfigureSlotsModal(true)}
+                    className={`bg-card/50 border-border/50 transition-colors ${canConfigTotal ? "cursor-pointer hover:bg-card/80" : ""}`}
+                    onClick={canConfigTotal ? () => setShowConfigureSlotsModal(true) : undefined}
                 >
                     <CardContent className="p-4">
                         <div className="flex items-center gap-3">
@@ -168,7 +171,9 @@ export function VagasAtivas({
                             <div>
                                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                                     Total de Vagas
-                                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 hover:bg-transparent">Configurar</Badge>
+                                    {canConfigTotal && (
+                                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 hover:bg-transparent">Configurar</Badge>
+                                    )}
                                 </p>
                                 <p className="text-2xl font-bold">{totalSlots}</p>
                             </div>

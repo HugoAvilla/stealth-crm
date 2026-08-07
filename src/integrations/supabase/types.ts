@@ -2078,6 +2078,7 @@ export type Database = {
           movement_type: string
           quantity: number
           reason: string | null
+          unit_cost: number | null
           user_id: string | null
         }
         Insert: {
@@ -2089,6 +2090,7 @@ export type Database = {
           movement_type: string
           quantity: number
           reason?: string | null
+          unit_cost?: number | null
           user_id?: string | null
         }
         Update: {
@@ -2100,6 +2102,7 @@ export type Database = {
           movement_type?: string
           quantity?: number
           reason?: string | null
+          unit_cost?: number | null
           user_id?: string | null
         }
         Relationships: [

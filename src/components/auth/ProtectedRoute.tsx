@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Loader2 } from 'lucide-react';
 import type { AppRole } from '@/lib/database.types';
 import { PendingApprovalModal } from './PendingApprovalModal';
@@ -11,6 +12,7 @@ interface ProtectedRouteProps {
   requireCompany?: boolean;
   requireActiveSubscription?: boolean;
   requireMaster?: boolean;
+  requiredModule?: string;
 }
 
 export function ProtectedRoute({
@@ -18,9 +20,11 @@ export function ProtectedRoute({
   allowedRoles,
   requireCompany = true,
   requireActiveSubscription = true,
-  requireMaster = false
+  requireMaster = false,
+  requiredModule
 }: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading, refreshUser, signOut } = useAuth();
+  const { canAccessModule } = usePermissions();
   const location = useLocation();
 
   if (isLoading) {
@@ -124,6 +128,12 @@ export function ProtectedRoute({
         </div>
       );
     }
+    return <Navigate to="/" replace />;
+  }
+
+  // Permissão por funcionário: se a aba (módulo) estiver bloqueada, redireciona.
+  // Privilegiados (admin/dono/master) passam sempre via canAccessModule.
+  if (requiredModule && !canAccessModule(requiredModule)) {
     return <Navigate to="/" replace />;
   }
 

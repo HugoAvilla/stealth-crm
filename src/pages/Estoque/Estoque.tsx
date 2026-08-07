@@ -7,11 +7,13 @@ import { Principal } from "./sub-abas/Principal/Principal";
 import { ProductTypesTab as ProductTypes } from "./sub-abas/ProductTypes/ProductTypes";
 import { MaterialHistoryTab as HistoryTab } from "./sub-abas/History/History";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Estoque() {
     const [activeTab, setActiveTab] = useState("materials");
     const { user } = useAuth();
+    const { can } = usePermissions();
     const [companyId, setCompanyId] = useState<number | null>(null);
 
     useEffect(() => {
@@ -67,31 +69,43 @@ export default function Estoque() {
             {/* Sistema de Abas Principal */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 <TabsList className="grid grid-cols-3 w-full max-w-lg">
-                    <TabsTrigger value="product-types" className="flex items-center gap-2">
-                        <Tag className="h-4 w-4" />
-                        <span className="hidden sm:inline">Tipos de Materiais</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="materials" className="flex items-center gap-2">
-                        <Package className="h-4 w-4" />
-                        <span className="hidden sm:inline">Metragem de Materiais</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="history" className="flex items-center gap-2">
-                        <History className="h-4 w-4" />
-                        <span className="hidden sm:inline">Histórico</span>
-                    </TabsTrigger>
+                    {can("estoque_ver_tipos") && (
+                        <TabsTrigger value="product-types" className="flex items-center gap-2">
+                            <Tag className="h-4 w-4" />
+                            <span className="hidden sm:inline">Tipos de Materiais</span>
+                        </TabsTrigger>
+                    )}
+                    {can("estoque_ver_metragem") && (
+                        <TabsTrigger value="materials" className="flex items-center gap-2">
+                            <Package className="h-4 w-4" />
+                            <span className="hidden sm:inline">Metragem de Materiais</span>
+                        </TabsTrigger>
+                    )}
+                    {can("estoque_ver_historico") && (
+                        <TabsTrigger value="history" className="flex items-center gap-2">
+                            <History className="h-4 w-4" />
+                            <span className="hidden sm:inline">Histórico</span>
+                        </TabsTrigger>
+                    )}
                 </TabsList>
 
-                <TabsContent value="materials" className="space-y-6">
-                    <Principal />
-                </TabsContent>
+                {can("estoque_ver_metragem") && (
+                    <TabsContent value="materials" className="space-y-6">
+                        <Principal />
+                    </TabsContent>
+                )}
 
-                <TabsContent value="product-types">
-                    <ProductTypes companyId={companyId} />
-                </TabsContent>
+                {can("estoque_ver_tipos") && (
+                    <TabsContent value="product-types">
+                        <ProductTypes companyId={companyId} />
+                    </TabsContent>
+                )}
 
-                <TabsContent value="history">
-                    <HistoryTab companyId={companyId} />
-                </TabsContent>
+                {can("estoque_ver_historico") && (
+                    <TabsContent value="history">
+                        <HistoryTab companyId={companyId} />
+                    </TabsContent>
+                )}
             </Tabs>
         </div>
     );

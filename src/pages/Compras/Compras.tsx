@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useNavigate } from "react-router-dom";
 import { usePlanGate } from "@/hooks/usePlanGate";
 import { toast } from "sonner";
@@ -20,6 +21,7 @@ import { ptBR } from "date-fns/locale";
 
 export default function Compras() {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const gate = usePlanGate('compras');
   const navigate = useNavigate();
 
@@ -130,10 +132,12 @@ export default function Compras() {
           <p className="text-muted-foreground">Gerencie suas compras de material, fornecedores e contas a pagar.</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setIsNewPurchaseOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Compra
-          </Button>
+          {can("compras_add") && (
+            <Button onClick={() => setIsNewPurchaseOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Compra
+            </Button>
+          )}
         </div>
       </div>
 

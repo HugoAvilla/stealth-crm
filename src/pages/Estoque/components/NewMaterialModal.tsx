@@ -174,24 +174,53 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
       let error;
 
       if (existingMaterial) {
-        // Update the existing material with new stock values (keeping or adjusting the width)
+        // Material já existe (mesmo tipo de produto + mesmo lote): NÃO sobrescrever
+        // estoque/custo. Atualiza apenas metadados seguros e registra a quantidade
+        // informada como ENTRADA — soma ao saldo e recalcula o custo médio ponderado
+        // pela mesma RPC/trigger usada nas entradas normais.
+        const metaUpdate: Record<string, unknown> = { is_active: true };
+        if (minStock) metaUpdate.minimum_stock = parseFloat(minStock);
+        if (unit === "Metros" && width) metaUpdate.width = parseFloat(width);
+
         const { error: updateError } = await supabase
           .from("materials")
-          .update({
-            name: materialName,
-            type: selectedProduct.category,
-            brand: selectedProduct.brand,
-            unit,
-            minimum_stock: minStock ? parseFloat(minStock) : 0,
-            current_stock: isOpenRoll ? 0 : (currentStock ? parseFloat(currentStock) : 0),
-            average_cost: costPerMeter ? parseFloat(costPerMeter.toString().replace(',', '.')) : 0,
-            product_type_id: selectedProduct.id,
-            is_active: true,
-            is_open_roll: isOpenRoll,
-            width: unit === "Metros" ? (width ? parseFloat(width) : (existingMaterial.width || 1.52)) : null,
-          })
+          .update(metaUpdate)
           .eq("id", existingMaterial.id);
-        error = updateError;
+
+        if (updateError) {
+          error = updateError;
+        } else {
+          const entryQty = currentStock && parseFloat(currentStock) > 0 ? parseFloat(currentStock) : 0;
+          const parsedCost = costPerMeter ? parseFloat(costPerMeter.toString().replace(",", ".")) : NaN;
+          const unitCostVal = !isNaN(parsedCost) && parsedCost > 0 ? parsedCost : null;
+
+          // Bobinas abertas não têm estoque inicial; apenas reativa/atualiza metadados.
+          if (!isOpenRoll && entryQty > 0) {
+            if (unit === "Metros") {
+              const { error: rpcError } = await supabase.rpc("add_material_roll", {
+                p_material_id: existingMaterial.id,
+                p_length: entryQty,
+                p_status: "fechada",
+                p_notes: "Entrada de estoque (mesmo lote)",
+                p_user_id: user.id,
+                p_company_id: companyId,
+                p_unit_cost: unitCostVal,
+              });
+              error = rpcError;
+            } else {
+              const { error: movError } = await supabase.from("stock_movements").insert({
+                material_id: existingMaterial.id,
+                movement_type: "Entrada",
+                quantity: entryQty,
+                reason: "Entrada de estoque (mesmo lote)",
+                user_id: user.id,
+                company_id: companyId,
+                unit_cost: unitCostVal,
+              });
+              error = movError;
+            }
+          }
+        }
       } else {
         // Create new material
         const initialQty = currentStock && parseFloat(currentStock) > 0 ? parseFloat(currentStock) : 0;
@@ -221,6 +250,10 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
         if (insertError) {
           error = insertError;
         } else if (unit === "Metros" && initialQty > 0 && newMaterial) {
+          // Preço da primeira entrada (semeia o histórico de preços)
+          const parsedCost = costPerMeter ? parseFloat(costPerMeter.toString().replace(",", ".")) : NaN;
+          const unitCostVal = !isNaN(parsedCost) && parsedCost > 0 ? parsedCost : null;
+
           // Criar a bobina fÃ­sica correspondente ao estoque inicial
           const { error: rpcError } = await supabase.rpc("add_material_roll", {
             p_material_id: newMaterial.id,
@@ -229,6 +262,7 @@ export function NewMaterialModal({ open, onOpenChange, onSuccess }: NewMaterialM
             p_notes: "Estoque inicial (cadastro de material)",
             p_user_id: user.id,
             p_company_id: companyId,
+            p_unit_cost: unitCostVal,
           });
           error = rpcError;
         }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Plus, ShieldAlert, Loader2, Building2, UserMinus } from "lucide-react";
+import { Users, Plus, ShieldAlert, Loader2, Building2, UserMinus, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,7 @@ import {
 
 interface Employee {
     id: string;
+    user_id: string;
     name: string;
     role_title: string;
     email: string;
@@ -34,6 +35,7 @@ export default function Funcionarios() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const [limits, setLimits] = useState({ current: 0, max: 0 });
 
     const [unlinkModalOpen, setUnlinkModalOpen] = useState(false);
@@ -166,7 +168,7 @@ export default function Funcionarios() {
                         <p className="font-semibold">{limits.current} / {limits.max}</p>
                     </div>
                     <Button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => { setEditingEmployee(null); setIsModalOpen(true); }}
                         disabled={limits.current >= limits.max}
                     >
                         <Plus className="w-4 h-4 mr-2" />
@@ -227,15 +229,26 @@ export default function Funcionarios() {
                                         <p className="text-sm text-muted-foreground">{emp.role_title || 'Funcionário'}</p>
                                     </div>
                                 </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0 h-8 w-8"
-                                    onClick={() => openUnlinkModal(emp)}
-                                    title="Desvincular funcionário"
-                                >
-                                    <UserMinus className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-muted-foreground hover:bg-primary/10 hover:text-primary h-8 w-8"
+                                        onClick={() => { setEditingEmployee(emp); setIsModalOpen(true); }}
+                                        title="Editar permissões"
+                                    >
+                                        <Settings2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8"
+                                        onClick={() => openUnlinkModal(emp)}
+                                        title="Desvincular funcionário"
+                                    >
+                                        <UserMinus className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
 
                             <div className="mt-4 pt-4 border-t border-border text-sm space-y-2 text-muted-foreground">
@@ -274,9 +287,17 @@ export default function Funcionarios() {
 
             <FuncionarioFormModal
                 open={isModalOpen}
-                onOpenChange={setIsModalOpen}
+                onOpenChange={(open) => { setIsModalOpen(open); if (!open) setEditingEmployee(null); }}
                 onSaved={fetchEmployees}
                 companyId={String(user?.companyId || '')}
+                employee={editingEmployee ? {
+                    user_id: editingEmployee.user_id,
+                    name: editingEmployee.name,
+                    role_title: editingEmployee.role_title,
+                    whatsapp: editingEmployee.whatsapp,
+                    email: editingEmployee.email,
+                    locked_modules: editingEmployee.locked_modules || [],
+                } : null}
             />
 
             {/* Unlink Confirmation Dialog */}

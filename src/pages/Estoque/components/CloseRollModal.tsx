@@ -197,7 +197,7 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
                 <div>
                   <p className="text-sm text-muted-foreground">Valor / Metro</p>
                   <p className="text-lg font-bold truncate max-w-full">
-                    {(material.product_types?.cost_per_meter || material.average_cost || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    {(material.average_cost || material.product_types?.cost_per_meter || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </p>
                 </div>
               </CardContent>
@@ -212,7 +212,7 @@ export function CloseRollModal({ open, onOpenChange, material, onSuccess }: Clos
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mt-1" />
                   ) : (
                     <p className="text-lg font-bold truncate max-w-full">
-                      {((stats?.totalUsed || material.open_roll_accumulated || 0) * (material.product_types?.cost_per_meter || material.average_cost || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      {((stats?.totalUsed || material.open_roll_accumulated || 0) * (material.average_cost || material.product_types?.cost_per_meter || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </p>
                   )}
                 </div>
